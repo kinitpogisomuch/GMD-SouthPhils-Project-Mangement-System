@@ -16,9 +16,7 @@ RUN apk add --no-cache \
         mbstring \
         zip \
         gd \
-        opcache \
-        ctype \
-        tokenizer
+        opcache
 
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
