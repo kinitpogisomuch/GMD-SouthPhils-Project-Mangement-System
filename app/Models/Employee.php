@@ -49,6 +49,11 @@ class Employee extends Model
         'first_login'      => 'boolean',
     ];
 
+    public function setFirstLoginAttribute($value): void
+    {
+        $this->attributes['first_login'] = $value ? 'true' : 'false';
+    }
+
     /** "Nadera, Kenneth" — for table display */
     public function getFullNameAttribute(): string
     {

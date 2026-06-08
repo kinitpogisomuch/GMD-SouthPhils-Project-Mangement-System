@@ -31,6 +31,12 @@ class User extends Authenticatable
     ];
 
     protected $casts = [
-        'password' => 'hashed',
+        'password'    => 'hashed',
+        'first_login' => 'boolean',
     ];
+
+    public function setFirstLoginAttribute($value): void
+    {
+        $this->attributes['first_login'] = $value ? 'true' : 'false';
+    }
 }
