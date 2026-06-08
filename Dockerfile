@@ -6,6 +6,7 @@ RUN apk add --no-cache \
     libpng-dev \
     libjpeg-turbo-dev \
     freetype-dev \
+    oniguruma-dev \
     curl \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install \
