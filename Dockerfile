@@ -29,6 +29,9 @@ COPY . .
 
 RUN composer dump-autoload --optimize --no-dev
 
+RUN mkdir -p storage/framework/sessions storage/framework/views storage/framework/cache storage/logs \
+    && chmod -R 775 storage bootstrap/cache
+
 EXPOSE 8000
 
 CMD ["sh", "start.sh"]
