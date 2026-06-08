@@ -73,7 +73,10 @@ class ClientSettingsController extends Controller
                     $this->buildEmailHtml($fullName, $username, $pin),
                     function ($message) use ($request, $fullName) {
                         $message->to($request->email, $fullName)
-                                ->subject('Your GMD Client Portal Account Credentials');
+                                ->from(config('mail.from.address'), config('mail.from.name'))
+                                ->replyTo(config('mail.from.address'), config('mail.from.name'))
+                                ->subject('Your GMD South Phils Client Portal Account Credentials')
+                                ->priority(1);
                     }
                 );
                 $emailSent = true;
