@@ -70,7 +70,7 @@ class EmployeeAccountController extends Controller
                 'other_deductions' => 0,
                 'status'           => 'Active',
                 'username'         => $username,
-                'password'         => $pin,
+                'password'         => bcrypt($pin),
                 'first_login'      => true,
             ]);
         } catch (\Exception $e) {

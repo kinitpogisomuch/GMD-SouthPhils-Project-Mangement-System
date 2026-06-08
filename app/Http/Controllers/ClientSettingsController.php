@@ -55,7 +55,7 @@ class ClientSettingsController extends Controller
                         'contact'    => $request->contact,
                         'email'      => $request->email,
                         'username'   => $username,
-                        'password'   => $pin,
+                        'password'   => bcrypt($pin),
                         'first_login' => true,
                         'status'     => 'Active',
                     ]
