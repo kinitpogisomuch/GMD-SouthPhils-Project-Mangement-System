@@ -42,7 +42,7 @@
             </div>
         </div>
 
-        <!-- Employee Dropdown with Logout -->
+        <!-- Employee fDropdown with Logout -->
         <div class="employee-dropdown">
             <button class="employee-profile-btn" id="employeeDropdownBtn">
                 <div class="employee-avatar">
