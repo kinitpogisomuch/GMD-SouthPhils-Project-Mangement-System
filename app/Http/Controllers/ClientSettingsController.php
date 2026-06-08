@@ -23,16 +23,10 @@ class ClientSettingsController extends Controller
 
         $hasEmail = $request->filled('email');
 
-        $rules = [
+        $validator = Validator::make($request->all(), [
             'full_name' => 'required|string|max:255',
             'contact'   => 'required|string|max:20',
-            'email'     => $hasEmail
-                               ? 'required|email|unique:clients,email'
-                               : 'nullable|email',
-        ];
-
-        $validator = Validator::make($request->all(), $rules, [
-            'email.unique' => 'An account with this email address already exists.',
+            'email'     => $hasEmail ? 'required|email' : 'nullable|email',
         ]);
 
         if ($validator->fails()) {
@@ -44,28 +38,31 @@ class ClientSettingsController extends Controller
         $fullName = trim($request->full_name);
 
         if ($hasEmail) {
-            $username = $this->generateUsername();
+            // Preserve username if client already exists, otherwise generate a new one
+            $existing = Client::where('email', $request->email)->first();
+            $username = $existing?->username ?? $this->generateUsername();
             $pin      = $this->generatePin();
 
             try {
                 $client = Client::updateOrCreate(
                     ['email' => $request->email],
                     [
-                        'name'       => $fullName,
-                        'first_name' => null,
-                        'last_name'  => null,
-                        'contact'    => $request->contact,
-                        'email'      => $request->email,
-                        'username'   => $username,
-                        'password'   => bcrypt($pin),
+                        'name'        => $fullName,
+                        'first_name'  => null,
+                        'last_name'   => null,
+                        'contact'     => $request->contact,
+                        'email'       => $request->email,
+                        'username'    => $username,
+                        'password'    => bcrypt($pin),
                         'first_login' => true,
-                        'status'     => 'Active',
+                        'status'      => 'Active',
                     ]
                 );
             } catch (\Exception $e) {
                 Log::error('ClientSettings: client creation failed', ['error' => $e->getMessage()]);
                 return redirect()->route('admin.clients')
-                    ->with('success', 'Client added successfully!');
+                    ->withErrors(['email' => 'Failed to save client: ' . $e->getMessage()], 'client')
+                    ->withInput();
             }
 
             $emailSent = false;
@@ -77,8 +74,7 @@ class ClientSettingsController extends Controller
                         $message->to($request->email, $fullName)
                                 ->from(config('mail.from.address'), config('mail.from.name'))
                                 ->replyTo(config('mail.from.address'), config('mail.from.name'))
-                                ->subject('Your GMD South Phils Client Portal Account Credentials')
-                                ->priority(1);
+                                ->subject('Your GMD South Phils Client Portal Account Credentials');
                     }
                 );
                 $emailSent = true;
