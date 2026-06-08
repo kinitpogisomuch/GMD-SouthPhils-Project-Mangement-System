@@ -9,15 +9,16 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Drop the old status check constraint
-        DB::statement('ALTER TABLE projects DROP CONSTRAINT IF EXISTS projects_status_check');
+        if (DB::getDriverName() !== 'pgsql') return;
 
-        // Add new constraint that includes all valid values
+        DB::statement('ALTER TABLE projects DROP CONSTRAINT IF EXISTS projects_status_check');
         DB::statement("ALTER TABLE projects ADD CONSTRAINT projects_status_check CHECK (status IN ('pending', 'ongoing', 'completed', 'planning'))");
     }
 
     public function down(): void
     {
+        if (DB::getDriverName() !== 'pgsql') return;
+
         DB::statement('ALTER TABLE projects DROP CONSTRAINT IF EXISTS projects_status_check');
         DB::statement("ALTER TABLE projects ADD CONSTRAINT projects_status_check CHECK (status IN ('pending', 'ongoing', 'completed'))");
     }

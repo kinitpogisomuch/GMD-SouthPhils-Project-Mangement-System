@@ -21,9 +21,10 @@ return new class extends Migration
             }
         });
 
-        // Update status constraint
-        DB::statement('ALTER TABLE project_updates DROP CONSTRAINT IF EXISTS project_updates_status_check');
-        DB::statement("ALTER TABLE project_updates ADD CONSTRAINT project_updates_status_check CHECK (status IN ('pending_review', 'approved', 'needs_revision'))");
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement('ALTER TABLE project_updates DROP CONSTRAINT IF EXISTS project_updates_status_check');
+            DB::statement("ALTER TABLE project_updates ADD CONSTRAINT project_updates_status_check CHECK (status IN ('pending_review', 'approved', 'needs_revision'))");
+        }
     }
 
     public function down(): void
