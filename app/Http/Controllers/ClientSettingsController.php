@@ -67,6 +67,7 @@ class ClientSettingsController extends Controller
             }
 
             $emailSent = false;
+            $emailError = null;
             try {
                 Mail::html(
                     $this->buildEmailHtml($fullName, $username, $pin),
@@ -78,7 +79,8 @@ class ClientSettingsController extends Controller
                 $emailSent = true;
                 Log::info('ClientSettings: credentials email sent', ['email' => $request->email]);
             } catch (\Exception $e) {
-                Log::error('ClientSettings: email failed', ['error' => $e->getMessage()]);
+                $emailError = $e->getMessage();
+                Log::error('ClientSettings: email failed', ['error' => $emailError]);
             }
 
             if ($emailSent) {
@@ -92,6 +94,7 @@ class ClientSettingsController extends Controller
                     'new_client_name'     => $fullName,
                     'new_client_email'    => $request->email,
                     'email_sent'          => $emailSent,
+                    'email_error'         => $emailError,
                 ]);
         }
 

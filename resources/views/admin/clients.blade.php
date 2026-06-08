@@ -173,6 +173,9 @@
                         <strong style="color:#16a34a;">successfully emailed</strong> to {{ session('new_client_email') }}.
                     @else
                         generated. <strong style="color:#dc2626;">Email delivery failed</strong> — please share credentials manually.
+                        @if(session('email_error'))
+                        <br><span style="font-size:11px;color:#6b7280;display:block;margin-top:6px;">Error: {{ session('email_error') }}</span>
+                        @endif
                     @endif
                 </p>
             </div>
