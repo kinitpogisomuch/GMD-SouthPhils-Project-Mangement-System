@@ -270,7 +270,10 @@ class ClientSettingsController extends Controller
                     &#9888; For security purposes, we recommend changing your PIN after your first login.
                 </div>
 
-                <p style="margin-top:20px;">You may now log in to the Client Portal using the credentials above.</p>
+                <p style="margin-top:20px;">
+                    You may now log in to the Client Portal at:<br>
+                    <a href="' . url('/login') . '" style="color:#6366f1;font-weight:700;">' . url('/login') . '</a>
+                </p>
 
                 <div class="footer">
                     Thank you,<br>
