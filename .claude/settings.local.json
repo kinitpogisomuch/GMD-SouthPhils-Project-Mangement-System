@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php artisan *)",
+      "Bash(Get-Content storage\\\\logs\\\\laravel.log -Tail 60)",
+      "Bash(php -l app/Http/Controllers/ClientAccountController.php)",
+      "Bash(php -l app/Http/Controllers/AdminController.php)",
+      "Bash(php -l app/Http/Controllers/ClientSettingsController.php)",
+      "PowerShell(Get-ChildItem \"c:\\\\xampp\\\\htdocs\\\\GMD-SouthPhils-Project-Management-Laravel\\\\database\\\\migrations\\\\\" | Select-Object Name | ForEach-Object { $_.Name })",
+      "Bash(php -l app/Http/Controllers/ClientController.php)",
+      "Bash(php -l app/Http/Controllers/ProjectController.php)",
+      "Bash(php -l app/Http/Controllers/AuthController.php)",
+      "Bash(php -l app/Http/Controllers/FirstLoginController.php)",
+      "Bash(php -l app/Http/Controllers/EmployeeAccountController.php)",
+      "Bash(php -l app/Models/Employee.php)",
+      "Bash(php -l app/Models/Client.php)",
+      "Bash(grep -v \"/\\\\*\")",
+      "Bash(php -r 'require '\\\\''vendor/autoload.php'\\\\''; $app = require '\\\\''bootstrap/app.php'\\\\''; $kernel = $app->make\\(Illuminate\\\\Contracts\\\\Http\\\\Kernel::class\\); echo '\\\\''OK'\\\\'';')",
+      "Bash(php -l database/migrations/2026_06_06_105935_add_first_last_name_to_employees_table.php)"
+    ]
+  }
+}
