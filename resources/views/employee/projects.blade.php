@@ -103,43 +103,6 @@
             document.querySelector('.employee-sidebar').classList.toggle('open');
         }
 
-        function initializeEmployeeDropdown() {
-            const dropdown = document.querySelector(".employee-dropdown");
-            const button = document.getElementById("employeeDropdownBtn");
-            if (!dropdown || !button) return;
-            button.addEventListener("click", function(event) {
-                event.stopPropagation();
-                const notificationDropdown = document.querySelector(".notification-dropdown");
-                if (notificationDropdown) notificationDropdown.classList.remove("open");
-                dropdown.classList.toggle("open");
-            });
-        }
-
-        function initializeNotificationDropdown() {
-            const dropdown = document.querySelector(".notification-dropdown");
-            const button = document.getElementById("notificationDropdownBtn");
-            if (!dropdown || !button) return;
-            button.addEventListener("click", function(event) {
-                event.stopPropagation();
-                const employeeDropdown = document.querySelector(".employee-dropdown");
-                if (employeeDropdown) employeeDropdown.classList.remove("open");
-                dropdown.classList.toggle("open");
-            });
-        }
-
-        function closeDropdownsOnOutsideClick() {
-            document.addEventListener("click", function(event) {
-                if (event.target.closest('a') || event.target.closest('button')) return;
-                const employeeDropdown = document.querySelector(".employee-dropdown");
-                const notificationDropdown = document.querySelector(".notification-dropdown");
-                if (employeeDropdown) employeeDropdown.classList.remove("open");
-                if (notificationDropdown) notificationDropdown.classList.remove("open");
-            });
-        }
-
-        initializeEmployeeDropdown();
-        initializeNotificationDropdown();
-        closeDropdownsOnOutsideClick();
     </script>
 </body>
 </html>

@@ -45,11 +45,6 @@ class ClientController extends Controller
         return view('client.documents');
     }
 
-    public function messages()
-    {
-        return view('client.messages');
-    }
-
     public function settings()
     {
         $client = Client::findOrFail(session('user_id'));
@@ -61,16 +56,10 @@ class ClientController extends Controller
     {
         $clientName = $this->clientName();
 
-        if ($clientName) {
-            $payments     = Payment::where('client', $clientName)->orderBy('created_at', 'desc')->get();
-            $totalPaid    = Payment::where('client', $clientName)->where('status', 'Paid')->sum('contract_amount');
-            $totalPending = Payment::where('client', $clientName)->where('status', 'Pending')->sum('balance');
-        } else {
-            $payments     = collect();
-            $totalPaid    = 0;
-            $totalPending = 0;
-        }
+        $payments = $clientName
+            ? Payment::with('project')->where('client', $clientName)->orderBy('created_at', 'desc')->get()
+            : collect();
 
-        return view('client.payments', compact('payments', 'totalPaid', 'totalPending'));
+        return view('client.payments', compact('payments'));
     }
 }

@@ -15,6 +15,9 @@ use App\Http\Controllers\ForgotPasswordController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\SalaryController;
+use App\Http\Controllers\ProjectMaterialController;
+use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\MessageController;
 
 /*
 |--------------------------------------------------------------------------
@@ -51,9 +54,22 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     // Dashboard & Pages
     Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
     Route::get('/employees', [AdminController::class, 'employees'])->name('employees');
-    Route::get('/material-requests', [AdminController::class, 'materialRequests'])->name('material_requests');
-    Route::get('/messages', [AdminController::class, 'messages'])->name('messages');
-    Route::get('/payments', [AdminController::class, 'payments'])->name('payments');
+    Route::get('/project-materials', [ProjectMaterialController::class, 'adminIndex'])->name('project_materials');
+    Route::get('/project-materials/{projectId}', [ProjectMaterialController::class, 'adminDetail'])->name('project_materials.detail');
+    Route::post('/project-materials/{projectId}/materials', [ProjectMaterialController::class, 'store'])->name('project_materials.store');
+    Route::post('/project-materials/{projectId}/send-bom', [ProjectMaterialController::class, 'sendBOM'])->name('project_materials.send_bom');
+    Route::post('/project-materials/{projectId}/labor', [ProjectMaterialController::class, 'storeLabor'])->name('project_materials.store_labor');
+    Route::put('/project-materials/{projectId}/labor/{laborId}', [ProjectMaterialController::class, 'updateLabor'])->name('project_materials.update_labor');
+    Route::patch('/project-materials/{projectId}/labor/{laborId}/archive', [ProjectMaterialController::class, 'archiveLabor'])->name('project_materials.archive_labor');
+    Route::patch('/project-materials/{projectId}/estimated-days', [ProjectMaterialController::class, 'updateEstimatedDays'])->name('project_materials.update_estimated_days');
+    Route::get('/messages', [MessageController::class, 'index'])->name('messages');
+    Route::get('/messages/thread/{type}/{id}', [MessageController::class, 'thread'])->name('messages.thread');
+    Route::post('/messages/send', [MessageController::class, 'send'])->name('messages.send');
+    Route::get('/messages/unread-count', [MessageController::class, 'unreadCount'])->name('messages.unread_count');
+    Route::get('/payments', [PaymentController::class, 'index'])->name('payments');
+    Route::post('/payments/setup', [PaymentController::class, 'setup'])->name('payments.setup');
+    Route::get('/payments/{id}', [PaymentController::class, 'show'])->name('payments.show');
+    Route::post('/payments/{id}/record', [PaymentController::class, 'recordPayment'])->name('payments.record');
     Route::get('/projects', [AdminController::class, 'projects'])->name('projects');
     Route::get('/settings', [AdminController::class, 'settings'])->name('settings');
     Route::get('/clients', [AdminController::class, 'clients'])->name('clients');
@@ -89,6 +105,7 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::post('/projects/store', [ProjectController::class, 'store'])->name('project.store');
     Route::put('/projects/{id}', [ProjectController::class, 'update'])->name('project.update');
     Route::patch('/projects/{id}/archive', [ProjectController::class, 'archive'])->name('project.archive');
+    Route::post('/projects/{id}/assign-employees', [ProjectController::class, 'assignEmployees'])->name('project.assign_employees');
 
     // Client Settings (CRUD)
     Route::post('/clients', [ClientSettingsController::class, 'store'])->name('client.store');
@@ -108,11 +125,13 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::put('/employees/{id}', [EmployeeAccountController::class, 'update'])->name('employee-account.update');
     Route::patch('/employees/{id}/archive', [EmployeeAccountController::class, 'archive'])->name('employee-account.archive');
 
+    // Employee List API
+    Route::get('/employees/list', [EmployeeAccountController::class, 'list'])->name('employee.list');
+
     // Salary Records
     Route::get('/salary-records', [SalaryController::class, 'index'])->name('salary.index');
     Route::post('/salary-records', [SalaryController::class, 'store'])->name('salary.store');
     Route::put('/salary-records/{id}', [SalaryController::class, 'update'])->name('salary.update');
-    Route::patch('/salary-records/{id}/status', [SalaryController::class, 'updateStatus'])->name('salary.updateStatus');
     Route::delete('/salary-records/{id}', [SalaryController::class, 'destroy'])->name('salary.destroy');
 
     // Profile, password & photo settings
@@ -137,9 +156,15 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
 Route::prefix('client')->name('client.')->middleware(['role:client', 'profile.complete', 'no.back'])->group(function () {
     Route::get('/dashboard', [ClientController::class, 'dashboard'])->name('dashboard');
     Route::get('/documents', [ClientController::class, 'documents'])->name('documents');
-    Route::get('/messages', [ClientController::class, 'messages'])->name('messages');
+    Route::get('/messages', [MessageController::class, 'index'])->name('messages');
+    Route::get('/messages/thread/{type}/{id}', [MessageController::class, 'thread'])->name('messages.thread');
+    Route::post('/messages/send', [MessageController::class, 'send'])->name('messages.send');
+    Route::get('/messages/unread-count', [MessageController::class, 'unreadCount'])->name('messages.unread_count');
     Route::get('/payments', [ClientController::class, 'payments'])->name('payments');
+    Route::get('/payments/{id}', [PaymentController::class, 'clientShow'])->name('payments.show');
     Route::get('/project-view/{id}', [ProjectController::class, 'clientView'])->name('project_view');
+    Route::post('/project/{id}/shop-drawing/approve', [ProjectController::class, 'approveShopDrawing'])->name('project.shop_drawing.approve');
+    Route::post('/project/{id}/shop-drawing/request-revision', [ProjectController::class, 'requestShopDrawingRevision'])->name('project.shop_drawing.request_revision');
     Route::get('/projects', [ClientController::class, 'projectList'])->name('projects');
     Route::get('/settings', [ClientController::class, 'settings'])->name('settings');
     Route::put('/settings/profile',  [ProfileController::class, 'updateClient'])->name('settings.profile');
@@ -162,7 +187,10 @@ Route::prefix('client')->name('client.')->middleware(['role:client', 'profile.co
 
 Route::prefix('employee')->name('employee.')->middleware(['role:employee', 'profile.complete', 'no.back'])->group(function () {
     Route::get('/dashboard', [EmployeeController::class, 'dashboard'])->name('dashboard');
-    Route::get('/messages', [EmployeeController::class, 'messages'])->name('messages');
+    Route::get('/messages', [MessageController::class, 'index'])->name('messages');
+    Route::get('/messages/thread/{type}/{id}', [MessageController::class, 'thread'])->name('messages.thread');
+    Route::post('/messages/send', [MessageController::class, 'send'])->name('messages.send');
+    Route::get('/messages/unread-count', [MessageController::class, 'unreadCount'])->name('messages.unread_count');
     Route::get('/projects', [EmployeeController::class, 'projects'])->name('projects');
     Route::get('/project-view/{id}', [ProjectController::class, 'employeeView'])->name('project_view');
 
@@ -172,8 +200,10 @@ Route::prefix('employee')->name('employee.')->middleware(['role:employee', 'prof
     // Submit revision (tied to a project, references parent_update_id)
     Route::post('/project/{id}/submit-revision', [ProjectController::class, 'submitRevision'])->name('project.submit_revision');
 
-    Route::get('/tasks', [EmployeeController::class, 'tasks'])->name('tasks');
-    Route::get('/timesheets', [EmployeeController::class, 'timesheets'])->name('timesheets');
+    Route::get('/project-materials', [ProjectMaterialController::class, 'employeeIndex'])->name('project_materials');
+    Route::get('/project-materials/{projectId}', [ProjectMaterialController::class, 'employeeDetail'])->name('project_materials.detail');
+    Route::post('/project-materials/{projectId}/request', [ProjectMaterialController::class, 'requestMaterial'])->name('project_materials.request');
+    Route::get('/salary', [EmployeeController::class, 'salary'])->name('salary');
     Route::get('/settings', [EmployeeController::class, 'settings'])->name('settings');
     Route::put('/settings/profile',  [ProfileController::class, 'updateEmployee'])->name('settings.profile');
     Route::put('/settings/password', [ProfileController::class, 'updateEmployeePassword'])->name('settings.password');

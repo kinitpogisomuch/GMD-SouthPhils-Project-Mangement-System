@@ -15,16 +15,21 @@
 
         <main class="admin-content">
 
+            <!-- Breadcrumb -->
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;font-size:13px;color:var(--muted);">
+                <a href="{{ route('admin.projects') }}" style="color:var(--muted);text-decoration:none;font-weight:600;">
+                    Projects
+                </a>
+                <i data-lucide="chevron-right" style="width:14px;height:14px;"></i>
+                <span style="color:var(--dark);font-weight:700;">{{ $project->name }}</span>
+            </div>
+
             <!-- Page Header -->
             <div class="page-header">
                 <div>
                     <h1>{{ $project->name }}</h1>
                     <p>{{ $project->client }} &nbsp;·&nbsp; {{ $project->tank_type }} &nbsp;·&nbsp; {{ $project->capacity }}</p>
                 </div>
-                <a href="{{ route('admin.projects') }}" class="back-btn">
-                    <i data-lucide="arrow-left"></i>
-                    Back to Projects
-                </a>
             </div>
 
             @if(session('success'))
@@ -41,6 +46,39 @@
             </div>
             @endif
 
+            <!-- Cost Summary -->
+            <div class="page-grid" style="grid-template-columns: repeat(4, minmax(200px, 1fr));margin-bottom:28px;">
+                <div class="info-card" style="--accent:#2A4EAA;--accent-soft:#EAF0FF;">
+                    <div class="info-card-icon"><i data-lucide="wallet"></i></div>
+                    <h3>Budget</h3>
+                    <div class="value">₱{{ number_format($projectGrandTotal, 2) }}</div>
+                    <div class="info-card-sub">Project Grand Total (from quotation)</div>
+                </div>
+                <div class="info-card" style="--accent:#8A6100;--accent-soft:#FFF3D6;">
+                    <div class="info-card-icon"><i data-lucide="box"></i></div>
+                    <h3>Material Cost</h3>
+                    <div class="value">₱{{ number_format($materialCost, 2) }}</div>
+                    <div class="info-card-sub">Total of active material entries</div>
+                </div>
+                <div class="info-card" style="--accent:#B42318;--accent-soft:#FEE4E2;">
+                    <div class="info-card-icon"><i data-lucide="hard-hat"></i></div>
+                    <h3>Labor Cost</h3>
+                    <div class="value">₱{{ number_format($laborCost, 2) }}</div>
+                    <div class="info-card-sub">Total of active labor entries</div>
+                </div>
+                <div class="info-card" style="--accent:#207A3A;--accent-soft:#E7F6EC;">
+                    <div class="info-card-icon"><i data-lucide="trending-up"></i></div>
+                    <h3>Profit</h3>
+                    @if($profit === null)
+                        <div class="value">—</div>
+                        <div class="info-card-sub">Set up payment to calculate profit</div>
+                    @else
+                        <div class="value" style="color:{{ $profit >= 0 ? 'var(--success)' : 'var(--danger)' }};">₱{{ number_format($profit, 2) }}</div>
+                        <div class="info-card-sub">Contract amount minus material &amp; labor cost</div>
+                    @endif
+                </div>
+            </div>
+
             <!-- Phase Tracker Card -->
             <div class="tracker-card">
                 <div class="tracker-card-header">
@@ -51,13 +89,51 @@
                     <span class="tracker-progress-badge" id="progressBadge">{{ $project->progress }}%</span>
                 </div>
                 <div class="phase-steps" id="phaseSteps"></div>
+
+                @if($project->current_phase === 'planning')
+                @php
+                    $subPhaseLabels  = [
+                        'shop_drawing' => 'Shop Drawing / Tank Design',
+                        'quotation'    => 'Project Quotation',
+                        'payment'      => 'Payment',
+                    ];
+                    $subPhaseKeys    = array_keys($subPhaseLabels);
+                    $currentSubIndex = array_search($project->current_sub_phase, $subPhaseKeys);
+                @endphp
+                <div style="margin-top:14px;margin-bottom:6px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);">
+                    {{ ucfirst(str_replace('_', ' ', $project->current_phase)) }} Phase &nbsp;·&nbsp; Sub-Phases
+                </div>
+                <div class="phase-steps sub-phase-steps" style="margin-top:0;">
+                    @foreach($subPhaseLabels as $key => $label)
+                        @php
+                            $idx = array_search($key, $subPhaseKeys);
+                            if ($currentSubIndex === false) {
+                                $subStatus = 'done';
+                            } elseif ($idx < $currentSubIndex) {
+                                $subStatus = 'done';
+                            } elseif ($idx === $currentSubIndex) {
+                                $subStatus = 'active';
+                            } else {
+                                $subStatus = 'pending';
+                            }
+                            $subIcon = $subStatus === 'done' ? 'check' : ($subStatus === 'active' ? 'loader' : 'circle');
+                        @endphp
+                        <div class="phase-step {{ $subStatus }}">
+                            <div class="phase-step-box">
+                                <div class="phase-step-icon"><i data-lucide="{{ $subIcon }}"></i></div>
+                                <div class="phase-step-label">{{ $label }}</div>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+                @endif
             </div>
 
             <!-- Side by Side: Add Update + Progress History -->
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px;">
 
                 <!-- LEFT: Add Progress Update -->
-                <div class="pv-card" style="margin-top:0;">
+                <div class="pv-card" style="margin-top:0;display:flex;flex-direction:column;">
                     <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">
                         <i data-lucide="clipboard-list" style="width:18px;height:18px;color:var(--accent);"></i>
                         <h3 class="pv-card-title" style="margin-bottom:0;">
@@ -68,56 +144,329 @@
                         </h3>
                     </div>
 
+                    @php
+                        $payment        = $project->getPaymentRecord();
+                        $isBigProject   = $payment && $payment->payment_term_type === 'big_project';
+                        $shopDrawing    = $project->phaseData('planning.shop_drawing', []);
+                        $sdStatus       = $shopDrawing['status'] ?? 'not_submitted';
+                        $subPhase       = $project->current_sub_phase ?? 'shop_drawing';
+                        $paymentUrl     = $payment ? route('admin.payments.show', $payment->id) : route('admin.payments');
+                        $sparsePhase    = ($project->current_phase === 'planning' && $subPhase === 'payment' && $project->isPaymentStageSettled('down_payment'))
+                                          || $project->current_phase === 'procurement'
+                                          || $project->current_phase === 'matl_prep'
+                                          || $project->current_phase === 'inspection';
+                    @endphp
+
                     @if($project->current_phase === 'delivery' && $project->progress === 100)
-                    <div style="background:#dcfce7;border:1px solid #86efac;border-radius:8px;padding:16px;display:flex;align-items:center;gap:10px;font-size:13.5px;font-weight:600;color:#14532d;">
-                        <i data-lucide="check-circle-2" style="width:18px;height:18px;flex-shrink:0;"></i>
-                        This project is fully completed. All phases have been finished.
+                    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:16px;padding:30px 20px;">
+                        <div style="width:72px;height:72px;border-radius:50%;background:#dcfce7;display:flex;align-items:center;justify-content:center;">
+                            <i data-lucide="check-circle-2" style="width:38px;height:38px;color:#16a34a;"></i>
+                        </div>
+                        <div>
+                            <p style="font-size:17px;font-weight:900;color:var(--dark);margin-bottom:6px;">Project Fully Completed</p>
+                            <p style="font-size:13.5px;color:var(--muted);max-width:320px;line-height:1.6;">All phases have been finished. No further progress updates are required.</p>
+                        </div>
                     </div>
+                    @else
+                    <div style="flex:1;display:flex;flex-direction:column;">
+
+                    @php
+                        $hideRequestBtn = $project->current_phase === 'planning'
+                            || ($project->current_phase === 'fabrication' && $isBigProject && !$project->isPaymentStageSettled('progress_payment'));
+                    @endphp
+                    @unless($hideRequestBtn)
+                    <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
+                        <button type="button" class="cancel-btn" id="openRequestModal" style="font-size:12.5px;padding:8px 14px;">
+                            <i data-lucide="send"></i>
+                            Request from Employee
+                        </button>
+                    </div>
+                    @endunless
+
+                    @if($project->current_phase === 'planning' && $subPhase === 'shop_drawing' && $sdStatus === 'pending_approval')
+                        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:16px;padding:30px 20px;">
+                            <div style="width:64px;height:64px;border-radius:50%;background:#EAF0FF;display:flex;align-items:center;justify-content:center;">
+                                <i data-lucide="clock" style="width:32px;height:32px;color:#1e40af;"></i>
+                            </div>
+                            <div>
+                                <p style="font-size:16px;font-weight:800;color:var(--dark);margin-bottom:6px;">Awaiting Client Review</p>
+                                <p style="font-size:13.5px;color:var(--muted);max-width:320px;line-height:1.6;">Shop drawing and tank design have been sent to the client and are awaiting their review.</p>
+                            </div>
+                        </div>
+                    @elseif($project->current_phase === 'planning' && $subPhase === 'payment' && !$project->isPaymentStageSettled('down_payment'))
+                        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:16px;padding:30px 20px;">
+                            <div style="width:64px;height:64px;border-radius:50%;background:#FFF3D6;display:flex;align-items:center;justify-content:center;">
+                                <i data-lucide="alert-triangle" style="width:32px;height:32px;color:#b45309;"></i>
+                            </div>
+                            <div>
+                                <p style="font-size:16px;font-weight:800;color:var(--dark);margin-bottom:6px;">Payment Pending</p>
+                                <p style="font-size:13.5px;color:var(--muted);max-width:320px;line-height:1.6;">Payment must be settled in the Payment Module before proceeding. Waiting for payment settlement.</p>
+                            </div>
+                            <a href="{{ $paymentUrl }}" class="save-btn" style="display:inline-flex;align-items:center;gap:8px;font-size:13.5px;padding:11px 22px;text-decoration:none;">
+                                <i data-lucide="credit-card"></i>
+                                {{ $payment ? 'View Payment Status' : 'Set Up Payment' }}
+                            </a>
+                        </div>
+                    @elseif($project->current_phase === 'fabrication' && $isBigProject && !$project->isPaymentStageSettled('progress_payment'))
+                        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:16px;padding:30px 20px;">
+                            <div style="width:64px;height:64px;border-radius:50%;background:#FFF3D6;display:flex;align-items:center;justify-content:center;">
+                                <i data-lucide="alert-triangle" style="width:32px;height:32px;color:#b45309;"></i>
+                            </div>
+                            <div>
+                                <p style="font-size:16px;font-weight:800;color:var(--dark);margin-bottom:6px;">Progress Payment Pending</p>
+                                <p style="font-size:13.5px;color:var(--muted);max-width:320px;line-height:1.6;">30% Progress Payment must be settled before proceeding. Waiting for progress payment settlement.</p>
+                            </div>
+                            <a href="{{ $paymentUrl }}" class="save-btn" style="display:inline-flex;align-items:center;gap:8px;font-size:13.5px;padding:11px 22px;text-decoration:none;">
+                                <i data-lucide="credit-card"></i>
+                                View Payment Status
+                            </a>
+                        </div>
+                    @elseif($project->current_phase === 'delivery' && !$project->isPaymentStageSettled('final_payment'))
+                        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:16px;padding:30px 20px;">
+                            <div style="width:64px;height:64px;border-radius:50%;background:#FFF3D6;display:flex;align-items:center;justify-content:center;">
+                                <i data-lucide="alert-triangle" style="width:32px;height:32px;color:#b45309;"></i>
+                            </div>
+                            <div>
+                                <p style="font-size:16px;font-weight:800;color:var(--dark);margin-bottom:6px;">Final Payment Pending</p>
+                                <p style="font-size:13.5px;color:var(--muted);max-width:320px;line-height:1.6;">{{ $isBigProject ? 'Final 20% Payment' : 'Final 50% Payment' }} must be settled before project delivery. Waiting for final payment settlement.</p>
+                            </div>
+                            <a href="{{ $paymentUrl }}" class="save-btn" style="display:inline-flex;align-items:center;gap:8px;font-size:13.5px;padding:11px 22px;text-decoration:none;">
+                                <i data-lucide="credit-card"></i>
+                                View Payment Status
+                            </a>
+                        </div>
                     @else
                     <form method="POST"
                           action="{{ route('admin.project.add_update', $project->id) }}"
                           enctype="multipart/form-data"
-                          id="addUpdateForm">
+                          id="addUpdateForm"
+                          style="flex:1;display:flex;flex-direction:column;">
                         @csrf
 
-                        <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12.5px;color:var(--text-secondary);">
-                            <i data-lucide="info" style="width:13px;height:13px;display:inline;margin-right:4px;"></i>
-                            Saving will advance project from
-                            <strong style="color:var(--text-primary);">{{ ucfirst(str_replace('_', ' ', $project->current_phase)) }}</strong>
-                            →
-                            <strong style="color:var(--accent);">{{ ucfirst(str_replace('_', ' ', $nextPhase ?? 'Completed')) }}</strong>
-                        </div>
+                        <div style="flex:1;display:flex;flex-direction:column;{{ $sparsePhase ? 'justify-content:center;gap:18px;' : '' }}">
 
-                        <div class="form-group">
-                            <label class="log-label">DATE OF WORK *</label>
-                            <input type="date" name="date_of_work" class="log-input" required>
-                        </div>
+                        @if($project->current_phase === 'planning' && $subPhase === 'shop_drawing')
 
-                        <div class="form-group" style="margin-top:12px;">
-                            <label class="log-label">WORK DONE *</label>
-                            <textarea name="work_done" class="log-textarea" rows="3"
-                                      placeholder="Describe what was accomplished..." required></textarea>
-                        </div>
+                            @if($sdStatus === 'revision_requested')
+                            <div class="alert-banner warning">
+                                <i data-lucide="rotate-ccw"></i>
+                                Client requested a revision: {{ $shopDrawing['revision_notes'] ?? 'No notes provided.' }}
+                            </div>
+                            @endif
 
-                        <div class="form-group" style="margin-top:12px;">
-                            <label class="log-label">ISSUES / OBSERVATIONS
-                                <span style="font-weight:400;color:var(--muted);text-transform:none;">(optional)</span>
+                            <div class="form-group">
+                                <label class="log-label">SHOP DRAWING FILES *</label>
+                                <label class="pv-upload-dropzone" id="shopDrawingDropzone">
+                                    <i data-lucide="upload-cloud" style="width:32px;height:32px;color:var(--accent);"></i>
+                                    <span style="font-size:14px;font-weight:700;color:var(--text-primary);">Click to upload shop drawings</span>
+                                    <span style="font-size:12px;color:var(--muted);">PDF or images, up to 5 files, max 10MB each</span>
+                                    <input type="file" name="shop_drawing_files[]" multiple accept=".pdf,image/*"
+                                           data-preview-id="shopDrawingPreview" data-dropzone-id="shopDrawingDropzone" data-max="5"
+                                           style="display:none;" onchange="previewAdminFiles(this)" required>
+                                </label>
+                                <div id="shopDrawingPreview" class="pv-file-grid"></div>
+                            </div>
+
+                            <div class="form-group" style="margin-top:12px;">
+                                <label class="log-label">TANK DESIGN FILES *</label>
+                                <label class="pv-upload-dropzone" id="tankDesignDropzone">
+                                    <i data-lucide="upload-cloud" style="width:32px;height:32px;color:var(--accent);"></i>
+                                    <span style="font-size:14px;font-weight:700;color:var(--text-primary);">Click to upload tank design documents</span>
+                                    <span style="font-size:12px;color:var(--muted);">PDF or images, up to 5 files, max 10MB each</span>
+                                    <input type="file" name="tank_design_files[]" multiple accept=".pdf,image/*"
+                                           data-preview-id="tankDesignPreview" data-dropzone-id="tankDesignDropzone" data-max="5"
+                                           style="display:none;" onchange="previewAdminFiles(this)" required>
+                                </label>
+                                <div id="tankDesignPreview" class="pv-file-grid"></div>
+                            </div>
+
+                            @php $submitLabel = 'Send to Client for Review'; @endphp
+
+                        @elseif($project->current_phase === 'planning' && $subPhase === 'quotation')
+
+                            <div class="alert-banner info">
+                                <i data-lucide="info"></i>
+                                Project quotation must be settled before proceeding to the next sub-phase.
+                            </div>
+
+                            <div class="form-group">
+                                <label class="log-label">QUOTATION FILES *</label>
+                                <label class="pv-upload-dropzone" id="quotationDropzone">
+                                    <i data-lucide="upload-cloud" style="width:32px;height:32px;color:var(--accent);"></i>
+                                    <span style="font-size:14px;font-weight:700;color:var(--text-primary);">Click to upload quotation documents</span>
+                                    <span style="font-size:12px;color:var(--muted);">PDF or images, up to 5 files, max 10MB each</span>
+                                    <input type="file" name="quotation_files[]" multiple accept=".pdf,image/*"
+                                           data-preview-id="quotationPreview" data-dropzone-id="quotationDropzone" data-max="5"
+                                           style="display:none;" onchange="previewAdminFiles(this)" required>
+                                </label>
+                                <div id="quotationPreview" class="pv-file-grid"></div>
+                            </div>
+
+                            @php $submitLabel = 'Send Quotation to Client'; @endphp
+
+                        @elseif($project->current_phase === 'planning' && $subPhase === 'payment')
+
+                            <div style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;padding:10px 20px;">
+                                <div style="width:64px;height:64px;border-radius:50%;background:#dcfce7;display:flex;align-items:center;justify-content:center;">
+                                    <i data-lucide="check-circle-2" style="width:32px;height:32px;color:#16a34a;"></i>
+                                </div>
+                                <div>
+                                    <p style="font-size:16px;font-weight:800;color:var(--dark);margin-bottom:6px;">Down Payment Confirmed</p>
+                                    <p style="font-size:13.5px;color:var(--muted);max-width:320px;line-height:1.6;">50% down payment has been confirmed. You may now advance this project to the Procurement phase.</p>
+                                </div>
+                            </div>
+
+                            @php $submitLabel = 'Advance to Procurement'; @endphp
+
+                        @elseif($project->current_phase === 'procurement')
+
+                            <label class="pv-checklist-item pv-checklist-item-lg">
+                                <input type="checkbox" name="materials_delivered" value="1" required>
+                                <i data-lucide="package-check" class="pv-checklist-icon"></i>
+                                <span>Materials Delivered</span>
                             </label>
-                            <textarea name="issues" class="log-textarea" rows="2"
-                                      placeholder="Any problems, delays, or observations..."></textarea>
-                        </div>
 
-                        <div class="form-group" style="margin-top:12px;">
-                            <label class="log-label">SITE PHOTOS *</label>
-                            <label style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:18px;border:2px dashed var(--border-2);border-radius:8px;cursor:pointer;background:var(--surface-2);">
-                                <i data-lucide="upload-cloud" style="width:24px;height:24px;color:var(--accent);"></i>
-                                <span style="font-size:13px;font-weight:600;color:var(--text-primary);">Click to upload photos</span>
-                                <span style="font-size:11.5px;color:var(--muted);">Required — up to 5 photos, JPG/PNG, max 5MB each</span>
-                                <input type="file" name="photos[]" multiple accept="image/*"
-                                       style="display:none;" onchange="previewAdminPhotos(this)" required>
+                            @php $submitLabel = 'Save Progress Update'; @endphp
+
+                        @elseif($project->current_phase === 'matl_prep')
+
+                            <label class="pv-checklist-item pv-checklist-item-lg">
+                                <input type="checkbox" name="measuring_completed" value="1" required>
+                                <i data-lucide="ruler" class="pv-checklist-icon"></i>
+                                <span>Measuring Completed</span>
                             </label>
-                            <div id="adminPhotoPreview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;"></div>
-                        </div>
+                            <label class="pv-checklist-item pv-checklist-item-lg">
+                                <input type="checkbox" name="marking_completed" value="1" required>
+                                <i data-lucide="pencil-ruler" class="pv-checklist-icon"></i>
+                                <span>Marking Completed</span>
+                            </label>
+
+                            @php $submitLabel = 'Save Progress Update'; @endphp
+
+                        @elseif($project->current_phase === 'fabrication')
+
+                            <label class="pv-checklist-item">
+                                <input type="checkbox" name="cutting_completed" value="1" required>
+                                <span>Cutting Completed</span>
+                            </label>
+                            <label class="pv-checklist-item" style="margin-top:8px;">
+                                <input type="checkbox" name="assembly_completed" value="1" required>
+                                <span>Assembly Completed</span>
+                            </label>
+                            <label class="pv-checklist-item" style="margin-top:8px;">
+                                <input type="checkbox" name="welding_completed" value="1" required>
+                                <span>Welding Completed</span>
+                            </label>
+
+                            <div class="form-group" style="margin-top:12px;">
+                                <label class="log-label">PROGRESS FILES
+                                    <span style="font-weight:400;color:var(--muted);text-transform:none;">(optional)</span>
+                                </label>
+                                <label class="pv-upload-dropzone" id="fabricationDropzone">
+                                    <i data-lucide="upload-cloud" style="width:32px;height:32px;color:var(--accent);"></i>
+                                    <span style="font-size:14px;font-weight:700;color:var(--text-primary);">Click to Upload Files</span>
+                                    <span style="font-size:12px;color:var(--muted);">Images or documents — up to 10 files, max 10MB each</span>
+                                    <input type="file" name="progress_photos[]" multiple
+                                           accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp,.pdf,.doc,.docx,.xls,.xlsx"
+                                           data-preview-id="fabricationPreview" data-dropzone-id="fabricationDropzone" data-max="10"
+                                           style="display:none;" onchange="previewAdminFiles(this)">
+                                </label>
+                                <div id="fabricationPreview" class="pv-file-grid"></div>
+                            </div>
+
+                            @php $submitLabel = 'Save Progress Update'; @endphp
+
+                        @elseif($project->current_phase === 'inspection')
+
+                            <label class="pv-checklist-item pv-checklist-item-lg">
+                                <input type="checkbox" name="pressure_test_passed" value="1" required>
+                                <i data-lucide="gauge" class="pv-checklist-icon"></i>
+                                <span>Pressure Test Passed</span>
+                            </label>
+                            <label class="pv-checklist-item pv-checklist-item-lg">
+                                <input type="checkbox" name="soap_testing_passed" value="1" required>
+                                <i data-lucide="droplets" class="pv-checklist-icon"></i>
+                                <span>Soap Testing Passed</span>
+                            </label>
+
+                            @php $submitLabel = 'Save Progress Update'; @endphp
+
+                        @elseif($project->current_phase === 'painting')
+
+                            <div class="form-group">
+                                <label class="log-label">PROJECT PHOTOS *</label>
+                                <label class="pv-upload-dropzone" id="paintingDropzone">
+                                    <i data-lucide="upload-cloud" style="width:32px;height:32px;color:var(--accent);"></i>
+                                    <span style="font-size:14px;font-weight:700;color:var(--text-primary);">Click to upload photos</span>
+                                    <span style="font-size:12px;color:var(--muted);">Required — up to 5 photos, JPG/PNG, max 5MB each</span>
+                                    <input type="file" name="photos[]" multiple accept="image/*"
+                                           data-preview-id="paintingPreview" data-dropzone-id="paintingDropzone" data-max="5"
+                                           style="display:none;" onchange="previewAdminFiles(this)" required>
+                                </label>
+                                <div id="paintingPreview" class="pv-file-grid"></div>
+                            </div>
+
+                            <div class="form-group" style="margin-top:14px;flex:1;display:flex;flex-direction:column;">
+                                <label class="log-label">REMARKS
+                                    <span style="font-weight:400;color:var(--muted);text-transform:none;">(optional)</span>
+                                </label>
+                                <textarea name="remarks" class="log-textarea" style="flex:1;min-height:120px;resize:vertical;"
+                                          placeholder="Any notes about the painting work..."></textarea>
+                            </div>
+
+                            @php $submitLabel = 'Save Progress Update'; @endphp
+
+                        @elseif($project->current_phase === 'completion')
+
+                            <div class="form-group">
+                                <label class="log-label">FINAL OUTPUT PHOTOS *</label>
+                                <label class="pv-upload-dropzone" id="completionDropzone">
+                                    <i data-lucide="upload-cloud" style="width:32px;height:32px;color:var(--accent);"></i>
+                                    <span style="font-size:14px;font-weight:700;color:var(--text-primary);">Click to upload final output photos</span>
+                                    <span style="font-size:12px;color:var(--muted);">Required — up to 5 photos, JPG/PNG, max 5MB each</span>
+                                    <input type="file" name="photos[]" multiple accept="image/*"
+                                           data-preview-id="completionPreview" data-dropzone-id="completionDropzone" data-max="5"
+                                           style="display:none;" onchange="previewAdminFiles(this)" required>
+                                </label>
+                                <div id="completionPreview" class="pv-file-grid"></div>
+                            </div>
+
+                            <div class="form-group" style="margin-top:14px;flex:1;display:flex;flex-direction:column;">
+                                <label class="log-label">COMPLETION NOTES
+                                    <span style="font-weight:400;color:var(--muted);text-transform:none;">(optional)</span>
+                                </label>
+                                <textarea name="completion_notes" class="log-textarea" style="flex:1;min-height:120px;resize:vertical;"
+                                          placeholder="Any notes about the final output..."></textarea>
+                            </div>
+
+                            @php $submitLabel = 'Save Progress Update'; @endphp
+
+                        @elseif($project->current_phase === 'delivery')
+
+                            <div class="form-group">
+                                <label class="log-label">DELIVERY PHOTOS *</label>
+                                <label class="pv-upload-dropzone" id="deliveryDropzone">
+                                    <i data-lucide="upload-cloud" style="width:32px;height:32px;color:var(--accent);"></i>
+                                    <span style="font-size:14px;font-weight:700;color:var(--text-primary);">Click to upload delivery photos</span>
+                                    <span style="font-size:12px;color:var(--muted);">Required — up to 5 photos, JPG/PNG, max 5MB each</span>
+                                    <input type="file" name="photos[]" multiple accept="image/*"
+                                           data-preview-id="deliveryPreview" data-dropzone-id="deliveryDropzone" data-max="5"
+                                           style="display:none;" onchange="previewAdminFiles(this)" required>
+                                </label>
+                                <div id="deliveryPreview" class="pv-file-grid"></div>
+                            </div>
+
+                            <div class="form-group" style="margin-top:14px;flex:1;display:flex;flex-direction:column;">
+                                <label class="log-label">DELIVERY NOTES
+                                    <span style="font-weight:400;color:var(--muted);text-transform:none;">(optional)</span>
+                                </label>
+                                <textarea name="delivery_notes" class="log-textarea" style="flex:1;min-height:120px;resize:vertical;"
+                                          placeholder="Any notes about the delivery..."></textarea>
+                            </div>
+
+                            @php $submitLabel = 'Save Progress Update'; @endphp
+
+                        @endif
 
                         @if($errors->any())
                         <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:12px;margin-top:12px;color:#dc2626;font-size:13px;">
@@ -127,18 +476,17 @@
                         </div>
                         @endif
 
-                        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px;">
-                            <button type="button" class="cancel-btn" id="openRequestModal"
-                                    style="font-size:12.5px;padding:8px 14px;">
-                                <i data-lucide="send"></i>
-                                Request from Employee
-                            </button>
-                            <button type="submit" class="save-btn" style="font-size:12.5px;padding:8px 16px;">
+                        </div>
+
+                        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px;padding-top:18px;border-top:1px solid var(--border);">
+                            <button type="submit" class="save-btn" style="font-size:13.5px;padding:11px 24px;">
                                 <i data-lucide="save"></i>
-                                Save Progress Update
+                                {{ $submitLabel ?? 'Save Progress Update' }}
                             </button>
                         </div>
                     </form>
+                    @endif
+                    </div>
                     @endif
                 </div>
 
@@ -155,7 +503,21 @@
                         </span>
                     </div>
 
-                    <div style="overflow-y:auto;max-height:520px;display:flex;flex-direction:column;gap:10px;padding-right:4px;">
+                    <div style="flex:1;overflow-y:auto;max-height:520px;display:flex;flex-direction:column;padding-right:4px;">
+
+                        @php
+                            $phaseIcons = [
+                                'planning'    => 'clipboard-list',
+                                'procurement' => 'package-check',
+                                'matl_prep'   => 'ruler',
+                                'fabrication' => 'hammer',
+                                'inspection'  => 'gauge',
+                                'painting'    => 'paint-bucket',
+                                'completion'  => 'check-circle-2',
+                                'delivery'    => 'truck',
+                            ];
+                            $imageExtRegex = '/\.(jpe?g|png|gif|webp|bmp)(\?.*)?$/i';
+                        @endphp
 
                         @forelse($allUpdates as $update)
                         @php
@@ -165,118 +527,120 @@
                             $isEmployee   = $update->type === 'employee_submission';
 
                             if ($isPending) {
-                                $cardStyle = 'background:#fffbeb;border:2px solid #f59e0b;';
+                                $cardStyle = 'background:#fffbeb;border:1.5px solid #f59e0b;';
+                                $iconBg = '#fef3c7'; $iconColor = '#d97706';
                             } elseif ($isRevision) {
-                                $cardStyle = 'background:#fff7ed;border:2px solid #fb923c;';
+                                $cardStyle = 'background:#fff7ed;border:1.5px solid #fb923c;';
+                                $iconBg = '#ffedd5'; $iconColor = '#ea580c';
                             } elseif ($isSuperseded) {
                                 $cardStyle = 'background:var(--surface-2);border:1px dashed var(--border);opacity:0.6;';
+                                $iconBg = 'var(--white)'; $iconColor = 'var(--muted)';
                             } else {
                                 $cardStyle = 'background:var(--surface-2);border:1px solid var(--border);';
+                                $iconBg = '#dcfce7'; $iconColor = '#16a34a';
                             }
+
+                            $phaseIcon = $phaseIcons[$update->phase] ?? 'file-text';
                         @endphp
 
-                        <div onclick="openUpdateModal({{ $update->id }})"
-                             style="border-radius:8px;padding:14px;cursor:pointer;transition:all 0.15s;{{ $cardStyle }}"
-                             onmouseover="this.style.opacity='0.85'"
-                             onmouseout="this.style.opacity='{{ $isSuperseded ? '0.6' : '1' }}'">
+                        <div class="pv-history-item" data-update-id="{{ $update->id }}">
+                            <div class="pv-history-rail">
+                                <div class="pv-history-icon" style="background:{{ $iconBg }};">
+                                    <i data-lucide="{{ $phaseIcon }}" style="color:{{ $iconColor }};"></i>
+                                </div>
+                                <div class="pv-history-line"></div>
+                            </div>
 
-                            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
-                                <div>
+                            <div class="pv-history-card" style="{{ $cardStyle }}" onclick="openUpdateModal({{ $update->id }})">
+
+                                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px;">
                                     <span style="font-size:13.5px;font-weight:700;color:var(--text-primary);">
                                         {{ ucfirst(str_replace('_', ' ', $update->phase)) }} Phase
                                         @if($update->update_label === 'revision')
-                                        <span style="font-size:10.5px;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:20px;margin-left:6px;font-weight:700;">
+                                        <span style="font-size:10.5px;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:20px;margin-left:4px;font-weight:700;">
                                             Revision Submission
                                         </span>
                                         @endif
+                                        <span class="pv-new-badge">New</span>
                                     </span>
+                                    <span style="font-size:11.5px;color:var(--muted);font-weight:600;white-space:nowrap;">
+                                        {{ $update->date_of_work->format('M d, Y') }}
+                                    </span>
+                                </div>
+
+                                <div class="pv-history-meta">
+                                    <i data-lucide="{{ $isEmployee ? 'user' : 'shield-check' }}" style="width:12px;height:12px;"></i>
+                                    <span>{{ $isEmployee ? $update->submitted_by_name : 'Admin' }}</span>
+
+                                    @if($update->percentage)
+                                    <span class="dot"></span>
+                                    <span class="pv-history-percentage">
+                                        <i data-lucide="trending-up" style="width:10px;height:10px;"></i>
+                                        {{ $update->percentage }}%
+                                    </span>
+                                    @endif
+
+                                    <span class="dot"></span>
 
                                     @if($isPending)
-                                    <span style="display:inline-flex;align-items:center;gap:4px;background:#f59e0b;color:#fff;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;margin-left:8px;">
-                                        <i data-lucide="clock" style="width:10px;height:10px;"></i>
-                                        Pending Review
+                                    <span style="display:inline-flex;align-items:center;gap:4px;color:#d97706;">
+                                        <i data-lucide="clock" style="width:11px;height:11px;"></i> Pending Review
                                     </span>
                                     @elseif($isRevision)
-                                    <span style="display:inline-flex;align-items:center;gap:4px;background:#ea580c;color:#fff;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;margin-left:8px;">
-                                        <i data-lucide="rotate-ccw" style="width:10px;height:10px;"></i>
-                                        Needs Revision
+                                    <span style="display:inline-flex;align-items:center;gap:4px;color:#ea580c;">
+                                        <i data-lucide="rotate-ccw" style="width:11px;height:11px;"></i> Needs Revision
                                     </span>
                                     @elseif($isSuperseded)
-                                    <span style="display:inline-flex;align-items:center;gap:4px;background:#94a3b8;color:#fff;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;margin-left:8px;">
-                                        Superseded
+                                    <span style="display:inline-flex;align-items:center;gap:4px;">
+                                        <i data-lucide="copy" style="width:11px;height:11px;"></i> Superseded
                                     </span>
                                     @else
-                                    <span style="display:inline-flex;align-items:center;gap:4px;background:#dcfce7;color:#14532d;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;margin-left:8px;">
-                                        <i data-lucide="check" style="width:10px;height:10px;"></i>
-                                        Approved
+                                    <span style="display:inline-flex;align-items:center;gap:4px;color:#16a34a;">
+                                        <i data-lucide="check" style="width:11px;height:11px;"></i> Approved
                                     </span>
                                     @endif
                                 </div>
-                                <span style="font-size:11.5px;color:var(--muted);white-space:nowrap;">
-                                    {{ $update->date_of_work->format('M d, Y') }}
-                                </span>
-                            </div>
 
-                            <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">
-                                {{ $isEmployee ? '👤 Employee Submission' : '🔧 Admin Update' }}
-                                @if($isPending)
-                                <span style="color:#d97706;font-weight:700;"> · Requires Approval</span>
-                                @elseif($isRevision)
-                                <span style="color:#ea580c;font-weight:700;"> · Awaiting Employee Revision</span>
-                                @endif
-                            </div>
+                                <div style="font-size:13px;color:var(--text-secondary);line-height:1.5;">
+                                    {{ Str::limit($update->work_done, 100) }}
+                                </div>
 
-                            <div style="font-size:13px;color:var(--text-secondary);line-height:1.4;">
-                                {{ Str::limit($update->work_done, 100) }}
-                            </div>
-
-                            @if($update->photos && count($update->photos) > 0)
-                            <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
-                                @foreach(array_slice($update->photos, 0, 3) as $photo)
-                                <img src="{{ $photo }}"
-                                     style="width:52px;height:40px;object-fit:cover;border-radius:4px;border:1px solid var(--border);">
-                                @endforeach
-                                @if(count($update->photos) > 3)
-                                <div style="width:52px;height:40px;background:var(--border);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--muted);">
-                                    +{{ count($update->photos) - 3 }}
+                                @if($update->photos && count($update->photos) > 0)
+                                <div class="pv-history-attachments">
+                                    @foreach(array_slice($update->photos, 0, 4) as $photo)
+                                        @if(preg_match($imageExtRegex, $photo))
+                                        <img src="{{ $photo }}" class="pv-history-thumb">
+                                        @else
+                                        <div class="pv-history-thumb-doc">
+                                            <i data-lucide="file-text"></i>
+                                        </div>
+                                        @endif
+                                    @endforeach
+                                    @if(count($update->photos) > 4)
+                                    <div class="pv-history-thumb-more">+{{ count($update->photos) - 4 }}</div>
+                                    @endif
                                 </div>
                                 @endif
+
+                                <div style="display:flex;align-items:center;gap:4px;margin-top:10px;font-size:11.5px;font-weight:700;color:var(--accent);">
+                                    View Details <i data-lucide="arrow-right" style="width:12px;height:12px;"></i>
+                                </div>
+
                             </div>
-                            @endif
                         </div>
 
                         @empty
-                        <div style="text-align:center;padding:40px 0;color:var(--muted);font-size:13.5px;">
-                            No updates yet. Save a progress update to get started.
+                        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:16px;padding:30px 20px;">
+                            <div style="width:64px;height:64px;border-radius:50%;background:var(--surface-2);display:flex;align-items:center;justify-content:center;">
+                                <i data-lucide="history" style="width:32px;height:32px;color:var(--muted);"></i>
+                            </div>
+                            <div>
+                                <p style="font-size:15px;font-weight:800;color:var(--dark);margin-bottom:6px;">No Updates Yet</p>
+                                <p style="font-size:13px;color:var(--muted);max-width:280px;line-height:1.6;">Save a progress update to start building this project's history.</p>
+                            </div>
                         </div>
                         @endforelse
                     </div>
-                </div>
-            </div>
-
-            <!-- Bottom Grid: Phase Details + Timeline -->
-            <div class="pv-grid" style="margin-top:20px;">
-                <div class="pv-card">
-                    <h3 class="pv-card-title">Phase Details</h3>
-                    <div class="phase-details-list" id="phaseDetailsList"></div>
-                </div>
-                <div class="pv-card">
-                    <h3 class="pv-card-title">Timeline Overview</h3>
-                    <p class="timeline-note">Materials arrival = Day 0 (project clock start)</p>
-                    <div class="timeline-table-wrap">
-                        <table class="timeline-table" id="timelineTable">
-                            <thead>
-                                <tr>
-                                    <th>Phase</th>
-                                    <th>Start</th>
-                                    <th>End</th>
-                                    <th>Duration</th>
-                                </tr>
-                            </thead>
-                            <tbody id="timelineBody"></tbody>
-                        </table>
-                    </div>
-                    <div class="timeline-total" id="timelineTotal"></div>
                 </div>
             </div>
 
@@ -399,7 +763,7 @@
 
             <div id="modalPhotosSection" style="margin-bottom:20px;display:none;">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-                    <div style="font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;">SITE PHOTOS</div>
+                    <div style="font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;">ATTACHMENTS</div>
                     <span id="modalPhotoCount" style="font-size:11px;color:var(--muted);font-weight:600;"></span>
                 </div>
                 <div id="modalPhotos" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;"></div>
@@ -441,11 +805,18 @@
         </div>
     </div>
 
+    <!-- ===== IMAGE LIGHTBOX ===== -->
+    <div class="pv-lightbox-overlay" id="pvLightboxOverlay" onclick="closeFileLightbox()">
+        <button type="button" class="pv-lightbox-close" onclick="closeFileLightbox()">
+            <i data-lucide="x" style="width:20px;height:20px;"></i>
+        </button>
+        <img id="pvLightboxImg" src="" alt="Preview" onclick="event.stopPropagation()">
+    </div>
+
     @php
         $progress     = $project->progress;
         $status       = strtolower($project->status);
         $duration     = $project->duration ?? 'N/A';
-        $startDate    = $project->start_date->format('Y-m-d');
         $currentPhase = $project->current_phase;
 
         $updatesData = $updates->map(function($u) {
@@ -480,7 +851,6 @@
         const PROJECT_PROGRESS      = {{ $progress }};
         const PROJECT_STATUS        = "{{ $status }}";
         const PROJECT_DURATION      = "{{ $duration }}";
-        const START_DATE_STR        = "{{ $startDate }}";
         const PROJECT_CURRENT_PHASE = "{{ $currentPhase }}";
         const UPDATES_DATA          = @json($updatesData);
         const APPROVE_BASE_URL      = "{{ url('/admin/project-updates') }}";
@@ -490,58 +860,146 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="{{ asset('js/admin.js') }}"></script>
     <script>
-        let adminPhotoFiles = [];
+        const adminFileMaps = new Map();
 
-        function previewAdminPhotos(input) {
-            const incoming = Array.from(input.files);
-            for (const f of incoming) {
-                if (adminPhotoFiles.length >= 5) break;
-                adminPhotoFiles.push(f);
+        const ADMIN_MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+        function previewAdminFiles(input) {
+            const max = parseInt(input.dataset.max || '5', 10);
+            let files = adminFileMaps.get(input) || [];
+            const rejected = [];
+            for (const f of Array.from(input.files)) {
+                if (files.length >= max) break;
+                if (f.size > ADMIN_MAX_FILE_SIZE) {
+                    rejected.push(f.name);
+                    continue;
+                }
+                files.push(f);
             }
-            if (adminPhotoFiles.length > 5) adminPhotoFiles = adminPhotoFiles.slice(0, 5);
-            syncAdminInput(input);
-            renderAdminPreviews(input);
+            if (files.length > max) files = files.slice(0, max);
+            adminFileMaps.set(input, files);
+            syncAdminFileInput(input, files);
+            renderAdminFilePreviews(input, files);
+            if (rejected.length > 0) {
+                alert(`The following file(s) exceed the 10MB limit and were not added:\n${rejected.join('\n')}`);
+            }
         }
 
-        function removeAdminPhoto(index, input) {
-            adminPhotoFiles.splice(index, 1);
-            syncAdminInput(input);
-            renderAdminPreviews(input);
+        function removeAdminFile(input, index) {
+            const files = adminFileMaps.get(input) || [];
+            files.splice(index, 1);
+            adminFileMaps.set(input, files);
+            syncAdminFileInput(input, files);
+            renderAdminFilePreviews(input, files);
         }
 
-        function syncAdminInput(input) {
+        function syncAdminFileInput(input, files) {
             const dt = new DataTransfer();
-            adminPhotoFiles.forEach(f => dt.items.add(f));
+            files.forEach(f => dt.items.add(f));
             input.files = dt.files;
         }
 
-        function renderAdminPreviews(input) {
-            const preview = document.getElementById('adminPhotoPreview');
-            if (!preview) return;
-            preview.innerHTML = '';
-            adminPhotoFiles.forEach((file, i) => {
-                const url = URL.createObjectURL(file);
-                const div = document.createElement('div');
-                div.style.cssText = 'position:relative;width:72px;height:56px;border-radius:6px;overflow:hidden;border:1px solid var(--border);flex-shrink:0;';
-                div.innerHTML = `
-                    <img src="${url}" style="width:100%;height:100%;object-fit:cover;">
-                    <button type="button" onclick="removeAdminPhoto(${i}, this.closest('#adminPhotoPreview').previousElementSibling.querySelector('input[type=file]'))"
-                        style="position:absolute;top:2px;right:2px;width:16px;height:16px;border-radius:50%;background:rgba(0,0,0,0.6);color:#fff;border:none;font-size:10px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;">✕</button>`;
-                preview.appendChild(div);
-            });
-            const remaining = 5 - adminPhotoFiles.length;
-            if (remaining > 0 && adminPhotoFiles.length > 0) {
-                const hint = document.createElement('div');
-                hint.style.cssText = 'font-size:11px;color:var(--muted);align-self:center;';
-                hint.textContent = `+${remaining} more slot${remaining > 1 ? 's' : ''}`;
-                preview.appendChild(hint);
-            }
+        function getFileIconName(filename) {
+            const ext = (filename.split('.').pop() || '').toLowerCase();
+            if (ext === 'pdf' || ext === 'doc' || ext === 'docx') return 'file-text';
+            if (ext === 'xls' || ext === 'xlsx') return 'file-spreadsheet';
+            return 'file';
         }
 
-        document.getElementById('openRequestModal').addEventListener('click', () => {
-            document.getElementById('requestUpdateModal').classList.add('show');
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        function openFileLightbox(url) {
+            document.getElementById('pvLightboxImg').src = url;
+            document.getElementById('pvLightboxOverlay').classList.add('show');
             document.body.style.overflow = 'hidden';
-        });
+        }
+
+        function closeFileLightbox() {
+            document.getElementById('pvLightboxOverlay').classList.remove('show');
+            document.getElementById('pvLightboxImg').src = '';
+            document.body.style.overflow = '';
+        }
+
+        function renderAdminFilePreviews(input, files) {
+            const preview = document.getElementById(input.dataset.previewId);
+            if (!preview) return;
+            const max = parseInt(input.dataset.max || '5', 10);
+            const dropzone = input.dataset.dropzoneId ? document.getElementById(input.dataset.dropzoneId) : null;
+
+            preview.innerHTML = '';
+
+            if (files.length === 0) {
+                preview.style.display = 'none';
+                if (dropzone) dropzone.style.display = '';
+                return;
+            }
+
+            if (dropzone) dropzone.style.display = 'none';
+            preview.style.display = 'grid';
+
+            files.forEach((file, i) => {
+                const isImage = file.type.startsWith('image/');
+                const tile = document.createElement('div');
+                tile.className = 'pv-file-tile';
+
+                if (isImage) {
+                    const url = URL.createObjectURL(file);
+                    const img = document.createElement('img');
+                    img.src = url;
+                    img.alt = file.name;
+                    img.title = 'Click to enlarge';
+                    img.onclick = () => openFileLightbox(url);
+                    tile.appendChild(img);
+                } else {
+                    const icon = document.createElement('i');
+                    icon.setAttribute('data-lucide', getFileIconName(file.name));
+                    icon.className = 'pv-file-icon';
+                    tile.appendChild(icon);
+
+                    const name = document.createElement('div');
+                    name.className = 'pv-file-name';
+                    name.textContent = file.name;
+                    tile.appendChild(name);
+
+                    const size = document.createElement('div');
+                    size.className = 'pv-file-size';
+                    size.textContent = formatFileSize(file.size);
+                    tile.appendChild(size);
+                }
+
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'pv-file-remove';
+                removeBtn.title = 'Remove';
+                removeBtn.innerHTML = '<i data-lucide="x" style="width:12px;height:12px;"></i>';
+                removeBtn.onclick = () => removeAdminFile(input, i);
+                tile.appendChild(removeBtn);
+
+                preview.appendChild(tile);
+            });
+
+            if (files.length < max) {
+                const addTile = document.createElement('div');
+                addTile.className = 'pv-file-add-tile';
+                addTile.innerHTML = '<i data-lucide="plus" style="width:20px;height:20px;"></i><span>Add More</span>';
+                addTile.onclick = () => input.click();
+                preview.appendChild(addTile);
+            }
+
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        const openRequestModalBtn = document.getElementById('openRequestModal');
+        if (openRequestModalBtn) {
+            openRequestModalBtn.addEventListener('click', () => {
+                document.getElementById('requestUpdateModal').classList.add('show');
+                document.body.style.overflow = 'hidden';
+            });
+        }
         document.getElementById('closeRequestModal').addEventListener('click', () => {
             document.getElementById('requestUpdateModal').classList.remove('show');
             document.body.style.overflow = '';
@@ -555,6 +1013,8 @@
         });
 
         function openUpdateModal(updateId) {
+            markUpdateSeen(updateId);
+
             const u = UPDATES_DATA[updateId];
             if (!u) return;
 
@@ -605,17 +1065,29 @@
             const photosSec = document.getElementById('modalPhotosSection');
             if (u.photos && u.photos.length > 0) {
                 photosSec.style.display = 'block';
-                document.getElementById('modalPhotoCount').textContent = u.photos.length + ' photo' + (u.photos.length > 1 ? 's' : '');
-                document.getElementById('modalPhotos').innerHTML = u.photos.map((p, i) =>
-                    `<a href="${p}" target="_blank" title="Click to view full size"
-                        style="display:block;border-radius:8px;overflow:hidden;border:1px solid var(--border);aspect-ratio:4/3;background:var(--surface-2);">
-                        <img src="${p}"
-                             style="width:100%;height:100%;object-fit:cover;transition:transform 0.2s,opacity 0.2s;display:block;"
-                             onmouseover="this.style.transform='scale(1.04)';this.style.opacity='0.88';"
-                             onmouseout="this.style.transform='scale(1)';this.style.opacity='1';"
-                             onerror="this.parentElement.innerHTML='<div style=\'display:flex;align-items:center;justify-content:center;height:100%;font-size:11px;color:var(--muted);padding:8px;text-align:center;\'>Image unavailable</div>';">
-                    </a>`
-                ).join('');
+                document.getElementById('modalPhotoCount').textContent = u.photos.length + ' file' + (u.photos.length > 1 ? 's' : '');
+                document.getElementById('modalPhotos').innerHTML = u.photos.map((p) => {
+                    const filename = decodeURIComponent(p.split('/').pop().split('?')[0]);
+                    if (/\.(jpe?g|png|gif|webp|bmp)$/i.test(filename)) {
+                        return `<a href="javascript:void(0)" onclick="openFileLightbox('${p}')" title="Click to enlarge"
+                            style="display:block;border-radius:8px;overflow:hidden;border:1px solid var(--border);aspect-ratio:4/3;background:var(--surface-2);">
+                            <img src="${p}"
+                                 style="width:100%;height:100%;object-fit:cover;cursor:zoom-in;transition:transform 0.2s,opacity 0.2s;display:block;"
+                                 onmouseover="this.style.transform='scale(1.04)';this.style.opacity='0.88';"
+                                 onmouseout="this.style.transform='scale(1)';this.style.opacity='1';"
+                                 onerror="this.parentElement.innerHTML='<div style=\'display:flex;align-items:center;justify-content:center;height:100%;font-size:11px;color:var(--muted);padding:8px;text-align:center;\'>Image unavailable</div>';">
+                        </a>`;
+                    }
+                    return `<a href="${p}" target="_blank" class="pv-doc-card" title="Open in new tab">
+                        <i data-lucide="${getFileIconName(filename)}" class="pv-doc-icon"></i>
+                        <div class="pv-doc-info">
+                            <div class="pv-doc-name">${filename}</div>
+                            <div class="pv-doc-meta">Click to open / download</div>
+                        </div>
+                        <i data-lucide="external-link" style="width:16px;height:16px;color:var(--muted);flex-shrink:0;"></i>
+                    </a>`;
+                }).join('');
+                if (typeof lucide !== 'undefined') lucide.createIcons();
             } else {
                 photosSec.style.display = 'none';
             }
@@ -642,7 +1114,7 @@
                             <input type="hidden" name="_token" value="{{ csrf_token() }}">
                             <button type="submit" class="save-btn" style="display:flex;align-items:center;gap:8px;">
                                 <i data-lucide="check-circle" style="width:14px;height:14px;"></i>
-                                Approve & Advance Phase
+                                Approve
                             </button>
                         </form>
                     </div>`;
@@ -687,6 +1159,32 @@
         function ucPhase(phase) {
             return phase.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
         }
+
+        /* ── "New" update highlight ──────────────────────────────────────── */
+        const SEEN_UPDATES_KEY = 'pv_seen_updates_{{ $project->id }}';
+        let seenUpdates = [];
+        try { seenUpdates = JSON.parse(localStorage.getItem(SEEN_UPDATES_KEY)) || []; } catch (e) { seenUpdates = []; }
+
+        function markUpdateSeen(updateId) {
+            const id = String(updateId);
+            const item = document.querySelector('.pv-history-item[data-update-id="' + id + '"]');
+            if (item) {
+                const card = item.querySelector('.pv-history-card');
+                if (card) card.classList.remove('is-new');
+            }
+            if (!seenUpdates.includes(id)) {
+                seenUpdates.push(id);
+                localStorage.setItem(SEEN_UPDATES_KEY, JSON.stringify(seenUpdates));
+            }
+        }
+
+        document.querySelectorAll('.pv-history-item[data-update-id]').forEach(function (item) {
+            const id = item.getAttribute('data-update-id');
+            if (!seenUpdates.includes(id)) {
+                const card = item.querySelector('.pv-history-card');
+                if (card) card.classList.add('is-new');
+            }
+        });
     </script>
 </body>
 </html>

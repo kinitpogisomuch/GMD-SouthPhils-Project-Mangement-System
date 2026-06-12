@@ -27,20 +27,20 @@
 
             <!-- Summary row -->
             <div class="page-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 24px;">
-                <div class="info-card">
-                    <div class="info-card-icon"><i data-lucide="clock"></i></div>
+                <div class="info-card orange">
+                    <div class="info-card-icon orange"><i data-lucide="clock"></i></div>
                     <h3>Pending Requests</h3>
                     <div class="value">2</div>
                     <div class="info-card-sub">Awaiting supplier response</div>
                 </div>
-                <div class="info-card">
-                    <div class="info-card-icon"><i data-lucide="check-circle"></i></div>
+                <div class="info-card green">
+                    <div class="info-card-icon green"><i data-lucide="check-circle"></i></div>
                     <h3>Fulfilled</h3>
                     <div class="value">2</div>
                     <div class="info-card-sub">Materials delivered</div>
                 </div>
-                <div class="info-card">
-                    <div class="info-card-icon"><i data-lucide="alert-triangle"></i></div>
+                <div class="info-card red">
+                    <div class="info-card-icon red"><i data-lucide="alert-triangle"></i></div>
                     <h3>Shortages Flagged</h3>
                     <div class="value">2</div>
                     <div class="info-card-sub">Needs immediate restocking</div>

@@ -52,6 +52,7 @@ class ProjectController extends Controller
         }
 
         $updates = ProjectUpdate::where('project_id', $id)
+                    ->with('submittedBy')
                     ->orderBy('created_at', 'desc')
                     ->get();
 
@@ -74,8 +75,23 @@ class ProjectController extends Controller
         $clientAddress = $project->address
                          ?? ($clientRecord ? $clientRecord->address : null);
 
+        // Cost summary: materials + labor vs. the contract amount on file.
+        $materialCost   = (float) $project->activeMaterials()->sum('total_cost');
+        $laborCost      = (float) $project->activeLabor()->sum('total_cost');
+        $payment        = $project->getPaymentRecord();
+        $contractAmount = $payment ? (float) $payment->contract_amount : null;
+        $profit         = $contractAmount !== null ? $contractAmount - ($materialCost + $laborCost) : null;
+
+        // Budget: the Project Grand Total from the Generate Project Quotations modal
+        // (materials with their factor markup applied, plus labor cost).
+        $projectGrandTotal = $project->activeMaterials()->get()->sum(function ($material) {
+            $factor = $material->factor ?? 7;
+            return round((float) $material->total_cost * (1 + $factor / 100), 2);
+        }) + $laborCost;
+
         return view('admin.project_view', compact(
-            'project', 'updates', 'openRequest', 'pendingUpdates', 'nextPhase', 'clientAddress'
+            'project', 'updates', 'openRequest', 'pendingUpdates', 'nextPhase', 'clientAddress',
+            'materialCost', 'laborCost', 'contractAmount', 'profit', 'projectGrandTotal'
         ));
     }
 
@@ -109,6 +125,79 @@ class ProjectController extends Controller
                     ->get();
 
         return view('client.project_view', compact('project', 'updates'));
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Client Approves Shop Drawing / Tank Design
+    |--------------------------------------------------------------------------
+    */
+    public function approveShopDrawing($id)
+    {
+        $project = Project::findOrFail($id);
+
+        $clientEmail = session('email');
+        $clientName  = $clientEmail ? Client::where('email', $clientEmail)->value('name') : null;
+
+        if (!$clientName || $project->client !== $clientName) {
+            abort(403, 'You do not have permission to view this project.');
+        }
+
+        if ($project->phaseData('planning.shop_drawing.status') !== 'pending_approval') {
+            return redirect()->route('client.project_view', $id)
+                ->with('error', 'There is no shop drawing pending your approval.');
+        }
+
+        $shopDrawing = $project->phaseData('planning.shop_drawing', []);
+        $shopDrawing['status'] = 'approved';
+        $shopDrawing['revision_notes'] = null;
+        $project->setPhaseData('planning.shop_drawing', $shopDrawing);
+
+        $newProgress = Project::SUBPHASE_PROGRESS['shop_drawing'];
+
+        $project->update([
+            'current_sub_phase' => 'quotation',
+            'progress'          => $newProgress,
+        ]);
+
+        NotificationService::shopDrawingApproved($project);
+
+        return redirect()->route('client.project_view', $id)
+            ->with('success', 'Shop drawing and tank design approved!');
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Client Requests Revision of Shop Drawing / Tank Design
+    |--------------------------------------------------------------------------
+    */
+    public function requestShopDrawingRevision(Request $request, $id)
+    {
+        $project = Project::findOrFail($id);
+
+        $clientEmail = session('email');
+        $clientName  = $clientEmail ? Client::where('email', $clientEmail)->value('name') : null;
+
+        if (!$clientName || $project->client !== $clientName) {
+            abort(403, 'You do not have permission to view this project.');
+        }
+
+        $request->validate(['revision_notes' => 'required|string']);
+
+        if ($project->phaseData('planning.shop_drawing.status') !== 'pending_approval') {
+            return redirect()->route('client.project_view', $id)
+                ->with('error', 'There is no shop drawing pending your approval.');
+        }
+
+        $shopDrawing = $project->phaseData('planning.shop_drawing', []);
+        $shopDrawing['status'] = 'revision_requested';
+        $shopDrawing['revision_notes'] = $request->revision_notes;
+        $project->setPhaseData('planning.shop_drawing', $shopDrawing);
+
+        NotificationService::shopDrawingRevisionRequested($project, $request->revision_notes);
+
+        return redirect()->route('client.project_view', $id)
+            ->with('success', 'Revision request sent to the project owner.');
     }
 
     /*
@@ -211,10 +300,11 @@ class ProjectController extends Controller
             'start_date'     => $request->start_date,
             'end_date'       => $request->end_date,
             'payment_status' => $request->payment_status ?? 'Pending',
-            'status'         => 'planning',
-            'progress'       => 0,
-            'current_phase'  => 'planning',
-            'duration'       => $duration,
+            'status'            => 'planning',
+            'progress'          => 0,
+            'current_phase'     => 'planning',
+            'current_sub_phase' => 'shop_drawing',
+            'duration'          => $duration,
             'notes'          => $request->notes,
         ]);
 
@@ -275,25 +365,400 @@ class ProjectController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | Add Direct Update (Admin) — auto-advances phase
+    | Assign Employees to Project
+    |--------------------------------------------------------------------------
+    */
+    public function assignEmployees(Request $request, $id)
+    {
+        $request->validate([
+            'employee_ids'   => 'array',
+            'employee_ids.*' => 'integer|exists:employees,id',
+        ]);
+
+        $project = Project::findOrFail($id);
+        $project->assignedEmployees()->sync($request->employee_ids ?? []);
+
+        return redirect()->route('admin.projects')->with('success', "Employee assignments updated for \"{$project->name}\".");
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Save Progress Update (Admin) — phase-aware dispatcher
+    |
+    | Each phase (and Planning's sub-phases) has its own requirements that
+    | must be satisfied before the project advances. Progress is always
+    | derived automatically from Project::PHASE_PROGRESS / SUBPHASE_PROGRESS.
     |--------------------------------------------------------------------------
     */
     public function addUpdate(Request $request, $id)
     {
-        $request->validate([
-            'date_of_work' => 'required|date',
-            'work_done'    => 'required|string',
-            'issues'       => 'nullable|string',
-            'photos'       => 'required|array|min:1|max:5',
-            'photos.*'     => 'required|image|max:5120',
-        ]);
-
         $project = Project::findOrFail($id);
 
-        $photoUrls = $this->storage->uploadMultiple(
-            $request->file('photos'),
-            'projects/' . $id
+        if ($project->current_phase === 'planning') {
+            return match ($project->current_sub_phase) {
+                'quotation' => $this->handlePlanningQuotation($request, $project),
+                'payment'   => $this->handlePlanningPayment($request, $project),
+                default     => $this->handlePlanningShopDrawing($request, $project),
+            };
+        }
+
+        return match ($project->current_phase) {
+            'procurement' => $this->handleProcurement($request, $project),
+            'matl_prep'   => $this->handleMaterialPrep($request, $project),
+            'fabrication' => $this->handleFabrication($request, $project),
+            'inspection'  => $this->handleInspection($request, $project),
+            'painting'    => $this->handlePainting($request, $project),
+            'completion'  => $this->handleCompletion($request, $project),
+            'delivery'    => $this->handleDelivery($request, $project),
+            default       => redirect()->route('admin.project_view', $id)
+                ->with('error', 'No progress update form is available for this phase.'),
+        };
+    }
+
+    /** Create a ProjectUpdate record for an admin-driven phase advancement */
+    private function createAdminUpdate(Project $project, array $overrides = []): ProjectUpdate
+    {
+        $submittedBy = session('user_id')
+            ?? \App\Models\User::where('role', 'admin')->value('id')
+            ?? 1;
+
+        return ProjectUpdate::create(array_merge([
+            'project_id'   => $project->id,
+            'submitted_by' => $submittedBy,
+            'type'         => 'admin_direct',
+            'update_label' => null,
+            'phase'        => $project->current_phase,
+            'percentage'   => $project->progress,
+            'date_of_work' => now()->toDateString(),
+            'issues'       => null,
+            'photos'       => [],
+            'status'       => 'approved',
+        ], $overrides));
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Phase 1.1 — Planning / Shop Drawing & Tank Design
+    |--------------------------------------------------------------------------
+    */
+    private function handlePlanningShopDrawing(Request $request, Project $project)
+    {
+        $status = $project->phaseData('planning.shop_drawing.status');
+
+        if (in_array($status, ['pending_approval', 'approved'])) {
+            return redirect()->route('admin.project_view', $project->id)
+                ->with('error', 'The shop drawing has already been submitted and is awaiting client review.');
+        }
+
+        $request->validate([
+            'shop_drawing_files'   => 'required|array|min:1',
+            'shop_drawing_files.*' => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
+            'tank_design_files'    => 'required|array|min:1',
+            'tank_design_files.*'  => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
+        ]);
+
+        $shopDrawingUrls = $this->storage->uploadMultiple($request->file('shop_drawing_files'), 'projects/' . $project->id . '/shop-drawings');
+        $tankDesignUrls  = $this->storage->uploadMultiple($request->file('tank_design_files'), 'projects/' . $project->id . '/tank-design');
+
+        if (empty($shopDrawingUrls) || empty($tankDesignUrls)) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['shop_drawing_files' => 'File upload failed. Please check your connection and try again.']);
+        }
+
+        $project->setPhaseData('planning.shop_drawing', [
+            'status'             => 'pending_approval',
+            'shop_drawing_files' => $shopDrawingUrls,
+            'tank_design_files'  => $tankDesignUrls,
+            'revision_notes'     => null,
+            'submitted_at'       => now()->toDateTimeString(),
+        ]);
+
+        $this->createAdminUpdate($project, [
+            'update_label' => 'shop_drawing',
+            'work_done'    => 'Shop drawing and tank design documents submitted to the client for review.',
+            'photos'       => array_merge($shopDrawingUrls, $tankDesignUrls),
+        ]);
+
+        NotificationService::shopDrawingSubmitted($project);
+
+        return redirect()->route('admin.project_view', $project->id)
+            ->with('success', 'Shop drawing and tank design sent to the client for review.');
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Phase 1.2 — Planning / Project Quotations
+    |--------------------------------------------------------------------------
+    */
+    private function handlePlanningQuotation(Request $request, Project $project)
+    {
+        $request->validate([
+            'quotation_files'   => 'required|array|min:1',
+            'quotation_files.*' => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
+        ]);
+
+        $quotationUrls = $this->storage->uploadMultiple($request->file('quotation_files'), 'projects/' . $project->id . '/quotations');
+
+        if (empty($quotationUrls)) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['quotation_files' => 'File upload failed. Please check your connection and try again.']);
+        }
+
+        $project->setPhaseData('planning.quotation', [
+            'status'  => 'sent',
+            'files'   => $quotationUrls,
+            'sent_at' => now()->toDateTimeString(),
+        ]);
+
+        $newProgress = Project::SUBPHASE_PROGRESS['quotation'];
+
+        $project->update([
+            'current_sub_phase' => 'payment',
+            'progress'          => $newProgress,
+        ]);
+
+        $this->createAdminUpdate($project, [
+            'update_label' => 'quotation',
+            'work_done'    => 'Project quotation sent to the client.',
+            'percentage'   => $newProgress,
+            'photos'       => $quotationUrls,
+        ]);
+
+        NotificationService::quotationSent($project);
+
+        return redirect()->route('admin.project_view', $project->id)
+            ->with('success', 'Quotation sent to the client. Waiting for payment settlement.');
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Phase 1.3 — Planning / Payment (50% Down Payment)
+    |--------------------------------------------------------------------------
+    */
+    private function handlePlanningPayment(Request $request, Project $project)
+    {
+        if (!$project->isPaymentStageSettled('down_payment')) {
+            return redirect()->route('admin.project_view', $project->id)
+                ->with('error', 'Waiting for payment settlement. The 50% down payment must be settled before proceeding.');
+        }
+
+        $newProgress = Project::PHASE_PROGRESS['planning'];
+
+        $project->update([
+            'current_phase'     => 'procurement',
+            'current_sub_phase' => null,
+            'progress'          => $newProgress,
+            'status'            => 'ongoing',
+        ]);
+
+        $this->createAdminUpdate($project, [
+            'phase'        => 'planning',
+            'update_label' => 'phase_advance',
+            'work_done'    => 'Down payment settled. Project advanced to the Procurement phase.',
+            'percentage'   => $newProgress,
+        ]);
+
+        NotificationService::phaseAdvanced(
+            $project,
+            'procurement',
+            "Your project \"{$project->name}\" has advanced to the Procurement phase."
         );
+
+        return redirect()->route('admin.project_view', $project->id)
+            ->with('success', "Payment confirmed! Project advanced to the Procurement phase ({$newProgress}% complete).");
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Phase 2 — Procurement
+    |--------------------------------------------------------------------------
+    */
+    private function handleProcurement(Request $request, Project $project)
+    {
+        $request->validate([
+            'materials_delivered' => 'required|accepted',
+        ]);
+
+        $project->setPhaseData('procurement.materials_delivered', true);
+
+        $newProgress = Project::PHASE_PROGRESS['procurement'];
+
+        $project->update([
+            'current_phase' => 'matl_prep',
+            'progress'      => $newProgress,
+        ]);
+
+        $this->createAdminUpdate($project, [
+            'phase'      => 'procurement',
+            'work_done'  => 'Materials have been delivered and procurement is complete.',
+            'percentage' => $newProgress,
+        ]);
+
+        NotificationService::phaseAdvanced(
+            $project,
+            'matl_prep',
+            'Materials have been delivered and procurement is complete.'
+        );
+
+        return redirect()->route('admin.project_view', $project->id)
+            ->with('success', "Procurement complete! Project advanced to Material Preparation ({$newProgress}% complete).");
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Phase 3 — Material Preparation
+    |--------------------------------------------------------------------------
+    */
+    private function handleMaterialPrep(Request $request, Project $project)
+    {
+        $request->validate([
+            'measuring_completed' => 'required|accepted',
+            'marking_completed'   => 'required|accepted',
+        ]);
+
+        $project->setPhaseData('matl_prep', [
+            'measuring_completed' => true,
+            'marking_completed'   => true,
+        ]);
+
+        $newProgress = Project::PHASE_PROGRESS['matl_prep'];
+
+        $project->update([
+            'current_phase' => 'fabrication',
+            'progress'      => $newProgress,
+        ]);
+
+        $this->createAdminUpdate($project, [
+            'phase'      => 'matl_prep',
+            'work_done'  => 'Material preparation has been completed.',
+            'percentage' => $newProgress,
+        ]);
+
+        NotificationService::phaseAdvanced(
+            $project,
+            'fabrication',
+            'Material preparation has been completed.'
+        );
+
+        return redirect()->route('admin.project_view', $project->id)
+            ->with('success', "Material preparation complete! Project advanced to Fabrication ({$newProgress}% complete).");
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Phase 4 — Fabrication (Big Project requires 30% Progress Payment first)
+    |--------------------------------------------------------------------------
+    */
+    private function handleFabrication(Request $request, Project $project)
+    {
+        $payment      = $project->getPaymentRecord();
+        $isBigProject = $payment && $payment->payment_term_type === 'big_project';
+
+        if ($isBigProject && !$project->isPaymentStageSettled('progress_payment')) {
+            return redirect()->route('admin.project_view', $project->id)
+                ->with('error', 'Waiting for progress payment settlement. The 30% progress payment must be settled before proceeding.');
+        }
+
+        $request->validate([
+            'cutting_completed'  => 'required|accepted',
+            'assembly_completed' => 'required|accepted',
+            'welding_completed'  => 'required|accepted',
+            'progress_photos'    => 'nullable|array|max:10',
+            'progress_photos.*'  => 'file|mimes:jpg,jpeg,png,webp,pdf,doc,docx,xls,xlsx|max:10240',
+        ]);
+
+        $photoUrls = [];
+        if ($request->hasFile('progress_photos')) {
+            $photoUrls = $this->storage->uploadMultiple($request->file('progress_photos'), 'projects/' . $project->id . '/fabrication');
+        }
+
+        $project->setPhaseData('fabrication', [
+            'cutting_completed'  => true,
+            'assembly_completed' => true,
+            'welding_completed'  => true,
+            'progress_photos'    => $photoUrls,
+        ]);
+
+        $newProgress = Project::PHASE_PROGRESS['fabrication'];
+
+        $project->update([
+            'current_phase' => 'inspection',
+            'progress'      => $newProgress,
+        ]);
+
+        $this->createAdminUpdate($project, [
+            'phase'      => 'fabrication',
+            'work_done'  => 'Fabrication (cutting, assembly, and welding) has been completed.',
+            'percentage' => $newProgress,
+            'photos'     => $photoUrls,
+        ]);
+
+        NotificationService::phaseAdvanced(
+            $project,
+            'inspection',
+            'Fabrication has been completed. Your project is now ready for inspection.'
+        );
+
+        return redirect()->route('admin.project_view', $project->id)
+            ->with('success', "Fabrication complete! Project advanced to Inspection ({$newProgress}% complete).");
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Phase 5 — Inspection
+    |--------------------------------------------------------------------------
+    */
+    private function handleInspection(Request $request, Project $project)
+    {
+        $request->validate([
+            'pressure_test_passed' => 'required|accepted',
+            'soap_testing_passed'  => 'required|accepted',
+        ]);
+
+        $project->setPhaseData('inspection', [
+            'pressure_test_passed' => true,
+            'soap_testing_passed'  => true,
+        ]);
+
+        $newProgress = Project::PHASE_PROGRESS['inspection'];
+
+        $project->update([
+            'current_phase' => 'painting',
+            'progress'      => $newProgress,
+        ]);
+
+        $this->createAdminUpdate($project, [
+            'phase'      => 'inspection',
+            'work_done'  => 'Inspection completed successfully.',
+            'percentage' => $newProgress,
+        ]);
+
+        NotificationService::phaseAdvanced(
+            $project,
+            'painting',
+            'Inspection completed successfully.'
+        );
+
+        return redirect()->route('admin.project_view', $project->id)
+            ->with('success', "Inspection complete! Project advanced to Painting ({$newProgress}% complete).");
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Phase 6 — Painting
+    |--------------------------------------------------------------------------
+    */
+    private function handlePainting(Request $request, Project $project)
+    {
+        $request->validate([
+            'photos'   => 'required|array|min:1',
+            'photos.*' => 'required|image|max:5120',
+            'remarks'  => 'nullable|string',
+        ]);
+
+        $photoUrls = $this->storage->uploadMultiple($request->file('photos'), 'projects/' . $project->id . '/painting');
 
         if (empty($photoUrls)) {
             return redirect()->back()
@@ -301,45 +766,136 @@ class ProjectController extends Controller
                 ->withErrors(['photos' => 'Photo upload failed. Please check your connection and try again.']);
         }
 
-        $currentPhase = $project->current_phase;
-        $currentIndex = array_search($currentPhase, $this->phases);
-
-        if ($currentIndex !== false && $currentIndex < count($this->phases) - 1) {
-            $newPhase    = $this->phases[$currentIndex + 1];
-            $newProgress = $this->progressMap[$newPhase];
-            $newStatus   = $newPhase === 'delivery' ? 'completed' : 'ongoing';
-        } else {
-            $newPhase    = 'delivery';
-            $newProgress = 100;
-            $newStatus   = 'completed';
-        }
-
-        $submittedBy = session('user_id')
-            ?? \App\Models\User::where('role', 'admin')->value('id')
-            ?? 1;
-
-        ProjectUpdate::create([
-            'project_id'   => $id,
-            'submitted_by' => $submittedBy,
-            'type'         => 'admin_direct',
-            'update_label' => null,
-            'phase'        => $currentPhase,
-            'percentage'   => $newProgress,
-            'date_of_work' => $request->date_of_work,
-            'work_done'    => $request->work_done,
-            'issues'       => $request->issues,
-            'photos'       => $photoUrls,
-            'status'       => 'approved',
+        $project->setPhaseData('painting', [
+            'photos'  => $photoUrls,
+            'remarks' => $request->remarks,
         ]);
+
+        $newProgress = Project::PHASE_PROGRESS['painting'];
 
         $project->update([
-            'current_phase' => $newPhase,
+            'current_phase' => 'completion',
             'progress'      => $newProgress,
-            'status'        => $newStatus,
         ]);
 
-        return redirect()->route('admin.project_view', $id)
-            ->with('success', 'Progress update saved! Project advanced to ' . ucfirst(str_replace('_', ' ', $newPhase)) . ' phase (' . $newProgress . '% complete).');
+        $this->createAdminUpdate($project, [
+            'phase'      => 'painting',
+            'work_done'  => $request->remarks ?: 'Painting has been completed.',
+            'percentage' => $newProgress,
+            'photos'     => $photoUrls,
+        ]);
+
+        NotificationService::phaseAdvanced(
+            $project,
+            'completion',
+            'Painting has been completed.'
+        );
+
+        return redirect()->route('admin.project_view', $project->id)
+            ->with('success', "Painting complete! Project advanced to Completion ({$newProgress}% complete).");
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Phase 7 — Completion (Final Output)
+    |--------------------------------------------------------------------------
+    */
+    private function handleCompletion(Request $request, Project $project)
+    {
+        $request->validate([
+            'photos'           => 'required|array|min:1',
+            'photos.*'         => 'required|image|max:5120',
+            'completion_notes' => 'nullable|string',
+        ]);
+
+        $photoUrls = $this->storage->uploadMultiple($request->file('photos'), 'projects/' . $project->id . '/completion');
+
+        if (empty($photoUrls)) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['photos' => 'Photo upload failed. Please check your connection and try again.']);
+        }
+
+        $project->setPhaseData('completion', [
+            'photos' => $photoUrls,
+            'notes'  => $request->completion_notes,
+        ]);
+
+        $newProgress = Project::PHASE_PROGRESS['completion'];
+
+        $project->update([
+            'current_phase' => 'delivery',
+            'progress'      => $newProgress,
+        ]);
+
+        $this->createAdminUpdate($project, [
+            'phase'        => 'completion',
+            'update_label' => 'completion',
+            'work_done'    => $request->completion_notes ?: 'Project completion update.',
+            'percentage'   => $newProgress,
+            'photos'       => $photoUrls,
+        ]);
+
+        NotificationService::phaseAdvanced(
+            $project,
+            'delivery',
+            'Project completion update.'
+        );
+
+        return redirect()->route('admin.project_view', $project->id)
+            ->with('success', "Final output recorded! Project advanced to Delivery ({$newProgress}% complete).");
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Phase 8 — Delivery (requires Final Payment: 20% Big / 50% Small)
+    |--------------------------------------------------------------------------
+    */
+    private function handleDelivery(Request $request, Project $project)
+    {
+        if (!$project->isPaymentStageSettled('final_payment')) {
+            return redirect()->route('admin.project_view', $project->id)
+                ->with('error', 'Waiting for final payment settlement. The final payment must be settled before project delivery.');
+        }
+
+        $request->validate([
+            'photos'         => 'required|array|min:1',
+            'photos.*'       => 'required|image|max:5120',
+            'delivery_notes' => 'nullable|string',
+        ]);
+
+        $photoUrls = $this->storage->uploadMultiple($request->file('photos'), 'projects/' . $project->id . '/delivery');
+
+        if (empty($photoUrls)) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['photos' => 'Photo upload failed. Please check your connection and try again.']);
+        }
+
+        $project->setPhaseData('delivery', [
+            'photos' => $photoUrls,
+            'notes'  => $request->delivery_notes,
+        ]);
+
+        $newProgress = Project::PHASE_PROGRESS['delivery'];
+
+        $project->update([
+            'progress' => $newProgress,
+            'status'   => 'completed',
+        ]);
+
+        $this->createAdminUpdate($project, [
+            'phase'        => 'delivery',
+            'update_label' => 'delivery',
+            'work_done'    => $request->delivery_notes ?: 'Project delivered to the client.',
+            'percentage'   => $newProgress,
+            'photos'       => $photoUrls,
+        ]);
+
+        NotificationService::projectCompleted($project);
+
+        return redirect()->route('admin.project_view', $project->id)
+            ->with('success', 'Project delivered! Marked as completed (100%).');
     }
 
     /*

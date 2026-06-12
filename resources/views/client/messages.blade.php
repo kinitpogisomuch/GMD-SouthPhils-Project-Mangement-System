@@ -15,111 +15,78 @@
 
         <main class="admin-content">
 
-            <div class="card" style="height: calc(100vh - 160px); display:flex; flex-direction:column; margin-bottom:0;">
-                <div class="card-header">
-                    <span class="card-title">Messages</span>
-                    <span class="badge badge-teal">3 Unread</span>
+            <div class="page-header">
+                <div>
+                    <h1>Messages</h1>
+                    <p>Chat with the GMD team about your projects.</p>
                 </div>
-                <div style="display:flex; flex:1; overflow:hidden;">
+            </div>
 
-                    <!-- Thread List -->
-                    <div style="width:300px; border-right:1px solid var(--border); overflow-y:auto; flex-shrink:0;">
+            <div class="message-page-card">
+                <div class="message-page-header">
+                    <span class="message-page-title">Conversations</span>
+                </div>
 
-                        @php
-                        $threads = [
-                            ['name'=>'Admin – GMD', 'preview'=>'Please confirm the updated delivery schedule...', 'time'=>'10:24 AM', 'unread'=>2, 'active'=>true],
-                            ['name'=>'Project Manager', 'preview'=>'Tank fabrication Phase 2 is now 65% done.', 'time'=>'Yesterday', 'unread'=>1, 'active'=>false],
-                            ['name'=>'Billing Team', 'preview'=>'Invoice INV-2025-004 is now due for payment.', 'time'=>'Mar 28', 'unread'=>0, 'active'=>false],
-                        ];
-                        @endphp
+                <div class="message-list-container">
+                    <div class="message-sidebar">
+                        <div class="message-sidebar-search">
+                            <input type="text" id="contactSearch" placeholder="Search contacts...">
+                        </div>
 
-                        @foreach($threads as $t)
-                        <div style="padding:14px 16px; border-bottom:1px solid var(--border); cursor:pointer; background:{{ $t['active'] ? 'var(--accent-light)' : 'transparent' }}; transition:background 0.18s;"
-                             onmouseover="this.style.background='var(--surface-2)'"
-                             onmouseout="this.style.background='{{ $t['active'] ? 'var(--accent-light)' : 'transparent' }}'">
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                                <div style="font-weight:{{ $t['unread'] > 0 ? '700' : '600' }}; font-size:13.5px;">{{ $t['name'] }}</div>
-                                <div style="display:flex; align-items:center; gap:6px;">
-                                    <span style="font-size:11px; color:var(--text-muted);">{{ $t['time'] }}</span>
-                                    @if($t['unread'] > 0)
-                                    <span style="background:var(--accent); color:#fff; font-size:10px; font-weight:700; padding:1px 6px; border-radius:999px;">{{ $t['unread'] }}</span>
-                                    @endif
+                        <div id="contactList">
+                            @forelse($contacts as $c)
+                            <div class="message-thread {{ $c['unread'] > 0 ? 'unread' : '' }}"
+                                 data-type="{{ $c['type'] }}"
+                                 data-id="{{ $c['id'] }}"
+                                 data-name="{{ $c['name'] }}"
+                                 data-role="{{ $c['role'] }}">
+                                <div class="message-thread-avatar"></div>
+                                <div class="message-thread-body">
+                                    <div class="message-thread-header">
+                                        <span class="message-thread-name">{{ $c['name'] }} <span class="message-thread-role">{{ $c['role'] }}</span></span>
+                                        <span class="message-thread-time">{{ $c['last_time'] }}</span>
+                                    </div>
+                                    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                                        <span class="message-thread-preview">{{ $c['last_message'] ?? 'No messages yet' }}</span>
+                                        @if($c['unread'] > 0)
+                                        <span class="unread-badge">{{ $c['unread'] }}</span>
+                                        @endif
+                                    </div>
                                 </div>
                             </div>
-                            <div style="font-size:12.5px; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ $t['preview'] }}</div>
+                            @empty
+                            <div class="message-empty-state">
+                                <i data-lucide="users"></i>
+                                <p>No contacts available</p>
+                            </div>
+                            @endforelse
                         </div>
-                        @endforeach
-
                     </div>
 
-                    <!-- Chat Window -->
-                    <div style="flex:1; display:flex; flex-direction:column; overflow:hidden;">
-
-                        <!-- Chat Header -->
-                        <div style="padding:14px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:12px;">
-                            <div style="width:36px;height:36px;border-radius:50%;background:var(--accent-light);color:var(--accent-dark);display:flex;align-items:center;justify-content:center;">
-                                <i data-lucide="user" style="width:16px;height:16px;"></i>
-                            </div>
-                            <div>
-                                <div style="font-weight:700;font-size:14px;">Admin – GMD</div>
-                                <div style="font-size:11.5px;color:var(--success);display:flex;align-items:center;gap:4px;">
-                                    <span style="width:7px;height:7px;background:var(--success);border-radius:50%;display:inline-block;"></span> Online
-                                </div>
-                            </div>
+                    <div class="message-chat-window" id="chatWindow">
+                        <div class="message-empty-state" id="chatEmptyState">
+                            <i data-lucide="message-square"></i>
+                            <p>Select a conversation to start chatting</p>
                         </div>
 
-                        <!-- Messages -->
-                        <div style="flex:1; overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:16px;">
-
-                            <!-- Received -->
-                            <div style="display:flex; gap:10px; max-width:70%;">
-                                <div style="width:32px;height:32px;border-radius:50%;background:var(--surface-2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:auto;">
-                                    <i data-lucide="user" style="width:14px;height:14px;color:var(--text-secondary);"></i>
-                                </div>
-                                <div>
-                                    <div style="background:var(--surface-2);border:1px solid var(--border);padding:12px 14px;border-radius:0 12px 12px 12px;font-size:13.5px;line-height:1.6;">
-                                        Good morning! The Storage Tank Fabrication Unit A is progressing well. Welding is now at 65% completion.
-                                    </div>
-                                    <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">10:10 AM</div>
+                        <div id="chatActive" style="display:none; flex-direction:column; height:100%;">
+                            <div class="message-chat-header">
+                                <div class="message-chat-avatar" id="chatAvatar"></div>
+                                <div class="message-chat-info">
+                                    <div class="message-chat-name" id="chatName"></div>
+                                    <div class="message-chat-role" id="chatRole"></div>
                                 </div>
                             </div>
 
-                            <!-- Sent -->
-                            <div style="display:flex; justify-content:flex-end;">
-                                <div style="max-width:70%;">
-                                    <div style="background:var(--accent);color:#fff;padding:12px 14px;border-radius:12px 0 12px 12px;font-size:13.5px;line-height:1.6;">
-                                        Great to hear! Can you confirm the updated delivery schedule for the materials?
-                                    </div>
-                                    <div style="font-size:11px;color:var(--text-muted);margin-top:4px;text-align:right;">10:18 AM ✓✓</div>
-                                </div>
-                            </div>
+                            <div class="message-thread-content" id="chatMessages"></div>
 
-                            <!-- Received -->
-                            <div style="display:flex; gap:10px; max-width:70%;">
-                                <div style="width:32px;height:32px;border-radius:50%;background:var(--surface-2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:auto;">
-                                    <i data-lucide="user" style="width:14px;height:14px;color:var(--text-secondary);"></i>
-                                </div>
-                                <div>
-                                    <div style="background:var(--surface-2);border:1px solid var(--border);padding:12px 14px;border-radius:0 12px 12px 12px;font-size:13.5px;line-height:1.6;">
-                                        Please confirm the updated delivery schedule — the next batch of materials is expected to arrive April 10.
-                                    </div>
-                                    <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">10:24 AM</div>
-                                </div>
+                            <div class="message-input-area">
+                                <input type="text" class="message-input-field" id="chatInput" placeholder="Type a message...">
+                                <button class="message-send-btn" id="chatSendBtn" type="button">
+                                    <i data-lucide="send"></i> Send
+                                </button>
                             </div>
-
                         </div>
-
-                        <!-- Input -->
-                        <div style="padding:16px 20px; border-top:1px solid var(--border); display:flex; gap:10px; align-items:center;">
-                            <input type="text" placeholder="Type a message..."
-                                style="flex:1; padding:10px 14px; border:1px solid var(--border-2); border-radius:999px; font-size:13.5px; outline:none; font-family:inherit; background:var(--surface-2);"
-                                onfocus="this.style.borderColor='var(--accent)'"
-                                onblur="this.style.borderColor='var(--border-2)'">
-                            <button class="btn btn-primary" style="border-radius:999px; padding:10px 18px;">
-                                <i data-lucide="send"></i> Send
-                            </button>
-                        </div>
-
                     </div>
                 </div>
             </div>
@@ -128,6 +95,159 @@
     </div>
 
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="{{ asset('js/client.js') }}"></script>
+    <script>
+        lucide.createIcons();
+
+        const CSRF = '{{ csrf_token() }}';
+        const THREAD_URL_TEMPLATE = "{{ route('client.messages.thread', ['type' => '__TYPE__', 'id' => '__ID__']) }}";
+        const SEND_URL = "{{ route('client.messages.send') }}";
+
+        let activeContact = null;
+        let pollTimer = null;
+
+        function threadUrl(type, id) {
+            return THREAD_URL_TEMPLATE.replace('__TYPE__', type).replace('__ID__', id);
+        }
+
+        function getInitials(name) {
+            const parts = name.trim().split(/\s+/).filter(Boolean);
+            if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+            return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        document.querySelectorAll('.message-thread-avatar').forEach(el => {
+            const thread = el.closest('.message-thread');
+            el.textContent = getInitials(thread.dataset.name);
+        });
+
+        document.querySelectorAll('.message-thread').forEach(el => {
+            el.addEventListener('click', () => openThread(el));
+        });
+
+        function openThread(el) {
+            document.querySelectorAll('.message-thread').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+            el.classList.remove('unread');
+            const badge = el.querySelector('.unread-badge');
+            if (badge) badge.remove();
+
+            activeContact = {
+                type: el.dataset.type,
+                id: el.dataset.id,
+                name: el.dataset.name,
+                role: el.dataset.role,
+            };
+
+            document.getElementById('chatEmptyState').style.display = 'none';
+            document.getElementById('chatActive').style.display = 'flex';
+
+            document.getElementById('chatAvatar').textContent = getInitials(activeContact.name);
+            document.getElementById('chatName').textContent = activeContact.name;
+            document.getElementById('chatRole').textContent = activeContact.role;
+
+            loadThread();
+
+            if (pollTimer) clearInterval(pollTimer);
+            pollTimer = setInterval(loadThread, 4000);
+        }
+
+        function loadThread() {
+            if (!activeContact) return;
+            fetch(threadUrl(activeContact.type, activeContact.id), {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(r => r.json())
+            .then(data => renderMessages(data.messages));
+        }
+
+        function renderMessages(messages) {
+            const container = document.getElementById('chatMessages');
+
+            if (!messages.length) {
+                container.innerHTML = '<div class="message-empty-state"><i data-lucide="message-circle"></i><p>No messages yet. Say hello!</p></div>';
+                lucide.createIcons();
+                return;
+            }
+
+            container.innerHTML = '';
+            messages.forEach(m => {
+                const bubble = document.createElement('div');
+                bubble.className = 'message-bubble ' + (m.is_mine ? 'sent' : 'received');
+
+                if (!m.is_mine) {
+                    const avatar = document.createElement('div');
+                    avatar.className = 'message-bubble-avatar';
+                    avatar.textContent = getInitials(activeContact.name);
+                    bubble.appendChild(avatar);
+                }
+
+                const content = document.createElement('div');
+                content.className = 'message-bubble-content';
+                content.innerHTML = `<div class="message-text">${escapeHtml(m.body)}</div><div class="message-time">${m.time}</div>`;
+                bubble.appendChild(content);
+
+                container.appendChild(bubble);
+            });
+
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function sendMessage() {
+            if (!activeContact) return;
+            const input = document.getElementById('chatInput');
+            const body = input.value.trim();
+            if (!body) return;
+
+            input.value = '';
+
+            fetch(SEND_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': CSRF,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    recipient_type: activeContact.type,
+                    recipient_id: activeContact.id,
+                    body: body
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                loadThread();
+                updateSidebarPreview(activeContact, data.message);
+            });
+        }
+
+        function updateSidebarPreview(contact, message) {
+            const el = document.querySelector(`.message-thread[data-type="${contact.type}"][data-id="${contact.id}"]`);
+            if (!el) return;
+            const preview = el.querySelector('.message-thread-preview');
+            if (preview) preview.textContent = message.body;
+            const time = el.querySelector('.message-thread-time');
+            if (time) time.textContent = message.time;
+            el.parentNode.prepend(el);
+        }
+
+        document.getElementById('chatSendBtn').addEventListener('click', sendMessage);
+        document.getElementById('chatInput').addEventListener('keydown', e => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        document.getElementById('contactSearch').addEventListener('input', e => {
+            const term = e.target.value.trim().toLowerCase();
+            document.querySelectorAll('#contactList .message-thread').forEach(el => {
+                const name = el.dataset.name.toLowerCase();
+                el.style.display = name.includes(term) ? 'flex' : 'none';
+            });
+        });
+    </script>
 </body>
 </html>

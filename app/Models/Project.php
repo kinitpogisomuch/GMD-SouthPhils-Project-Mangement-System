@@ -23,13 +23,18 @@ class Project extends Model
         'status',
         'progress',
         'current_phase',
+        'current_sub_phase',
+        'phase_data',
         'duration',
         'notes',
+        'contract_amount',
+        'project_type',
         'total_phases',
         'completion_percentage',
         'phase_completion_status',
         'last_phase_update_at',
-        'last_phase_updated_by'
+        'last_phase_updated_by',
+        'estimated_working_days'
     ];
 
     protected $casts = [
@@ -39,7 +44,9 @@ class Project extends Model
         'completion_percentage' => 'integer',
         'total_phases' => 'integer',
         'phase_completion_status' => 'array',
-        'last_phase_update_at' => 'datetime'
+        'phase_data' => 'array',
+        'last_phase_update_at' => 'datetime',
+        'estimated_working_days' => 'float'
     ];
 
     // Define the phase order
@@ -53,6 +60,60 @@ class Project extends Model
         'completion',
         'delivery'
     ];
+
+    // Sub-phases within the Planning phase
+    const PLANNING_SUB_PHASES = [
+        'shop_drawing',
+        'quotation',
+        'payment',
+    ];
+
+    // Progress percentage reached once a given phase's requirements are
+    // fully satisfied and the project advances to the next phase
+    const PHASE_PROGRESS = [
+        'planning'    => 20,
+        'procurement' => 30,
+        'matl_prep'   => 40,
+        'fabrication' => 70,
+        'inspection'  => 80,
+        'painting'    => 90,
+        'completion'  => 95,
+        'delivery'    => 100,
+    ];
+
+    // Progress percentage reached once a given Planning sub-phase is completed
+    const SUBPHASE_PROGRESS = [
+        'shop_drawing' => 7,
+        'quotation'    => 13,
+        'payment'      => 20,
+    ];
+
+    // Relationship: Project has many materials
+    public function materials()
+    {
+        return $this->hasMany(ProjectMaterial::class);
+    }
+
+    public function activeMaterials()
+    {
+        return $this->hasMany(ProjectMaterial::class)->where('status', 'active');
+    }
+
+    public function labor()
+    {
+        return $this->hasMany(ProjectLabor::class);
+    }
+
+    public function activeLabor()
+    {
+        return $this->hasMany(ProjectLabor::class)->where('status', 'active');
+    }
+
+    // Relationship: Project has many assigned employees
+    public function assignedEmployees()
+    {
+        return $this->belongsToMany(Employee::class, 'project_employee')->withTimestamps();
+    }
 
     // Relationship: Project has many updates
     public function updates()
@@ -218,6 +279,38 @@ class Project extends Model
         // This can be customized based on your needs
         // For now, it returns 100% if phase is completed, 0% otherwise
         return $this->isPhaseCompleted($phase) ? 100 : 0;
+    }
+
+    // -----------------------------------------------------------------------
+    // Phase workflow data helpers
+    // -----------------------------------------------------------------------
+
+    /** Read a value from phase_data using dot notation, e.g. 'planning.shop_drawing.status' */
+    public function phaseData(string $key, $default = null)
+    {
+        return data_get($this->phase_data, $key, $default);
+    }
+
+    /** Persist a value into phase_data using dot notation */
+    public function setPhaseData(string $key, $value): void
+    {
+        $data = $this->phase_data ?? [];
+        data_set($data, $key, $value);
+        $this->phase_data = $data;
+        $this->save();
+    }
+
+    /** The single Payment record associated with this project, if any */
+    public function getPaymentRecord()
+    {
+        return $this->payments()->first();
+    }
+
+    /** Whether a given payment stage (down_payment, progress_payment, final_payment) has been paid */
+    public function isPaymentStageSettled(string $stage): bool
+    {
+        $payment = $this->getPaymentRecord();
+        return $payment && in_array($stage, $payment->paidStages());
     }
 
     // Scope for ongoing projects

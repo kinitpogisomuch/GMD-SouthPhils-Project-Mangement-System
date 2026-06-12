@@ -67,92 +67,6 @@ function buildEmpPhaseSteps(statuses) {
     if (typeof lucide !== "undefined") lucide.createIcons();
 }
 
-/* ── Phase Details List ───────────────────────────────── */
-
-function buildEmpPhaseDetails(statuses, days) {
-    var container = document.getElementById("empPhaseDetailsList");
-    if (!container) return;
-    container.innerHTML = "";
-
-    EMP_PHASES.forEach(function(phase, i) {
-        var status = statuses[i];
-        var d = days[i];
-        var label  = status === "done" ? "Done" : status === "active" ? "In Progress" : "Upcoming";
-        var dotClr = status === "done" ? "#16a34a" : status === "active" ? "#d97706" : "#e4e7ec";
-        var txtClr = status === "done" ? "#16a34a" : status === "active" ? "#b45309" : "#98a2b3";
-
-        var item = document.createElement("div");
-        item.style.cssText = "display:grid;grid-template-columns:1fr auto auto;align-items:start;gap:10px;padding:13px 0;border-bottom:1px solid var(--border);";
-        if (i === EMP_PHASES.length - 1) item.style.borderBottom = "none";
-
-        item.innerHTML =
-            '<div style="display:flex;align-items:flex-start;gap:10px;">' +
-                '<div style="width:9px;height:9px;border-radius:50%;background:' + dotClr + ';margin-top:5px;flex-shrink:0;"></div>' +
-                '<div>' +
-                    '<div style="font-size:13.5px;font-weight:700;color:var(--text-primary);margin-bottom:2px;">' + phase.label + '</div>' +
-                    '<div style="font-size:11.5px;color:var(--text-secondary);">' + phase.desc + '</div>' +
-                '</div>' +
-            '</div>' +
-            '<div style="font-size:12px;font-weight:700;color:' + txtClr + ';white-space:nowrap;">' + label + '</div>' +
-            '<div style="font-size:12px;font-weight:600;color:var(--text-muted);white-space:nowrap;text-align:right;">' + d + 'd</div>';
-
-        container.appendChild(item);
-    });
-}
-
-/* ── Timeline ─────────────────────────────────────────── */
-
-function buildEmpTimeline(statuses, days) {
-    var tbody  = document.getElementById("empTimelineBody");
-    var totalEl = document.getElementById("empTimelineTotal");
-    if (!tbody) return;
-    tbody.innerHTML = "";
-
-    var currentDate = new Date();
-    if (START_DATE_STR && START_DATE_STR !== "N/A") {
-        var parsed = new Date(START_DATE_STR);
-        if (!isNaN(parsed)) currentDate = parsed;
-    }
-
-    var totalDays = days.reduce(function(a, b) { return a + b; }, 0);
-    var offset = 0;
-
-    EMP_PHASES.forEach(function(phase, i) {
-        var status = statuses[i];
-        var d = days[i];
-        var startD = new Date(currentDate);
-        startD.setDate(startD.getDate() + offset);
-        var endD = new Date(startD);
-        endD.setDate(endD.getDate() + d);
-
-        var startStr = startD.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-        var endStr   = (status === "active" ? "~" : "") +
-                       endD.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-
-        var tr = document.createElement("tr");
-        if (status === "active") tr.className = "active-row";
-        else if (status === "done") tr.className = "done-row";
-
-        tr.innerHTML =
-            "<td>" + phase.shortLabel + "</td>" +
-            "<td>" + startStr + "</td>" +
-            "<td>" + endStr + "</td>" +
-            "<td>" + d + "d</td>";
-
-        tbody.appendChild(tr);
-        offset += d;
-    });
-
-    if (totalEl) {
-        var endDate = new Date(currentDate);
-        endDate.setDate(endDate.getDate() + totalDays);
-        var endStr = endDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-        totalEl.innerHTML =
-            '<span>Estimated Total Duration</span>' +
-            '<span style="color:var(--accent);font-size:14px;">' + totalDays + ' days &nbsp;·&nbsp; Target: ' + endStr + '</span>';
-    }
-}
-
 /* ── Progress Badge ───────────────────────────────────── */
 
 function updateEmpBadge(progress) {
@@ -429,8 +343,6 @@ function showLogSuccess(message) {
 
     updateEmpBadge(PROJECT_PROGRESS);
     buildEmpPhaseSteps(statuses);
-    buildEmpPhaseDetails(statuses, adjustedDays);
-    buildEmpTimeline(statuses, adjustedDays);
     buildEmpPhasePanel(activeIndex, statuses);
 
     if (typeof lucide !== "undefined") lucide.createIcons();

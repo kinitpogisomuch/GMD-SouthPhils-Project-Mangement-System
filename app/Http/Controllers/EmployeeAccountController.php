@@ -40,6 +40,7 @@ class EmployeeAccountController extends Controller
             'email'          => 'nullable|email|unique:employees,email',
             'role'           => 'required|string',
             'employee_type'  => 'required|in:Regular,Outsourced',
+            'daily_rate'     => 'required|numeric|min:0',
         ], [
             'email.unique' => 'An account with this email already exists.',
         ]);
@@ -62,7 +63,7 @@ class EmployeeAccountController extends Controller
                 'email'            => $request->filled('email') ? $request->email : null,
                 'role'             => $request->role,
                 'employee_type'    => $request->employee_type,
-                'daily_rate'       => 0,
+                'daily_rate'       => $request->daily_rate,
                 'pay_type'         => 'Daily',
                 'sss'              => 0,
                 'philhealth'       => 0,
@@ -99,6 +100,7 @@ class EmployeeAccountController extends Controller
             'email'          => 'nullable|email',
             'role'           => 'required|string',
             'employee_type'  => 'required|in:Regular,Outsourced',
+            'daily_rate'     => 'required|numeric|min:0',
             'province'       => 'required|string|max:255',
             'city'           => 'required|string|max:255',
             'region'         => 'required|string|max:255',
@@ -131,6 +133,7 @@ class EmployeeAccountController extends Controller
             'street_address' => $request->street_address,
             'role'           => $request->role,
             'employee_type'  => $request->employee_type,
+            'daily_rate'     => $request->daily_rate,
         ]);
 
         return redirect()->route('admin.employees')
@@ -150,5 +153,22 @@ class EmployeeAccountController extends Controller
                 'success'    => $restore ? 'Employee restored successfully.' : 'Employee archived.',
                 'active_tab' => 'employees',
             ]);
+    }
+
+    public function list()
+    {
+        $employees = Employee::where('status', 'Active')
+            ->orderBy('last_name')->orderBy('first_name')
+            ->get(['id', 'first_name', 'last_name', 'role', 'employee_type'])
+            ->map(function ($e) {
+                return [
+                    'id'   => $e->id,
+                    'name' => $e->full_name,
+                    'role' => $e->role,
+                    'type' => $e->employee_type,
+                ];
+            });
+
+        return response()->json($employees);
     }
 }

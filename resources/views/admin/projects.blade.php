@@ -45,12 +45,10 @@
                         <i data-lucide="search"></i>
                         <input type="text" id="projectSearch" placeholder="Search project or client...">
                     </div>
-                    <div class="filter-group">
-                        <select class="filter-select" id="archiveFilter">
-                            <option value="all">All Projects</option>
-                            <option value="active">Active Only</option>
-                            <option value="archived">Archived Only</option>
-                        </select>
+                    <div class="filter-tabs" id="projectFilterTabs">
+                        <button type="button" class="filter-tab active" data-filter="active">Active</button>
+                        <button type="button" class="filter-tab" data-filter="completed">Completed</button>
+                        <button type="button" class="filter-tab" data-filter="archived">Archived</button>
                     </div>
                 </div>
 
@@ -94,6 +92,12 @@
                                         data-id="{{ $project->id }}">
                                         <i data-lucide="eye"></i>
                                     </button>
+                                    <button class="action-btn view assign-employee-btn" type="button" title="Assign Employees"
+                                        data-id="{{ $project->id }}"
+                                        data-name="{{ $project->name }}"
+                                        data-assigned="{{ $project->assignedEmployees->pluck('id')->toJson() }}">
+                                        <i data-lucide="users"></i>
+                                    </button>
                                     <button class="action-btn view edit-project-btn" type="button" title="Edit Project"
                                         data-id="{{ $project->id }}"
                                         data-name="{{ $project->name }}"
@@ -119,6 +123,13 @@
                                 </td>
                             </tr>
                             @endforelse
+                            @if($projects->isNotEmpty())
+                            <tr id="noProjectsRow" style="display:none;">
+                                <td colspan="8" style="text-align:center; padding:40px; color:var(--muted);">
+                                    No projects match this filter.
+                                </td>
+                            </tr>
+                            @endif
                         </tbody>
                     </table>
                 </div>
@@ -399,6 +410,42 @@
         </div>
     </div>
 
+    <!-- ===================== ASSIGN EMPLOYEES MODAL ===================== -->
+    <div class="modal-overlay" id="assignEmployeesModal">
+        <div class="modal-card" style="max-width:660px;">
+            <div class="modal-header">
+                <div>
+                    <h2>Assign Employees</h2>
+                    <p id="assignEmployeesSubtitle">Select employees to assign to this project.</p>
+                </div>
+                <button class="modal-close" type="button" id="closeAssignEmployeesModal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+
+            <div class="search-box" style="margin-bottom:16px;">
+                <i data-lucide="search"></i>
+                <input type="text" id="employeeSelectSearch" placeholder="Search employee by name or role...">
+            </div>
+
+            <form id="assignEmployeesForm" method="POST" action="">
+                @csrf
+                <div id="employeeSelectList"
+                     style="display:flex;flex-direction:column;gap:8px;max-height:360px;overflow-y:auto;padding-right:4px;">
+                    <p style="text-align:center;color:var(--muted);padding:20px 0;">Loading employees...</p>
+                </div>
+
+                <div class="modal-actions" style="margin-top:20px;">
+                    <button type="button" class="cancel-btn" id="cancelAssignEmployees">Cancel</button>
+                    <button type="submit" class="save-btn">
+                        <i data-lucide="check"></i>
+                        Save Assignments
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="{{ asset('js/admin.js') }}"></script>
     <script>
@@ -407,6 +454,9 @@
 
         @php $clientListUrl = route('admin.client.list'); @endphp
         const CLIENT_LIST_URL = "{{ $clientListUrl }}";
+
+        @php $employeeListUrl = route('admin.employee.list'); @endphp
+        const EMPLOYEE_LIST_URL = "{{ $employeeListUrl }}";
 
         var allClients = [];
 
@@ -417,6 +467,17 @@
             .then(function(res) { return res.json(); })
             .then(function(data) { allClients = data; return data; })
             .catch(function(err) { console.error('Failed to fetch clients:', err); return []; });
+        }
+
+        var allEmployees = [];
+
+        function fetchEmployees() {
+            return fetch(EMPLOYEE_LIST_URL, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+            })
+            .then(function(res) { return res.json(); })
+            .then(function(data) { allEmployees = data; return data; })
+            .catch(function(err) { console.error('Failed to fetch employees:', err); return []; });
         }
 
         function openModal(id) {
@@ -490,6 +551,74 @@
             list.innerHTML = '<p style="text-align:center;color:var(--muted);padding:20px 0;">Loading clients...</p>';
             openModal('selectClientModal');
             fetchClients().then(function(clients) { renderClientSelectList(clients, ''); });
+        }
+
+        var selectedEmployeeIds = [];
+
+        function renderEmployeeAssignList(employees, filter) {
+            var list = document.getElementById('employeeSelectList');
+            if (!list) return;
+            var q = (filter || '').toLowerCase();
+            var filtered = q
+                ? employees.filter(function(e) {
+                    return e.name.toLowerCase().indexOf(q) !== -1 ||
+                           (e.role && e.role.toLowerCase().indexOf(q) !== -1);
+                  })
+                : employees;
+
+            list.innerHTML = '';
+
+            if (filtered.length === 0) {
+                list.innerHTML = '<p style="text-align:center;color:var(--muted);padding:20px 0;font-size:14px;font-weight:700;">No active employees found.</p>';
+                return;
+            }
+
+            filtered.forEach(function(employee) {
+                var isSelected = selectedEmployeeIds.indexOf(employee.id) !== -1;
+                var item       = document.createElement('div');
+                item.className = 'client-select-item' + (isSelected ? ' selected' : '');
+                var init       = employee.name.charAt(0).toUpperCase();
+                item.innerHTML =
+                    '<div class="client-select-avatar">' + init + '</div>' +
+                    '<div class="client-select-info">' +
+                        '<div class="client-select-name">' + employee.name + '</div>' +
+                        '<div class="client-select-meta">' +
+                            '<span>' + (employee.role || '—') + '</span>' +
+                            '<span>' + (employee.type || '—') + '</span>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="client-select-check" style="display:' + (isSelected ? 'flex' : 'none') + ';align-items:center;">' +
+                        '<i data-lucide="check-circle"></i>' +
+                    '</div>';
+
+                item.addEventListener('click', function() {
+                    var idx = selectedEmployeeIds.indexOf(employee.id);
+                    if (idx === -1) {
+                        selectedEmployeeIds.push(employee.id);
+                        item.classList.add('selected');
+                        item.querySelector('.client-select-check').style.display = 'flex';
+                    } else {
+                        selectedEmployeeIds.splice(idx, 1);
+                        item.classList.remove('selected');
+                        item.querySelector('.client-select-check').style.display = 'none';
+                    }
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                });
+                list.appendChild(item);
+            });
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        function openAssignEmployeesModal(projectId, projectName, assignedIds) {
+            selectedEmployeeIds = assignedIds.slice();
+            var si = document.getElementById('employeeSelectSearch');
+            if (si) si.value = '';
+            document.getElementById('assignEmployeesSubtitle').textContent = 'Select employees to assign to "' + projectName + '".';
+            document.getElementById('assignEmployeesForm').action = '/admin/projects/' + projectId + '/assign-employees';
+            var list = document.getElementById('employeeSelectList');
+            list.innerHTML = '<p style="text-align:center;color:var(--muted);padding:20px 0;">Loading employees...</p>';
+            openModal('assignEmployeesModal');
+            fetchEmployees().then(function(employees) { renderEmployeeAssignList(employees, ''); });
         }
 
         function populateClientFields(client) {
@@ -615,18 +744,25 @@
             });
         }
 
-        var currentArchiveFilter = 'all';
+        var currentArchiveFilter = 'active';
 
         function applyProjectFilters() {
             var q = (document.getElementById('projectSearch').value || '').toLowerCase();
+            var visibleCount = 0;
             document.querySelectorAll('#projectsTable tbody tr').forEach(function(row) {
+                if (row.id === 'noProjectsRow' || !row.dataset.status) return;
                 var status = (row.dataset.status || '').toLowerCase();
                 var matchSearch = row.textContent.toLowerCase().indexOf(q) !== -1;
-                var matchFilter = currentArchiveFilter === 'all'
-                    || (currentArchiveFilter === 'archived' && status === 'archived')
-                    || (currentArchiveFilter === 'active'   && status !== 'archived');
-                row.style.display = (matchSearch && matchFilter) ? '' : 'none';
+                var matchFilter = (currentArchiveFilter === 'archived'  && status === 'archived')
+                    || (currentArchiveFilter === 'completed' && status === 'completed')
+                    || (currentArchiveFilter === 'active'    && status !== 'archived' && status !== 'completed');
+                var visible = matchSearch && matchFilter;
+                row.style.display = visible ? '' : 'none';
+                if (visible) visibleCount++;
             });
+
+            var noRow = document.getElementById('noProjectsRow');
+            if (noRow) noRow.style.display = visibleCount === 0 ? '' : 'none';
         }
 
         function initializeSearch() {
@@ -636,11 +772,15 @@
         }
 
         function initializeArchiveFilter() {
-            var sel = document.getElementById('archiveFilter');
-            if (!sel) return;
-            sel.addEventListener('change', function() {
-                currentArchiveFilter = this.value;
-                applyProjectFilters();
+            var tabs = document.querySelectorAll('#projectFilterTabs .filter-tab');
+            if (!tabs.length) return;
+            tabs.forEach(function(tab) {
+                tab.addEventListener('click', function() {
+                    tabs.forEach(function(t) { t.classList.remove('active'); });
+                    this.classList.add('active');
+                    currentArchiveFilter = this.dataset.filter;
+                    applyProjectFilters();
+                });
             });
         }
 
@@ -687,6 +827,7 @@
             initializeSearch();
             initializeArchiveFilter();
             initializeFormValidation();
+            applyProjectFilters();
 
             // Edit Project Modal
             document.querySelectorAll('.edit-project-btn').forEach(function(btn) {
@@ -736,6 +877,38 @@
                 var btn = document.getElementById(id);
                 if (btn) btn.addEventListener('click', function() { closeModal('archiveProjectModal'); });
             });
+
+            // Assign Employees Modal
+            document.querySelectorAll('.assign-employee-btn').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var assignedIds = [];
+                    try { assignedIds = JSON.parse(this.dataset.assigned || '[]'); } catch (e) {}
+                    openAssignEmployeesModal(this.dataset.id, this.dataset.name, assignedIds);
+                });
+            });
+            ['closeAssignEmployeesModal', 'cancelAssignEmployees'].forEach(function(id) {
+                var btn = document.getElementById(id);
+                if (btn) btn.addEventListener('click', function() { closeModal('assignEmployeesModal'); });
+            });
+            var eSearch = document.getElementById('employeeSelectSearch');
+            if (eSearch) {
+                eSearch.addEventListener('input', function() {
+                    renderEmployeeAssignList(allEmployees, this.value);
+                });
+            }
+            var assignForm = document.getElementById('assignEmployeesForm');
+            if (assignForm) {
+                assignForm.addEventListener('submit', function() {
+                    assignForm.querySelectorAll('input[name="employee_ids[]"]').forEach(function(el) { el.remove(); });
+                    selectedEmployeeIds.forEach(function(id) {
+                        var input = document.createElement('input');
+                        input.type  = 'hidden';
+                        input.name  = 'employee_ids[]';
+                        input.value = id;
+                        assignForm.appendChild(input);
+                    });
+                });
+            }
 
             if (typeof lucide !== 'undefined') lucide.createIcons();
         });

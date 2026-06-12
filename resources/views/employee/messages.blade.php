@@ -15,92 +15,77 @@
 
         <main class="admin-content">
 
-            <div class="card" style="height: calc(100vh - 160px); display: flex; flex-direction: column; margin-bottom: 0;">
-                <div class="card-header">
-                    <span class="card-title">Messages</span>
-                    <span class="status-badge pending">2 Unread</span>
+            <div class="page-header">
+                <div>
+                    <h1>Messages</h1>
+                    <p>Chat with admins.</p>
                 </div>
+            </div>
+
+            <div class="message-page-card">
+                <div class="message-page-header">
+                    <span class="message-page-title">Conversations</span>
+                </div>
+
                 <div class="message-list-container">
                     <div class="message-sidebar">
+                        <div class="message-sidebar-search">
+                            <input type="text" id="contactSearch" placeholder="Search contacts...">
+                        </div>
 
-                        @php
-                        $threads = [
-                            ['name' => 'Engr. Santos (Supervisor)', 'preview' => 'Weld inspection report needed by EOD.', 'time' => '9:45 AM', 'unread' => 1, 'active' => true],
-                            ['name' => 'Project Manager', 'preview' => 'Updated schedule for Phase 3 attached.', 'time' => 'Yesterday', 'unread' => 1, 'active' => false],
-                            ['name' => 'Admin – GMD', 'preview' => 'Please submit your timesheet for this week.', 'time' => 'Apr 8', 'unread' => 0, 'active' => false],
-                        ];
-                        @endphp
-
-                        @foreach($threads as $t)
-                        <div class="message-thread"
-                             style="background: {{ $t['active'] ? 'var(--accent-soft)' : 'transparent' }};"
-                             onclick="openMessage(this, '{{ addslashes($t['name']) }}')">
-                            <div class="message-thread-header">
-                                <div class="message-thread-name"
-                                     style="font-weight: {{ $t['unread'] > 0 ? '900' : '700' }}; color:var(--dark);">
-                                    {{ $t['name'] }}
-                                </div>
-                                <div class="flex-center gap-8">
-                                    <span class="message-thread-time">{{ $t['time'] }}</span>
-                                    @if($t['unread'] > 0)
-                                    <span class="unread-badge">{{ $t['unread'] }}</span>
-                                    @endif
+                        <div id="contactList">
+                            @forelse($contacts as $c)
+                            <div class="message-thread {{ $c['unread'] > 0 ? 'unread' : '' }}"
+                                 data-type="{{ $c['type'] }}"
+                                 data-id="{{ $c['id'] }}"
+                                 data-name="{{ $c['name'] }}"
+                                 data-role="{{ $c['role'] }}">
+                                <div class="message-thread-avatar"></div>
+                                <div class="message-thread-body">
+                                    <div class="message-thread-header">
+                                        <span class="message-thread-name">{{ $c['name'] }} <span class="message-thread-role">{{ $c['role'] }}</span></span>
+                                        <span class="message-thread-time">{{ $c['last_time'] }}</span>
+                                    </div>
+                                    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                                        <span class="message-thread-preview">{{ $c['last_message'] ?? 'No messages yet' }}</span>
+                                        @if($c['unread'] > 0)
+                                        <span class="unread-badge">{{ $c['unread'] }}</span>
+                                        @endif
+                                    </div>
                                 </div>
                             </div>
-                            <div class="message-thread-preview">{{ $t['preview'] }}</div>
+                            @empty
+                            <div class="message-empty-state">
+                                <i data-lucide="users"></i>
+                                <p>No contacts available</p>
+                            </div>
+                            @endforelse
                         </div>
-                        @endforeach
-
                     </div>
 
-                    <div id="chatWindow" class="message-chat-window">
-                        <div class="message-chat-header">
-                            <div class="message-chat-avatar">
-                                <i data-lucide="user-check"></i>
-                            </div>
-                            <div class="message-chat-info">
-                                <div class="message-chat-name">Engr. Santos (Supervisor)</div>
-                                <div class="message-chat-status">
-                                    <span class="message-chat-status-dot"></span> Online
-                                </div>
-                            </div>
+                    <div class="message-chat-window" id="chatWindow">
+                        <div class="message-empty-state" id="chatEmptyState">
+                            <i data-lucide="message-square"></i>
+                            <p>Select a conversation to start chatting</p>
                         </div>
 
-                        <div id="messageThread" class="message-thread-content">
-                            <div class="message-bubble received">
-                                <div class="message-avatar">
-                                    <i data-lucide="user" style="width:15px;height:15px;color:var(--muted);"></i>
-                                </div>
-                                <div class="message-bubble-content">
-                                    <div class="message-text">Good morning! Make sure the weld inspection on Section 3B is completed before 5 PM today.</div>
-                                    <div class="message-time">9:30 AM</div>
+                        <div id="chatActive" style="display:none; flex-direction:column; height:100%;">
+                            <div class="message-chat-header">
+                                <div class="message-chat-avatar" id="chatAvatar"></div>
+                                <div class="message-chat-info">
+                                    <div class="message-chat-name" id="chatName"></div>
+                                    <div class="message-chat-role" id="chatRole"></div>
                                 </div>
                             </div>
 
-                            <div class="message-bubble sent">
-                                <div class="message-bubble-content">
-                                    <div class="message-text">Understood, Sir. I'll have the report and photos submitted before 5 PM.</div>
-                                    <div class="message-time">9:38 AM ✓✓</div>
-                                </div>
-                            </div>
+                            <div class="message-thread-content" id="chatMessages"></div>
 
-                            <div class="message-bubble received">
-                                <div class="message-avatar">
-                                    <i data-lucide="user" style="width:15px;height:15px;color:var(--muted);"></i>
-                                </div>
-                                <div class="message-bubble-content">
-                                    <div class="message-text">Weld inspection report needed by EOD. Please include photos of all seam lines.</div>
-                                    <div class="message-time">9:45 AM</div>
-                                </div>
+                            <div class="message-input-area">
+                                <input type="text" class="message-input-field" id="chatInput" placeholder="Type a message...">
+                                <button class="message-send-btn" id="chatSendBtn" type="button">
+                                    <i data-lucide="send"></i> Send
+                                </button>
                             </div>
-                        </div>
-
-                        <div class="message-input-area">
-                            <input type="text" id="replyInput" placeholder="Type a message..."
-                                   class="log-input message-input-field">
-                            <button class="btn btn-primary message-send-btn" onclick="sendReply()">
-                                <i data-lucide="send"></i> Send
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -113,39 +98,21 @@
     <script>
         lucide.createIcons();
 
-        function openMessage(element, sender) {
-            document.querySelectorAll('.message-thread').forEach(el => {
-                el.style.background = 'transparent';
-            });
-            element.style.background = 'var(--accent-soft)';
-            const chatHeader = document.querySelector('#chatWindow > div:first-child');
-            if (chatHeader) {
-                chatHeader.querySelector('div:last-child div:first-child').textContent = sender;
-            }
-            const unreadBadge = element.querySelector('.unread-badge');
-            if (unreadBadge) unreadBadge.remove();
+        const CSRF = '{{ csrf_token() }}';
+        const THREAD_URL_TEMPLATE = "{{ route('employee.messages.thread', ['type' => '__TYPE__', 'id' => '__ID__']) }}";
+        const SEND_URL = "{{ route('employee.messages.send') }}";
+
+        let activeContact = null;
+        let pollTimer = null;
+
+        function threadUrl(type, id) {
+            return THREAD_URL_TEMPLATE.replace('__TYPE__', type).replace('__ID__', id);
         }
 
-        function sendReply() {
-            const replyInput = document.getElementById('replyInput');
-            const message = replyInput.value.trim();
-            if (!message) return;
-            const messageThread = document.getElementById('messageThread');
-            const now = new Date();
-            const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            const sentMessage = document.createElement('div');
-            sentMessage.style.cssText = 'display:flex;justify-content:flex-end;';
-            sentMessage.innerHTML = `
-                <div style="max-width:75%;">
-                    <div style="background:linear-gradient(135deg,var(--dark) 0%,var(--dark-soft) 100%);color:var(--white);padding:12px 16px;border-radius:14px 0 14px 14px;font-size:13.5px;line-height:1.6;">
-                        ${escapeHtml(message)}
-                    </div>
-                    <div style="font-size:11px;color:var(--muted);font-weight:700;margin-top:5px;text-align:right;">${timeStr} ✓✓</div>
-                </div>
-            `;
-            messageThread.appendChild(sentMessage);
-            replyInput.value = '';
-            messageThread.scrollTop = messageThread.scrollHeight;
+        function getInitials(name) {
+            const parts = name.trim().split(/\s+/).filter(Boolean);
+            if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+            return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
         }
 
         function escapeHtml(text) {
@@ -154,47 +121,133 @@
             return div.innerHTML;
         }
 
-        function toggleSidebar() {
-            document.querySelector('.employee-sidebar').classList.toggle('open');
+        document.querySelectorAll('.message-thread-avatar').forEach(el => {
+            const thread = el.closest('.message-thread');
+            el.textContent = getInitials(thread.dataset.name);
+        });
+
+        document.querySelectorAll('.message-thread').forEach(el => {
+            el.addEventListener('click', () => openThread(el));
+        });
+
+        function openThread(el) {
+            document.querySelectorAll('.message-thread').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+            el.classList.remove('unread');
+            const badge = el.querySelector('.unread-badge');
+            if (badge) badge.remove();
+
+            activeContact = {
+                type: el.dataset.type,
+                id: el.dataset.id,
+                name: el.dataset.name,
+                role: el.dataset.role,
+            };
+
+            document.getElementById('chatEmptyState').style.display = 'none';
+            document.getElementById('chatActive').style.display = 'flex';
+
+            document.getElementById('chatAvatar').textContent = getInitials(activeContact.name);
+            document.getElementById('chatName').textContent = activeContact.name;
+            document.getElementById('chatRole').textContent = activeContact.role;
+
+            loadThread();
+
+            if (pollTimer) clearInterval(pollTimer);
+            pollTimer = setInterval(loadThread, 4000);
         }
 
-        function initializeEmployeeDropdown() {
-            const dropdown = document.querySelector(".employee-dropdown");
-            const button = document.getElementById("employeeDropdownBtn");
-            if (!dropdown || !button) return;
-            button.addEventListener("click", function(event) {
-                event.stopPropagation();
-                const notificationDropdown = document.querySelector(".notification-dropdown");
-                if (notificationDropdown) notificationDropdown.classList.remove("open");
-                dropdown.classList.toggle("open");
+        function loadThread() {
+            if (!activeContact) return;
+            fetch(threadUrl(activeContact.type, activeContact.id), {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(r => r.json())
+            .then(data => renderMessages(data.messages));
+        }
+
+        function renderMessages(messages) {
+            const container = document.getElementById('chatMessages');
+
+            if (!messages.length) {
+                container.innerHTML = '<div class="message-empty-state"><i data-lucide="message-circle"></i><p>No messages yet. Say hello!</p></div>';
+                lucide.createIcons();
+                return;
+            }
+
+            container.innerHTML = '';
+            messages.forEach(m => {
+                const bubble = document.createElement('div');
+                bubble.className = 'message-bubble ' + (m.is_mine ? 'sent' : 'received');
+
+                if (!m.is_mine) {
+                    const avatar = document.createElement('div');
+                    avatar.className = 'message-bubble-avatar';
+                    avatar.textContent = getInitials(activeContact.name);
+                    bubble.appendChild(avatar);
+                }
+
+                const content = document.createElement('div');
+                content.className = 'message-bubble-content';
+                content.innerHTML = `<div class="message-text">${escapeHtml(m.body)}</div><div class="message-time">${m.time}</div>`;
+                bubble.appendChild(content);
+
+                container.appendChild(bubble);
+            });
+
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function sendMessage() {
+            if (!activeContact) return;
+            const input = document.getElementById('chatInput');
+            const body = input.value.trim();
+            if (!body) return;
+
+            input.value = '';
+
+            fetch(SEND_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': CSRF,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    recipient_type: activeContact.type,
+                    recipient_id: activeContact.id,
+                    body: body
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                loadThread();
+                updateSidebarPreview(activeContact, data.message);
             });
         }
 
-        function initializeNotificationDropdown() {
-            const dropdown = document.querySelector(".notification-dropdown");
-            const button = document.getElementById("notificationDropdownBtn");
-            if (!dropdown || !button) return;
-            button.addEventListener("click", function(event) {
-                event.stopPropagation();
-                const employeeDropdown = document.querySelector(".employee-dropdown");
-                if (employeeDropdown) employeeDropdown.classList.remove("open");
-                dropdown.classList.toggle("open");
-            });
+        function updateSidebarPreview(contact, message) {
+            const el = document.querySelector(`.message-thread[data-type="${contact.type}"][data-id="${contact.id}"]`);
+            if (!el) return;
+            const preview = el.querySelector('.message-thread-preview');
+            if (preview) preview.textContent = message.body;
+            const time = el.querySelector('.message-thread-time');
+            if (time) time.textContent = message.time;
+            el.parentNode.prepend(el);
         }
 
-        function closeDropdownsOnOutsideClick() {
-            document.addEventListener("click", function(event) {
-                if (event.target.closest('a') || event.target.closest('button')) return;
-                const employeeDropdown = document.querySelector(".employee-dropdown");
-                const notificationDropdown = document.querySelector(".notification-dropdown");
-                if (employeeDropdown) employeeDropdown.classList.remove("open");
-                if (notificationDropdown) notificationDropdown.classList.remove("open");
-            });
-        }
+        document.getElementById('chatSendBtn').addEventListener('click', sendMessage);
+        document.getElementById('chatInput').addEventListener('keydown', e => {
+            if (e.key === 'Enter') sendMessage();
+        });
 
-        initializeEmployeeDropdown();
-        initializeNotificationDropdown();
-        closeDropdownsOnOutsideClick();
+        document.getElementById('contactSearch').addEventListener('input', e => {
+            const term = e.target.value.trim().toLowerCase();
+            document.querySelectorAll('#contactList .message-thread').forEach(el => {
+                const name = el.dataset.name.toLowerCase();
+                el.style.display = name.includes(term) ? 'flex' : 'none';
+            });
+        });
     </script>
 </body>
 </html>

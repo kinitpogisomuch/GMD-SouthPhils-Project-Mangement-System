@@ -1,6 +1,7 @@
 <aside class="admin-sidebar">
     <nav class="admin-sidebar-nav">
 
+        <div class="sidebar-section-label">Overview</div>
         <a href="{{ route('admin.dashboard') }}"
            class="{{ request()->routeIs('admin.dashboard') ? 'active' : '' }}"
            title="Dashboard">
@@ -8,6 +9,7 @@
             <span>Dashboard</span>
         </a>
 
+        <div class="sidebar-section-label">Project Management</div>
         <a href="{{ route('admin.projects') }}"
            class="{{ request()->routeIs(['admin.projects', 'admin.project_view']) ? 'active' : '' }}"
            title="Projects">
@@ -15,6 +17,14 @@
             <span>Projects</span>
         </a>
 
+        <a href="{{ route('admin.project_materials') }}"
+           class="{{ request()->routeIs(['admin.project_materials', 'admin.project_materials.detail']) ? 'active' : '' }}"
+           title="Project Quotations">
+            <div class="sidebar-icon"><i data-lucide="package"></i></div>
+            <span>Project Quotations</span>
+        </a>
+
+        <div class="sidebar-section-label">People</div>
         <a href="{{ route('admin.employees') }}"
            class="{{ request()->routeIs('admin.employees') ? 'active' : '' }}"
            title="Employees">
@@ -29,13 +39,7 @@
             <span>Clients</span>
         </a>
 
-        <a href="{{ route('admin.material_requests') }}"
-           class="{{ request()->routeIs('admin.material_requests') ? 'active' : '' }}"
-           title="Material Requests">
-            <div class="sidebar-icon"><i data-lucide="clipboard-list"></i></div>
-            <span>Material Requests</span>
-        </a>
-
+        <div class="sidebar-section-label">Finance</div>
         <a href="{{ route('admin.payments') }}"
            class="{{ request()->routeIs('admin.payments') ? 'active' : '' }}"
            title="Payments">
@@ -43,6 +47,7 @@
             <span>Payments</span>
         </a>
 
+        <div class="sidebar-section-label">Communication</div>
         <a href="{{ route('admin.messages') }}"
            class="{{ request()->routeIs('admin.messages') ? 'active' : '' }}"
            title="Messages">
@@ -50,6 +55,7 @@
             <span>Messages</span>
         </a>
 
+        <div class="sidebar-section-label">Account</div>
         <a href="{{ route('admin.settings') }}"
            class="{{ request()->routeIs('admin.settings') ? 'active' : '' }}"
            title="Settings">

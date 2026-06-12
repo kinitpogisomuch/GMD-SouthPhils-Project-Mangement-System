@@ -134,36 +134,6 @@
     <script>
         lucide.createIcons();
 
-        function initializeClientDropdown() {
-            const dropdown = document.querySelector('.client-dropdown');
-            const button   = document.getElementById('clientDropdownBtn');
-            if (!dropdown || !button) return;
-            button.addEventListener('click', function(e) {
-                e.stopPropagation();
-                const notifDropdown = document.querySelector('.notification-dropdown');
-                if (notifDropdown) notifDropdown.classList.remove('open');
-                dropdown.classList.toggle('open');
-            });
-        }
-
-        function initializeNotificationDropdown() {
-            const dropdown = document.querySelector('.notification-dropdown');
-            const button   = document.getElementById('notificationDropdownBtn');
-            if (!dropdown || !button) return;
-            button.addEventListener('click', function(e) {
-                e.stopPropagation();
-                const clientDropdown = document.querySelector('.client-dropdown');
-                if (clientDropdown) clientDropdown.classList.remove('open');
-                dropdown.classList.toggle('open');
-            });
-        }
-
-        document.addEventListener('click', function() {
-            document.querySelectorAll('.client-dropdown, .notification-dropdown').forEach(d => d.classList.remove('open'));
-        });
-
-        initializeClientDropdown();
-        initializeNotificationDropdown();
     </script>
 </body>
 </html>

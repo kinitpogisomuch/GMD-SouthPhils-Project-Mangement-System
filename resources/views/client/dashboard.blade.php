@@ -16,7 +16,7 @@
         <main class="admin-content">
 
             <div class="stats-grid">
-                <div class="stat-card">
+                <div class="stat-card teal">
                     <div class="stat-icon teal"><i data-lucide="folder-open"></i></div>
                     <div class="stat-info">
                         <div class="stat-value">{{ $projects->count() }}</div>
@@ -24,7 +24,7 @@
                         <div class="stat-change up"><i data-lucide="trending-up"></i> Your projects</div>
                     </div>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card blue">
                     <div class="stat-icon blue"><i data-lucide="check-circle"></i></div>
                     <div class="stat-info">
                         <div class="stat-value">{{ $projects->avg('progress') ? round($projects->avg('progress')) : 0 }}%</div>
@@ -32,7 +32,7 @@
                         <div class="stat-change up"><i data-lucide="trending-up"></i> Average completion</div>
                     </div>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card orange">
                     <div class="stat-icon orange"><i data-lucide="credit-card"></i></div>
                     <div class="stat-info">
                         <div class="stat-value">₱{{ number_format($payments->sum('contract_amount')) }}</div>
@@ -40,7 +40,7 @@
                         <div class="stat-change up"><i data-lucide="trending-up"></i> All projects</div>
                     </div>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card green">
                     <div class="stat-icon green"><i data-lucide="file-text"></i></div>
                     <div class="stat-info">
                         <div class="stat-value">{{ $payments->count() }}</div>

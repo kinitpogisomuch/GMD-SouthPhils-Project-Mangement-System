@@ -19,6 +19,16 @@ class NotificationService
     const TYPE_PHASE_ADVANCED     = 'phase_advanced';
     const TYPE_PROJECT_COMPLETED  = 'project_completed';
     const TYPE_PENDING_REVIEW     = 'pending_review';
+    const TYPE_MATERIAL_ADDED     = 'material_added';
+    const TYPE_MATERIAL_UPDATED   = 'material_updated';
+    const TYPE_MATERIAL_REMOVED   = 'material_removed';
+    const TYPE_MATERIAL_REQUESTED = 'material_requested';
+    const TYPE_LABOR_ADDED        = 'labor_added';
+    const TYPE_LABOR_UPDATED      = 'labor_updated';
+    const TYPE_SHOP_DRAWING_SUBMITTED = 'shop_drawing_submitted';
+    const TYPE_SHOP_DRAWING_APPROVED  = 'shop_drawing_approved';
+    const TYPE_SHOP_DRAWING_REVISION  = 'shop_drawing_revision_requested';
+    const TYPE_QUOTATION_SENT         = 'quotation_sent';
 
     // -------------------------------------------------------------------------
     // Core send — accepts any model with an id, or a raw integer ID + type
@@ -131,6 +141,97 @@ class NotificationService
     // -------------------------------------------------------------------------
     // Event-specific notification builders
     // -------------------------------------------------------------------------
+
+    /** Material added to a project → activity log for admins */
+    public static function materialAdded(Project $project, string $materialName, float $quantity): void
+    {
+        self::notifyAdmins(
+            'Material Added',
+            "Material added to Project: {$project->name}.\nMaterial: {$materialName}\nQuantity: {$quantity}",
+            self::TYPE_MATERIAL_ADDED,
+            'info',
+            $project->id,
+            null,
+            "/admin/project-materials/{$project->id}"
+        );
+    }
+
+    /** Employee flags a material as short and requests more → activity log for admins */
+    public static function materialRequested(Project $project, string $employeeName, string $materialName, $quantity, ?string $notes): void
+    {
+        $message = "{$employeeName} reported a material shortage on Project: {$project->name}.\n" .
+            "Material: {$materialName}\nQuantity Needed: {$quantity}";
+
+        if ($notes) {
+            $message .= "\nNotes: {$notes}";
+        }
+
+        self::notifyAdmins(
+            'Material Shortage Reported',
+            $message,
+            self::TYPE_MATERIAL_REQUESTED,
+            'warning',
+            $project->id,
+            null,
+            "/admin/project-materials/{$project->id}"
+        );
+    }
+
+    /** Labor entry added to a project → activity log for admins */
+    public static function laborAdded(Project $project, string $description, float $dailyRate): void
+    {
+        self::notifyAdmins(
+            'Labor Entry Added',
+            "Labor entry added to Project: {$project->name}.\nEmployee: {$description}\nDaily Rate: ₱" . number_format($dailyRate, 2),
+            self::TYPE_LABOR_ADDED,
+            'info',
+            $project->id,
+            null,
+            "/admin/project-materials/{$project->id}"
+        );
+    }
+
+    /** Labor entry updated on a project → activity log for admins */
+    public static function laborUpdated(Project $project, string $description): void
+    {
+        self::notifyAdmins(
+            'Labor Entry Updated',
+            "Labor entry updated in Project: {$project->name}.\nRole: {$description}",
+            self::TYPE_LABOR_UPDATED,
+            'info',
+            $project->id,
+            null,
+            "/admin/project-materials/{$project->id}"
+        );
+    }
+
+    /** Material updated on a project → activity log for admins */
+    public static function materialUpdated(Project $project, string $materialName): void
+    {
+        self::notifyAdmins(
+            'Material Updated',
+            "Material updated in Project: {$project->name}.\nMaterial: {$materialName}",
+            self::TYPE_MATERIAL_UPDATED,
+            'info',
+            $project->id,
+            null,
+            "/admin/project-materials/{$project->id}"
+        );
+    }
+
+    /** Material removed from a project → activity log for admins */
+    public static function materialRemoved(Project $project, string $materialName): void
+    {
+        self::notifyAdmins(
+            'Material Removed',
+            "Material removed from Project: {$project->name}.\nMaterial: {$materialName}",
+            self::TYPE_MATERIAL_REMOVED,
+            'warning',
+            $project->id,
+            null,
+            "/admin/project-materials/{$project->id}"
+        );
+    }
 
     /** Admin created a new project → notify all employees + client */
     public static function projectCreated(Project $project): void
@@ -279,5 +380,111 @@ class NotificationService
                 "/client/project-view/{$project->id}"
             );
         }
+    }
+
+    /** Owner submitted shop drawing / tank design documents → notify client for review */
+    public static function shopDrawingSubmitted(Project $project): void
+    {
+        self::notifyProjectClient(
+            $project,
+            'Shop Drawing / Tank Design Update',
+            "Shop drawing and tank design documents for \"{$project->name}\" are ready for your review.\nPlease review and approve, or request a revision.",
+            self::TYPE_SHOP_DRAWING_SUBMITTED,
+            'info',
+            null,
+            "/client/project-view/{$project->id}"
+        );
+    }
+
+    /** Client approved the shop drawing / tank design → notify admins */
+    public static function shopDrawingApproved(Project $project): void
+    {
+        self::notifyAdmins(
+            'Shop Drawing Approved',
+            "The client approved the shop drawing / tank design for Project: {$project->name}.\nYou may now proceed to send the project quotation.",
+            self::TYPE_SHOP_DRAWING_APPROVED,
+            'success',
+            $project->id,
+            null,
+            "/admin/project-view/{$project->id}"
+        );
+    }
+
+    /** Client requested a revision of the shop drawing / tank design → notify admins */
+    public static function shopDrawingRevisionRequested(Project $project, string $notes): void
+    {
+        self::notifyAdmins(
+            'Shop Drawing Revision Requested',
+            "The client requested a revision to the shop drawing / tank design for Project: {$project->name}.\nNotes: {$notes}",
+            self::TYPE_SHOP_DRAWING_REVISION,
+            'warning',
+            $project->id,
+            null,
+            "/admin/project-view/{$project->id}"
+        );
+    }
+
+    /** Owner sent the project quotation to the client */
+    public static function quotationSent(Project $project): void
+    {
+        self::notifyProjectClient(
+            $project,
+            'Quotation Sent',
+            "The quotation for project \"{$project->name}\" has been sent to you.\nThe project quotation must be settled before proceeding to the next phase.",
+            self::TYPE_QUOTATION_SENT,
+            'info',
+            null,
+            "/client/project-view/{$project->id}"
+        );
+    }
+
+    /** Project advanced to a new phase → notify all employees, plus the client with a custom message */
+    public static function phaseAdvanced(Project $project, string $newPhase, string $clientMessage): void
+    {
+        $phaseName = ucfirst(str_replace('_', ' ', $newPhase));
+
+        self::notifyAllEmployees(
+            'Project Phase Advanced',
+            "Project {$project->name} has advanced to the {$phaseName} phase.",
+            self::TYPE_PHASE_ADVANCED,
+            'info',
+            $project->id,
+            null,
+            "/employee/project-view/{$project->id}"
+        );
+
+        self::notifyProjectClient(
+            $project,
+            'Project Update',
+            $clientMessage,
+            self::TYPE_PHASE_ADVANCED,
+            'info',
+            null,
+            "/client/project-view/{$project->id}"
+        );
+    }
+
+    /** Project fully delivered and marked completed → notify client and employees */
+    public static function projectCompleted(Project $project): void
+    {
+        self::notifyProjectClient(
+            $project,
+            'Project Completed',
+            "Congratulations! Your project \"{$project->name}\" has been marked as completed.",
+            self::TYPE_PROJECT_COMPLETED,
+            'success',
+            null,
+            "/client/project-view/{$project->id}"
+        );
+
+        self::notifyAllEmployees(
+            'Project Completed',
+            "Project {$project->name} has been completed and delivered.",
+            self::TYPE_PROJECT_COMPLETED,
+            'success',
+            $project->id,
+            null,
+            "/employee/project-view/{$project->id}"
+        );
     }
 }

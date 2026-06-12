@@ -14,169 +14,240 @@
         @include('partials.admin.sidebar')
 
         <main class="admin-content">
+
             <div class="page-header">
                 <div>
                     <h1>Messages</h1>
-                    <p>View and respond to client and supplier messages.</p>
+                    <p>Chat with employees and clients.</p>
                 </div>
-                <button class="add-btn" type="button" id="openComposeModal">
-                    <i data-lucide="pencil"></i>
-                    Compose
-                </button>
             </div>
 
-            <div class="messages-layout">
-                <!-- Message List -->
-                <div class="message-list-card">
-                    <div class="search-box" style="margin-bottom: 14px;">
-                        <i data-lucide="search"></i>
-                        <input type="text" placeholder="Search messages...">
-                    </div>
-
-                    <div class="message-item unread" onclick="openMessage(this, 'ABC Corporation', 'Re: Fuel Tank Project Update', 'Good day! We would like to follow up on the current status of the fuel storage tank fabrication. Please provide an update at your earliest convenience.', 'May 30, 2026')">
-                        <div class="message-avatar corporate-avatar">A</div>
-                        <div class="message-preview">
-                            <div class="message-sender">ABC Corporation</div>
-                            <div class="message-subject">Re: Fuel Tank Project Update</div>
-                            <div class="message-snippet">We would like to follow up on the current status...</div>
-                        </div>
-                        <div class="message-meta">
-                            <span class="message-time">May 30</span>
-                            <span class="unread-dot"></span>
-                        </div>
-                    </div>
-
-                    <div class="message-item unread" onclick="openMessage(this, 'Prime Chemicals', 'Payment Terms Clarification', 'We need clarification on the payment schedule for the chemical tank repair project. Is a 30% down payment acceptable instead of 50%?', 'May 29, 2026')">
-                        <div class="message-avatar corporate-avatar">P</div>
-                        <div class="message-preview">
-                            <div class="message-sender">Prime Chemicals</div>
-                            <div class="message-subject">Payment Terms Clarification</div>
-                            <div class="message-snippet">We need clarification on the payment schedule...</div>
-                        </div>
-                        <div class="message-meta">
-                            <span class="message-time">May 29</span>
-                            <span class="unread-dot"></span>
-                        </div>
-                    </div>
-
-                    <div class="message-item" onclick="openMessage(this, 'Steel Supply Co.', 'Delivery Confirmation', 'We confirm that the steel plates (6mm) have been delivered to your site on May 10, 2026. Please acknowledge receipt.', 'May 10, 2026')">
-                        <div class="message-avatar supplier-avatar">S</div>
-                        <div class="message-preview">
-                            <div class="message-sender">Steel Supply Co.</div>
-                            <div class="message-subject">Delivery Confirmation</div>
-                            <div class="message-snippet">Steel plates (6mm) have been delivered...</div>
-                        </div>
-                        <div class="message-meta">
-                            <span class="message-time">May 10</span>
-                        </div>
-                    </div>
-
-                    <div class="message-item unread" onclick="openMessage(this, 'South Plant Inc.', 'Project Completion Certificate', 'Thank you for completing the water tank installation. Please send us the project completion certificate for our records.', 'May 5, 2026')">
-                        <div class="message-avatar owner-avatar">S</div>
-                        <div class="message-preview">
-                            <div class="message-sender">South Plant Inc.</div>
-                            <div class="message-subject">Project Completion Certificate</div>
-                            <div class="message-snippet">Thank you for completing the water tank...</div>
-                        </div>
-                        <div class="message-meta">
-                            <span class="message-time">May 5</span>
-                            <span class="unread-dot"></span>
-                        </div>
-                    </div>
-
-                    <div class="message-item" onclick="openMessage(this, 'MetalWorks PH', 'Quotation for Welding Rods', 'Please find attached our updated quotation for welding rods (7018) as requested. Prices are valid for 30 days.', 'May 3, 2026')">
-                        <div class="message-avatar supplier-avatar">M</div>
-                        <div class="message-preview">
-                            <div class="message-sender">MetalWorks PH</div>
-                            <div class="message-subject">Quotation for Welding Rods</div>
-                            <div class="message-snippet">Please find attached our updated quotation...</div>
-                        </div>
-                        <div class="message-meta">
-                            <span class="message-time">May 3</span>
-                        </div>
-                    </div>
+            <div class="message-page-card">
+                <div class="message-page-header">
+                    <span class="message-page-title">Conversations</span>
                 </div>
 
-                <!-- Message View -->
-                <div class="message-view-card" id="messageView">
-                    <div class="message-empty-state" id="messageEmptyState">
-                        <i data-lucide="message-square"></i>
-                        <p>Select a message to read</p>
+                <div class="message-list-container">
+                    <div class="message-sidebar">
+                        <div class="message-sidebar-search">
+                            <input type="text" id="contactSearch" placeholder="Search contacts...">
+                        </div>
+
+                        <div id="contactList">
+                            @forelse($contacts as $c)
+                            <div class="message-thread {{ $c['unread'] > 0 ? 'unread' : '' }}"
+                                 data-type="{{ $c['type'] }}"
+                                 data-id="{{ $c['id'] }}"
+                                 data-name="{{ $c['name'] }}"
+                                 data-role="{{ $c['role'] }}">
+                                <div class="message-thread-avatar"></div>
+                                <div class="message-thread-body">
+                                    <div class="message-thread-header">
+                                        <span class="message-thread-name">{{ $c['name'] }} <span class="message-thread-role">{{ $c['role'] }}</span></span>
+                                        <span class="message-thread-time">{{ $c['last_time'] }}</span>
+                                    </div>
+                                    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                                        <span class="message-thread-preview">{{ $c['last_message'] ?? 'No messages yet' }}</span>
+                                        @if($c['unread'] > 0)
+                                        <span class="unread-badge">{{ $c['unread'] }}</span>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                            @empty
+                            <div class="message-empty-state">
+                                <i data-lucide="users"></i>
+                                <p>No contacts available</p>
+                            </div>
+                            @endforelse
+                        </div>
                     </div>
 
-                    <div class="message-content" id="messageContent" style="display:none;">
-                        <div class="message-view-header">
-                            <div class="message-view-subject" id="msgViewSubject"></div>
-                            <div class="message-view-meta">
-                                <span id="msgViewSender"></span>
-                                <span id="msgViewDate"></span>
-                            </div>
+                    <div class="message-chat-window" id="chatWindow">
+                        <div class="message-empty-state" id="chatEmptyState">
+                            <i data-lucide="message-square"></i>
+                            <p>Select a conversation to start chatting</p>
                         </div>
-                        <div class="message-view-body" id="msgViewBody"></div>
 
-                        <div class="message-reply-box">
-                            <textarea placeholder="Type your reply..." rows="4" id="msgReplyText"></textarea>
-                            <div class="modal-actions" style="margin-top:12px;">
-                                <button class="save-btn" onclick="sendReply()">
-                                    <i data-lucide="send"></i>
-                                    Send Reply
+                        <div id="chatActive" style="display:none; flex-direction:column; height:100%;">
+                            <div class="message-chat-header">
+                                <div class="message-chat-avatar" id="chatAvatar"></div>
+                                <div class="message-chat-info">
+                                    <div class="message-chat-name" id="chatName"></div>
+                                    <div class="message-chat-role" id="chatRole"></div>
+                                </div>
+                            </div>
+
+                            <div class="message-thread-content" id="chatMessages"></div>
+
+                            <div class="message-input-area">
+                                <input type="text" class="message-input-field" id="chatInput" placeholder="Type a message...">
+                                <button class="message-send-btn" id="chatSendBtn" type="button">
+                                    <i data-lucide="send"></i> Send
                                 </button>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+
         </main>
     </div>
 
-    <!-- COMPOSE MODAL -->
-    <div class="modal-overlay" id="composeModal">
-        <div class="modal-card" style="max-width: 560px;">
-            <div class="modal-header">
-                <div>
-                    <h2>Compose Message</h2>
-                    <p>Send a message to a client or supplier.</p>
-                </div>
-                <button class="modal-close" type="button" id="closeComposeModal">
-                    <i data-lucide="x"></i>
-                </button>
-            </div>
-
-            <form id="composeForm">
-                <div class="form-grid" style="grid-template-columns: 1fr;">
-                    <div class="form-group">
-                        <label>Recipient</label>
-                        <select id="msgTo" required>
-                            <option value="">Select recipient</option>
-                            <option value="ABC Corporation">ABC Corporation (Client)</option>
-                            <option value="South Plant Inc.">South Plant Inc. (Client)</option>
-                            <option value="Prime Chemicals">Prime Chemicals (Client)</option>
-                            <option value="Steel Supply Co.">Steel Supply Co. (Supplier)</option>
-                            <option value="MetalWorks PH">MetalWorks PH (Supplier)</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Subject</label>
-                        <input type="text" id="msgSubject" required placeholder="Message subject">
-                    </div>
-                    <div class="form-group">
-                        <label>Message</label>
-                        <textarea id="msgBody" required rows="5" placeholder="Type your message here..."></textarea>
-                    </div>
-                </div>
-
-                <div class="modal-actions">
-                    <button type="button" class="cancel-btn" id="cancelCompose">Cancel</button>
-                    <button type="submit" class="save-btn">
-                        <i data-lucide="send"></i>
-                        Send Message
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="{{ asset('js/admin.js') }}"></script>
+    <script>
+        lucide.createIcons();
+
+        const CSRF = '{{ csrf_token() }}';
+        const THREAD_URL_TEMPLATE = "{{ route('admin.messages.thread', ['type' => '__TYPE__', 'id' => '__ID__']) }}";
+        const SEND_URL = "{{ route('admin.messages.send') }}";
+
+        let activeContact = null;
+        let pollTimer = null;
+
+        function threadUrl(type, id) {
+            return THREAD_URL_TEMPLATE.replace('__TYPE__', type).replace('__ID__', id);
+        }
+
+        function getInitials(name) {
+            const parts = name.trim().split(/\s+/).filter(Boolean);
+            if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+            return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        document.querySelectorAll('.message-thread-avatar').forEach(el => {
+            const thread = el.closest('.message-thread');
+            el.textContent = getInitials(thread.dataset.name);
+        });
+
+        document.querySelectorAll('.message-thread').forEach(el => {
+            el.addEventListener('click', () => openThread(el));
+        });
+
+        function openThread(el) {
+            document.querySelectorAll('.message-thread').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+            el.classList.remove('unread');
+            const badge = el.querySelector('.unread-badge');
+            if (badge) badge.remove();
+
+            activeContact = {
+                type: el.dataset.type,
+                id: el.dataset.id,
+                name: el.dataset.name,
+                role: el.dataset.role,
+            };
+
+            document.getElementById('chatEmptyState').style.display = 'none';
+            document.getElementById('chatActive').style.display = 'flex';
+
+            document.getElementById('chatAvatar').textContent = getInitials(activeContact.name);
+            document.getElementById('chatName').textContent = activeContact.name;
+            document.getElementById('chatRole').textContent = activeContact.role;
+
+            loadThread();
+
+            if (pollTimer) clearInterval(pollTimer);
+            pollTimer = setInterval(loadThread, 4000);
+        }
+
+        function loadThread() {
+            if (!activeContact) return;
+            fetch(threadUrl(activeContact.type, activeContact.id), {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(r => r.json())
+            .then(data => renderMessages(data.messages));
+        }
+
+        function renderMessages(messages) {
+            const container = document.getElementById('chatMessages');
+
+            if (!messages.length) {
+                container.innerHTML = '<div class="message-empty-state"><i data-lucide="message-circle"></i><p>No messages yet. Say hello!</p></div>';
+                lucide.createIcons();
+                return;
+            }
+
+            container.innerHTML = '';
+            messages.forEach(m => {
+                const bubble = document.createElement('div');
+                bubble.className = 'message-bubble ' + (m.is_mine ? 'sent' : 'received');
+
+                if (!m.is_mine) {
+                    const avatar = document.createElement('div');
+                    avatar.className = 'message-bubble-avatar';
+                    avatar.textContent = getInitials(activeContact.name);
+                    bubble.appendChild(avatar);
+                }
+
+                const content = document.createElement('div');
+                content.className = 'message-bubble-content';
+                content.innerHTML = `<div class="message-text">${escapeHtml(m.body)}</div><div class="message-time">${m.time}</div>`;
+                bubble.appendChild(content);
+
+                container.appendChild(bubble);
+            });
+
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function sendMessage() {
+            if (!activeContact) return;
+            const input = document.getElementById('chatInput');
+            const body = input.value.trim();
+            if (!body) return;
+
+            input.value = '';
+
+            fetch(SEND_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': CSRF,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    recipient_type: activeContact.type,
+                    recipient_id: activeContact.id,
+                    body: body
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                loadThread();
+                updateSidebarPreview(activeContact, data.message);
+            });
+        }
+
+        function updateSidebarPreview(contact, message) {
+            const el = document.querySelector(`.message-thread[data-type="${contact.type}"][data-id="${contact.id}"]`);
+            if (!el) return;
+            const preview = el.querySelector('.message-thread-preview');
+            if (preview) preview.textContent = message.body;
+            const time = el.querySelector('.message-thread-time');
+            if (time) time.textContent = message.time;
+            el.parentNode.prepend(el);
+        }
+
+        document.getElementById('chatSendBtn').addEventListener('click', sendMessage);
+        document.getElementById('chatInput').addEventListener('keydown', e => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        document.getElementById('contactSearch').addEventListener('input', e => {
+            const term = e.target.value.trim().toLowerCase();
+            document.querySelectorAll('#contactList .message-thread').forEach(el => {
+                const name = el.dataset.name.toLowerCase();
+                el.style.display = name.includes(term) ? 'flex' : 'none';
+            });
+        });
+    </script>
 </body>
 </html>

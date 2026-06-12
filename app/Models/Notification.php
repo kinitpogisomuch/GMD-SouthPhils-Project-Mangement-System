@@ -23,6 +23,11 @@ class Notification extends Model
         'is_read' => 'boolean',
     ];
 
+    public function setIsReadAttribute($value): void
+    {
+        $this->attributes['is_read'] = $value ? 'true' : 'false';
+    }
+
     public function user()
     {
         return $this->belongsTo(User::class);
@@ -35,7 +40,7 @@ class Notification extends Model
 
     public function scopeUnread($query)
     {
-        return $query->where('is_read', false);
+        return $query->whereRaw('is_read IS NOT TRUE');
     }
 
     public function scopeForUser($query, $userId)

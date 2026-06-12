@@ -98,19 +98,6 @@
             });
         }
 
-        function initializeClientDropdown() {
-            const dropdown = document.querySelector('.client-dropdown');
-            const button   = document.getElementById('clientDropdownBtn');
-            if (!dropdown || !button) return;
-            button.addEventListener('click', function(e) {
-                e.stopPropagation();
-                dropdown.classList.toggle('open');
-            });
-            document.addEventListener('click', function() {
-                dropdown.classList.remove('open');
-            });
-        }
-        initializeClientDropdown();
     </script>
 </body>
 </html>

@@ -27,8 +27,8 @@
                         Add Employee
                     </button>
                     <button class="add-btn" type="button" id="openRecordPaymentModal" style="background:var(--dark-soft);">
-                        <i data-lucide="banknote"></i>
-                        Record Salary
+                        <i data-lucide="user-plus"></i>
+                        Add Outsourced Worker
                     </button>
                 </div>
             </div>
@@ -49,14 +49,14 @@
 
             <!-- Summary Cards -->
             <div class="page-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 24px;">
-                <div class="info-card">
-                    <div class="info-card-icon"><i data-lucide="users"></i></div>
+                <div class="info-card blue">
+                    <div class="info-card-icon blue"><i data-lucide="users"></i></div>
                     <h3>Total Employees</h3>
                     <div class="value" id="totalEmpCount">{{ $employees->where('status', 'Active')->count() }}</div>
                     <div class="info-card-sub">Active workforce</div>
                 </div>
-                <div class="info-card">
-                    <div class="info-card-icon"><i data-lucide="banknote"></i></div>
+                <div class="info-card green">
+                    <div class="info-card-icon green"><i data-lucide="banknote"></i></div>
                     <h3>Monthly Payroll</h3>
                     <div class="value" id="totalPayroll">₱ 0</div>
                     <div class="info-card-sub">Total salary expense</div>
@@ -114,6 +114,7 @@
                                     <th>Address</th>
                                     <th>Role</th>
                                     <th>Employee Type</th>
+                                    <th>Daily Rate</th>
                                     <th>Status</th>
                                     <th>Actions</th>
                                 </tr>
@@ -155,6 +156,7 @@
                                             {{ $employee->employee_type ?? 'Regular' }}
                                         </span>
                                     </td>
+                                    <td>₱{{ number_format($employee->daily_rate ?? 0, 2) }}</td>
                                     <td>
                                         @if($employee->status === 'Active')
                                         <span class="status-badge active">Active</span>
@@ -174,7 +176,8 @@
                                             data-region="{{ $employee->region }}"
                                             data-street-address="{{ $employee->street_address }}"
                                             data-role="{{ $employee->role }}"
-                                            data-type="{{ $employee->employee_type ?? 'Regular' }}">
+                                            data-type="{{ $employee->employee_type ?? 'Regular' }}"
+                                            data-rate="{{ $employee->daily_rate ?? 0 }}">
                                             <i data-lucide="pencil"></i>
                                         </button>
                                         <button class="action-btn view archive-emp-btn" type="button"
@@ -188,13 +191,13 @@
                                 </tr>
                                 @empty
                                 <tr id="empBladeEmpty">
-                                    <td colspan="10" style="text-align:center;padding:40px;color:var(--muted);">
+                                    <td colspan="11" style="text-align:center;padding:40px;color:var(--muted);">
                                         No employees found. Click <strong>Add Employee</strong> to get started.
                                     </td>
                                 </tr>
                                 @endforelse
                                 <tr id="empEmptyState" style="display:none;">
-                                    <td colspan="9" style="text-align:center;padding:48px 20px;">
+                                    <td colspan="10" style="text-align:center;padding:48px 20px;">
                                         <div style="display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--muted);">
                                             <i data-lucide="inbox" style="width:36px;height:36px;opacity:0.4;"></i>
                                             <span id="empEmptyMsg" style="font-size:14px;font-weight:600;">No employees found.</span>
@@ -215,10 +218,38 @@
                             <i data-lucide="search"></i>
                             <input type="text" id="salarySearch" placeholder="Search employee...">
                         </div>
-                        <div class="filter-group">
-                            <select id="salaryMonthFilter" class="filter-select">
-                                <!-- Populated by JS -->
-                            </select>
+                        <div class="pay-period-nav" style="position:relative;">
+                            <button type="button" class="pay-period-btn" id="salaryPrevWeek" title="Previous week">
+                                <i data-lucide="chevron-left"></i>
+                            </button>
+                            <div class="pay-period-label">
+                                <i data-lucide="calendar"></i>
+                                <span id="salaryPeriodLabel">Week of —</span>
+                            </div>
+                            <button type="button" class="pay-period-btn" id="salaryNextWeek" title="Next week">
+                                <i data-lucide="chevron-right"></i>
+                            </button>
+                            <button type="button" class="pay-period-btn" id="salaryJumpToDate" title="Jump to a specific week">
+                                <i data-lucide="calendar-days"></i>
+                            </button>
+                            <div class="pay-period-jump-panel" id="salaryJumpPanel">
+                                <div class="pay-period-jump-row">
+                                    <label for="salaryJumpYear">Year</label>
+                                    <select id="salaryJumpYear" class="filter-select"></select>
+                                </div>
+                                <div class="pay-period-jump-row">
+                                    <label for="salaryJumpMonth">Month</label>
+                                    <select id="salaryJumpMonth" class="filter-select"></select>
+                                </div>
+                                <div class="pay-period-jump-row">
+                                    <label for="salaryJumpWeek">Week</label>
+                                    <select id="salaryJumpWeek" class="filter-select"></select>
+                                </div>
+                                <button type="button" class="save-btn" id="salaryJumpGo">Go</button>
+                            </div>
+                            <button type="button" class="filter-select" id="salaryThisWeek" style="display:none;">
+                                This Week
+                            </button>
                         </div>
                     </div>
 
@@ -228,19 +259,16 @@
                                 <tr>
                                     <th>Employee Name</th>
                                     <th>Role</th>
+                                    <th>Employee Type</th>
                                     <th>Daily Rate</th>
                                     <th>Days Worked</th>
-                                    <th>Overtime (hrs)</th>
-                                    <th>Gross Pay</th>
-                                    <th>Deductions</th>
-                                    <th>Net Pay</th>
-                                    <th>Status</th>
+                                    <th>Total</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="salaryTableBody">
                                 <tr id="salaryLoadingRow">
-                                    <td colspan="10" style="text-align:center;padding:48px 20px;color:var(--muted);">
+                                    <td colspan="7" style="text-align:center;padding:48px 20px;color:var(--muted);">
                                         <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
                                             <i data-lucide="loader" style="width:28px;height:28px;opacity:0.4;"></i>
                                             <span style="font-size:14px;font-weight:600;">Loading...</span>
@@ -256,14 +284,6 @@
                         <div class="payroll-summary-item">
                             <span>Total Gross</span>
                             <strong id="summaryGross">—</strong>
-                        </div>
-                        <div class="payroll-summary-item">
-                            <span>Total Deductions</span>
-                            <strong id="summaryDeductions">—</strong>
-                        </div>
-                        <div class="payroll-summary-item highlight">
-                            <span>Total Net Pay</span>
-                            <strong id="summaryNet">—</strong>
                         </div>
                     </div>
                 </div>
@@ -328,6 +348,12 @@
                             <option value="Regular" {{ old('employee_type', 'Regular') === 'Regular' ? 'selected' : '' }}>Regular</option>
                             <option value="Outsourced" {{ old('employee_type') === 'Outsourced' ? 'selected' : '' }}>Outsourced</option>
                         </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Daily Rate (₱) *</label>
+                        <input type="number" name="daily_rate" required min="0" step="0.01"
+                               placeholder="e.g. 500"
+                               value="{{ old('daily_rate') }}">
                     </div>
                 </div>
 
@@ -474,6 +500,10 @@
                         </select>
                     </div>
                     <div class="form-group">
+                        <label>Daily Rate (₱) *</label>
+                        <input type="number" name="daily_rate" id="editEmpDailyRate" required min="0" step="0.01" placeholder="e.g. 500">
+                    </div>
+                    <div class="form-group">
                         <label>Province *</label>
                         <input type="text" name="province" id="editEmpProvince" required placeholder="e.g. Laguna">
                     </div>
@@ -561,86 +591,73 @@
 
     <!-- ===== RECORD SALARY MODAL ===== -->
     <div class="modal-overlay" id="recordPaymentModal">
-        <div class="modal-card" style="max-width:560px;">
+        <div class="modal-card" style="max-width:620px;">
             <div class="modal-header">
                 <div>
                     <h2 id="recordPaymentTitle">Record Salary</h2>
-                    <p id="recordPaymentSubtitle">Log a salary entry for the selected pay period.</p>
+                    <p id="recordPaymentSubtitle">Select an employee to record their weekly salary.</p>
                 </div>
                 <button class="modal-close" type="button" id="closeRecordPaymentModal">
                     <i data-lucide="x"></i>
                 </button>
             </div>
-            <form id="recordPaymentForm">
+
+            <!-- STEP 1: Employee Picker -->
+            <div id="salaryStep1">
+                <div class="search-box" style="margin-bottom:16px;">
+                    <i data-lucide="search"></i>
+                    <input type="text" id="salaryEmpPickerSearch" placeholder="Search outsourced worker by name or role...">
+                </div>
+
+                <div id="salaryEmpPickerList"
+                     style="display:flex;flex-direction:column;gap:8px;max-height:360px;overflow-y:auto;padding-right:4px;">
+                </div>
+
+                <div class="modal-actions" style="margin-top:20px;">
+                    <button type="button" class="cancel-btn" id="cancelSalaryStep1">Cancel</button>
+                    <button type="button" class="save-btn" id="continueSalaryStep1">
+                        <i data-lucide="arrow-right"></i>
+                        Continue
+                    </button>
+                </div>
+            </div>
+
+            <!-- STEP 2: Salary Form -->
+            <form id="recordPaymentForm" style="display:none;">
                 <input type="hidden" id="rpRecordId">
+                <input type="hidden" id="rpEmployee">
+                <input type="hidden" id="rpPeriod">
+
+                <div id="salarySelectedEmployee" style="display:flex;align-items:center;gap:12px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:16px;">
+                    <div class="client-select-avatar" id="salarySelectedAvatar">?</div>
+                    <div>
+                        <div style="font-weight:700;font-size:14px;" id="salarySelectedName">—</div>
+                        <div style="font-size:12px;color:var(--muted);" id="salarySelectedRole">—</div>
+                    </div>
+                </div>
+
                 <div class="form-grid">
-                    <div class="form-group form-group-full">
-                        <label>Employee *</label>
-                        <select id="rpEmployee" required>
-                            <option value="">Select employee</option>
-                            @foreach($employees->where('status', 'Active') as $emp)
-                            <option value="{{ $emp->id }}"
-                                    data-rate="{{ $emp->daily_rate ?? 0 }}"
-                                    data-sss="{{ $emp->sss ?? 0 }}"
-                                    data-philhealth="{{ $emp->philhealth ?? 0 }}"
-                                    data-pagibig="{{ $emp->pagibig ?? 0 }}"
-                                    data-other="{{ $emp->other_deductions ?? 0 }}">
-                                {{ $emp->full_name }}
-                            </option>
-                            @endforeach
-                        </select>
+                    <div class="form-group">
+                        <label>Daily Rate (₱)</label>
+                        <input type="number" id="rpDailyRate" readonly placeholder="e.g. 800" min="0" step="0.01"
+                               style="background:rgba(0,0,0,0.03);cursor:default;">
                     </div>
                     <div class="form-group">
-                        <label>Pay Period</label>
-                        <input type="hidden" id="rpPeriod">
-                        <div id="rpPeriodDisplay" style="padding:10px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;color:var(--text-primary);"></div>
-                    </div>
-                    <div class="form-group">
-                        <label>Payment Status</label>
-                        <select id="rpStatus">
-                            <option value="Pending">Pending</option>
-                            <option value="Paid">Paid</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Days Worked * <span style="font-weight:400;color:var(--muted);">(max 5)</span></label>
-                        <input type="number" id="rpDays" required placeholder="e.g. 5" min="0" max="5" step="0.5">
-                    </div>
-                    <div class="form-group">
-                        <label>Overtime Hours</label>
-                        <input type="number" id="rpOT" placeholder="e.g. 2" min="0" step="0.5" value="0">
-                    </div>
-                    <div class="form-group form-group-full">
-                        <label>Extra Deductions (₱) <span style="font-weight:400;color:var(--muted);">— one-time, e.g. cash advance</span></label>
-                        <input type="number" id="rpExtraDed" placeholder="0" min="0" step="0.01" value="0">
-                    </div>
-                    <div class="form-group form-group-full">
-                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600;">
-                            <input type="checkbox" id="rpApplyDeductions" style="width:16px;height:16px;cursor:pointer;">
-                            Apply monthly government deductions this week
-                            <span style="font-weight:400;font-size:12px;color:var(--muted);">(SSS, PhilHealth, Pag-IBIG)</span>
-                        </label>
+                        <label>Days Worked This Week *</label>
+                        <input type="number" id="rpDays" required placeholder="e.g. 6" min="0" max="7" step="0.5">
                     </div>
                 </div>
 
                 <!-- Live pay preview -->
                 <div id="rpPreview" style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-top:4px;display:none;">
                     <div style="font-size:11px;font-weight:800;color:var(--primary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">Pay Preview</div>
-                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;font-size:13px;">
+                    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;font-size:13px;">
                         <div>
-                            <div style="color:var(--muted);font-size:11px;font-weight:700;margin-bottom:2px;">Daily Rate</div>
-                            <div style="font-weight:700;" id="previewRate">₱0.00</div>
-                        </div>
-                        <div>
-                            <div style="color:var(--muted);font-size:11px;font-weight:700;margin-bottom:2px;">Gross Pay</div>
+                            <div style="color:var(--muted);font-size:11px;font-weight:700;margin-bottom:2px;">Salary / Week</div>
                             <div style="font-weight:700;color:#16a34a;" id="previewGross">₱0.00</div>
                         </div>
                         <div>
-                            <div style="color:var(--muted);font-size:11px;font-weight:700;margin-bottom:2px;">Deductions</div>
-                            <div style="font-weight:700;color:#dc2626;" id="previewDeductions">₱0.00</div>
-                        </div>
-                        <div style="grid-column:1/-1;border-top:1px solid var(--border);padding-top:10px;">
-                            <div style="color:var(--muted);font-size:11px;font-weight:700;margin-bottom:2px;">Net Pay</div>
+                            <div style="color:var(--muted);font-size:11px;font-weight:700;margin-bottom:2px;">Total</div>
                             <div style="font-size:18px;font-weight:900;color:var(--dark);" id="previewNet">₱0.00</div>
                         </div>
                     </div>
@@ -649,6 +666,7 @@
                 <div id="rpError" style="display:none;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;margin-top:10px;color:#991b1b;font-size:13px;"></div>
 
                 <div class="modal-actions">
+                    <button type="button" class="cancel-btn" id="backSalaryStep2">Back</button>
                     <button type="button" class="cancel-btn" id="cancelRecordPayment">Cancel</button>
                     <button type="submit" class="save-btn" id="recordPaymentSubmitBtn">
                         <i data-lucide="save"></i>
@@ -715,6 +733,7 @@
                     document.getElementById('editEmpStreetAddress').value = this.dataset.streetAddress || '';
                     document.getElementById('editEmpRole').value          = this.dataset.role;
                     document.getElementById('editEmpType').value          = this.dataset.type;
+                    document.getElementById('editEmpDailyRate').value     = this.dataset.rate || 0;
                     document.getElementById('editEmpSubtitle').textContent = 'Editing: ' + this.dataset.lastName + ', ' + this.dataset.firstName;
                     document.getElementById('editEmpForm').action = '/admin/employees/' + this.dataset.id;
                     openEmpModal('editEmpModal');
@@ -817,10 +836,7 @@
 
             // ---- Record Salary button (header) ----
             var openRecSalBtn = document.getElementById('openRecordPaymentModal');
-            if (openRecSalBtn) openRecSalBtn.addEventListener('click', function () { openSalaryModal(); });
-
-            // ---- Salary Tab: populate period filter & load on tab switch ----
-            populatePeriodFilter();
+            if (openRecSalBtn) openRecSalBtn.addEventListener('click', function () { openAddOutsourcedModal(); });
 
             document.querySelectorAll('.emp-tab').forEach(function (btn) {
                 btn.addEventListener('click', function () {
@@ -835,12 +851,43 @@
                     if (addEmpBtn)    addEmpBtn.style.display    = (tab === 'salary')    ? 'none' : '';
                     if (recSalaryBtn) recSalaryBtn.style.display = (tab === 'employees') ? 'none' : '';
 
-                    if (tab === 'salary') loadSalaryRecords();
+                    if (tab === 'salary') loadSalaryRecords(currentSalaryPeriod);
                 });
             });
 
-            document.getElementById('salaryMonthFilter').addEventListener('change', loadSalaryRecords);
             document.getElementById('salarySearch').addEventListener('keyup', filterSalaryTable);
+
+            document.getElementById('salaryPrevWeek').addEventListener('click', function () { shiftSalaryPeriod(-7); });
+            document.getElementById('salaryNextWeek').addEventListener('click', function () { shiftSalaryPeriod(7); });
+            document.getElementById('salaryThisWeek').addEventListener('click', function () { loadSalaryRecords(TODAY_PAY_PERIOD); });
+
+            populateSalaryJumpYears();
+            populateSalaryJumpMonths();
+
+            document.getElementById('salaryJumpToDate').addEventListener('click', function (e) {
+                e.stopPropagation();
+                var panel = document.getElementById('salaryJumpPanel');
+                if (panel.classList.contains('show')) {
+                    panel.classList.remove('show');
+                } else {
+                    openSalaryJumpPanel();
+                }
+            });
+            document.getElementById('salaryJumpPanel').addEventListener('click', function (e) {
+                e.stopPropagation();
+            });
+            document.addEventListener('click', function () {
+                document.getElementById('salaryJumpPanel').classList.remove('show');
+            });
+
+            document.getElementById('salaryJumpYear').addEventListener('change', refreshSalaryJumpWeeks);
+            document.getElementById('salaryJumpMonth').addEventListener('change', refreshSalaryJumpWeeks);
+
+            document.getElementById('salaryJumpGo').addEventListener('click', function () {
+                var week = document.getElementById('salaryJumpWeek').value;
+                if (week) loadSalaryRecords(week);
+                document.getElementById('salaryJumpPanel').classList.remove('show');
+            });
         });
     })();
 
@@ -850,102 +897,207 @@
     var SALARY_STORE_URL  = '{{ route("admin.salary.store") }}';
     var CSRF              = '{{ csrf_token() }}';
 
-    // Returns the Monday of the week containing `date`
-    function weekMonday(date) {
-        var d   = new Date(date);
+    @php
+    $employeesForSalaryPicker = $employees->where('status', 'Active')
+        ->where('employee_type', 'Outsourced')
+        ->map(function ($e) {
+            return [
+                'id'         => $e->id,
+                'name'       => $e->full_name,
+                'role'       => $e->role ?? 'Employee',
+                'daily_rate' => (float) ($e->daily_rate ?? 0),
+            ];
+        })->values();
+    @endphp
+    var SALARY_EMPLOYEES   = @json($employeesForSalaryPicker);
+    var pickedSalaryEmployee = null;
+    var CURRENT_SALARY_RECORDS = [];
+    var currentSalaryPeriod = null;
+
+    // Returns the Monday of the week containing `date`, formatted as "YYYY-MM-DD"
+    function currentPayPeriod() {
+        var d   = new Date();
         var day = d.getDay(); // 0=Sun
         var diff = (day === 0) ? -6 : 1 - day;
         d.setDate(d.getDate() + diff);
-        d.setHours(0, 0, 0, 0);
-        return d;
-    }
-
-    function isoDate(d) {
         return d.getFullYear() + '-'
             + String(d.getMonth() + 1).padStart(2, '0') + '-'
             + String(d.getDate()).padStart(2, '0');
     }
 
-    function weekLabel(monday) {
-        var friday = new Date(monday);
-        friday.setDate(monday.getDate() + 4);
-        var opts = { month: 'short', day: 'numeric' };
-        return monday.toLocaleDateString('en-US', opts)
-             + ' – '
-             + friday.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    var TODAY_PAY_PERIOD = currentPayPeriod();
+
+    // Parses a "YYYY-MM-DD" string as a local Date (avoids UTC timezone shift)
+    function parsePayPeriod(s) {
+        var parts = s.split('-');
+        return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
     }
 
-    function populatePeriodFilter() {
-        var sel    = document.getElementById('salaryMonthFilter');
-        var monday = weekMonday(new Date());
-        for (var i = 0; i < 16; i++) {
-            var wk  = new Date(monday);
-            wk.setDate(monday.getDate() - i * 7);
+    function formatPayPeriodDate(d) {
+        var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return months[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
+    }
+
+    function updateSalaryPeriodLabel() {
+        var label       = document.getElementById('salaryPeriodLabel');
+        var thisWeekBtn = document.getElementById('salaryThisWeek');
+        if (!currentSalaryPeriod) return;
+
+        var start = parsePayPeriod(currentSalaryPeriod);
+        var end   = new Date(start);
+        end.setDate(end.getDate() + 6);
+
+        label.textContent = 'Week of ' + formatPayPeriodDate(start) + ' – ' + formatPayPeriodDate(end);
+        thisWeekBtn.style.display = (currentSalaryPeriod === TODAY_PAY_PERIOD) ? 'none' : '';
+    }
+
+    // Shift the displayed pay period by `days` (e.g. -7 / +7 for prev/next week)
+    function shiftSalaryPeriod(days) {
+        var d = parsePayPeriod(currentSalaryPeriod || TODAY_PAY_PERIOD);
+        d.setDate(d.getDate() + days);
+        var newPeriod = d.getFullYear() + '-'
+            + String(d.getMonth() + 1).padStart(2, '0') + '-'
+            + String(d.getDate()).padStart(2, '0');
+        loadSalaryRecords(newPeriod);
+    }
+
+    // ---- Year / Month / Week jump panel ----
+    function fmtYMD(d) {
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+
+    function mondayOf(date) {
+        var d   = new Date(date);
+        var day = d.getDay(); // 0=Sun
+        var diff = (day === 0) ? -6 : 1 - day;
+        d.setDate(d.getDate() + diff);
+        return d;
+    }
+
+    function populateSalaryJumpYears() {
+        var sel = document.getElementById('salaryJumpYear');
+        var thisYear = new Date().getFullYear();
+        sel.innerHTML = '';
+        for (var y = thisYear + 1; y >= thisYear - 5; y--) {
             var opt = document.createElement('option');
-            opt.value       = isoDate(wk);
-            opt.textContent = weekLabel(wk);
+            opt.value = y;
+            opt.textContent = y;
             sel.appendChild(opt);
         }
     }
 
-    function loadSalaryRecords() {
-        var period = document.getElementById('salaryMonthFilter').value;
+    function populateSalaryJumpMonths() {
+        var sel    = document.getElementById('salaryJumpMonth');
+        var months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+        sel.innerHTML = '';
+        months.forEach(function (name, idx) {
+            var opt = document.createElement('option');
+            opt.value = idx;
+            opt.textContent = name;
+            sel.appendChild(opt);
+        });
+    }
+
+    // Populates the Week select with every Monday-start week overlapping the given year/month.
+    // Selects `preferredPeriod` ("YYYY-MM-DD" Monday) if it's among the generated weeks.
+    function populateSalaryJumpWeeks(year, month, preferredPeriod) {
+        var sel = document.getElementById('salaryJumpWeek');
+        sel.innerHTML = '';
+
+        var firstDay = new Date(year, month, 1);
+        var lastDay  = new Date(year, month + 1, 0);
+        var monday   = mondayOf(firstDay);
+        var weekNum  = 1;
+
+        while (monday <= lastDay) {
+            var sunday = new Date(monday);
+            sunday.setDate(sunday.getDate() + 6);
+
+            var opt = document.createElement('option');
+            opt.value = fmtYMD(monday);
+            opt.textContent = 'Week ' + weekNum + ' (' + formatPayPeriodDate(monday) + ' – ' + formatPayPeriodDate(sunday) + ')';
+            sel.appendChild(opt);
+
+            monday = new Date(monday);
+            monday.setDate(monday.getDate() + 7);
+            weekNum++;
+        }
+
+        if (preferredPeriod) {
+            var match = sel.querySelector('option[value="' + preferredPeriod + '"]');
+            if (match) sel.value = preferredPeriod;
+        }
+    }
+
+    function refreshSalaryJumpWeeks() {
+        var year  = parseInt(document.getElementById('salaryJumpYear').value, 10);
+        var month = parseInt(document.getElementById('salaryJumpMonth').value, 10);
+        populateSalaryJumpWeeks(year, month);
+    }
+
+    function openSalaryJumpPanel() {
+        var period = currentSalaryPeriod || TODAY_PAY_PERIOD;
+        var start  = parsePayPeriod(period);
+
+        document.getElementById('salaryJumpYear').value  = start.getFullYear();
+        document.getElementById('salaryJumpMonth').value = start.getMonth();
+        populateSalaryJumpWeeks(start.getFullYear(), start.getMonth(), period);
+
+        document.getElementById('salaryJumpPanel').classList.add('show');
+    }
+
+    function loadSalaryRecords(payPeriod) {
         var tbody  = document.getElementById('salaryTableBody');
-        tbody.innerHTML = '<tr id="salaryLoadingRow"><td colspan="10" style="text-align:center;padding:48px 20px;color:var(--muted);"><div style="display:flex;flex-direction:column;align-items:center;gap:10px;"><i data-lucide="loader" style="width:28px;height:28px;opacity:0.4;"></i><span style="font-size:14px;font-weight:600;">Loading...</span></div></td></tr>';
+        tbody.innerHTML = '<tr id="salaryLoadingRow"><td colspan="6" style="text-align:center;padding:48px 20px;color:var(--muted);"><div style="display:flex;flex-direction:column;align-items:center;gap:10px;"><i data-lucide="loader" style="width:28px;height:28px;opacity:0.4;"></i><span style="font-size:14px;font-weight:600;">Loading...</span></div></td></tr>';
         if (window.lucide) lucide.createIcons();
 
-        fetch(SALARY_INDEX_URL + '?period=' + period, {
+        var url = SALARY_INDEX_URL + (payPeriod ? ('?pay_period=' + encodeURIComponent(payPeriod)) : '');
+
+        fetch(url, {
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })
         .then(function (r) { return r.json(); })
         .then(function (data) {
+            currentSalaryPeriod = data.payPeriod;
+            updateSalaryPeriodLabel();
             renderSalaryTable(data.records, data.summary);
         })
         .catch(function () {
-            tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--muted);">Failed to load records.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--muted);">Failed to load records.</td></tr>';
         });
     }
 
     function renderSalaryTable(records, summary) {
         var tbody = document.getElementById('salaryTableBody');
+        CURRENT_SALARY_RECORDS = records || [];
+
         if (!records || records.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:48px 20px;"><div style="display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--muted);"><i data-lucide="inbox" style="width:36px;height:36px;opacity:0.4;"></i><span style="font-size:14px;font-weight:600;">No salary records for this period.</span></div></td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:48px 20px;"><div style="display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--muted);"><i data-lucide="inbox" style="width:36px;height:36px;opacity:0.4;"></i><span style="font-size:14px;font-weight:600;">No salary records yet.</span></div></td></tr>';
             if (window.lucide) lucide.createIcons();
-            document.getElementById('summaryGross').textContent       = '₱0.00';
-            document.getElementById('summaryDeductions').textContent  = '₱0.00';
-            document.getElementById('summaryNet').textContent         = '₱0.00';
+            document.getElementById('summaryGross').textContent = '₱0.00';
             return;
         }
 
-        tbody.innerHTML = records.map(function (r) {
-            var statusBadge = r.status === 'Paid'
-                ? '<span class="status-badge active">Paid</span>'
-                : '<span class="status-badge" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;">Pending</span>';
-            return '<tr data-id="' + r.id + '" data-name="' + r.employee_name.toLowerCase() + '">'
+        tbody.innerHTML = records.map(function (r, idx) {
+            var actions = '<button class="action-btn view" title="Edit" onclick="openSalaryModal(' + idx + ')"><i data-lucide="pencil"></i></button>';
+            if (r.employee_type === 'Outsourced' && r.id) {
+                actions += '<button class="action-btn" title="Delete" style="color:#dc2626;" onclick="deleteSalaryRecord(' + r.id + ')"><i data-lucide="trash-2"></i></button>';
+            }
+            var typeBadge = '<span class="role-badge" style="' + (r.employee_type === 'Regular' ? 'background:#ede9fe;color:#6d28d9;' : 'background:#fef3c7;color:#92400e;') + '">' + escHtml(r.employee_type) + '</span>';
+            return '<tr data-id="' + (r.id || '') + '" data-name="' + r.employee_name.toLowerCase() + '">'
                 + '<td style="font-weight:600;">' + escHtml(r.employee_name) + '</td>'
                 + '<td>' + escHtml(r.role) + '</td>'
+                + '<td>' + typeBadge + '</td>'
                 + '<td>₱' + fmt(r.daily_rate) + '</td>'
                 + '<td>' + r.days_worked + '</td>'
-                + '<td>' + r.overtime_hours + '</td>'
-                + '<td style="font-weight:700;color:#16a34a;">₱' + fmt(r.gross_pay) + '</td>'
-                + '<td style="color:#dc2626;">₱' + fmt(r.total_deductions) + '</td>'
-                + '<td style="font-weight:900;">₱' + fmt(r.net_pay) + '</td>'
-                + '<td>' + statusBadge + '</td>'
-                + '<td class="action-cell">'
-                +   '<button class="action-btn view" title="Edit" onclick="openSalaryModal(' + r.id + ')"><i data-lucide="pencil"></i></button>'
-                +   '<button class="action-btn view" title="' + (r.status === 'Paid' ? 'Mark Pending' : 'Mark Paid') + '" onclick="toggleSalaryStatus(' + r.id + ', this)">'
-                +     '<i data-lucide="' + (r.status === 'Paid' ? 'x-circle' : 'check-circle') + '"></i>'
-                +   '</button>'
-                +   '<button class="action-btn" title="Delete" style="color:#dc2626;" onclick="deleteSalaryRecord(' + r.id + ')"><i data-lucide="trash-2"></i></button>'
-                + '</td>'
+                + '<td style="font-weight:900;color:#16a34a;">₱' + fmt(r.net_pay) + '</td>'
+                + '<td class="action-cell">' + actions + '</td>'
                 + '</tr>';
         }).join('');
 
         if (window.lucide) lucide.createIcons();
 
-        document.getElementById('summaryGross').textContent      = '₱' + fmt(summary.gross);
-        document.getElementById('summaryDeductions').textContent = '₱' + fmt(summary.deductions);
-        document.getElementById('summaryNet').textContent        = '₱' + fmt(summary.net);
+        document.getElementById('summaryGross').textContent = '₱' + fmt(summary.gross);
 
         filterSalaryTable();
     }
@@ -957,84 +1109,153 @@
         });
     }
 
-    // Open modal for new record or edit
-    function openSalaryModal(recordId) {
-        var isEdit  = !!recordId;
-        var period  = document.getElementById('salaryMonthFilter').value;
+    // Show step 1 (employee picker) or step 2 (salary form) of the modal
+    function showSalaryStep(step) {
+        document.getElementById('salaryStep1').style.display      = (step === 1) ? '' : 'none';
+        document.getElementById('recordPaymentForm').style.display = (step === 2) ? '' : 'none';
+    }
 
-        document.getElementById('recordPaymentTitle').textContent    = isEdit ? 'Edit Salary Record' : 'Record Salary';
-        document.getElementById('recordPaymentSubtitle').textContent = isEdit ? 'Update the salary entry.' : 'Log a salary entry for the selected pay period.';
-        document.getElementById('rpRecordId').value                  = recordId || '';
-        document.getElementById('rpError').style.display             = 'none';
-        document.getElementById('rpPreview').style.display           = 'none';
+    function setSalarySelectedEmployee(name, role) {
+        document.getElementById('salarySelectedName').textContent = name;
+        document.getElementById('salarySelectedRole').textContent = role || 'Employee';
+        document.getElementById('salarySelectedAvatar').textContent = (name || '?').charAt(0).toUpperCase();
+    }
 
-        // Always set the period from the filter (hidden field + display label)
-        document.getElementById('rpPeriod').value = period;
-        var monday = new Date(period + 'T00:00:00');
-        document.getElementById('rpPeriodDisplay').textContent = weekLabel(monday);
+    function renderSalaryEmployeePicker(filter) {
+        var list = document.getElementById('salaryEmpPickerList');
+        var q    = (filter || '').toLowerCase();
+        var filtered = q
+            ? SALARY_EMPLOYEES.filter(function (e) {
+                return e.name.toLowerCase().indexOf(q) !== -1 || (e.role || '').toLowerCase().indexOf(q) !== -1;
+              })
+            : SALARY_EMPLOYEES;
 
-        if (!isEdit) {
-            document.getElementById('rpEmployee').value          = '';
-            document.getElementById('rpDays').value              = '';
-            document.getElementById('rpOT').value                = '0';
-            document.getElementById('rpExtraDed').value          = '0';
-            document.getElementById('rpStatus').value            = 'Pending';
-            document.getElementById('rpApplyDeductions').checked = false;
-            document.getElementById('rpPreview').style.display   = 'none';
-        } else {
-            fetch(SALARY_INDEX_URL + '?period=' + period, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-                var rec = data.records.find(function (r) { return r.id == recordId; });
-                if (!rec) return;
-                document.getElementById('rpEmployee').value           = rec.employee_id;
-                document.getElementById('rpDays').value               = rec.days_worked;
-                document.getElementById('rpOT').value                 = rec.overtime_hours;
-                document.getElementById('rpExtraDed').value           = rec.extra_deductions;
-                document.getElementById('rpStatus').value             = rec.status;
-                document.getElementById('rpApplyDeductions').checked  = rec.apply_deductions;
-                updatePayPreview();
-            });
+        list.innerHTML = '';
+
+        if (filtered.length === 0) {
+            list.innerHTML = '<p style="text-align:center;color:var(--muted);padding:20px 0;font-size:14px;">No outsourced workers found.</p>';
+            return;
         }
+
+        filtered.forEach(function (emp) {
+            var isSelected = pickedSalaryEmployee && pickedSalaryEmployee.id === emp.id;
+            var item       = document.createElement('div');
+            item.className = 'client-select-item' + (isSelected ? ' selected' : '');
+            var init       = emp.name.charAt(0).toUpperCase();
+
+            item.innerHTML =
+                '<div class="client-select-avatar">' + init + '</div>' +
+                '<div class="client-select-info">' +
+                    '<div class="client-select-name">' + escHtml(emp.name) + '</div>' +
+                    '<div class="client-select-meta"><span>' + escHtml(emp.role) + '</span></div>' +
+                '</div>' +
+                '<div class="client-select-check" style="display:' + (isSelected ? 'flex' : 'none') + ';align-items:center;">' +
+                    '<i data-lucide="check-circle"></i>' +
+                '</div>';
+
+            item.addEventListener('click', function () {
+                pickedSalaryEmployee = emp;
+                document.querySelectorAll('#salaryEmpPickerList .client-select-item').forEach(function (el) {
+                    el.classList.remove('selected');
+                    el.querySelector('.client-select-check').style.display = 'none';
+                });
+                item.classList.add('selected');
+                item.querySelector('.client-select-check').style.display = 'flex';
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            });
+
+            list.appendChild(item);
+        });
+
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    // Edit the salary entry for a row already shown in the table (regular employees
+    // are listed automatically; outsourced rows appear once added)
+    function openSalaryModal(idx) {
+        var rec = CURRENT_SALARY_RECORDS[idx];
+        if (!rec) return;
+
+        document.getElementById('rpRecordId').value        = rec.id || '';
+        document.getElementById('rpEmployee').value        = rec.employee_id;
+        document.getElementById('rpPeriod').value          = rec.pay_period;
+        document.getElementById('rpError').style.display   = 'none';
+        document.getElementById('rpPreview').style.display = 'none';
+
+        pickedSalaryEmployee = null;
+
+        document.getElementById('recordPaymentTitle').textContent    = rec.id ? 'Edit Salary Record' : 'Record Salary';
+        document.getElementById('recordPaymentSubtitle').textContent = 'Update the weekly salary for ' + rec.employee_name + '.';
+
+        setSalarySelectedEmployee(rec.employee_name, rec.role);
+        document.getElementById('rpDailyRate').value = rec.daily_rate;
+        document.getElementById('rpDays').value      = rec.days_worked;
+
+        document.getElementById('backSalaryStep2').style.display = 'none';
+        showSalaryStep(2);
+        updatePayPreview();
+
+        openEmpModal('recordPaymentModal');
+    }
+
+    // Add an outsourced worker's salary entry for the current pay period
+    function openAddOutsourcedModal() {
+        document.getElementById('rpRecordId').value        = '';
+        document.getElementById('rpEmployee').value        = '';
+        document.getElementById('rpPeriod').value          = currentSalaryPeriod || TODAY_PAY_PERIOD;
+        document.getElementById('rpError').style.display   = 'none';
+        document.getElementById('rpPreview').style.display = 'none';
+
+        document.getElementById('recordPaymentTitle').textContent    = 'Add Outsourced Worker';
+        document.getElementById('recordPaymentSubtitle').textContent = 'Select an outsourced worker to record their weekly salary.';
+
+        document.getElementById('rpDailyRate').value = '';
+        document.getElementById('rpDays').value      = '';
+
+        pickedSalaryEmployee = null;
+        document.getElementById('salaryEmpPickerSearch').value = '';
+        renderSalaryEmployeePicker('');
+        showSalaryStep(1);
 
         openEmpModal('recordPaymentModal');
     }
 
     function updatePayPreview() {
-        var sel  = document.getElementById('rpEmployee');
-        var opt  = sel.options[sel.selectedIndex];
-        if (!opt || !opt.value) { document.getElementById('rpPreview').style.display = 'none'; return; }
+        var rate = parseFloat(document.getElementById('rpDailyRate').value) || 0;
+        var days = parseFloat(document.getElementById('rpDays').value)      || 0;
 
-        var rate           = parseFloat(opt.dataset.rate)        || 0;
-        var sss            = parseFloat(opt.dataset.sss)         || 0;
-        var phi            = parseFloat(opt.dataset.philhealth)  || 0;
-        var pag            = parseFloat(opt.dataset.pagibig)     || 0;
-        var other          = parseFloat(opt.dataset.other)       || 0;
-        var days           = parseFloat(document.getElementById('rpDays').value)          || 0;
-        var ot             = parseFloat(document.getElementById('rpOT').value)            || 0;
-        var extra          = parseFloat(document.getElementById('rpExtraDed').value)      || 0;
-        var applyGovDed    = document.getElementById('rpApplyDeductions').checked;
+        var gross = rate * days;
 
-        var gross      = (rate * days) + (ot * (rate / 8));
-        var govDed     = applyGovDed ? (sss + phi + pag + other) : 0;
-        var deductions = govDed + extra;
-        var net        = gross - deductions;
-
-        document.getElementById('previewRate').textContent       = '₱' + fmt(rate);
-        document.getElementById('previewGross').textContent      = '₱' + fmt(gross);
-        document.getElementById('previewDeductions').textContent = '₱' + fmt(deductions);
-        document.getElementById('previewNet').textContent        = '₱' + fmt(net);
-        document.getElementById('rpPreview').style.display       = 'block';
+        document.getElementById('previewGross').textContent = '₱' + fmt(gross);
+        document.getElementById('previewNet').textContent   = '₱' + fmt(gross);
+        document.getElementById('rpPreview').style.display  = 'block';
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-        ['rpDays', 'rpOT', 'rpExtraDed'].forEach(function (id) {
+        ['rpDailyRate', 'rpDays'].forEach(function (id) {
             var el = document.getElementById(id);
             if (el) el.addEventListener('input', updatePayPreview);
         });
-        document.getElementById('rpEmployee').addEventListener('change', updatePayPreview);
-        document.getElementById('rpApplyDeductions').addEventListener('change', updatePayPreview);
 
+        document.getElementById('salaryEmpPickerSearch').addEventListener('input', function () {
+            renderSalaryEmployeePicker(this.value);
+        });
+
+        document.getElementById('continueSalaryStep1').addEventListener('click', function () {
+            if (!pickedSalaryEmployee) { alert('Please select an outsourced worker to continue.'); return; }
+            document.getElementById('rpEmployee').value  = pickedSalaryEmployee.id;
+            document.getElementById('rpDailyRate').value = pickedSalaryEmployee.daily_rate || '';
+            setSalarySelectedEmployee(pickedSalaryEmployee.name, pickedSalaryEmployee.role);
+            document.getElementById('backSalaryStep2').style.display = '';
+            showSalaryStep(2);
+            updatePayPreview();
+        });
+
+        document.getElementById('backSalaryStep2').addEventListener('click', function () {
+            showSalaryStep(1);
+        });
+
+        document.getElementById('cancelSalaryStep1').addEventListener('click', function () { closeEmpModal('recordPaymentModal'); });
         document.getElementById('closeRecordPaymentModal').addEventListener('click', function () { closeEmpModal('recordPaymentModal'); });
         document.getElementById('cancelRecordPayment').addEventListener('click',     function () { closeEmpModal('recordPaymentModal'); });
 
@@ -1049,13 +1270,9 @@
             submitBtn.disabled  = true;
 
             var payload = {
-                employee_id:      document.getElementById('rpEmployee').value,
-                pay_period:       document.getElementById('rpPeriod').value,
-                days_worked:      document.getElementById('rpDays').value,
-                overtime_hours:   document.getElementById('rpOT').value,
-                extra_deductions: document.getElementById('rpExtraDed').value,
-                apply_deductions: document.getElementById('rpApplyDeductions').checked ? 1 : 0,
-                status:           document.getElementById('rpStatus').value,
+                employee_id: document.getElementById('rpEmployee').value,
+                pay_period:  document.getElementById('rpPeriod').value,
+                days_worked: document.getElementById('rpDays').value,
             };
 
             var url    = isEdit ? '/admin/salary-records/' + recordId : SALARY_STORE_URL;
@@ -1080,7 +1297,7 @@
                     return;
                 }
                 closeEmpModal('recordPaymentModal');
-                loadSalaryRecords();
+                loadSalaryRecords(currentSalaryPeriod);
                 showEmpToast(isEdit ? 'Salary record updated.' : 'Salary record saved.');
             })
             .catch(function () {
@@ -1091,18 +1308,6 @@
         });
     });
 
-    function toggleSalaryStatus(id, btn) {
-        fetch('/admin/salary-records/' + id + '/status', {
-            method: 'PATCH',
-            headers: { 'X-CSRF-TOKEN': CSRF, 'X-Requested-With': 'XMLHttpRequest' },
-        })
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-            loadSalaryRecords();
-            showEmpToast('Marked as ' + data.status + '.');
-        });
-    }
-
     function deleteSalaryRecord(id) {
         if (!confirm('Delete this salary record? This cannot be undone.')) return;
         fetch('/admin/salary-records/' + id, {
@@ -1110,7 +1315,7 @@
             headers: { 'X-CSRF-TOKEN': CSRF, 'X-Requested-With': 'XMLHttpRequest' },
         })
         .then(function () {
-            loadSalaryRecords();
+            loadSalaryRecords(currentSalaryPeriod);
             showEmpToast('Record deleted.');
         });
     }

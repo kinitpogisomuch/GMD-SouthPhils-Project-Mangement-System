@@ -86,7 +86,11 @@ class ProjectUpdateController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | Approve Update — advances phase
+    | Approve Update
+    | Marks an employee submission as approved and visible in the project's
+    | history. Phase advancement is handled separately by the admin's
+    | "Save Progress Update" checklist flow — approving a submission here
+    | does NOT change the project's phase, progress, or status.
     | Uses status = 'pending_review' as the check (not approval_status)
     |--------------------------------------------------------------------------
     */
@@ -103,32 +107,21 @@ class ProjectUpdateController extends Controller
             ], 422);
         }
 
-        $currentIndex = array_search($project->current_phase, $this->phases);
-
-        if ($currentIndex !== false && $currentIndex < count($this->phases) - 1) {
-            $nextPhase   = $this->phases[$currentIndex + 1];
-            $newProgress = $this->progressMap[$nextPhase];
-            $newStatus   = $nextPhase === 'delivery' ? 'completed' : 'ongoing';
-        } else {
-            $nextPhase   = 'delivery';
-            $newProgress = 100;
-            $newStatus   = 'completed';
-        }
-
         $update->update(['status' => 'approved']);
-        $project->update([
-            'current_phase' => $nextPhase,
-            'progress'      => $newProgress,
-            'status'        => $newStatus,
-        ]);
 
-        $project->refresh();
-        NotificationService::progressApproved($project, $nextPhase, $update->submitted_by, $update->id);
+        NotificationService::notifyEmployee(
+            $update->submitted_by,
+            'Progress Update Approved',
+            "Your progress update has been approved.\nProject: {$project->name}",
+            NotificationService::TYPE_PROGRESS_APPROVED,
+            'success',
+            $project->id,
+            $update->id,
+            "/employee/project-view/{$project->id}"
+        );
 
         return redirect()->route('admin.project_view', $project->id)
-            ->with('success', 'Update approved! Project advanced to '
-                . ucfirst(str_replace('_', ' ', $nextPhase))
-                . ' phase (' . $newProgress . '% complete).');
+            ->with('success', 'Update approved!');
     }
 
     /*

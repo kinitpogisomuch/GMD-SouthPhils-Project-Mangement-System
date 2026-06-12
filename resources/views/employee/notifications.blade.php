@@ -102,19 +102,6 @@
             document.querySelector('.employee-sidebar').classList.toggle('open');
         }
 
-        function initializeEmployeeDropdown() {
-            const dropdown = document.querySelector('.employee-dropdown');
-            const button   = document.getElementById('employeeDropdownBtn');
-            if (!dropdown || !button) return;
-            button.addEventListener('click', function(e) {
-                e.stopPropagation();
-                dropdown.classList.toggle('open');
-            });
-            document.addEventListener('click', function() {
-                dropdown.classList.remove('open');
-            });
-        }
-        initializeEmployeeDropdown();
     </script>
 </body>
 </html>

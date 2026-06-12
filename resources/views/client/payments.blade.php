@@ -15,115 +15,125 @@
 
         <main class="admin-content">
 
-            <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
-                <div class="stat-card">
+            <div class="page-header" style="margin-bottom:24px;">
+                <div>
+                    <h1 class="page-title">My Payments</h1>
+                    <p class="page-subtitle">View your project payment status, balances, and transaction history.</p>
+                </div>
+            </div>
+
+            @php
+                $totalContractValue = $payments->sum('contract_amount');
+                $totalReceived      = $payments->sum(fn($p) => $p->totalPaid());
+                $totalBalance       = $payments->sum(fn($p) => $p->currentBalance());
+            @endphp
+
+            <div class="stats-grid">
+                <div class="stat-card teal">
                     <div class="stat-icon teal"><i data-lucide="receipt"></i></div>
                     <div class="stat-info">
-                        <div class="stat-value">₱5.25M</div>
+                        <div class="stat-value">₱{{ number_format($totalContractValue, 0) }}</div>
                         <div class="stat-label">Total Contract Value</div>
                     </div>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card green">
                     <div class="stat-icon green"><i data-lucide="check-circle"></i></div>
                     <div class="stat-info">
-                        <div class="stat-value">₱3.40M</div>
+                        <div class="stat-value">₱{{ number_format($totalReceived, 0) }}</div>
                         <div class="stat-label">Total Paid</div>
                     </div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-icon orange"><i data-lucide="clock"></i></div>
+                <div class="stat-card blue">
+                    <div class="stat-icon blue"><i data-lucide="wallet"></i></div>
                     <div class="stat-info">
-                        <div class="stat-value">₱430K</div>
-                        <div class="stat-label">Pending Payment</div>
+                        <div class="stat-value">₱{{ number_format($totalBalance, 0) }}</div>
+                        <div class="stat-label">Remaining Balance</div>
                     </div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-icon blue"><i data-lucide="calendar"></i></div>
+                <div class="stat-card orange">
+                    <div class="stat-icon orange"><i data-lucide="layers"></i></div>
                     <div class="stat-info">
-                        <div class="stat-value">₱1.42M</div>
-                        <div class="stat-label">Remaining Balance</div>
+                        <div class="stat-value">{{ $payments->count() }}</div>
+                        <div class="stat-label">Total Projects</div>
                     </div>
                 </div>
             </div>
 
-            <div class="card">
-                <div class="card-header">
-                    <span class="card-title">Payment Schedule & History</span>
+            @forelse($payments as $payment)
+                @php
+                    $status    = $payment->computeStatus();
+                    $totalPaid = $payment->totalPaid();
+                    $balance   = $payment->currentBalance();
+                    $pct       = $payment->contract_amount > 0
+                        ? round(($totalPaid / $payment->contract_amount) * 100, 1)
+                        : 0;
+                @endphp
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-title">{{ $payment->project->name ?? '—' }}</div>
+                            <div style="font-size:12.5px;color:var(--muted);margin-top:4px;">
+                                {{ $payment->payment_terms ?? '—' }}
+                            </div>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <span class="status-badge {{ \App\Models\Payment::statusBadgeClass($status) }}">
+                                {{ $status }}
+                            </span>
+                            <a href="{{ route('client.payments.show', $payment->id) }}" class="btn btn-sm btn-primary">
+                                <i data-lucide="eye"></i> View Details
+                            </a>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="progress-wrap" style="margin-bottom:20px;">
+                            <div class="progress-label">
+                                <span>Payment Progress</span>
+                                <span style="font-weight:900;color:var(--dark);">{{ $pct }}%</span>
+                            </div>
+                            <div class="progress-bar" style="height:10px;">
+                                <div class="progress-fill"
+                                     style="width:{{ $pct }}%;
+                                     background:{{ $status === 'Fully Paid' ? 'var(--success)' : 'var(--accent)' }};"></div>
+                            </div>
+                        </div>
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));gap:12px;">
+                            <div class="info-mini">
+                                <div class="info-mini-label">Contract Amount</div>
+                                <div class="info-mini-value">₱{{ number_format($payment->contract_amount, 2) }}</div>
+                            </div>
+                            <div class="info-mini">
+                                <div class="info-mini-label">Total Paid</div>
+                                <div class="info-mini-value" style="color:var(--success);">₱{{ number_format($totalPaid, 2) }}</div>
+                            </div>
+                            <div class="info-mini">
+                                <div class="info-mini-label">Remaining Balance</div>
+                                <div class="info-mini-value" style="color:var(--danger);">₱{{ number_format($balance, 2) }}</div>
+                            </div>
+                            <div class="info-mini">
+                                <div class="info-mini-label">Payment Terms</div>
+                                <div class="info-mini-value">{{ $payment->payment_terms ?? '—' }}</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="table-wrap">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Invoice No.</th>
-                                <th>Project</th>
-                                <th>Description</th>
-                                <th>Amount</th>
-                                <th>Due Date</th>
-                                <th>Paid Date</th>
-                                <th>Status</th>
-                                <th>Receipt</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td><span style="font-family:monospace;font-size:12px;">INV-2025-001</span></td>
-                                <td>Storage Tank Fabrication</td>
-                                <td>Mobilization / Downpayment</td>
-                                <td><strong>₱500,000</strong></td>
-                                <td>Jan 15, 2025</td>
-                                <td>Jan 14, 2025</td>
-                                <td><span class="badge badge-success">Paid</span></td>
-                                <td><a href="#" class="btn btn-outline btn-sm"><i data-lucide="download"></i></a></td>
-                            </tr>
-                            <tr>
-                                <td><span style="font-family:monospace;font-size:12px;">INV-2025-002</span></td>
-                                <td>Pipeline Installation</td>
-                                <td>Mobilization / Downpayment</td>
-                                <td><strong>₱360,000</strong></td>
-                                <td>Feb 5, 2025</td>
-                                <td>Feb 4, 2025</td>
-                                <td><span class="badge badge-success">Paid</span></td>
-                                <td><a href="#" class="btn btn-outline btn-sm"><i data-lucide="download"></i></a></td>
-                            </tr>
-                            <tr>
-                                <td><span style="font-family:monospace;font-size:12px;">INV-2025-003</span></td>
-                                <td>Storage Tank Fabrication</td>
-                                <td>Progress Billing – 50% completion</td>
-                                <td><strong>₱750,000</strong></td>
-                                <td>Mar 1, 2025</td>
-                                <td>Feb 28, 2025</td>
-                                <td><span class="badge badge-success">Paid</span></td>
-                                <td><a href="#" class="btn btn-outline btn-sm"><i data-lucide="download"></i></a></td>
-                            </tr>
-                            <tr>
-                                <td><span style="font-family:monospace;font-size:12px;">INV-2025-004</span></td>
-                                <td>Structural Steel Works</td>
-                                <td>Progress Billing – 75% completion</td>
-                                <td><strong>₱430,000</strong></td>
-                                <td>Apr 1, 2025</td>
-                                <td>—</td>
-                                <td><span class="badge badge-warning">Pending</span></td>
-                                <td><span style="color:var(--text-muted);font-size:12px;">—</span></td>
-                            </tr>
-                            <tr>
-                                <td><span style="font-family:monospace;font-size:12px;">INV-2025-005</span></td>
-                                <td>Storage Tank Fabrication</td>
-                                <td>Final Billing – Completion</td>
-                                <td><strong>₱750,000</strong></td>
-                                <td>Jun 30, 2025</td>
-                                <td>—</td>
-                                <td><span class="badge badge-gray">Upcoming</span></td>
-                                <td><span style="color:var(--text-muted);font-size:12px;">—</span></td>
-                            </tr>
-                        </tbody>
-                    </table>
+            @empty
+                <div class="card" style="text-align:center;padding:64px 32px;">
+                    <div style="margin-bottom:20px;">
+                        <i data-lucide="receipt" style="width:56px;height:56px;color:var(--border);display:inline-block;"></i>
+                    </div>
+                    <h2 style="font-size:20px;font-weight:900;color:var(--dark);margin-bottom:10px;">No Payment Records</h2>
+                    <p style="font-size:14px;color:var(--muted);max-width:420px;margin:0 auto;line-height:1.6;">
+                        No payment records have been set up for your projects yet. Once your project payment terms are configured, they will appear here.
+                    </p>
                 </div>
-            </div>
+            @endforelse
 
         </main>
     </div>
 
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="{{ asset('js/client.js') }}"></script>
+    <script>lucide.createIcons();</script>
 </body>
 </html>

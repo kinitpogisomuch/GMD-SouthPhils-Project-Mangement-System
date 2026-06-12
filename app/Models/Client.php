@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\PostgresBoolean;
 use Illuminate\Database\Eloquent\Model;
 
 class Client extends Model
@@ -31,13 +32,8 @@ class Client extends Model
 
     protected $casts = [
         'password'    => 'hashed',
-        'first_login' => 'boolean',
+        'first_login' => PostgresBoolean::class,
     ];
-
-    public function setFirstLoginAttribute($value): void
-    {
-        $this->attributes['first_login'] = $value ? 'true' : 'false';
-    }
 
     /** "Dela Cruz, Juan" — for table display */
     public function getFullNameAttribute(): string

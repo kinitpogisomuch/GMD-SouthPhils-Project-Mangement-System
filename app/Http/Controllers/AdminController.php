@@ -5,21 +5,31 @@ namespace App\Http\Controllers;
 use App\Models\Project;
 use App\Models\Employee;
 use App\Models\Payment;
-use App\Models\MaterialRequest;
+use App\Models\PaymentTransaction;
+use App\Models\ProjectMaterial;
 use App\Models\Client;
 
 class AdminController extends Controller
 {
     public function dashboard()
     {
-        $totalProjects     = Project::count();
-        $ongoingProjects   = Project::where('status', 'ongoing')->count();
-        $completedProjects = Project::where('status', 'completed')->count();
-        $pendingProjects   = Project::where('status', 'pending')->count();
-        $totalEmployees    = Employee::where('status', 'Active')->count();
-        $pendingRequests   = MaterialRequest::where('status', 'pending')->count();
-        $fulfilledRequests = MaterialRequest::where('status', 'fulfilled')->count();
-        $projects          = Project::orderBy('created_at', 'desc')->take(5)->get();
+        $totalProjects          = Project::count();
+        $ongoingProjects        = Project::where('status', 'ongoing')->count();
+        $completedProjects      = Project::where('status', 'completed')->count();
+        $pendingProjects        = Project::where('status', 'pending')->count();
+        $totalEmployees         = Employee::where('status', 'Active')->count();
+        $totalMaterialEntries   = ProjectMaterial::where('status', 'active')->count();
+        $totalMaterialCost      = ProjectMaterial::where('status', 'active')->sum('total_cost');
+        $projectsWithMaterials  = ProjectMaterial::where('status', 'active')
+            ->distinct('project_id')->count('project_id');
+        $projects               = Project::orderBy('created_at', 'desc')->take(5)->get();
+
+        // Payment stats
+        $allPayments            = Payment::all();
+        $totalContractValue     = $allPayments->sum('contract_amount');
+        $totalReceived          = PaymentTransaction::sum('amount_paid');
+        $fullyPaidPayments      = $allPayments->filter(fn($p) => $p->computeStatus() === 'Fully Paid')->count();
+        $pendingPayments        = $allPayments->filter(fn($p) => $p->computeStatus() === 'Pending Down Payment')->count();
 
         return view('admin.dashboard', compact(
             'totalProjects',
@@ -27,15 +37,20 @@ class AdminController extends Controller
             'completedProjects',
             'pendingProjects',
             'totalEmployees',
-            'pendingRequests',
-            'fulfilledRequests',
-            'projects'
+            'totalMaterialEntries',
+            'totalMaterialCost',
+            'projectsWithMaterials',
+            'projects',
+            'totalContractValue',
+            'totalReceived',
+            'fullyPaidPayments',
+            'pendingPayments'
         ));
     }
 
     public function projects()
     {
-        $projects = Project::orderBy('created_at', 'desc')->get();
+        $projects = Project::with('assignedEmployees')->orderBy('created_at', 'desc')->get();
         return view('admin.projects', compact('projects'));
     }
 
@@ -45,39 +60,10 @@ class AdminController extends Controller
         return view('admin.employees', compact('employees'));
     }
 
-    public function materialRequests()
+    public function projectMaterials()
     {
-        $materials      = MaterialRequest::orderBy('created_at', 'desc')->get();
-        $pendingCount   = MaterialRequest::where('status', 'pending')->count();
-        $fulfilledCount = MaterialRequest::where('status', 'fulfilled')->count();
-        $shortageCount  = MaterialRequest::where('status', 'shortage')->count();
-
-        return view('admin.material_requests', compact(
-            'materials',
-            'pendingCount',
-            'fulfilledCount',
-            'shortageCount'
-        ));
-    }
-
-    public function payments()
-    {
-        $payments     = Payment::orderBy('created_at', 'desc')->get();
-        $paidCount    = Payment::where('status', 'Paid')->count();
-        $partialCount = Payment::where('status', 'Partial')->count();
-        $pendingCount = Payment::where('status', 'Pending')->count();
-
-        return view('admin.payments', compact(
-            'payments',
-            'paidCount',
-            'partialCount',
-            'pendingCount'
-        ));
-    }
-
-    public function messages()
-    {
-        return view('admin.messages');
+        // Handled by ProjectMaterialController::adminIndex
+        return redirect()->route('admin.project_materials');
     }
 
     public function settings()

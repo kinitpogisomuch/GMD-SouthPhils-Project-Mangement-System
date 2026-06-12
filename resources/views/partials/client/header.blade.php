@@ -1,7 +1,12 @@
 <header class="client-header">
     <div class="client-header-left">
-        <div class="system-title">GMD South Phils</div>
-        <div class="system-subtitle">CLIENT PORTAL</div>
+        <button class="sidebar-toggle-btn" type="button" id="sidebarToggleBtn" title="Toggle menu">
+            <i data-lucide="menu"></i>
+        </button>
+        <div>
+            <div class="system-title">GMD South Phils</div>
+            <div class="system-subtitle">CLIENT PORTAL</div>
+        </div>
     </div>
     <div class="client-header-center">
         <div class="header-clock">
@@ -77,6 +82,22 @@
 </header>
 
 <script>
+document.addEventListener('DOMContentLoaded', function () {
+    var toggleBtn = document.getElementById('sidebarToggleBtn');
+    var sidebar   = document.querySelector('.client-sidebar');
+    if (toggleBtn && sidebar) {
+        toggleBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            sidebar.classList.toggle('open');
+        });
+        document.addEventListener('click', function (e) {
+            if (sidebar.classList.contains('open') && !sidebar.contains(e.target) && e.target !== toggleBtn) {
+                sidebar.classList.remove('open');
+            }
+        });
+    }
+});
+
 (function () {
     function updateClock() {
         var d = document.getElementById('headerDate');
@@ -199,16 +220,31 @@
 })();
 
 (function () {
-    const btn      = document.getElementById('clientDropdownBtn');
-    const dropdown = btn.closest('.client-dropdown');
+    const clientDropdown       = document.querySelector('.client-dropdown');
+    const clientBtn            = document.getElementById('clientDropdownBtn');
+    const notificationDropdown = document.querySelector('.notification-dropdown');
+    const notificationBtn      = document.getElementById('notificationDropdownBtn');
 
-    btn.addEventListener('click', function (e) {
-        e.stopPropagation();
-        dropdown.classList.toggle('open');
-    });
+    if (clientBtn && clientDropdown) {
+        clientBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (notificationDropdown) notificationDropdown.classList.remove('open');
+            clientDropdown.classList.toggle('open');
+        });
+    }
 
-    document.addEventListener('click', function () {
-        dropdown.classList.remove('open');
+    if (notificationBtn && notificationDropdown) {
+        notificationBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (clientDropdown) clientDropdown.classList.remove('open');
+            notificationDropdown.classList.toggle('open');
+        });
+    }
+
+    document.addEventListener('click', function (e) {
+        if (e.target.closest('a') || e.target.closest('button')) return;
+        if (clientDropdown) clientDropdown.classList.remove('open');
+        if (notificationDropdown) notificationDropdown.classList.remove('open');
     });
 })();
 </script>

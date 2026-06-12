@@ -286,16 +286,6 @@ function initializeEmployeeModals() {
         slipModal.addEventListener("click", function (e) { if (e.target === slipModal) slipModal.classList.remove("show"); });
     }
 
-    initializeModal("openRecordPaymentModal", "closeRecordPaymentModal", "cancelRecordPayment", "recordPaymentModal", "recordPaymentForm");
-    var rpForm = document.getElementById("recordPaymentForm");
-    if (rpForm) {
-        rpForm.addEventListener("submit", function (e) {
-            e.preventDefault();
-            document.getElementById("recordPaymentModal").classList.remove("show");
-            rpForm.reset();
-        });
-    }
-
     function syncEmpHeaderBtns(activeTabName) {
         var addBtn    = document.getElementById("openAddEmployeeModal");
         var salaryBtn = document.getElementById("openRecordPaymentModal");
@@ -488,71 +478,6 @@ function buildPhaseSteps(statuses) {
     if (typeof lucide !== "undefined") lucide.createIcons();
 }
 
-function buildPhaseDetails(statuses, adjustedDays) {
-    const container = document.getElementById("phaseDetailsList");
-    if (!container) return;
-    container.innerHTML = "";
-    PHASES.forEach(function (phase, index) {
-        const status      = statuses[index];
-        const days        = adjustedDays[index];
-        const statusLabel = status === "done" ? "Done" : status === "active" ? "In Progress" : "Upcoming";
-        const item        = document.createElement("div");
-        item.className    = "phase-detail-item";
-        item.innerHTML = `
-            <div class="phase-detail-left">
-                <div class="phase-dot ${status}"></div>
-                <div>
-                    <div class="phase-detail-name">${phase.label}</div>
-                    <div class="phase-detail-desc">${phase.desc}</div>
-                </div>
-            </div>
-            <div class="phase-detail-status ${status}">${statusLabel}</div>
-            <div class="phase-detail-dur">${days} day${days !== 1 ? "s" : ""}</div>`;
-        container.appendChild(item);
-    });
-}
-
-function buildTimeline(statuses, adjustedDays) {
-    const tbody   = document.getElementById("timelineBody");
-    const totalEl = document.getElementById("timelineTotal");
-    if (!tbody) return;
-    tbody.innerHTML = "";
-
-    let currentDate = new Date();
-    if (typeof START_DATE_STR !== 'undefined' && START_DATE_STR && START_DATE_STR !== "N/A") {
-        const parsed = new Date(START_DATE_STR);
-        if (!isNaN(parsed)) currentDate = parsed;
-    }
-
-    const totalDays = adjustedDays.reduce((a, b) => a + b, 0);
-    let dayOffset   = 0;
-
-    PHASES.forEach(function (phase, index) {
-        const status = statuses[index];
-        const days   = adjustedDays[index];
-        const startD = new Date(currentDate);
-        startD.setDate(startD.getDate() + dayOffset);
-        const endD = new Date(startD);
-        endD.setDate(endD.getDate() + days);
-        const startStr = startD.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-        const endStr   = status === "active"
-            ? "~" + endD.toLocaleDateString("en-US", { month: "short", day: "numeric" })
-            : endD.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-        const tr = document.createElement("tr");
-        tr.className = status === "done" ? "done-row" : status === "active" ? "active-row" : "";
-        tr.innerHTML = `<td>${phase.shortLabel}</td><td>${startStr}</td><td>${endStr}</td><td>${days}d</td>`;
-        tbody.appendChild(tr);
-        dayOffset += days;
-    });
-
-    if (totalEl) {
-        const endDate = new Date(currentDate);
-        endDate.setDate(endDate.getDate() + totalDays);
-        const endStr = endDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-        totalEl.innerHTML = `<span>Estimated Total Duration</span><span>${totalDays} days &nbsp;·&nbsp; Target: ${endStr}</span>`;
-    }
-}
-
 function updateProgressBadge(progress) {
     const badge = document.getElementById("progressBadge");
     if (!badge) return;
@@ -589,8 +514,6 @@ function updateProgressBadge(progress) {
 
     updateProgressBadge(PROJECT_PROGRESS);
     buildPhaseSteps(statuses);
-    buildPhaseDetails(statuses, adjustedDays);
-    buildTimeline(statuses, adjustedDays);
 
     if (typeof lucide !== "undefined") lucide.createIcons();
 })();

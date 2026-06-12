@@ -8,16 +8,40 @@ use Illuminate\Http\Request;
 
 class SalaryController extends Controller
 {
-    /** GET /admin/salary-records?period=2026-05 */
+    /** GET /admin/salary-records */
     public function index(Request $request)
     {
-        $period = $request->query('period', now()->format('Y-m'));
+        $requested = $request->query('pay_period');
+        $payPeriod = ($requested && preg_match('/^\d{4}-\d{2}-\d{2}$/', $requested))
+            ? \Carbon\Carbon::createFromFormat('Y-m-d', $requested)->startOfWeek(\Carbon\Carbon::MONDAY)->format('Y-m-d')
+            : $this->currentPayPeriod();
 
-        $records = SalaryRecord::with('employee')
-            ->where('pay_period', $period)
-            ->orderBy('created_at', 'desc')
+        $existingRecords = SalaryRecord::with('employee')
+            ->where('pay_period', $payPeriod)
             ->get()
-            ->map(fn($r) => $this->format($r));
+            ->keyBy('employee_id');
+
+        $records = collect();
+
+        // Regular employees are listed automatically every pay period.
+        Employee::where('status', 'Active')
+            ->where('employee_type', 'Regular')
+            ->orderBy('last_name')
+            ->orderBy('first_name')
+            ->get()
+            ->each(function (Employee $employee) use (&$records, $existingRecords, $payPeriod) {
+                $record = $existingRecords->get($employee->id);
+                $records->push($record ? $this->format($record) : $this->virtualRow($employee, $payPeriod));
+            });
+
+        // Outsourced workers only appear once an admin has added them for this pay period.
+        $existingRecords->each(function (SalaryRecord $record) use (&$records) {
+            if (($record->employee->employee_type ?? 'Regular') === 'Outsourced') {
+                $records->push($this->format($record));
+            }
+        });
+
+        $records = $records->values();
 
         $summary = [
             'gross'      => $records->sum('gross_pay'),
@@ -25,39 +49,52 @@ class SalaryController extends Controller
             'net'        => $records->sum('net_pay'),
         ];
 
-        return response()->json(compact('records', 'summary'));
+        return response()->json(compact('records', 'summary', 'payPeriod'));
+    }
+
+    /** Monday of the current week, formatted "Y-m-d" */
+    private function currentPayPeriod(): string
+    {
+        return now()->startOfWeek(\Carbon\Carbon::MONDAY)->format('Y-m-d');
+    }
+
+    /** Placeholder row for a regular employee with no salary record yet this pay period */
+    private function virtualRow(Employee $employee, string $payPeriod): array
+    {
+        return [
+            'id'               => null,
+            'employee_id'      => $employee->id,
+            'employee_name'    => $employee->full_name,
+            'role'             => $employee->role ?? '—',
+            'employee_type'    => $employee->employee_type ?? 'Regular',
+            'pay_period'       => $payPeriod,
+            'daily_rate'       => (float) ($employee->daily_rate ?? 0),
+            'days_worked'      => 0,
+            'gross_pay'        => 0,
+            'total_deductions' => 0,
+            'net_pay'          => 0,
+            'notes'            => null,
+        ];
     }
 
     /** POST /admin/salary-records */
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'employee_id'      => 'required|exists:employees,id',
-            'pay_period'       => 'required|date_format:Y-m-d',  // week-start Monday
-            'days_worked'      => 'required|numeric|min:0|max:5',
-            'overtime_hours'   => 'nullable|numeric|min:0',
-            'extra_deductions' => 'nullable|numeric|min:0',
-            'apply_deductions' => 'nullable|boolean',
-            'status'           => 'nullable|in:Pending,Paid',
-            'notes'            => 'nullable|string|max:500',
+            'employee_id' => 'required|exists:employees,id',
+            'pay_period'  => 'required|date_format:Y-m-d',  // week-start Monday
+            'days_worked' => 'required|numeric|min:0|max:7',
+            'notes'       => 'nullable|string|max:500',
         ]);
 
         $employee = Employee::findOrFail($validated['employee_id']);
 
         $data = SalaryRecord::compute([
-            'employee_id'      => $employee->id,
-            'pay_period'       => $validated['pay_period'],
-            'daily_rate'       => $employee->daily_rate ?? 0,
-            'days_worked'      => $validated['days_worked'],
-            'overtime_hours'   => $validated['overtime_hours'] ?? 0,
-            'sss'              => $employee->sss ?? 0,
-            'philhealth'       => $employee->philhealth ?? 0,
-            'pagibig'          => $employee->pagibig ?? 0,
-            'other_deductions' => $employee->other_deductions ?? 0,
-            'extra_deductions' => $validated['extra_deductions'] ?? 0,
-            'apply_deductions' => !empty($validated['apply_deductions']),
-            'status'           => $validated['status'] ?? 'Pending',
-            'notes'            => $validated['notes'] ?? null,
+            'employee_id' => $employee->id,
+            'pay_period'  => $validated['pay_period'],
+            'daily_rate'  => $employee->daily_rate ?? 0,
+            'days_worked' => $validated['days_worked'],
+            'notes'       => $validated['notes'] ?? null,
         ]);
 
         $record = SalaryRecord::updateOrCreate(
@@ -74,42 +111,20 @@ class SalaryController extends Controller
         $record = SalaryRecord::findOrFail($id);
 
         $validated = $request->validate([
-            'days_worked'      => 'required|numeric|min:0|max:5',
-            'overtime_hours'   => 'nullable|numeric|min:0',
-            'extra_deductions' => 'nullable|numeric|min:0',
-            'apply_deductions' => 'nullable|boolean',
-            'status'           => 'nullable|in:Pending,Paid',
-            'notes'            => 'nullable|string|max:500',
+            'days_worked' => 'required|numeric|min:0|max:7',
+            'notes'       => 'nullable|string|max:500',
         ]);
 
         $data = SalaryRecord::compute([
-            'daily_rate'       => $record->daily_rate,
-            'days_worked'      => $validated['days_worked'],
-            'overtime_hours'   => $validated['overtime_hours'] ?? 0,
-            'sss'              => $record->sss,
-            'philhealth'       => $record->philhealth,
-            'pagibig'          => $record->pagibig,
-            'other_deductions' => $record->other_deductions,
-            'extra_deductions' => $validated['extra_deductions'] ?? 0,
-            'apply_deductions' => !empty($validated['apply_deductions']),
+            'daily_rate'  => $record->employee->daily_rate ?? 0,
+            'days_worked' => $validated['days_worked'],
         ]);
 
         $record->update(array_merge($data, [
-            'status' => $validated['status'] ?? $record->status,
-            'notes'  => $validated['notes'] ?? $record->notes,
+            'notes' => $validated['notes'] ?? $record->notes,
         ]));
 
         return response()->json(['record' => $this->format($record->load('employee'))]);
-    }
-
-    /** PATCH /admin/salary-records/{id}/status */
-    public function updateStatus(int $id)
-    {
-        $record = SalaryRecord::findOrFail($id);
-        $record->status = $record->status === 'Paid' ? 'Pending' : 'Paid';
-        $record->save();
-
-        return response()->json(['status' => $record->status]);
     }
 
     /** DELETE /admin/salary-records/{id} */
@@ -126,21 +141,14 @@ class SalaryController extends Controller
             'employee_id'      => $r->employee_id,
             'employee_name'    => $r->employee->full_name ?? '—',
             'role'             => $r->employee->role ?? '—',
+            'employee_type'    => $r->employee->employee_type ?? 'Regular',
             'pay_period'       => $r->pay_period,
-            'daily_rate'       => (float) $r->daily_rate,
+            'daily_rate'       => (float) ($r->employee->daily_rate ?? $r->daily_rate),
             'days_worked'      => (float) $r->days_worked,
-            'overtime_hours'   => (float) $r->overtime_hours,
-            'sss'              => (float) $r->sss,
-            'philhealth'       => (float) $r->philhealth,
-            'pagibig'          => (float) $r->pagibig,
-            'other_deductions' => (float) $r->other_deductions,
-            'extra_deductions'  => (float) $r->extra_deductions,
-            'apply_deductions'  => (bool)  $r->apply_deductions,
-            'gross_pay'         => (float) $r->gross_pay,
-            'total_deductions'  => (float) $r->total_deductions,
-            'net_pay'           => (float) $r->net_pay,
-            'status'            => $r->status,
-            'notes'             => $r->notes,
+            'gross_pay'        => (float) $r->gross_pay,
+            'total_deductions' => (float) $r->total_deductions,
+            'net_pay'          => (float) $r->net_pay,
+            'notes'            => $r->notes,
         ];
     }
 }

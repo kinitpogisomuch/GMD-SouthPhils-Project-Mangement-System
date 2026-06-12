@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Notification;
+use Illuminate\Support\Facades\DB;
 
 class NotificationController extends Controller
 {
@@ -79,7 +80,7 @@ class NotificationController extends Controller
                                     ->where('user_id', $userId)
                                     ->firstOrFail();
 
-        $notification->update(['is_read' => true]);
+        $notification->update(['is_read' => DB::raw('true')]);
 
         return response()->json(['success' => true]);
     }
@@ -122,7 +123,7 @@ class NotificationController extends Controller
             Notification::forUser($userId)
                 ->where('user_type', $userType)
                 ->unread()
-                ->update(['is_read' => true]);
+                ->update(['is_read' => DB::raw('true')]);
         }
 
         return response()->json(['success' => true]);

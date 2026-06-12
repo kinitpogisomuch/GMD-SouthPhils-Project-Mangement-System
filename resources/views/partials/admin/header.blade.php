@@ -1,7 +1,12 @@
 <header class="admin-header">
     <div class="admin-header-left">
-        <div class="system-title">GMD South Phils</div>
-        <div class="system-subtitle">Project Management</div>
+        <button class="sidebar-toggle-btn" type="button" id="sidebarToggleBtn" title="Toggle menu">
+            <i data-lucide="menu"></i>
+        </button>
+        <div>
+            <div class="system-title">GMD South Phils</div>
+            <div class="system-subtitle">Project Management</div>
+        </div>
     </div>
 
     <div class="admin-header-center">
@@ -84,6 +89,22 @@
 </header>
 
 <script>
+document.addEventListener('DOMContentLoaded', function () {
+    var toggleBtn = document.getElementById('sidebarToggleBtn');
+    var sidebar   = document.querySelector('.admin-sidebar');
+    if (toggleBtn && sidebar) {
+        toggleBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            sidebar.classList.toggle('open');
+        });
+        document.addEventListener('click', function (e) {
+            if (sidebar.classList.contains('open') && !sidebar.contains(e.target) && e.target !== toggleBtn) {
+                sidebar.classList.remove('open');
+            }
+        });
+    }
+});
+
 (function () {
     function updateClock() {
         var d = document.getElementById('headerDate');

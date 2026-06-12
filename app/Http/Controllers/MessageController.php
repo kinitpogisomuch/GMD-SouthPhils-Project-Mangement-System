@@ -1,0 +1,205 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Client;
+use App\Models\Employee;
+use App\Models\Message;
+use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+
+class MessageController extends Controller
+{
+    private function currentActor(): array
+    {
+        return ['type' => session('role'), 'id' => (int) session('user_id')];
+    }
+
+    /** GET /{portal}/messages */
+    public function index()
+    {
+        $me = $this->currentActor();
+
+        $contacts = $this->contactsFor($me['type'], $me['id']);
+
+        $view = match ($me['type']) {
+            'employee' => 'employee.messages',
+            'client'   => 'client.messages',
+            default    => 'admin.messages',
+        };
+
+        return view($view, compact('contacts'));
+    }
+
+    /** GET /{portal}/messages/thread/{type}/{id} */
+    public function thread(string $type, int $id)
+    {
+        $me = $this->currentActor();
+
+        if (!in_array($type, ['admin', 'employee', 'client'], true)) {
+            abort(404);
+        }
+
+        $messages = Message::betweenActors($me['type'], $me['id'], $type, $id)
+            ->orderBy('created_at')
+            ->get();
+
+        Message::where('sender_type', $type)
+            ->where('sender_id', $id)
+            ->where('recipient_type', $me['type'])
+            ->where('recipient_id', $me['id'])
+            ->unread()
+            ->update(['is_read' => DB::raw('true')]);
+
+        return response()->json([
+            'contact'  => $this->contactInfo($type, $id),
+            'messages' => $messages->map(fn (Message $m) => $this->format($m, $me)),
+        ]);
+    }
+
+    /** POST /{portal}/messages/send */
+    public function send(Request $request)
+    {
+        $me = $this->currentActor();
+
+        $validated = $request->validate([
+            'recipient_type' => 'required|in:admin,employee,client',
+            'recipient_id'   => 'required|integer',
+            'body'           => 'required|string|max:2000',
+        ]);
+
+        $message = Message::create([
+            'sender_id'      => $me['id'],
+            'sender_type'    => $me['type'],
+            'recipient_id'   => $validated['recipient_id'],
+            'recipient_type' => $validated['recipient_type'],
+            'body'           => $validated['body'],
+        ]);
+
+        return response()->json(['message' => $this->format($message, $me)]);
+    }
+
+    /** GET /{portal}/messages/unread-count */
+    public function unreadCount()
+    {
+        $me = $this->currentActor();
+
+        if (!$me['id'] || !$me['type']) {
+            return response()->json(['count' => 0]);
+        }
+
+        $count = Message::where('recipient_type', $me['type'])
+            ->where('recipient_id', $me['id'])
+            ->unread()
+            ->count();
+
+        return response()->json(['count' => $count]);
+    }
+
+    /** Build the list of people this actor is allowed to message, with last-message previews */
+    private function contactsFor(string $type, int $id)
+    {
+        $contacts = collect();
+
+        if ($type === 'admin') {
+            $contacts = $contacts
+                ->concat($this->employeeContacts())
+                ->concat($this->clientContacts());
+        } elseif ($type === 'employee') {
+            $contacts = $contacts
+                ->concat($this->adminContacts());
+        } elseif ($type === 'client') {
+            $contacts = $contacts
+                ->concat($this->adminContacts());
+        }
+
+        $contacts = $contacts->map(function (array $c) use ($type, $id) {
+            $last = Message::betweenActors($type, $id, $c['type'], $c['id'])
+                ->orderByDesc('created_at')
+                ->first();
+
+            $c['last_message'] = $last?->body;
+            $c['last_time']    = $last ? $this->formatTimestamp($last->created_at) : null;
+            $c['last_at']      = $last?->created_at?->timestamp ?? 0;
+            $c['unread']       = Message::where('sender_type', $c['type'])
+                ->where('sender_id', $c['id'])
+                ->where('recipient_type', $type)
+                ->where('recipient_id', $id)
+                ->unread()
+                ->count();
+
+            return $c;
+        });
+
+        return $contacts->sortByDesc('last_at')->values();
+    }
+
+    private function adminContacts()
+    {
+        return User::where('role', 'admin')
+            ->orderBy('full_name')
+            ->get()
+            ->map(fn (User $u) => [
+                'type' => 'admin',
+                'id'   => $u->id,
+                'name' => $u->full_name ?: 'Admin',
+                'role' => 'Admin',
+            ]);
+    }
+
+    private function employeeContacts()
+    {
+        return Employee::where('status', 'Active')
+            ->orderBy('first_name')
+            ->get()
+            ->map(fn (Employee $e) => [
+                'type' => 'employee',
+                'id'   => $e->id,
+                'name' => $e->name,
+                'role' => $e->role ?? 'Employee',
+            ]);
+    }
+
+    private function clientContacts()
+    {
+        return Client::orderBy('first_name')
+            ->get()
+            ->map(fn (Client $c) => [
+                'type' => 'client',
+                'id'   => $c->id,
+                'name' => $c->full_name,
+                'role' => 'Client',
+            ]);
+    }
+
+    private function contactInfo(string $type, int $id): ?array
+    {
+        return match ($type) {
+            'admin'    => ($u = User::find($id)) ? ['type' => 'admin', 'id' => $u->id, 'name' => $u->full_name ?: 'Admin', 'role' => 'Admin'] : null,
+            'employee' => ($e = Employee::find($id)) ? ['type' => 'employee', 'id' => $e->id, 'name' => $e->name, 'role' => $e->role ?? 'Employee'] : null,
+            'client'   => ($c = Client::find($id)) ? ['type' => 'client', 'id' => $c->id, 'name' => $c->full_name, 'role' => 'Client'] : null,
+            default    => null,
+        };
+    }
+
+    private function format(Message $m, array $me): array
+    {
+        return [
+            'id'         => $m->id,
+            'body'       => $m->body,
+            'is_mine'    => $m->sender_type === $me['type'] && (int) $m->sender_id === $me['id'],
+            'time'       => $m->created_at->format('g:i A'),
+            'date_label' => $m->created_at->format('M j, Y'),
+            'created_at' => $m->created_at->toIso8601String(),
+        ];
+    }
+
+    private function formatTimestamp($dt): ?string
+    {
+        if (!$dt) return null;
+        if ($dt->isToday()) return $dt->format('g:i A');
+        if ($dt->isYesterday()) return 'Yesterday';
+        return $dt->format('M j');
+    }
+}

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\PostgresBoolean;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 
 class User extends Authenticatable
@@ -32,11 +33,6 @@ class User extends Authenticatable
 
     protected $casts = [
         'password'    => 'hashed',
-        'first_login' => 'boolean',
+        'first_login' => PostgresBoolean::class,
     ];
-
-    public function setFirstLoginAttribute($value): void
-    {
-        $this->attributes['first_login'] = $value ? 'true' : 'false';
-    }
 }

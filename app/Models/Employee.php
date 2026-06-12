@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\PostgresBoolean;
 use Illuminate\Database\Eloquent\Model;
 
 class Employee extends Model
@@ -46,13 +47,8 @@ class Employee extends Model
         'other_deductions' => 'decimal:2',
         'date_hired'       => 'date',
         'password'         => 'hashed',
-        'first_login'      => 'boolean',
+        'first_login'      => PostgresBoolean::class,
     ];
-
-    public function setFirstLoginAttribute($value): void
-    {
-        $this->attributes['first_login'] = $value ? 'true' : 'false';
-    }
 
     /** "Nadera, Kenneth" — for table display */
     public function getFullNameAttribute(): string
@@ -69,5 +65,10 @@ class Employee extends Model
     public function user()
     {
         return $this->belongsTo(\App\Models\User::class, 'user_id');
+    }
+
+    public function assignedProjects()
+    {
+        return $this->belongsToMany(Project::class, 'project_employee')->withTimestamps();
     }
 }

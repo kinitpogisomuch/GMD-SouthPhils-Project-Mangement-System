@@ -46,7 +46,17 @@
                     default     => 'clock',
                 };
                 $currentPhaseLabel = $phaseLabels[$project->current_phase] ?? ucfirst(str_replace('_', ' ', $project->current_phase));
+                $payment = $project->getPaymentRecord();
             @endphp
+
+            <!-- Breadcrumb -->
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;font-size:13px;color:var(--muted);">
+                <a href="{{ route('client.projects') }}" style="color:var(--muted);text-decoration:none;font-weight:600;">
+                    Projects
+                </a>
+                <i data-lucide="chevron-right" style="width:14px;height:14px;"></i>
+                <span style="color:var(--dark);font-weight:700;">{{ $project->name }}</span>
+            </div>
 
             <!-- Page Header -->
             <div class="page-header">
@@ -62,10 +72,6 @@
                         {{ $project->client }}&nbsp;·&nbsp;{{ $project->tank_type }}&nbsp;·&nbsp;{{ $project->capacity }}
                     </p>
                 </div>
-                <a href="{{ route('client.projects') }}" class="back-btn">
-                    <i data-lucide="arrow-left"></i>
-                    Back to Projects
-                </a>
             </div>
 
             @if(session('success'))
@@ -85,7 +91,194 @@
                     <span class="tracker-progress-badge">{{ $project->progress }}%</span>
                 </div>
                 <div class="phase-steps" id="phaseSteps"></div>
+
+                @if($project->current_phase === 'planning')
+                @php
+                    $subPhaseLabels  = [
+                        'shop_drawing' => 'Shop Drawing / Tank Design',
+                        'quotation'    => 'Project Quotation',
+                        'payment'      => 'Payment',
+                    ];
+                    $subPhaseKeys    = array_keys($subPhaseLabels);
+                    $currentSubIndex = array_search($project->current_sub_phase, $subPhaseKeys);
+                @endphp
+                <div class="phase-steps" style="margin-top:10px;">
+                    @foreach($subPhaseLabels as $key => $label)
+                        @php
+                            $idx = array_search($key, $subPhaseKeys);
+                            if ($currentSubIndex === false) {
+                                $subStatus = 'done';
+                            } elseif ($idx < $currentSubIndex) {
+                                $subStatus = 'done';
+                            } elseif ($idx === $currentSubIndex) {
+                                $subStatus = 'active';
+                            } else {
+                                $subStatus = 'pending';
+                            }
+                            $subIcon = $subStatus === 'done' ? 'check' : ($subStatus === 'active' ? 'loader' : 'circle');
+                        @endphp
+                        <div class="phase-step {{ $subStatus }}">
+                            <div class="phase-step-box">
+                                <div class="phase-step-icon"><i data-lucide="{{ $subIcon }}"></i></div>
+                                <div class="phase-step-label">{{ $label }}</div>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+                @endif
             </div>
+
+            @if($project->current_phase === 'planning')
+            @php
+                $shopDrawing   = $project->phaseData('planning.shop_drawing', []);
+                $sdStatus      = $shopDrawing['status'] ?? 'not_submitted';
+                $quotationData = $project->phaseData('planning.quotation', []);
+            @endphp
+
+            <!-- Shop Drawing & Tank Design -->
+            <div class="pv-card" style="margin-top:20px;">
+                <div class="pv-card-title">
+                    <i data-lucide="ruler"></i>
+                    Shop Drawing &amp; Tank Design
+                </div>
+
+                @if($sdStatus === 'not_submitted')
+                    <div class="alert-banner info">
+                        <i data-lucide="clock"></i>
+                        Awaiting shop drawing and tank design documents from the project owner.
+                    </div>
+                @else
+                    @if($sdStatus === 'pending_approval')
+                        <div class="alert-banner warning">
+                            <i data-lucide="alert-triangle"></i>
+                            Please review the shop drawing and tank design documents below, then approve or request a revision.
+                        </div>
+                    @elseif($sdStatus === 'approved')
+                        <div class="alert-banner success">
+                            <i data-lucide="check-circle"></i>
+                            You approved the shop drawing and tank design documents.
+                        </div>
+                    @elseif($sdStatus === 'revision_requested')
+                        <div class="alert-banner warning">
+                            <i data-lucide="rotate-ccw"></i>
+                            You requested a revision: {{ $shopDrawing['revision_notes'] ?? '' }}
+                        </div>
+                    @endif
+
+                    <div class="pv-stat-row">
+                        <div class="pv-stat-box" style="flex:1;">
+                            <div class="pv-stat-label">Shop Drawing Files</div>
+                            <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px;">
+                                @forelse(($shopDrawing['shop_drawing_files'] ?? []) as $file)
+                                    <a href="{{ $file }}" target="_blank" style="display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:var(--accent);text-decoration:none;">
+                                        <i data-lucide="file-text" style="width:14px;height:14px;"></i>
+                                        {{ basename(parse_url($file, PHP_URL_PATH)) }}
+                                    </a>
+                                @empty
+                                    <span style="font-size:12.5px;color:var(--muted);">No files uploaded.</span>
+                                @endforelse
+                            </div>
+                        </div>
+                        <div class="pv-stat-box" style="flex:1;">
+                            <div class="pv-stat-label">Tank Design Files</div>
+                            <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px;">
+                                @forelse(($shopDrawing['tank_design_files'] ?? []) as $file)
+                                    <a href="{{ $file }}" target="_blank" style="display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:var(--accent);text-decoration:none;">
+                                        <i data-lucide="file-text" style="width:14px;height:14px;"></i>
+                                        {{ basename(parse_url($file, PHP_URL_PATH)) }}
+                                    </a>
+                                @empty
+                                    <span style="font-size:12.5px;color:var(--muted);">No files uploaded.</span>
+                                @endforelse
+                            </div>
+                        </div>
+                    </div>
+
+                    @if($sdStatus === 'pending_approval')
+                    <div style="display:flex;gap:10px;margin-top:14px;align-items:flex-start;flex-wrap:wrap;">
+                        <form method="POST" action="{{ route('client.project.shop_drawing.approve', $project->id) }}">
+                            @csrf
+                            <button type="submit" class="save-btn">
+                                <i data-lucide="check-circle"></i>
+                                Approve
+                            </button>
+                        </form>
+                        <details>
+                            <summary class="cancel-btn" style="display:inline-flex;list-style:none;cursor:pointer;">
+                                <i data-lucide="rotate-ccw"></i>
+                                Request Revision
+                            </summary>
+                            <form method="POST" action="{{ route('client.project.shop_drawing.request_revision', $project->id) }}" style="margin-top:10px;min-width:280px;">
+                                @csrf
+                                <div class="form-group" style="margin-bottom:10px;">
+                                    <label>What needs to be revised?</label>
+                                    <textarea name="revision_notes" rows="3" placeholder="Describe the changes you'd like..." required></textarea>
+                                </div>
+                                <button type="submit" class="save-btn">
+                                    <i data-lucide="send"></i>
+                                    Submit Revision Request
+                                </button>
+                            </form>
+                        </details>
+                    </div>
+                    @endif
+                @endif
+            </div>
+
+            <!-- Project Quotation -->
+            @if(($quotationData['status'] ?? null) === 'sent')
+            <div class="pv-card" style="margin-top:20px;">
+                <div class="pv-card-title">
+                    <i data-lucide="receipt"></i>
+                    Project Quotation
+                </div>
+                <div class="alert-banner info">
+                    <i data-lucide="info"></i>
+                    The project quotation must be settled before proceeding to the next phase.
+                </div>
+                <div style="display:flex;flex-direction:column;gap:6px;">
+                    @forelse(($quotationData['files'] ?? []) as $file)
+                        <a href="{{ $file }}" target="_blank" style="display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:var(--accent);text-decoration:none;">
+                            <i data-lucide="file-text" style="width:14px;height:14px;"></i>
+                            {{ basename(parse_url($file, PHP_URL_PATH)) }}
+                        </a>
+                    @empty
+                        <span style="font-size:12.5px;color:var(--muted);">No quotation files uploaded.</span>
+                    @endforelse
+                </div>
+            </div>
+            @endif
+            @endif
+
+            <!-- Payment Status -->
+            @if($payment)
+            <div class="pv-card" style="margin-top:20px;">
+                <div class="pv-card-title">
+                    <i data-lucide="credit-card"></i>
+                    Payment Status
+                </div>
+                <div class="pv-stat-row">
+                    <div class="pv-stat-box">
+                        <div class="pv-stat-label">Status</div>
+                        <div class="pv-stat-value">
+                            <span class="pv-status-pill {{ \App\Models\Payment::statusBadgeClass($payment->status) }}">
+                                {{ $payment->status }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="pv-stat-box">
+                        <div class="pv-stat-label">Remaining Balance</div>
+                        <div class="pv-stat-value">₱{{ number_format($payment->balance, 2) }}</div>
+                    </div>
+                </div>
+                <div style="margin-top:12px;">
+                    <a href="{{ route('client.payments.show', $payment->id) }}" class="cancel-btn" style="display:inline-flex;text-decoration:none;">
+                        <i data-lucide="external-link"></i>
+                        View Payment Details
+                    </a>
+                </div>
+            </div>
+            @endif
 
             <!-- Two-column layout: Project Info (left) + Progress History (right) -->
             <div class="pv-grid">
@@ -188,7 +381,7 @@
 
                     <div class="pv-history-scroll">
                         @forelse($updates as $update)
-                        <div class="pv-history-item">
+                        <div class="pv-history-item" data-update-id="{{ $update->id }}">
                             <!-- Entry header -->
                             <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;gap:8px;">
                                 <div>
@@ -197,6 +390,7 @@
                                         @if($update->update_label === 'revision')
                                         <span style="font-size:10px;background:#dbeafe;color:#1e40af;padding:2px 7px;border-radius:20px;margin-left:4px;font-weight:700;">Revision</span>
                                         @endif
+                                        <span class="pv-new-badge">New</span>
                                     </div>
                                     <div style="font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:4px;">
                                         <i data-lucide="user" style="width:11px;height:11px;"></i>
@@ -334,25 +528,27 @@
             }
         }
 
-        /* ── Dropdown init ───────────────────────────────────────────────── */
-        (function() {
-            function init(dropdownSel, btnId, otherSel) {
-                const dropdown = document.querySelector(dropdownSel);
-                const button   = document.getElementById(btnId);
-                if (!dropdown || !button) return;
-                button.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    const other = document.querySelector(otherSel);
-                    if (other) other.classList.remove('open');
-                    dropdown.classList.toggle('open');
+        /* ── "New" update highlight ──────────────────────────────────────── */
+        (function () {
+            const STORAGE_KEY = 'pv_seen_updates_{{ $project->id }}';
+            let seen = [];
+            try { seen = JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch (e) { seen = []; }
+
+            document.querySelectorAll('.pv-history-item[data-update-id]').forEach(function (item) {
+                const id = item.getAttribute('data-update-id');
+                if (seen.includes(id)) return;
+
+                item.classList.add('is-new');
+                item.addEventListener('click', function () {
+                    item.classList.remove('is-new');
+                    if (!seen.includes(id)) {
+                        seen.push(id);
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(seen));
+                    }
                 });
-            }
-            init('.client-dropdown',       'clientDropdownBtn',       '.notification-dropdown');
-            init('.notification-dropdown', 'notificationDropdownBtn', '.client-dropdown');
-            document.addEventListener('click', function() {
-                document.querySelectorAll('.client-dropdown, .notification-dropdown').forEach(d => d.classList.remove('open'));
             });
         })();
+
     </script>
 </body>
 </html>
