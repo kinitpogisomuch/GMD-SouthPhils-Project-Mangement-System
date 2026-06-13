@@ -631,14 +631,50 @@
          FOOTER
     ============================================================ -->
     <footer class="lp-footer">
-        <div class="footer-brand">
-            <div class="footer-brand-logo"><i data-lucide="container"></i></div>
-            <span class="footer-brand-name">GMD <span>South Phils</span></span>
+        <div class="footer-top">
+            <div class="footer-brand-col">
+                <div class="footer-brand">
+                    <div class="footer-brand-logo"><i data-lucide="container"></i></div>
+                    <span class="footer-brand-name">GMD <span>South Phils</span></span>
+                </div>
+                <p class="footer-tagline">
+                    Precision steel storage tank fabrication for industrial, commercial, and agricultural clients — fuel, water, chemical, and oil tanks delivered across South Philippines.
+                </p>
+            </div>
+
+            <div class="footer-col">
+                <div class="footer-col-title">Quick Links</div>
+                <ul class="footer-links">
+                    <li><a href="#about">About</a></li>
+                    <li><a href="#services">Services</a></li>
+                    <li><a href="#process">Our Process</a></li>
+                    <li><a href="#tanks">Tank Types</a></li>
+                    <li><a href="#portfolio">Our Work</a></li>
+                    <li><a href="#contact">Contact</a></li>
+                </ul>
+            </div>
+
+            <div class="footer-col">
+                <div class="footer-col-title">Client Access</div>
+                <p class="footer-col-desc">
+                    Already working with us? Log in to the Client Portal to track your project progress, view photo updates, and manage documents.
+                </p>
+                <a href="{{ route('login') }}" class="footer-login">
+                    <i data-lucide="log-in"></i>
+                    Login to Portal
+                </a>
+            </div>
         </div>
 
-        <span class="footer-copy">&copy; {{ date('Y') }} GMD South Phils. All rights reserved.</span>
-
-        <a href="{{ route('login') }}" class="footer-login">Login</a>
+        <div class="footer-bottom">
+            <span class="footer-copy">&copy; {{ date('Y') }} GMD South Phils. All rights reserved.</span>
+            <div class="footer-bottom-links">
+                <a href="#home">
+                    <i data-lucide="arrow-up"></i>
+                    Back to top
+                </a>
+            </div>
+        </div>
     </footer>
 
 
