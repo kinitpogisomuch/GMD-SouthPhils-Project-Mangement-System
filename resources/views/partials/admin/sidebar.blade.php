@@ -24,6 +24,13 @@
             <span>Project Quotations</span>
         </a>
 
+        <a href="{{ route('admin.material_usage') }}"
+           class="{{ request()->routeIs(['admin.material_usage', 'admin.material_usage.detail']) ? 'active' : '' }}"
+           title="Material Usage">
+            <div class="sidebar-icon"><i data-lucide="clipboard-list"></i></div>
+            <span>Material Usage</span>
+        </a>
+
         <div class="sidebar-section-label">People</div>
         <a href="{{ route('admin.employees') }}"
            class="{{ request()->routeIs('admin.employees') ? 'active' : '' }}"
@@ -65,3 +72,4 @@
 
     </nav>
 </aside>
+<div class="sidebar-overlay"></div>

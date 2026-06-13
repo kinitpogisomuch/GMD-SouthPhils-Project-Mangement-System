@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="{{ asset('images/gmdlogo-circle.svg') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GMD South Phils — Precision Storage Tank Fabrication</title>
     <meta name="description" content="GMD South Phils specializes in custom steel storage tank fabrication — fuel, water, chemical, and oil tanks — delivered with precision across South Philippines.">
@@ -17,7 +18,7 @@
     <nav class="lp-nav" id="lpNav">
         <a href="#" class="nav-logo">
             <div class="nav-logo-icon">
-                <i data-lucide="container"></i>
+                <img src="{{ asset('images/gmdlogo-circle.svg') }}" alt="GMD South Phils logo">
             </div>
             <span class="nav-logo-text">GMD <span>South Phils</span></span>
         </a>
@@ -27,6 +28,7 @@
             <li><a href="#services">Services</a></li>
             <li><a href="#process">Our Process</a></li>
             <li><a href="#tanks">Tank Types</a></li>
+            <li><a href="#portfolio">Our Work</a></li>
             <li><a href="#contact">Contact</a></li>
         </ul>
 
@@ -39,8 +41,11 @@
     <!-- ============================================================
          HERO
     ============================================================ -->
-    <section class="lp-hero" id="home">
-        <div class="hero-grid-overlay"></div>
+    @php
+    $hasHeroBg = file_exists(public_path('images/login.jpg'));
+    @endphp
+    <section class="lp-hero @if($hasHeroBg) has-bg-photo @endif" id="home"
+             @if($hasHeroBg) style="--hero-bg-photo: url('{{ asset('images/login.jpg') }}')" @endif>
         <div class="hero-glow"></div>
 
         <div class="hero-content">
@@ -73,25 +78,26 @@
         </div>
     </section>
 
+    <div class="hazard-strip"></div>
 
     <!-- ============================================================
          STATS BAR
     ============================================================ -->
     <div class="stats-bar">
-        <div class="stat-box">
+        <div class="stat-box reveal">
             <div class="stat-num">8</div>
             <div class="stat-label">Fabrication Phases</div>
         </div>
-        <div class="stat-box">
+        <div class="stat-box reveal">
             <div class="stat-num">4<sup>+</sup></div>
             <div class="stat-label">Tank Types Handled</div>
         </div>
-        <div class="stat-box">
+        <div class="stat-box reveal">
             <div class="stat-num">100%</div>
             <div class="stat-label">Quality Inspection</div>
         </div>
-        <div class="stat-box">
-            <div class="stat-num">Real-time</div>
+        <div class="stat-box reveal">
+            <div class="stat-num">24<span class="stat-slash">/</span>7</div>
             <div class="stat-label">Project Monitoring</div>
         </div>
     </div>
@@ -103,7 +109,7 @@
     <section class="about-wrap" id="about">
         <div class="about-inner">
 
-            <div class="about-body">
+            <div class="about-body reveal-left">
                 <div>
                     <div class="section-tag">Who We Are</div>
                     <h2 class="section-title">Your Partner in Industrial Tank Fabrication</h2>
@@ -116,26 +122,26 @@
                 </p>
 
                 <div class="about-highlights">
-                    <div class="about-hl">
+                    <div class="about-hl reveal">
                         <i data-lucide="hammer"></i>
                         <span>Skilled Fabricators</span>
                     </div>
-                    <div class="about-hl">
+                    <div class="about-hl reveal">
                         <i data-lucide="badge-check"></i>
                         <span>Quality Assured</span>
                     </div>
-                    <div class="about-hl">
+                    <div class="about-hl reveal">
                         <i data-lucide="clock"></i>
                         <span>On-Time Delivery</span>
                     </div>
-                    <div class="about-hl">
+                    <div class="about-hl reveal">
                         <i data-lucide="settings"></i>
                         <span>Custom Specifications</span>
                     </div>
                 </div>
             </div>
 
-            <div class="about-visual">
+            <div class="about-visual reveal-right">
                 <div class="about-visual-title">Fabrication Process Overview</div>
                 <div class="about-phase-list">
                     @php
@@ -169,43 +175,43 @@
     ============================================================ -->
     <section class="services-wrap" id="services">
         <div class="services-inner">
-            <div class="section-tag">What We Offer</div>
-            <h2 class="section-title">End-to-End Tank Fabrication Services</h2>
-            <p class="section-sub">From concept to completion, we provide everything your project needs — under one roof.</p>
+            <div class="section-tag reveal">What We Offer</div>
+            <h2 class="section-title reveal">End-to-End Tank Fabrication Services</h2>
+            <p class="section-sub reveal">From concept to completion, we provide everything your project needs — under one roof.</p>
 
             <div class="services-grid">
 
-                <div class="service-card">
+                <div class="service-card reveal">
                     <div class="sc-icon"><i data-lucide="drafting-compass"></i></div>
                     <div class="sc-name">Custom Tank Design</div>
                     <p class="sc-desc">We design tanks to your exact specifications — capacity, dimensions, material grade, and industry-specific requirements.</p>
                 </div>
 
-                <div class="service-card">
+                <div class="service-card reveal">
                     <div class="sc-icon"><i data-lucide="wrench"></i></div>
                     <div class="sc-name">Steel Fabrication</div>
                     <p class="sc-desc">Our team of experienced welders and fabricators construct durable steel tanks using quality materials and proven techniques.</p>
                 </div>
 
-                <div class="service-card">
+                <div class="service-card reveal">
                     <div class="sc-icon"><i data-lucide="package-search"></i></div>
                     <div class="sc-name">Material Procurement</div>
                     <p class="sc-desc">We source and procure all structural steel, fittings, and components — ensuring material quality at every stage.</p>
                 </div>
 
-                <div class="service-card">
+                <div class="service-card reveal">
                     <div class="sc-icon"><i data-lucide="shield-check"></i></div>
                     <div class="sc-name">Quality Inspection</div>
                     <p class="sc-desc">Rigorous multi-point inspection and pressure testing ensures every tank meets safety and performance standards before leaving our facility.</p>
                 </div>
 
-                <div class="service-card">
+                <div class="service-card reveal">
                     <div class="sc-icon"><i data-lucide="paintbrush"></i></div>
                     <div class="sc-name">Painting & Coating</div>
                     <p class="sc-desc">Professional surface preparation and anti-corrosion coating systems extend tank lifespan and meet client or regulatory specifications.</p>
                 </div>
 
-                <div class="service-card">
+                <div class="service-card reveal">
                     <div class="sc-icon"><i data-lucide="truck"></i></div>
                     <div class="sc-name">Delivery & Installation</div>
                     <p class="sc-desc">Safe transport and on-site placement support ensures your tank arrives on schedule and in perfect condition — wherever you are.</p>
@@ -221,62 +227,62 @@
     ============================================================ -->
     <section class="process-wrap" id="process">
         <div class="process-inner">
-            <div class="section-tag">How We Work</div>
-            <h2 class="section-title">Our 8-Phase Fabrication Process</h2>
-            <p class="section-sub">Every project follows a structured workflow — tracked in real-time through our project management system.</p>
+            <div class="section-tag reveal">How We Work</div>
+            <h2 class="section-title reveal">Our 8-Phase Fabrication Process</h2>
+            <p class="section-sub reveal">Every project follows a structured workflow — tracked live through our project management system.</p>
 
             <div class="process-grid">
 
-                <div class="process-step">
+                <div class="process-step reveal">
                     <div class="ps-num">Phase 01</div>
                     <div class="ps-icon"><i data-lucide="clipboard-list"></i></div>
                     <div class="ps-name">Planning</div>
                     <p class="ps-desc">Requirements gathering, engineering design, and project timeline development.</p>
                 </div>
 
-                <div class="process-step">
+                <div class="process-step reveal">
                     <div class="ps-num">Phase 02</div>
                     <div class="ps-icon"><i data-lucide="shopping-cart"></i></div>
                     <div class="ps-name">Procurement</div>
                     <p class="ps-desc">Material ordering and component sourcing from quality-verified suppliers.</p>
                 </div>
 
-                <div class="process-step">
+                <div class="process-step reveal">
                     <div class="ps-num">Phase 03</div>
                     <div class="ps-icon"><i data-lucide="scissors"></i></div>
                     <div class="ps-name">Material Preparation</div>
                     <p class="ps-desc">Steel cutting, forming, and preparation of all structural components.</p>
                 </div>
 
-                <div class="process-step">
+                <div class="process-step reveal">
                     <div class="ps-num">Phase 04</div>
                     <div class="ps-icon"><i data-lucide="hammer"></i></div>
                     <div class="ps-name">Fabrication</div>
                     <p class="ps-desc">Expert welding and structural assembly by our skilled fabrication team.</p>
                 </div>
 
-                <div class="process-step">
+                <div class="process-step reveal">
                     <div class="ps-num">Phase 05</div>
                     <div class="ps-icon"><i data-lucide="search-check"></i></div>
                     <div class="ps-name">Inspection</div>
                     <p class="ps-desc">Comprehensive quality control, weld inspection, and pressure testing.</p>
                 </div>
 
-                <div class="process-step">
+                <div class="process-step reveal">
                     <div class="ps-num">Phase 06</div>
                     <div class="ps-icon"><i data-lucide="paintbrush-2"></i></div>
                     <div class="ps-name">Painting</div>
                     <p class="ps-desc">Surface blasting and application of protective anti-corrosion coatings.</p>
                 </div>
 
-                <div class="process-step">
+                <div class="process-step reveal">
                     <div class="ps-num">Phase 07</div>
                     <div class="ps-icon"><i data-lucide="check-circle-2"></i></div>
                     <div class="ps-name">Completion</div>
                     <p class="ps-desc">Final walkthrough, documentation, and client sign-off before dispatch.</p>
                 </div>
 
-                <div class="process-step">
+                <div class="process-step reveal">
                     <div class="ps-num">Phase 08</div>
                     <div class="ps-icon"><i data-lucide="truck"></i></div>
                     <div class="ps-name">Delivery</div>
@@ -293,31 +299,31 @@
     ============================================================ -->
     <section class="tanks-wrap" id="tanks">
         <div class="tanks-inner">
-            <div class="section-tag">Our Specialties</div>
-            <h2 class="section-title">Tank Types We Fabricate</h2>
-            <p class="section-sub">We build a wide range of industrial storage tanks engineered for different applications and industries.</p>
+            <div class="section-tag reveal">Our Specialties</div>
+            <h2 class="section-title reveal">Tank Types We Fabricate</h2>
+            <p class="section-sub reveal">We build a wide range of industrial storage tanks engineered for different applications and industries.</p>
 
             <div class="tanks-grid">
 
-                <div class="tank-card">
+                <div class="tank-card reveal">
                     <div class="tank-icon"><i data-lucide="flame"></i></div>
                     <div class="tank-name">Fuel Storage Tanks</div>
                     <p class="tank-desc">Diesel, gasoline, and petroleum product tanks built to handle flammable storage safely and efficiently.</p>
                 </div>
 
-                <div class="tank-card">
+                <div class="tank-card reveal">
                     <div class="tank-icon"><i data-lucide="droplets"></i></div>
                     <div class="tank-name">Water Storage Tanks</div>
                     <p class="tank-desc">Industrial and commercial water tanks for construction sites, agriculture, and community water supply.</p>
                 </div>
 
-                <div class="tank-card">
+                <div class="tank-card reveal">
                     <div class="tank-icon"><i data-lucide="wheat"></i></div>
                     <div class="tank-name">Cooking Oil Tanks</div>
                     <p class="tank-desc">Food-grade stainless or carbon steel tanks designed for edible oil storage with hygiene-compliant interiors.</p>
                 </div>
 
-                <div class="tank-card">
+                <div class="tank-card reveal">
                     <div class="tank-icon"><i data-lucide="flask-conical"></i></div>
                     <div class="tank-name">Chemical Storage Tanks</div>
                     <p class="tank-desc">Corrosion-resistant tanks engineered for safe storage of industrial chemicals, acids, and solvents.</p>
@@ -329,47 +335,134 @@
 
 
     <!-- ============================================================
+         PORTFOLIO / OUR WORK
+    ============================================================ -->
+    <section class="portfolio-wrap" id="portfolio">
+        <div class="portfolio-inner">
+            <div class="section-tag reveal">Our Work</div>
+            <h2 class="section-title reveal">Projects We've Built</h2>
+            <p class="section-sub reveal">A look at the kind of storage tanks and fabrication work we deliver — built to spec, tested, and ready for the field.</p>
+
+            <div class="portfolio-grid">
+                @php
+                $portfolio = [
+                    [
+                        'image' => 'images/portfolio/fuel-tank-1.jpg', 'icon' => 'flame',
+                        'spec'  => '10,000 L',
+                        'tag'   => 'Fuel Storage',
+                        'title' => 'Diesel Storage Tank — Distribution Depot',
+                        'desc'  => 'Cylindrical carbon steel tank with internal baffles, fitted with vents, gauges, and dike containment for a fuel distribution site.',
+                    ],
+                    [
+                        'image' => null, 'icon' => 'droplets',
+                        'spec'  => '5,000 L',
+                        'tag'   => 'Water Storage',
+                        'title' => 'Elevated Water Tank — Municipal Supply',
+                        'desc'  => 'Steel elevated water reservoir with support tower, designed for consistent pressure delivery to a community water system.',
+                    ],
+                    [
+                        'image' => null, 'icon' => 'wheat',
+                        'spec'  => 'Food-grade',
+                        'tag'   => 'Cooking Oil Tank',
+                        'title' => 'Stainless Storage Vessel — Food Plant',
+                        'desc'  => 'Hygiene-compliant stainless interior with polished welds, built for edible oil storage in a food manufacturing facility.',
+                    ],
+                    [
+                        'image' => null, 'icon' => 'flask-conical',
+                        'spec'  => 'Corrosion-resist.',
+                        'tag'   => 'Chemical Storage',
+                        'title' => 'Acid-Resistant Tank — Chemical Plant',
+                        'desc'  => 'Reinforced shell with corrosion-resistant lining and secondary containment, fabricated for industrial chemical storage.',
+                    ],
+                    [
+                        'image' => null, 'icon' => 'flame-kindling',
+                        'spec'  => 'Pressurized',
+                        'tag'   => 'LPG / Gas Vessel',
+                        'title' => 'Pressure Vessel — LPG Storage',
+                        'desc'  => 'ASME-style pressure vessel with full weld inspection and pneumatic pressure testing prior to client handover.',
+                    ],
+                    [
+                        'image' => null, 'icon' => 'container',
+                        'spec'  => 'Custom',
+                        'tag'   => 'Custom Fabrication',
+                        'title' => 'Custom Tank — On-Site Installation',
+                        'desc'  => 'Engineered to a client\'s exact dimensions and capacity, fabricated in our shop and delivered with on-site installation support.',
+                    ],
+                ];
+                @endphp
+
+                @foreach($portfolio as $item)
+                <div class="portfolio-card reveal">
+                    <div class="portfolio-media"
+                         @if($item['image']) style="background-image:url('{{ asset($item['image']) }}')" @endif>
+                        <span class="portfolio-spec">{{ $item['spec'] }}</span>
+                        @if($item['image'])
+                            <img src="{{ asset($item['image']) }}" alt="{{ $item['title'] }}">
+                        @else
+                            <div class="portfolio-media-icon"><i data-lucide="{{ $item['icon'] }}"></i></div>
+                        @endif
+                    </div>
+                    <div class="portfolio-body">
+                        <div class="portfolio-tag">
+                            <i data-lucide="tag" style="width:11px;height:11px;"></i>
+                            {{ $item['tag'] }}
+                        </div>
+                        <div class="portfolio-title">{{ $item['title'] }}</div>
+                        <p class="portfolio-desc">{{ $item['desc'] }}</p>
+                    </div>
+                </div>
+                @endforeach
+            </div>
+
+            <div class="portfolio-foot">
+                <p>Every project follows our structured 8-phase workflow — from planning and procurement to final inspection and delivery, with photo documentation captured at each stage.</p>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- ============================================================
          WHY GMD
     ============================================================ -->
     <section class="why-wrap">
         <div class="why-inner">
-            <div class="section-tag">Why Choose Us</div>
-            <h2 class="section-title">What Sets GMD Apart</h2>
-            <p class="section-sub">We combine skilled craftsmanship, structured workflows, and transparent communication to deliver tanks that last.</p>
+            <div class="section-tag reveal">Why Choose Us</div>
+            <h2 class="section-title reveal">What Sets GMD Apart</h2>
+            <p class="section-sub reveal">We combine skilled craftsmanship, structured workflows, and transparent communication to deliver tanks that last.</p>
 
             <div class="why-grid">
 
-                <div class="why-card">
+                <div class="why-card reveal">
                     <div class="wc-icon"><i data-lucide="users"></i></div>
                     <div class="wc-title">Experienced Team</div>
                     <p class="wc-desc">Our welders, fabricators, and project managers bring deep hands-on experience in industrial tank construction.</p>
                 </div>
 
-                <div class="why-card">
+                <div class="why-card reveal">
                     <div class="wc-icon"><i data-lucide="bar-chart-3"></i></div>
                     <div class="wc-title">Transparent Progress</div>
-                    <p class="wc-desc">Clients receive real-time project updates through our portal — always knowing exactly where their tank is in the process.</p>
+                    <p class="wc-desc">Clients receive live project updates through our portal — always knowing exactly where their tank is in the process.</p>
                 </div>
 
-                <div class="why-card">
+                <div class="why-card reveal">
                     <div class="wc-icon"><i data-lucide="badge-check"></i></div>
                     <div class="wc-title">Quality at Every Phase</div>
                     <p class="wc-desc">Inspection checkpoints throughout fabrication ensure structural integrity, weld quality, and finish standards are met.</p>
                 </div>
 
-                <div class="why-card">
+                <div class="why-card reveal">
                     <div class="wc-icon"><i data-lucide="ruler"></i></div>
                     <div class="wc-title">Custom Specifications</div>
                     <p class="wc-desc">No two projects are the same. We engineer each tank to match your exact capacity, dimension, and application requirements.</p>
                 </div>
 
-                <div class="why-card">
+                <div class="why-card reveal">
                     <div class="wc-icon"><i data-lucide="clock-3"></i></div>
                     <div class="wc-title">On-Time Delivery</div>
                     <p class="wc-desc">Our structured 8-phase workflow keeps projects on track and delivers tanks on the agreed schedule.</p>
                 </div>
 
-                <div class="why-card">
+                <div class="why-card reveal">
                     <div class="wc-icon"><i data-lucide="handshake"></i></div>
                     <div class="wc-title">Post-Delivery Support</div>
                     <p class="wc-desc">We don't just deliver and leave. Our team supports on-site installation and is available for after-delivery concerns.</p>
@@ -387,9 +480,9 @@
         <div class="portal-glow"></div>
         <div class="portal-cta-inner">
 
-            <div class="portal-left">
+            <div class="portal-left reveal-left">
                 <div class="section-tag">Project Monitoring</div>
-                <h2 class="section-title">Track Your Project in Real-Time</h2>
+                <h2 class="section-title">Track Your Project Live</h2>
                 <p class="section-sub">Our project management portal gives clients, employees, and administrators live visibility into every phase of fabrication — with photo updates, progress tracking, and instant notifications.</p>
 
                 <div class="portal-features">
@@ -412,7 +505,7 @@
                 </div>
             </div>
 
-            <div class="portal-card">
+            <div class="portal-card reveal-right">
                 <div class="portal-card-header">
                     <div class="portal-card-ico"><i data-lucide="layout-dashboard"></i></div>
                     <div>
@@ -454,7 +547,7 @@
     <section class="contact-wrap" id="contact">
         <div class="contact-inner">
 
-            <div>
+            <div class="reveal-left">
                 <div class="section-tag">Get in Touch</div>
                 <h2 class="section-title">Start Your Project Today</h2>
                 <p class="section-sub">Have a project in mind? Reach out and our team will get back to you with a consultation and timeline estimate.</p>
@@ -464,7 +557,7 @@
                         <div class="ci-icon"><i data-lucide="map-pin"></i></div>
                         <div>
                             <div class="ci-label">Location</div>
-                            <div class="ci-value">Southern Philippines</div>
+                            <div class="ci-value">Brgy. Masiit, Calauan, Philippines, 4012</div>
                         </div>
                     </div>
                     <div class="ci-row">
@@ -472,7 +565,7 @@
                         <div>
                             <div class="ci-label">Phone</div>
                             <div class="ci-value">
-                                <a href="tel:+63">+63 XXX XXX XXXX</a>
+                                <a href="tel:+639176525201">0917 652 5201</a>
                             </div>
                         </div>
                     </div>
@@ -481,7 +574,18 @@
                         <div>
                             <div class="ci-label">Email</div>
                             <div class="ci-value">
-                                <a href="mailto:info@gmdsouthphils.com">info@gmdsouthphils.com</a>
+                                <a href="mailto:gmdsouthphils@gmail.com">gmdsouthphils@gmail.com</a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="ci-row">
+                        <div class="ci-icon">
+                            <img src="{{ asset('images/facebook.png') }}" alt="Facebook" style="width:28px;height:28px;object-fit:contain;">
+                        </div>
+                        <div>
+                            <div class="ci-label">Facebook</div>
+                            <div class="ci-value">
+                                <a href="https://www.facebook.com/gmdsouthphils" target="_blank" rel="noopener">facebook.com/gmdsouthphils</a>
                             </div>
                         </div>
                     </div>
@@ -495,7 +599,7 @@
                 </div>
             </div>
 
-            <div class="contact-right">
+            <div class="contact-right reveal-right">
                 <div class="contact-card">
                     <div class="cc-icon"><i data-lucide="message-circle"></i></div>
                     <div>
@@ -562,6 +666,33 @@
                 }
             });
         });
+
+        // Scroll reveal animations
+        (function () {
+            var revealEls = document.querySelectorAll('.reveal, .reveal-left, .reveal-right, .reveal-scale');
+            var staggerGroups = ['services-grid', 'tanks-grid', 'process-grid', 'portfolio-grid', 'why-grid', 'stats-bar', 'about-highlights'];
+
+            revealEls.forEach(function (el) {
+                var parent = el.parentElement;
+                if (parent && staggerGroups.some(function (cls) { return parent.classList.contains(cls); })) {
+                    var index = Array.prototype.indexOf.call(parent.children, el);
+                    el.style.transitionDelay = (index * 0.08) + 's';
+                }
+            });
+
+            if (!('IntersectionObserver' in window)) {
+                revealEls.forEach(function (el) { el.classList.add('is-visible'); });
+                return;
+            }
+
+            var observer = new IntersectionObserver(function (entries) {
+                entries.forEach(function (entry) {
+                    entry.target.classList.toggle('is-visible', entry.isIntersecting);
+                });
+            }, { threshold: 0.15, rootMargin: '0px 0px -60px 0px' });
+
+            revealEls.forEach(function (el) { observer.observe(el); });
+        })();
     </script>
 </body>
 </html>

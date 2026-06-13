@@ -9,22 +9,11 @@
         </div>
     </div>
 
-    <div class="admin-header-center">
-        <div class="header-clock">
-            <i data-lucide="clock-3" class="header-clock-icon"></i>
-            <div class="header-clock-text">
-                <span class="header-clock-date" id="headerDate">—</span>
-                <span class="header-clock-time" id="headerTime">—</span>
-            </div>
-        </div>
-    </div>
-
     <div class="admin-header-right">
 
         <div class="notification-dropdown" id="notificationDropdown">
             <button class="notification-btn" type="button" title="Notifications" id="notificationDropdownBtn">
                 <i data-lucide="bell"></i>
-                <span class="notification-dot" id="notificationDot" style="display:none;"></span>
                 <span class="notification-count-badge" id="notificationCountBadge" style="display:none;"></span>
             </button>
 
@@ -106,19 +95,6 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 (function () {
-    function updateClock() {
-        var d = document.getElementById('headerDate');
-        var t = document.getElementById('headerTime');
-        if (!d || !t) return;
-        var now = new Date();
-        d.textContent = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-        t.textContent = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
-    }
-    updateClock();
-    setInterval(updateClock, 1000);
-})();
-
-(function () {
     const RECENT_URL   = '{{ route("admin.notifications.recent") }}';
     const READ_ALL_URL = '{{ route("admin.notifications.read-all") }}';
     const CSRF         = '{{ csrf_token() }}';
@@ -151,7 +127,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function renderNotifications(list, unreadCount) {
-        const dot       = document.getElementById('notificationDot');
         const badge     = document.getElementById('notificationCountBadge');
         const label     = document.getElementById('notificationUnreadLabel');
         const container = document.getElementById('notificationList');
@@ -159,13 +134,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Update bell badge
         if (unreadCount > 0) {
-            dot.style.display   = 'block';
             badge.style.display = 'flex';
             badge.textContent   = unreadCount > 99 ? '99+' : unreadCount;
             label.style.display = 'inline';
             label.textContent   = unreadCount + ' unread';
         } else {
-            dot.style.display   = 'none';
             badge.style.display = 'none';
             label.style.display = 'none';
         }
@@ -232,6 +205,35 @@ document.addEventListener('DOMContentLoaded', function () {
     // Reload when dropdown opens
     document.getElementById('notificationDropdownBtn').addEventListener('click', function() {
         loadNotifications();
+    });
+})();
+
+(function () {
+    const adminDropdown        = document.querySelector('.admin-dropdown');
+    const adminBtn             = document.getElementById('adminDropdownBtn');
+    const notificationDropdown = document.querySelector('.notification-dropdown');
+    const notificationBtn      = document.getElementById('notificationDropdownBtn');
+
+    if (adminBtn && adminDropdown) {
+        adminBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (notificationDropdown) notificationDropdown.classList.remove('open');
+            adminDropdown.classList.toggle('open');
+        });
+    }
+
+    if (notificationBtn && notificationDropdown) {
+        notificationBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (adminDropdown) adminDropdown.classList.remove('open');
+            notificationDropdown.classList.toggle('open');
+        });
+    }
+
+    document.addEventListener('click', function (e) {
+        if (e.target.closest('a') || e.target.closest('button')) return;
+        if (adminDropdown) adminDropdown.classList.remove('open');
+        if (notificationDropdown) notificationDropdown.classList.remove('open');
     });
 })();
 </script>

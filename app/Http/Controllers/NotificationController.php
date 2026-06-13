@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Notification;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class NotificationController extends Controller
@@ -90,16 +91,30 @@ class NotificationController extends Controller
     | Full notifications page
     |--------------------------------------------------------------------------
     */
-    public function page()
+    public function page(Request $request)
     {
         $userId   = $this->currentUserId();
         $userType = $this->currentUserType();
         $role     = $userType ?? 'admin';
 
-        $notifications = Notification::forUser($userId)
-            ->where('user_type', $role)
+        $filter = $request->query('filter') === 'unread' ? 'unread' : 'all';
+
+        $query = Notification::forUser($userId)
+            ->where('user_type', $role);
+
+        if ($filter === 'unread') {
+            $query->unread();
+        }
+
+        $notifications = $query
             ->orderBy('created_at', 'desc')
-            ->paginate(30);
+            ->paginate(30)
+            ->appends(['filter' => $filter]);
+
+        $unreadCount = Notification::forUser($userId)
+            ->where('user_type', $role)
+            ->unread()
+            ->count();
 
         $view = match($role) {
             'employee' => 'employee.notifications',
@@ -107,7 +122,7 @@ class NotificationController extends Controller
             default    => 'admin.notifications',
         };
 
-        return view($view, compact('notifications'));
+        return view($view, compact('notifications', 'filter', 'unreadCount'));
     }
 
     /*

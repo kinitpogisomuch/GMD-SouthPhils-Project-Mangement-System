@@ -2,11 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="{{ asset('images/gmdlogo-circle.svg') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Notifications | GMD South Phils</title>
     <link href="{{ asset('css/admin.css') }}" rel="stylesheet">
 </head>
-<body>
+<body class="page-enter">
 
     @include('partials.admin.header')
 
@@ -17,10 +18,15 @@
 
             <div class="page-header">
                 <div>
-                    <h1 class="page-title">Notifications</h1>
+                    <h1 class="page-title">
+                        Notifications
+                        @if($unreadCount > 0)
+                            <span class="notif-unread-badge">{{ $unreadCount }}</span>
+                        @endif
+                    </h1>
                     <p class="page-subtitle">Your recent system notifications.</p>
                 </div>
-                @if($notifications->total() > 0)
+                @if($unreadCount > 0)
                 <form method="POST" action="{{ route('admin.notifications.read-all') }}">
                     @csrf
                     <button type="submit" class="btn btn-outline">
@@ -28,6 +34,11 @@
                     </button>
                 </form>
                 @endif
+            </div>
+
+            <div class="filter-tabs" style="margin-bottom:20px;margin-left:auto;width:fit-content;">
+                <a href="{{ route('admin.notifications') }}" class="filter-tab {{ $filter === 'all' ? 'active' : '' }}">All</a>
+                <a href="{{ route('admin.notifications', ['filter' => 'unread']) }}" class="filter-tab {{ $filter === 'unread' ? 'active' : '' }}">Unread</a>
             </div>
 
             <div class="card" style="padding:0;overflow:hidden;">
@@ -68,14 +79,16 @@
                     </a>
                 @empty
                     <div class="notification-empty" style="padding:48px;">
-                        <i data-lucide="bell-off" style="width:32px;height:32px;color:var(--muted);"></i>
-                        <span>No notifications yet.</span>
+                        <div class="notification-empty-icon">
+                            <i data-lucide="bell-off" style="width:28px;height:28px;color:var(--muted);"></i>
+                        </div>
+                        <span>{{ $filter === 'unread' ? "You're all caught up — no unread notifications." : 'No notifications yet.' }}</span>
                     </div>
                 @endforelse
             </div>
 
             <div style="margin-top:20px;">
-                {{ $notifications->links() }}
+                {{ $notifications->links('vendor.pagination.custom') }}
             </div>
 
         </main>
@@ -98,19 +111,6 @@
             });
         }
 
-        function initAdminDropdowns() {
-            const adminDropdown = document.querySelector('.admin-dropdown');
-            const adminBtn      = document.getElementById('adminDropdownBtn');
-            if (!adminDropdown || !adminBtn) return;
-            adminBtn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                adminDropdown.classList.toggle('open');
-            });
-            document.addEventListener('click', function() {
-                adminDropdown.classList.remove('open');
-            });
-        }
-        initAdminDropdowns();
     </script>
 </body>
 </html>

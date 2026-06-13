@@ -2,11 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="{{ asset('images/gmdlogo-circle.svg') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $project->name }} | GMD South Phils</title>
     <link href="{{ asset('css/client.css') }}" rel="stylesheet">
 </head>
-<body>
+<body class="page-enter">
 
     @include('partials.client.header')
 
@@ -168,7 +169,7 @@
                     <div class="pv-stat-row">
                         <div class="pv-stat-box" style="flex:1;">
                             <div class="pv-stat-label">Shop Drawing Files</div>
-                            <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px;">
+                            <div style="display:flex;flex-direction:column;gap:8px;">
                                 @forelse(($shopDrawing['shop_drawing_files'] ?? []) as $file)
                                     <a href="{{ $file }}" target="_blank" style="display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:var(--accent);text-decoration:none;">
                                         <i data-lucide="file-text" style="width:14px;height:14px;"></i>
@@ -181,7 +182,7 @@
                         </div>
                         <div class="pv-stat-box" style="flex:1;">
                             <div class="pv-stat-label">Tank Design Files</div>
-                            <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px;">
+                            <div style="display:flex;flex-direction:column;gap:8px;">
                                 @forelse(($shopDrawing['tank_design_files'] ?? []) as $file)
                                     <a href="{{ $file }}" target="_blank" style="display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:var(--accent);text-decoration:none;">
                                         <i data-lucide="file-text" style="width:14px;height:14px;"></i>
@@ -203,23 +204,10 @@
                                 Approve
                             </button>
                         </form>
-                        <details>
-                            <summary class="cancel-btn" style="display:inline-flex;list-style:none;cursor:pointer;">
-                                <i data-lucide="rotate-ccw"></i>
-                                Request Revision
-                            </summary>
-                            <form method="POST" action="{{ route('client.project.shop_drawing.request_revision', $project->id) }}" style="margin-top:10px;min-width:280px;">
-                                @csrf
-                                <div class="form-group" style="margin-bottom:10px;">
-                                    <label>What needs to be revised?</label>
-                                    <textarea name="revision_notes" rows="3" placeholder="Describe the changes you'd like..." required></textarea>
-                                </div>
-                                <button type="submit" class="save-btn">
-                                    <i data-lucide="send"></i>
-                                    Submit Revision Request
-                                </button>
-                            </form>
-                        </details>
+                        <button type="button" class="cancel-btn" id="openRevisionModalBtn">
+                            <i data-lucide="rotate-ccw"></i>
+                            Request Revision
+                        </button>
                     </div>
                     @endif
                 @endif
@@ -407,17 +395,11 @@
                             </div>
 
                             <!-- Work done -->
-                            @if($update->work_done)
+                            @if(trim((string) $update->work_done) !== '')
+                            @php $workDoneText = trim($update->work_done); @endphp
                             <div style="margin-bottom:10px;">
-                                <div style="font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;">Work Done</div>
-                                <div style="font-size:13px;color:var(--dark);line-height:1.55;white-space:pre-line;" class="pv-work-text" data-full="{{ e($update->work_done) }}">
-                                    @if(strlen($update->work_done) > 160)
-                                        {{ substr($update->work_done, 0, 160) }}<span class="pv-ellipsis">…</span><span class="pv-rest" style="display:none;">{{ substr($update->work_done, 160) }}</span>
-                                        <button type="button" onclick="toggleWorkText(this)" style="font-size:11px;font-weight:700;color:var(--accent);background:none;border:none;cursor:pointer;padding:0;margin-left:4px;">Read more</button>
-                                    @else
-                                        {{ $update->work_done }}
-                                    @endif
-                                </div>
+                                <div style="font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Work Done</div>
+                                <div style="font-size:13px;color:var(--dark);line-height:1.55;white-space:pre-line;" class="pv-work-text" data-full="{{ e($workDoneText) }}">@if(strlen($workDoneText) > 160){{ substr($workDoneText, 0, 160) }}<span class="pv-ellipsis">…</span><span class="pv-rest" style="display:none;">{{ substr($workDoneText, 160) }}</span> <button type="button" onclick="toggleWorkText(this)" style="font-size:11px;font-weight:700;color:var(--accent);background:none;border:none;cursor:pointer;padding:0;margin-left:4px;">Read more</button>@else{{ $workDoneText }}@endif</div>
                             </div>
                             @endif
 
@@ -437,10 +419,19 @@
                                 </div>
                                 <div class="pv-photo-grid">
                                     @foreach($update->photos as $photo)
-                                    <a href="{{ $photo }}" target="_blank" class="pv-photo-thumb">
-                                        <img src="{{ $photo }}" alt="Progress photo"
-                                             loading="lazy"
-                                             onerror="this.parentElement.style.background='var(--cream-deep)';this.style.display='none';">
+                                    @php
+                                        $photoExt = strtolower(pathinfo(parse_url($photo, PHP_URL_PATH), PATHINFO_EXTENSION));
+                                        $isImageFile = in_array($photoExt, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg']);
+                                    @endphp
+                                    <a href="{{ $photo }}" target="_blank" class="pv-photo-thumb {{ $isImageFile ? '' : 'is-file' }}">
+                                        @if($isImageFile)
+                                            <img src="{{ $photo }}" alt="Progress photo"
+                                                 loading="lazy"
+                                                 onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                                            <span class="pv-photo-fallback" style="display:none;"><i data-lucide="file-text"></i></span>
+                                        @else
+                                            <span class="pv-photo-fallback"><i data-lucide="file-text"></i></span>
+                                        @endif
                                     </a>
                                     @endforeach
                                 </div>
@@ -461,6 +452,36 @@
 
         </main>
     </div>
+
+    @if(($sdStatus ?? null) === 'pending_approval')
+    <div class="modal-overlay" id="revisionModal">
+        <div class="modal-card" style="max-width:480px;">
+            <div class="modal-header">
+                <div>
+                    <h2>Request Revision</h2>
+                    <p>Let the project team know what needs to be changed.</p>
+                </div>
+                <button type="button" class="modal-close" id="closeRevisionModal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <form method="POST" action="{{ route('client.project.shop_drawing.request_revision', $project->id) }}">
+                @csrf
+                <div class="form-group">
+                    <label>What needs to be revised?</label>
+                    <textarea name="revision_notes" rows="4" placeholder="Describe the changes you'd like..." required></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="cancel-btn" id="cancelRevisionModal">Cancel</button>
+                    <button type="submit" class="save-btn">
+                        <i data-lucide="send"></i>
+                        Submit Revision Request
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    @endif
 
     <script>
         const PROJECT_CURRENT_PHASE = "{{ $project->current_phase }}";
@@ -528,6 +549,32 @@
             }
         }
 
+        /* ── Modal helpers ───────────────────────────────────────────────── */
+        function openModal(id) {
+            const m = document.getElementById(id);
+            if (m) { m.classList.add('show'); document.body.style.overflow = 'hidden'; }
+        }
+        function closeModal(id) {
+            const m = document.getElementById(id);
+            if (m) { m.classList.remove('show'); document.body.style.overflow = ''; }
+        }
+
+        (function () {
+            const openBtn = document.getElementById('openRevisionModalBtn');
+            if (openBtn) openBtn.addEventListener('click', function () { openModal('revisionModal'); });
+
+            ['closeRevisionModal', 'cancelRevisionModal'].forEach(function (id) {
+                const btn = document.getElementById(id);
+                if (btn) btn.addEventListener('click', function () { closeModal('revisionModal'); });
+            });
+
+            document.querySelectorAll('.modal-overlay').forEach(function (modal) {
+                modal.addEventListener('click', function (e) {
+                    if (e.target === this) closeModal(this.id);
+                });
+            });
+        })();
+
         /* ── "New" update highlight ──────────────────────────────────────── */
         (function () {
             const STORAGE_KEY = 'pv_seen_updates_{{ $project->id }}';
@@ -547,6 +594,25 @@
                     }
                 });
             });
+        })();
+
+        /* ── Match Progress History height to Project Information ──────────── */
+        (function () {
+            const infoCard    = document.querySelector('.pv-grid > .pv-card:first-child');
+            const historyCard = document.querySelector('.pv-grid > .pv-card:last-child');
+            if (!infoCard || !historyCard) return;
+
+            function syncHeight() {
+                if (window.matchMedia('(max-width: 900px)').matches) {
+                    historyCard.style.height = '';
+                    return;
+                }
+                historyCard.style.height = infoCard.offsetHeight + 'px';
+            }
+
+            syncHeight();
+            window.addEventListener('resize', syncHeight);
+            window.addEventListener('load', syncHeight);
         })();
 
     </script>

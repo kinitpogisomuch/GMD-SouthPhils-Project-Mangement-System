@@ -2,11 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="{{ asset('images/gmdlogo-circle.svg') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Project View | GMD South Phils</title>
     <link href="{{ asset('css/admin.css') }}" rel="stylesheet">
 </head>
-<body>
+<body class="page-enter">
 
     @include('partials.admin.header')
 
@@ -749,7 +750,7 @@
                 <div id="modalRevisionFeedback" style="font-size:13.5px;color:#7c2d12;white-space:pre-wrap;line-height:1.6;"></div>
             </div>
 
-            <div style="margin-bottom:16px;">
+            <div id="modalWorkDoneSection" style="margin-bottom:16px;display:none;">
                 <div style="font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">WORK DONE</div>
                 <div id="modalWorkDone"
                      style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:13.5px;color:var(--text-primary);line-height:1.6;white-space:pre-wrap;"></div>
@@ -1052,7 +1053,13 @@
             }
             document.getElementById('modalStatusBadge').innerHTML = badgeHtml;
 
-            document.getElementById('modalWorkDone').textContent = u.work_done;
+            const workDoneSec = document.getElementById('modalWorkDoneSection');
+            if (u.work_done && u.work_done.trim() !== '') {
+                workDoneSec.style.display = 'block';
+                document.getElementById('modalWorkDone').textContent = u.work_done;
+            } else {
+                workDoneSec.style.display = 'none';
+            }
 
             const issuesSec = document.getElementById('modalIssuesSection');
             if (u.issues) {

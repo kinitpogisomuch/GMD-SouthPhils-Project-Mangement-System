@@ -2,33 +2,57 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="{{ asset('images/gmdlogo-circle.svg') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Account Setup | GMD South Phils</title>
-    <link href="{{ asset('css/admin.css') }}" rel="stylesheet">
+    <link rel="stylesheet" href="{{ asset('css/login.css') }}">
     <style>
+        :root {
+            --success: #207A3A;
+            --success-bg: #E7F6EC;
+            --success-border: #86efac;
+            --warning: #8A6100;
+            --warning-bg: #FFF3D6;
+            --warning-border: #fcd34d;
+            --warning-text: #78350f;
+        }
+
         body {
-            background: #f1f3f9;
             min-height: 100vh;
             display: flex;
             align-items: flex-start;
             justify-content: center;
-            padding: 40px 16px 60px;
-            font-family: 'Inter', sans-serif;
+            padding: 48px 16px 60px;
         }
-        .setup-wrap { width: 100%; max-width: 680px; }
+
+        @keyframes slideUpFadeIn {
+            from { opacity: 0; transform: translateY(28px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .setup-wrap {
+            width: 100%; max-width: 700px;
+            animation: slideUpFadeIn 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
         .setup-brand {
-            text-align: center;
-            margin-bottom: 24px;
-            font-size: 20px;
-            font-weight: 900;
-            color: #1a1a2e;
-            letter-spacing: -0.5px;
+            display: flex; align-items: center; justify-content: center; gap: 14px;
+            margin-bottom: 28px;
         }
-        .setup-brand span { color: #e8900a; }
+        .setup-brand-logo {
+            width: 52px; height: 52px; border-radius: 50%; object-fit: cover; flex-shrink: 0;
+        }
+        .setup-brand-name { font-size: 22px; font-weight: 900; color: var(--dark); letter-spacing: -0.4px; }
+        .setup-brand-name span { color: var(--muted); }
+        .setup-brand-sub {
+            font-size: 11px; font-weight: 800; color: var(--muted);
+            text-transform: uppercase; letter-spacing: 0.14em; margin-top: 4px;
+        }
+
         .setup-notice {
-            background: #fff7ed;
-            border: 1.5px solid #fed7aa;
-            border-radius: 12px;
+            background: var(--warning-bg);
+            border: 1px solid var(--warning-border);
+            border-radius: 18px;
             padding: 18px 20px;
             margin-bottom: 24px;
             display: flex;
@@ -37,92 +61,106 @@
         }
         .setup-notice-icon {
             flex-shrink: 0;
-            width: 36px; height: 36px;
-            background: #e8900a;
-            border-radius: 8px;
+            width: 38px; height: 38px;
+            background: var(--warning);
+            border-radius: 12px;
             display: flex; align-items: center; justify-content: center;
             color: #fff;
         }
-        .setup-notice h3 { font-size: 15px; font-weight: 800; color: #1a1a2e; margin-bottom: 4px; }
-        .setup-notice p  { font-size: 13px; color: #78350f; line-height: 1.55; margin: 0; }
+        .setup-notice h3 { font-size: 15px; font-weight: 800; color: var(--dark); margin-bottom: 4px; }
+        .setup-notice p  { font-size: 13px; color: var(--warning-text); line-height: 1.55; margin: 0; }
+
         .setup-card {
-            background: #fff;
-            border-radius: 16px;
-            box-shadow: 0 2px 16px rgba(0,0,0,0.07);
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            box-shadow: 0 12px 32px var(--shadow);
             overflow: hidden;
-            margin-bottom: 16px;
+            margin-bottom: 18px;
         }
         .setup-section-head {
             padding: 16px 24px;
-            background: #f8f9ff;
-            border-bottom: 1px solid #e8eaf5;
+            background: var(--cream);
+            border-bottom: 1px solid var(--border);
             font-size: 12px;
             font-weight: 800;
             text-transform: uppercase;
             letter-spacing: 0.08em;
-            color: #6366f1;
+            color: var(--dark);
             display: flex; align-items: center; gap: 8px;
         }
+        .setup-section-head i { color: var(--accent-dark); }
         .setup-body-pad { padding: 24px; }
+
         .username-display {
-            background: #f8f9ff;
-            border: 1.5px solid #dde1f5;
-            border-radius: 10px;
-            padding: 14px 18px;
-            display: flex; align-items: center; justify-content: space-between;
+            background: var(--cream);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 16px 20px;
+            display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;
         }
-        .username-display .label { font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.06em; }
-        .username-display .value { font-size: 22px; font-weight: 900; color: #1a1a2e; letter-spacing: 2px; }
-        .username-lock-note { margin-top: 8px; font-size: 12px; color: #6b7280; display: flex; align-items: center; gap: 5px; }
-        .pw-req-list { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+        .username-display .label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+        .username-display .value { font-size: 22px; font-weight: 900; color: var(--dark); letter-spacing: 2px; font-family: var(--mono); }
+        .username-lock-note { margin-top: 10px; font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+
+        .pw-req-list { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; }
         .pw-req {
-            font-size: 11.5px; padding: 3px 9px; border-radius: 99px;
-            border: 1px solid #e5e7eb; color: #9ca3af; background: #f9fafb;
-            display: flex; align-items: center; gap: 4px; transition: all 0.2s;
+            font-size: 11.5px; padding: 4px 10px; border-radius: 999px;
+            border: 1px solid var(--border); color: var(--muted); background: var(--cream);
+            display: flex; align-items: center; gap: 4px; transition: all 0.2s; font-weight: 600;
         }
-        .pw-req.met  { background: #dcfce7; border-color: #86efac; color: #15803d; }
-        .pw-req.fail { background: #fee2e2; border-color: #fca5a5; color: #dc2626; }
+        .pw-req.met  { background: var(--success-bg); border-color: var(--success-border); color: var(--success); }
+        .pw-req.fail { background: var(--danger-bg); border-color: #fca5a5; color: var(--danger); }
+
         .setup-submit {
-            background: #1a1a2e; color: #fff; border: none;
-            border-radius: 10px; padding: 14px 28px; font-size: 14px;
-            font-weight: 700; cursor: pointer; width: 100%;
-            display: flex; align-items: center; justify-content: center; gap: 8px;
-            transition: background 0.2s;
+            width: 100%; height: 54px; border: none;
+            background: var(--dark); color: var(--white);
+            border-radius: 16px; font-size: 15px;
+            font-weight: 900; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            transition: 0.22s ease;
         }
-        .setup-submit:hover { background: #e8900a; }
-        .setup-submit:disabled { background: #9ca3af; cursor: not-allowed; }
-        .form-group label { font-size: 13px; font-weight: 600; color: #374151; display: block; margin-bottom: 6px; }
+        .setup-submit:hover { background: var(--dark-soft); transform: translateY(-2px); box-shadow: 0 14px 26px rgba(0, 0, 0, 0.18); }
+        .setup-submit:disabled { background: var(--muted); cursor: not-allowed; transform: none; box-shadow: none; }
+
+        .form-group label { font-size: 13px; font-weight: 700; color: var(--dark); display: block; margin-bottom: 8px; }
         .form-group input,
         .form-group select {
-            width: 100%; padding: 10px 12px;
-            border: 1.5px solid #e5e7eb; border-radius: 8px;
-            font-size: 13.5px; color: #1a1a2e; background: #fff;
-            outline: none; transition: border-color 0.2s, background 0.2s;
+            width: 100%; height: 48px; padding: 0 14px;
+            border: 1px solid var(--border); border-radius: 14px;
+            font-size: 13.5px; color: var(--dark); background: var(--cream);
+            outline: none; transition: 0.22s ease;
             box-sizing: border-box; appearance: none; -webkit-appearance: none;
         }
         .form-group select {
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
             background-repeat: no-repeat;
-            background-position: right 12px center;
-            padding-right: 36px;
+            background-position: right 14px center;
+            padding-right: 40px;
         }
-        .form-group input:focus, .form-group select:focus { border-color: #6366f1; }
+        .form-group input:focus, .form-group select:focus {
+            background: var(--white); border-color: var(--dark);
+            box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.08);
+        }
         .form-group input.input-error, .form-group select.input-error { border-color: #fca5a5; }
-        .form-group select:disabled { background-color: #f9fafb; color: #9ca3af; cursor: not-allowed; }
-        .field-error { font-size: 12px; color: #dc2626; margin-top: 4px; display: block; }
+        .form-group select:disabled { background-color: var(--cream); color: var(--muted); cursor: not-allowed; }
+        .field-error { font-size: 12px; color: var(--danger); margin-top: 6px; display: block; font-weight: 600; }
         .form-row { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; }
-        @media (max-width: 520px) { .form-row { grid-template-columns: 1fr; } }
+        @media (max-width: 560px) { .form-row { grid-template-columns: 1fr; } }
+
         .pw-wrap { position: relative; }
+        .pw-wrap input { padding-right: 46px; }
         .pw-toggle {
-            position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-            background: none; border: none; cursor: pointer; color: #9ca3af; padding: 4px;
+            position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+            background: none; border: none; cursor: pointer; color: var(--muted); padding: 4px;
+            display: flex; align-items: center;
         }
         .sel-loading { position: relative; }
         .sel-loading::after {
             content: '';
-            position: absolute; right: 34px; top: 50%; transform: translateY(-50%);
-            width: 12px; height: 12px;
-            border: 2px solid #e5e7eb; border-top-color: #6366f1;
+            position: absolute; right: 40px; top: 50%; transform: translateY(-50%);
+            width: 14px; height: 14px;
+            border: 2px solid var(--border); border-top-color: var(--dark);
             border-radius: 50%; animation: spin 0.7s linear infinite;
             pointer-events: none;
         }
@@ -133,7 +171,13 @@
 
     <div class="setup-wrap">
 
-        <div class="setup-brand">GMD <span>South Phils</span></div>
+        <div class="setup-brand">
+            <img src="{{ asset('images/gmdlogo-circle.svg') }}" alt="GMD South Phils" class="setup-brand-logo">
+            <div>
+                <div class="setup-brand-name">GMD <span>South Phils</span></div>
+                <div class="setup-brand-sub">Account Setup</div>
+            </div>
+        </div>
 
         <div class="setup-notice">
             <div class="setup-notice-icon">
@@ -169,14 +213,14 @@
                         <div class="form-group" id="regionGroup">
                             <label>Region *</label>
                             <select name="region" id="regionSelect" required class="{{ $errors->has('region') ? 'input-error' : '' }}">
-                                <option value="">Loading regions…</option>
+                                <option value="" disabled hidden selected>Select Region</option>
                             </select>
                             @error('region')<span class="field-error">{{ $message }}</span>@enderror
                         </div>
                         <div class="form-group" id="provinceGroup">
                             <label>Province *</label>
                             <select name="province" id="provinceSelect" required disabled class="{{ $errors->has('province') ? 'input-error' : '' }}">
-                                <option value="">Select region first</option>
+                                <option value="" disabled hidden selected>Select Province</option>
                             </select>
                             @error('province')<span class="field-error">{{ $message }}</span>@enderror
                         </div>
@@ -186,14 +230,14 @@
                         <div class="form-group" id="cityGroup">
                             <label>City / Municipality *</label>
                             <select name="city" id="citySelect" required disabled class="{{ $errors->has('city') ? 'input-error' : '' }}">
-                                <option value="">Select province first</option>
+                                <option value="" disabled hidden selected>Select City / Municipality</option>
                             </select>
                             @error('city')<span class="field-error">{{ $message }}</span>@enderror
                         </div>
                         <div class="form-group" id="barangayGroup">
                             <label>Barangay *</label>
                             <select name="barangay" id="barangaySelect" required disabled class="{{ $errors->has('barangay') ? 'input-error' : '' }}">
-                                <option value="">Select city first</option>
+                                <option value="" disabled hidden selected>Select Barangay</option>
                             </select>
                             @error('barangay')<span class="field-error">{{ $message }}</span>@enderror
                         </div>
@@ -238,7 +282,7 @@
                 <div class="setup-body-pad">
 
                     <div class="form-group" style="margin-bottom:20px;">
-                        <label>Current PIN <span style="font-size:12px;font-weight:400;color:#6b7280;">(the temporary PIN you received)</span></label>
+                        <label>Current PIN <span style="font-size:12px;font-weight:400;color:var(--muted);">(the temporary PIN you received)</span></label>
                         <div class="pw-wrap">
                             <input type="password" name="current_pin" id="currentPin"
                                    placeholder="Enter your current PIN"
@@ -326,11 +370,14 @@
         if (g) g.classList.toggle('sel-loading', loading);
     }
 
-    function buildOptions(sel, items, oldVal) {
+    function buildOptions(sel, items, oldVal, placeholder) {
         sel.innerHTML = '';
         const blank = document.createElement('option');
         blank.value = '';
-        blank.textContent = '-- Select --';
+        blank.textContent = placeholder || '';
+        blank.disabled = true;
+        blank.hidden = true;
+        blank.selected = true;
         sel.appendChild(blank);
         items
             .slice()
@@ -348,7 +395,7 @@
 
     function resetSelect(id, placeholder) {
         const sel = document.getElementById(id);
-        sel.innerHTML = '<option value="">' + placeholder + '</option>';
+        sel.innerHTML = '<option value="" disabled hidden selected>' + placeholder + '</option>';
         sel.disabled  = true;
     }
 
@@ -358,7 +405,7 @@
         setLoading('regionGroup', true);
         try {
             const data = await psgcFetch(PSGC + '/regions');
-            buildOptions(sel, data, OLD_REGION);
+            buildOptions(sel, data, OLD_REGION, 'Select Region');
             if (OLD_REGION) {
                 const match = [...sel.options].find(o => o.value === OLD_REGION);
                 if (match?.dataset.code) await loadProvinces(match.dataset.code, true);
@@ -388,7 +435,7 @@
                 sel.value    = 'NCR / No Province';
                 sel.disabled  = false;
             } else {
-                buildOptions(sel, data, OLD_PROVINCE);
+                buildOptions(sel, data, OLD_PROVINCE, 'Select Province');
                 if (restoring && OLD_PROVINCE) {
                     const match = [...sel.options].find(o => o.value === OLD_PROVINCE);
                     if (match?.dataset.code) await loadCities(match.dataset.code, true);
@@ -409,7 +456,7 @@
         sel.disabled  = true;
         try {
             const data = await psgcFetch(PSGC + '/regions/' + regionCode + '/cities-municipalities');
-            buildOptions(sel, data, OLD_CITY);
+            buildOptions(sel, data, OLD_CITY, 'Select City / Municipality');
             if (restoring && OLD_CITY) {
                 const match = [...sel.options].find(o => o.value === OLD_CITY);
                 if (match?.dataset.code) await loadBarangays(match.dataset.code, true);
@@ -430,7 +477,7 @@
         sel.disabled  = true;
         try {
             const data = await psgcFetch(PSGC + '/provinces/' + provinceCode + '/cities-municipalities');
-            buildOptions(sel, data, OLD_CITY);
+            buildOptions(sel, data, OLD_CITY, 'Select City / Municipality');
             if (restoring && OLD_CITY) {
                 const match = [...sel.options].find(o => o.value === OLD_CITY);
                 if (match?.dataset.code) await loadBarangays(match.dataset.code, true);
@@ -450,7 +497,7 @@
         sel.disabled  = true;
         try {
             const data = await psgcFetch(PSGC + '/cities-municipalities/' + cityCode + '/barangays');
-            buildOptions(sel, data, OLD_BARANGAY);
+            buildOptions(sel, data, OLD_BARANGAY, 'Select Barangay');
         } catch (e) {
             sel.innerHTML = '<option value="">Failed to load</option>';
             sel.disabled  = false;

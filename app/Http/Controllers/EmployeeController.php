@@ -6,13 +6,42 @@ use Illuminate\Http\Request;
 use App\Models\Project;
 use App\Models\Employee;
 use App\Models\SalaryRecord;
+use App\Models\MaterialUsage;
 use Carbon\Carbon;
 
 class EmployeeController extends Controller
 {
     public function dashboard()
     {
-        return view('employee.dashboard');
+        $employee = Employee::findOrFail(session('user_id'));
+
+        $projects = $employee->assignedProjects()
+            ->orderByDesc('projects.created_at')
+            ->get();
+
+        $activeProjectsCount    = $projects->where('status', '!=', 'completed')->count();
+        $completedProjectsCount = $projects->where('status', 'completed')->count();
+
+        $payPeriod = now()->startOfWeek(Carbon::MONDAY)->format('Y-m-d');
+        $currentRecord = SalaryRecord::where('employee_id', $employee->id)
+            ->where('pay_period', $payPeriod)
+            ->first();
+
+        $recentUsage = MaterialUsage::with('project')
+            ->where('recorded_by', $employee->full_name)
+            ->active()
+            ->orderByDesc('created_at')
+            ->take(5)
+            ->get();
+
+        return view('employee.dashboard', compact(
+            'employee',
+            'projects',
+            'activeProjectsCount',
+            'completedProjectsCount',
+            'currentRecord',
+            'recentUsage'
+        ));
     }
 
     public function projects()

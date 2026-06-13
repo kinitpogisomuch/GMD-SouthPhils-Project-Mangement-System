@@ -18,6 +18,11 @@
             <div class="sidebar-icon"><i data-lucide="package"></i></div>
             <span>Project Materials</span>
         </a>
+        <a href="{{ route('employee.material_usage') }}"
+           class="{{ request()->routeIs(['employee.material_usage', 'employee.material_usage.detail']) ? 'active' : '' }}">
+            <div class="sidebar-icon"><i data-lucide="clipboard-list"></i></div>
+            <span>Material Usage</span>
+        </a>
 
         <div class="sidebar-section-label">Communication</div>
         <a href="{{ route('employee.messages') }}"
@@ -41,4 +46,5 @@
         </a>
     </nav>
 </aside>
+<div class="sidebar-overlay"></div>
 <main class="employee-content">

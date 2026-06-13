@@ -10,53 +10,6 @@ function updateDateTime() {
     timeEl.textContent = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true });
 }
 
-/* ================= ADMIN PROFILE DROPDOWN ================= */
-
-function initializeAdminDropdown() {
-    const dropdown = document.querySelector(".admin-dropdown");
-    const button = document.getElementById("adminDropdownBtn");
-    if (!dropdown || !button) return;
-
-    button.addEventListener("click", function (event) {
-        event.stopPropagation();
-        const notificationDropdown = document.querySelector(".notification-dropdown");
-        if (notificationDropdown) notificationDropdown.classList.remove("open");
-        dropdown.classList.toggle("open");
-    });
-
-    dropdown.addEventListener("click", function (event) {
-        event.stopPropagation();
-    });
-}
-
-/* ================= NOTIFICATION DROPDOWN ================= */
-
-function initializeNotificationDropdown() {
-    const dropdown = document.querySelector(".notification-dropdown");
-    const button = document.getElementById("notificationDropdownBtn");
-    if (!dropdown || !button) return;
-
-    button.addEventListener("click", function (event) {
-        event.stopPropagation();
-        const adminDropdown = document.querySelector(".admin-dropdown");
-        if (adminDropdown) adminDropdown.classList.remove("open");
-        dropdown.classList.toggle("open");
-    });
-
-    dropdown.addEventListener("click", function (event) {
-        event.stopPropagation();
-    });
-}
-
-function closeDropdownsOnOutsideClick() {
-    document.addEventListener("click", function () {
-        const adminDropdown = document.querySelector(".admin-dropdown");
-        const notificationDropdown = document.querySelector(".notification-dropdown");
-        if (adminDropdown) adminDropdown.classList.remove("open");
-        if (notificationDropdown) notificationDropdown.classList.remove("open");
-    });
-}
-
 /* ================= HELPERS ================= */
 
 function getStatusClass(status) {
@@ -400,9 +353,6 @@ function updateEmpCounts() {
 updateDateTime();
 setInterval(updateDateTime, 1000);
 
-initializeAdminDropdown();
-initializeNotificationDropdown();
-closeDropdownsOnOutsideClick();
 initializeEmployeeModals();
 
 if (typeof lucide !== "undefined") lucide.createIcons();

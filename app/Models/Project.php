@@ -99,6 +99,17 @@ class Project extends Model
         return $this->hasMany(ProjectMaterial::class)->where('status', 'active');
     }
 
+    // Relationship: Project has many material usage log entries
+    public function materialUsages()
+    {
+        return $this->hasMany(MaterialUsage::class);
+    }
+
+    public function activeMaterialUsages()
+    {
+        return $this->hasMany(MaterialUsage::class)->where('status', 'active');
+    }
+
     public function labor()
     {
         return $this->hasMany(ProjectLabor::class);

@@ -2,11 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="{{ asset('images/gmdlogo-circle.svg') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Salary | GMD South Phils</title>
     <link href="{{ asset('css/employee.css') }}" rel="stylesheet">
 </head>
-<body>
+<body class="page-enter">
 
     @include('partials.employee.header')
 
@@ -32,7 +33,7 @@
                 <div class="stat-card blue">
                     <div class="stat-icon blue"><i data-lucide="calendar-check"></i></div>
                     <div class="stat-info">
-                        <div class="stat-value">{{ number_format($currentRecord->days_worked ?? 0, 1) }}</div>
+                        <div class="stat-value">{{ number_format($currentRecord->days_worked ?? 0, 0) }}</div>
                         <div class="stat-label">Days Worked This Week</div>
                     </div>
                 </div>
@@ -83,7 +84,7 @@
                                         @endif
                                     </td>
                                     <td>₱{{ number_format($record->daily_rate, 2) }}</td>
-                                    <td>{{ number_format($record->days_worked, 1) }}</td>
+                                    <td>{{ number_format($record->days_worked, 0) }}</td>
                                     <td>₱{{ number_format($record->gross_pay, 2) }}</td>
                                     <td>₱{{ number_format($record->total_deductions, 2) }}</td>
                                     <td><strong>₱{{ number_format($record->net_pay, 2) }}</strong></td>

@@ -23,6 +23,7 @@ class NotificationService
     const TYPE_MATERIAL_UPDATED   = 'material_updated';
     const TYPE_MATERIAL_REMOVED   = 'material_removed';
     const TYPE_MATERIAL_REQUESTED = 'material_requested';
+    const TYPE_MATERIAL_USAGE_LOGGED = 'material_usage_logged';
     const TYPE_LABOR_ADDED        = 'labor_added';
     const TYPE_LABOR_UPDATED      = 'labor_updated';
     const TYPE_SHOP_DRAWING_SUBMITTED = 'shop_drawing_submitted';
@@ -153,6 +154,26 @@ class NotificationService
             $project->id,
             null,
             "/admin/project-materials/{$project->id}"
+        );
+    }
+
+    /** Material usage logged for a project → activity log for admins */
+    public static function materialUsageLogged(Project $project, string $materialName, float $quantity, ?string $loggedBy = null): void
+    {
+        $message = "Material usage logged for Project: {$project->name}.\nMaterial: {$materialName}\nQuantity Used: {$quantity}";
+
+        if ($loggedBy) {
+            $message .= "\nLogged by: {$loggedBy}";
+        }
+
+        self::notifyAdmins(
+            'Material Usage Logged',
+            $message,
+            self::TYPE_MATERIAL_USAGE_LOGGED,
+            'info',
+            $project->id,
+            null,
+            "/admin/material-usage/{$project->id}"
         );
     }
 

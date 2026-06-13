@@ -2,11 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="{{ asset('images/gmdlogo-circle.svg') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Employees | GMD South Phils</title>
     <link href="{{ asset('css/admin.css') }}" rel="stylesheet">
 </head>
-<body>
+<body class="page-enter">
 
     @include('partials.admin.header')
 
@@ -136,13 +137,13 @@
                                         {{ $employee->full_name }}
                                     </td>
                                     <td>
-                                        <span style="font-family:monospace;font-weight:600;color:var(--text-secondary);font-size:13px;">
+                                        <span style="font-family:monospace;font-weight:600;color:var(--text-secondary);font-size:12px;">
                                             {{ $employee->username ?? '—' }}
                                         </span>
                                     </td>
                                     <td>{{ $employee->contact ?? '—' }}</td>
                                     <td>{{ $employee->email ?? '—' }}</td>
-                                    <td style="font-size:13px;color:var(--text-secondary);max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"
+                                    <td style="font-size:12px;color:var(--text-secondary);max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"
                                         title="{{ $employee->address ?? '' }}">
                                         @if($employee->province && $employee->city)
                                             {{ $employee->province }}, {{ $employee->city }}

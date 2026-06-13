@@ -2,11 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="{{ asset('images/gmdlogo-circle.svg') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $project->name }} — Materials | GMD South Phils</title>
     <link href="{{ asset('css/employee.css') }}" rel="stylesheet">
 </head>
-<body>
+<body class="page-enter">
 
     @include('partials.employee.header')
 
@@ -129,7 +130,7 @@
                                     @endif
                                 </td>
                                 <td>{{ $material->category ?: '—' }}</td>
-                                <td>{{ number_format($material->quantity, 2) }}</td>
+                                <td>{{ number_format($material->quantity, 0) }}</td>
                                 <td>₱{{ number_format($material->price_per_unit, 2) }}</td>
                                 <td><strong>₱{{ number_format($material->total_cost, 2) }}</strong></td>
                                 <td>{{ $material->created_at->format('M d, Y') }}</td>

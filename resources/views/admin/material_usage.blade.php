@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <link rel="icon" type="image/svg+xml" href="{{ asset('images/gmdlogo-circle.svg') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project Materials | GMD South Phils</title>
+    <title>Material Usage | GMD South Phils</title>
     <link href="{{ asset('css/admin.css') }}" rel="stylesheet">
 </head>
 <body class="page-enter">
@@ -17,8 +17,8 @@
         <main class="admin-content">
             <div class="page-header">
                 <div>
-                    <h1>Project Materials</h1>
-                    <p>Manage materials and cost tracking for all projects.</p>
+                    <h1>Material Usage</h1>
+                    <p>Track actual materials consumed during fabrication for each project.</p>
                 </div>
             </div>
 
@@ -52,14 +52,15 @@
                 </div>
 
                 <div class="table-wrapper">
-                    <table class="data-table" id="materialsTable">
+                    <table class="data-table" id="usageTable">
                         <thead>
                             <tr>
                                 <th>Project Name</th>
                                 <th>Client</th>
                                 <th>Current Phase</th>
-                                <th>Total Materials</th>
-                                <th>Estimated Material Cost</th>
+                                <th>Planned Materials</th>
+                                <th>Usage Entries Logged</th>
+                                <th>Total Qty Used</th>
                                 <th>Date Created</th>
                                 <th>Actions</th>
                             </tr>
@@ -80,20 +81,25 @@
                                     <span style="color:var(--muted);font-size:13px;"> material{{ $matCount !== 1 ? 's' : '' }}</span>
                                 </td>
                                 <td>
-                                    @php $matCost = $project->activeMaterials->sum('total_cost'); @endphp
-                                    <strong>₱{{ number_format($matCost, 2) }}</strong>
+                                    @php $usageCount = $project->activeMaterialUsages->count(); @endphp
+                                    <span style="font-weight:700;">{{ $usageCount }}</span>
+                                    <span style="color:var(--muted);font-size:13px;"> entr{{ $usageCount !== 1 ? 'ies' : 'y' }}</span>
+                                </td>
+                                <td>
+                                    @php $totalQty = $project->activeMaterialUsages->sum('quantity_used'); @endphp
+                                    <strong>{{ number_format($totalQty, 0) }}</strong>
                                 </td>
                                 <td>{{ $project->created_at->format('M d, Y') }}</td>
                                 <td class="action-cell">
-                                    <a href="{{ route('admin.project_materials.detail', $project->id) }}"
-                                       class="action-btn view" title="View Materials">
-                                        <i data-lucide="package-open"></i>
+                                    <a href="{{ route('admin.material_usage.detail', $project->id) }}"
+                                       class="action-btn view" title="View Material Usage">
+                                        <i data-lucide="clipboard-list"></i>
                                     </a>
                                 </td>
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="7" style="text-align:center;padding:40px;color:var(--muted);">
+                                <td colspan="8" style="text-align:center;padding:40px;color:var(--muted);">
                                     No projects found. Add projects via the <strong>Projects</strong> page.
                                 </td>
                             </tr>
@@ -112,7 +118,7 @@
 
         function applyFilters() {
             var q = (document.getElementById('projectSearch').value || '').toLowerCase();
-            document.querySelectorAll('#materialsTable tbody tr').forEach(function(row) {
+            document.querySelectorAll('#usageTable tbody tr').forEach(function(row) {
                 var status = (row.dataset.status || '').toLowerCase();
                 var matchSearch = row.textContent.toLowerCase().indexOf(q) !== -1;
                 var matchFilter = currentStatusFilter === 'all'

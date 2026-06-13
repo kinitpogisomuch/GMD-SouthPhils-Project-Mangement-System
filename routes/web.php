@@ -16,6 +16,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\SalaryController;
 use App\Http\Controllers\ProjectMaterialController;
+use App\Http\Controllers\MaterialUsageController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\MessageController;
 
@@ -62,6 +63,11 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::put('/project-materials/{projectId}/labor/{laborId}', [ProjectMaterialController::class, 'updateLabor'])->name('project_materials.update_labor');
     Route::patch('/project-materials/{projectId}/labor/{laborId}/archive', [ProjectMaterialController::class, 'archiveLabor'])->name('project_materials.archive_labor');
     Route::patch('/project-materials/{projectId}/estimated-days', [ProjectMaterialController::class, 'updateEstimatedDays'])->name('project_materials.update_estimated_days');
+
+    Route::get('/material-usage', [MaterialUsageController::class, 'adminIndex'])->name('material_usage');
+    Route::get('/material-usage/{projectId}', [MaterialUsageController::class, 'adminDetail'])->name('material_usage.detail');
+    Route::post('/material-usage/{projectId}', [MaterialUsageController::class, 'store'])->name('material_usage.store');
+    Route::patch('/material-usage/{projectId}/{usageId}/archive', [MaterialUsageController::class, 'archive'])->name('material_usage.archive');
     Route::get('/messages', [MessageController::class, 'index'])->name('messages');
     Route::get('/messages/thread/{type}/{id}', [MessageController::class, 'thread'])->name('messages.thread');
     Route::post('/messages/send', [MessageController::class, 'send'])->name('messages.send');
@@ -203,6 +209,10 @@ Route::prefix('employee')->name('employee.')->middleware(['role:employee', 'prof
     Route::get('/project-materials', [ProjectMaterialController::class, 'employeeIndex'])->name('project_materials');
     Route::get('/project-materials/{projectId}', [ProjectMaterialController::class, 'employeeDetail'])->name('project_materials.detail');
     Route::post('/project-materials/{projectId}/request', [ProjectMaterialController::class, 'requestMaterial'])->name('project_materials.request');
+
+    Route::get('/material-usage', [MaterialUsageController::class, 'employeeIndex'])->name('material_usage');
+    Route::get('/material-usage/{projectId}', [MaterialUsageController::class, 'employeeDetail'])->name('material_usage.detail');
+    Route::post('/material-usage/{projectId}', [MaterialUsageController::class, 'employeeStore'])->name('material_usage.store');
     Route::get('/salary', [EmployeeController::class, 'salary'])->name('salary');
     Route::get('/settings', [EmployeeController::class, 'settings'])->name('settings');
     Route::put('/settings/profile',  [ProfileController::class, 'updateEmployee'])->name('settings.profile');

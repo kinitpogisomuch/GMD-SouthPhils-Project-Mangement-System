@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="{{ asset('images/gmdlogo-circle.svg') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login | GMD South Phils</title>
     <link rel="stylesheet" href="{{ asset('css/login.css') }}">
@@ -9,37 +10,24 @@
 <body>
 
     <div class="login-page">
-        <div class="login-left">
+        @php
+        $loginBgPath = public_path('images/login.jpg');
+        $hasLoginBg = file_exists($loginBgPath);
+        @endphp
+        <div class="login-left @if($hasLoginBg) has-bg-photo @endif"
+             @if($hasLoginBg) style="--login-bg-photo: url('{{ asset('images/login.jpg') }}')" @endif>
+            <div class="login-left-glow"></div>
+
             <div class="brand-box">
-                <div class="brand-icon">
-                    <i data-lucide="factory"></i>
+                <div class="brand-badge">
+                    <i data-lucide="shield-check"></i>
+                    Tank Fabrication Portal
                 </div>
-                <h1>GMD South Phils</h1>
-                <p>Project Management System for storage tank fabrication, project tracking, employee coordination, and supplier transactions.</p>
+                <h1>GMD South Phils Metal Fabrication Works</h1>
+                <p>From planning to delivery, manage every phase of your storage tank fabrication projects — built strong, tracked with precision.</p>
             </div>
 
-            <div class="feature-list">
-                <div class="feature-item">
-                    <i data-lucide="layout-dashboard"></i>
-                    <span>Project Dashboard</span>
-                </div>
-                <div class="feature-item">
-                    <i data-lucide="folder-kanban"></i>
-                    <span>Admin Management</span>
-                </div>
-                <div class="feature-item">
-                    <i data-lucide="truck"></i>
-                    <span>Supplier Portal</span>
-                </div>
-                <div class="feature-item">
-                    <i data-lucide="users"></i>
-                    <span>Client Portal</span>
-                </div>
-                <div class="feature-item">
-                    <i data-lucide="hard-hat"></i>
-                    <span>Employee Portal</span>
-                </div>
-            </div>
+            <div class="login-left-hazard"></div>
         </div>
 
         <div class="login-right">
@@ -88,7 +76,6 @@
 
                     <button type="submit" class="login-btn">
                         <span>Login</span>
-                        <i data-lucide="arrow-right"></i>
                     </button>
                 </form>
 
@@ -109,7 +96,7 @@
         });
 
         // Login button loading state on submit
-        document.querySelector('form').addEventListener('submit', function () {
+        document.querySelector('form').addEventListener('submit', function (e) {
             var btn = document.querySelector('.login-btn');
             btn.disabled = true;
             btn.innerHTML = '<div class="btn-spinner"></div><span>Logging in...</span>';

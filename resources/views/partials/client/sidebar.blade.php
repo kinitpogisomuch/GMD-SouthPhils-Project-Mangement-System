@@ -50,3 +50,4 @@
 
     </nav>
 </aside>
+<div class="sidebar-overlay"></div>

@@ -2,11 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="{{ asset('images/gmdlogo-circle.svg') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Projects | GMD South Phils</title>
     <link href="{{ asset('css/employee.css') }}" rel="stylesheet">
 </head>
-<body>
+<body class="page-enter">
 
     @include('partials.employee.header')
 
@@ -22,10 +23,15 @@
                 </div>
             </div>
 
-            <div class="project-list">
+            <div class="filter-tabs" id="projectFilterTabs" style="margin-bottom:20px;margin-left:auto;width:fit-content;">
+                <button type="button" class="filter-tab active" data-filter="active">Active</button>
+                <button type="button" class="filter-tab" data-filter="completed">Completed</button>
+            </div>
+
+            <div class="project-list" id="projectList">
 
                 @forelse($projects as $project)
-                <div class="card project-card">
+                <div class="card project-card" data-status="{{ $project->status }}">
                     <div class="card-header project-card-header">
                         <div class="project-info">
                             <div class="project-title">{{ $project->name }}</div>
@@ -92,6 +98,10 @@
 
             </div>
 
+            <div id="noFilteredProjects" style="display:none;text-align:center;padding:40px;color:var(--muted);">
+                No projects found in this filter.
+            </div>
+
         </main>
     </div>
 
@@ -102,6 +112,35 @@
         function toggleSidebar() {
             document.querySelector('.employee-sidebar').classList.toggle('open');
         }
+
+        (function() {
+            var tabs = document.querySelectorAll('#projectFilterTabs .filter-tab');
+            var cards = document.querySelectorAll('#projectList .project-card');
+            var noResults = document.getElementById('noFilteredProjects');
+            if (!tabs.length) return;
+
+            function applyFilter(filter) {
+                var visibleCount = 0;
+                cards.forEach(function(card) {
+                    var status = (card.dataset.status || '').toLowerCase();
+                    var visible = (filter === 'completed' && status === 'completed')
+                        || (filter === 'active' && status !== 'completed');
+                    card.style.display = visible ? '' : 'none';
+                    if (visible) visibleCount++;
+                });
+                if (noResults) noResults.style.display = visibleCount === 0 ? '' : 'none';
+            }
+
+            tabs.forEach(function(tab) {
+                tab.addEventListener('click', function() {
+                    tabs.forEach(function(t) { t.classList.remove('active'); });
+                    this.classList.add('active');
+                    applyFilter(this.dataset.filter);
+                });
+            });
+
+            applyFilter('active');
+        })();
 
     </script>
 </body>

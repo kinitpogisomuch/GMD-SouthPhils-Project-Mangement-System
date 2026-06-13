@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="{{ asset('images/gmdlogo-circle.svg') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $project->name }} — Materials | GMD South Phils</title>
     <link href="{{ asset('css/admin.css') }}" rel="stylesheet">
@@ -77,7 +78,7 @@
         }
     </style>
 </head>
-<body>
+<body class="page-enter">
 
     @include('partials.admin.header')
 
@@ -247,7 +248,7 @@
                                     <div style="font-size:12px;color:var(--muted);margin-top:2px;">{{ Str::limit($material->notes, 60) }}</div>
                                     @endif
                                 </td>
-                                <td>{{ number_format($material->quantity, 2) }}</td>
+                                <td>{{ number_format($material->quantity, 0) }}</td>
                                 <td>₱{{ number_format($material->price_per_unit, 2) }}</td>
                                 <td><strong>₱{{ number_format($material->total_cost, 2) }}</strong></td>
                                 <td>{{ $material->created_at->format('M d, Y') }}</td>
@@ -332,7 +333,7 @@
                                     @endif
                                 </td>
                                 <td>₱{{ number_format($entry->daily_rate, 2) }}</td>
-                                <td>{{ number_format($project->estimated_working_days, 2) }}</td>
+                                <td>{{ number_format($project->estimated_working_days, 0) }}</td>
                                 <td><strong>₱{{ number_format($entry->total_cost, 2) }}</strong></td>
                                 <td>{{ $entry->created_at->format('M d, Y') }}</td>
                                 <td class="action-cell">
@@ -478,6 +479,10 @@
                 <div>
                     <h2>Generate Project Quotations</h2>
                     <p>Adjust factors for materials and labor, then print or send to the client.</p>
+                    <div style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:5px 12px;background:var(--cream-soft,#f5f5f5);border:1px solid var(--border);border-radius:999px;font-size:12px;font-weight:700;color:var(--dark);">
+                        <i data-lucide="percent" style="width:13px;height:13px;color:var(--muted);"></i>
+                        Material Factor: {{ number_format($materialFactor, 1) }}%
+                    </div>
                 </div>
                 <button class="modal-close" type="button" id="closeBOMModal">
                     <i data-lucide="x"></i>
@@ -542,13 +547,10 @@
                         <i data-lucide="printer" style="width:15px;height:15px;"></i>
                         Print / Save PDF
                     </button>
-                    <form method="POST" action="{{ route('admin.project_materials.send_bom', $project->id) }}" id="sendBOMForm">
-                        @csrf
-                        <button type="submit" class="save-btn">
-                            <i data-lucide="send" style="width:15px;height:15px;"></i>
-                            Send to Client
-                        </button>
-                    </form>
+                    <button type="button" id="downloadBOMBtn" class="save-btn">
+                        <i data-lucide="download" style="width:15px;height:15px;"></i>
+                        Download
+                    </button>
                 </div>
             </div>
         </div>
@@ -561,6 +563,10 @@
                 <div>
                     <h2>Generate BOM</h2>
                     <p>Bill of Materials — materials only. Print or save as PDF.</p>
+                    <div style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:5px 12px;background:var(--cream-soft,#f5f5f5);border:1px solid var(--border);border-radius:999px;font-size:12px;font-weight:700;color:var(--dark);">
+                        <i data-lucide="percent" style="width:13px;height:13px;color:var(--muted);"></i>
+                        Material Factor: {{ number_format($materialFactor, 1) }}%
+                    </div>
                 </div>
                 <button class="modal-close" type="button" id="closeMaterialsBOMModal">
                     <i data-lucide="x"></i>
@@ -577,7 +583,6 @@
                             <th style="padding:9px 12px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);width:80px;">Qty</th>
                             <th style="padding:9px 12px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);width:110px;">Price/Unit</th>
                             <th style="padding:9px 12px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);width:110px;">Base Total</th>
-                            <th style="padding:9px 12px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);width:80px;">Factor</th>
                             <th style="padding:9px 12px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--dark);width:120px;">Adjusted Total</th>
                         </tr>
                     </thead>
@@ -1272,7 +1277,7 @@
             document.getElementById('bomGrandTotal').textContent    = '₱' + fmt(grandAdj);
         }
 
-        function printBOM() {
+        function buildBOMDocument(withPrintScript) {
             var today = new Date().toLocaleDateString('en-PH', {year:'numeric',month:'long',day:'numeric'});
 
             var matBase = 0, matAdjTotal = 0, matRows = '';
@@ -1283,13 +1288,17 @@
                 matBase += base; matAdjTotal += adj;
                 matRows += '<tr><td>' + (i+1) + '</td><td>' + mat.material_name + (mat.notes ? '<br><small>' + mat.notes + '</small>' : '') + '</td>' +
                     '<td class="r">' + fmt(mat.quantity) + '</td><td class="r">₱' + fmt(mat.price_per_unit) + '</td>' +
-                    '<td class="r">₱' + fmt(base) + '</td><td class="r">' + rowFactor.toFixed(1) + '%</td><td class="r"><strong>₱' + fmt(adj) + '</strong></td></tr>';
+                    '<td class="r">₱' + fmt(base) + '</td><td class="r"><strong>₱' + fmt(adj) + '</strong></td></tr>';
             });
 
             var laborBase = 0, laborRows = '';
             BOM_LABOR.forEach(function(entry, i) {
                 var base = parseFloat(entry.total_cost) || 0; laborBase += base;
-                laborRows += '<tr><td>' + (i+1) + '</td><td>' + entry.description + (entry.notes ? '<br><small>' + entry.notes + '</small>' : '') + '</td>' +
+                var match = /^(.*)\s+\(([^)]+)\)\s*$/.exec(entry.description || '');
+                var empName = match ? match[1] : (entry.description || '');
+                var empRole = match ? match[2] : '';
+                laborRows += '<tr><td>' + (i+1) + '</td><td>' + empName + (entry.notes ? '<br><small>' + entry.notes + '</small>' : '') + '</td>' +
+                    '<td>' + empRole + '</td>' +
                     '<td class="r">₱' + fmt(entry.daily_rate) + '</td><td class="r">' + fmt(ESTIMATED_DAYS) + '</td>' +
                     '<td class="r"><strong>₱' + fmt(base) + '</strong></td></tr>';
             });
@@ -1297,7 +1306,6 @@
             var matAdj = matAdjTotal, laborAdj = laborBase;
             var grandAdj = matAdj + laborAdj;
 
-            var win = window.open('', '_blank');
             var css = 'body{font-family:Arial,sans-serif;font-size:13px;color:#111;margin:32px;}' +
                 'h1{font-size:20px;margin:0 0 4px;}h2{font-size:14px;margin:24px 0 8px;padding:6px 0;border-bottom:2px solid #ccc;}' +
                 'p.sub{color:#666;margin:0 0 16px;font-size:12px;}' +
@@ -1307,22 +1315,46 @@
                 '.subtotal td{font-weight:700;background:#f8f8f8;border-top:2px solid #bbb;}' +
                 '.grand td{font-size:14px;font-weight:900;background:#111;color:#fff;border:none;}' +
                 '@media print{body{margin:16px;}}';
-            win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>BOM — {{ $project->name }}</title><style>' + css + '</style></head><body>' +
+
+            var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>BOM — {{ $project->name }}</title><style>' + css + '</style></head><body>' +
                 '<h1>Bill of Materials — {{ $project->name }}</h1>' +
-                '<p class="sub">Client: {{ $project->client }} &nbsp;|&nbsp; Generated: ' + today + '</p>' +
+                '<p class="sub">Client: {{ $project->client }} &nbsp;|&nbsp; Generated: ' + today + ' &nbsp;|&nbsp; Material Factor: {{ number_format($materialFactor, 1) }}%</p>' +
                 '<h2>Materials</h2>' +
-                '<table><thead><tr><th>#</th><th>Material Name</th><th class="r">Qty</th><th class="r">Price/Unit</th><th class="r">Base Total</th><th class="r">Factor</th><th class="r">Adjusted Total</th></tr></thead>' +
-                '<tbody>' + (matRows || '<tr><td colspan="7">No materials.</td></tr>') + '</tbody>' +
-                '<tr class="subtotal"><td colspan="5" class="r">Materials Subtotal (incl. factor)</td><td class="r" colspan="2">₱' + fmt(matAdj) + '</td></tr>' +
+                '<table><thead><tr><th>#</th><th>Material Name</th><th class="r">Qty</th><th class="r">Price/Unit</th><th class="r">Base Total</th><th class="r">Adjusted Total</th></tr></thead>' +
+                '<tbody>' + (matRows || '<tr><td colspan="6">No materials.</td></tr>') + '</tbody>' +
+                '<tr class="subtotal"><td colspan="5" class="r">Materials Subtotal (incl. factor)</td><td class="r">₱' + fmt(matAdj) + '</td></tr>' +
                 '</table>' +
                 '<h2>Labor</h2>' +
-                '<table><thead><tr><th>#</th><th>Role / Description</th><th class="r">Daily Rate</th><th class="r">Est. Days</th><th class="r">Total</th></tr></thead>' +
-                '<tbody>' + (laborRows || '<tr><td colspan="5">No labor entries.</td></tr>') + '</tbody>' +
-                '<tr class="subtotal"><td colspan="4" class="r">Labor Subtotal</td><td class="r">₱' + fmt(laborAdj) + '</td></tr>' +
+                '<table><thead><tr><th>#</th><th>Employee Name</th><th>Role</th><th class="r">Daily Rate</th><th class="r">Est. Days</th><th class="r">Total</th></tr></thead>' +
+                '<tbody>' + (laborRows || '<tr><td colspan="6">No labor entries.</td></tr>') + '</tbody>' +
+                '<tr class="subtotal"><td colspan="5" class="r">Labor Subtotal</td><td class="r">₱' + fmt(laborAdj) + '</td></tr>' +
                 '</table>' +
-                '<table><tr class="grand"><td colspan="6" class="r">Project Grand Total</td><td class="r">₱' + fmt(grandAdj) + '</td></tr></table>' +
-                '<script>window.onload=function(){window.print();}<\/script></body></html>');
+                '<table><tr class="grand"><td colspan="5" class="r">Project Grand Total</td><td class="r">₱' + fmt(grandAdj) + '</td></tr></table>';
+
+            if (withPrintScript) {
+                html += '<script>window.onload=function(){window.print();}<\/script>';
+            }
+
+            html += '</body></html>';
+            return html;
+        }
+
+        function printBOM() {
+            var win = window.open('', '_blank');
+            win.document.write(buildBOMDocument(true));
             win.document.close();
+        }
+
+        function downloadBOM() {
+            var blob = new Blob([buildBOMDocument(false)], { type: 'text/html' });
+            var url  = URL.createObjectURL(blob);
+            var a    = document.createElement('a');
+            a.href     = url;
+            a.download = 'Quotation - {{ str_replace("/", "-", $project->name) }}.html';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
 
         // ---- materials-only BOM ----
@@ -1342,12 +1374,11 @@
                     '<td style="padding:10px 12px;text-align:right;font-size:13px;">' + fmt(mat.quantity) + '</td>' +
                     '<td style="padding:10px 12px;text-align:right;font-size:13px;">₱' + fmt(mat.price_per_unit) + '</td>' +
                     '<td style="padding:10px 12px;text-align:right;font-size:13px;">₱' + fmt(base) + '</td>' +
-                    '<td style="padding:10px 12px;text-align:right;font-size:13px;">' + rowFactor.toFixed(1) + '%</td>' +
                     '<td style="padding:10px 12px;text-align:right;font-size:13px;font-weight:800;color:var(--dark);">₱' + fmt(adj) + '</td>' +
                     '</tr>';
             });
             document.getElementById('matBomTableBody').innerHTML = matRows ||
-                '<tr><td colspan="7" style="padding:24px;text-align:center;color:var(--muted);">No active materials.</td></tr>';
+                '<tr><td colspan="6" style="padding:24px;text-align:center;color:var(--muted);">No active materials.</td></tr>';
 
             document.getElementById('matBomGrandTotal').textContent = '₱' + fmt(matAdjTotal);
         }
@@ -1363,7 +1394,7 @@
                 matAdjTotal += adj;
                 matRows += '<tr><td>' + (i+1) + '</td><td>' + mat.material_name + (mat.notes ? '<br><small>' + mat.notes + '</small>' : '') + '</td>' +
                     '<td class="r">' + fmt(mat.quantity) + '</td><td class="r">₱' + fmt(mat.price_per_unit) + '</td>' +
-                    '<td class="r">₱' + fmt(base) + '</td><td class="r">' + rowFactor.toFixed(1) + '%</td><td class="r"><strong>₱' + fmt(adj) + '</strong></td></tr>';
+                    '<td class="r">₱' + fmt(base) + '</td><td class="r"><strong>₱' + fmt(adj) + '</strong></td></tr>';
             });
 
             var win = window.open('', '_blank');
@@ -1378,11 +1409,11 @@
                 '@media print{body{margin:16px;}}';
             win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>BOM — {{ $project->name }}</title><style>' + css + '</style></head><body>' +
                 '<h1>Bill of Materials — {{ $project->name }}</h1>' +
-                '<p class="sub">Client: {{ $project->client }} &nbsp;|&nbsp; Generated: ' + today + '</p>' +
-                '<table><thead><tr><th>#</th><th>Material Name</th><th class="r">Qty</th><th class="r">Price/Unit</th><th class="r">Base Total</th><th class="r">Factor</th><th class="r">Adjusted Total</th></tr></thead>' +
-                '<tbody>' + (matRows || '<tr><td colspan="7">No materials.</td></tr>') + '</tbody>' +
+                '<p class="sub">Client: {{ $project->client }} &nbsp;|&nbsp; Generated: ' + today + ' &nbsp;|&nbsp; Material Factor: {{ number_format($materialFactor, 1) }}%</p>' +
+                '<table><thead><tr><th>#</th><th>Material Name</th><th class="r">Qty</th><th class="r">Price/Unit</th><th class="r">Base Total</th><th class="r">Adjusted Total</th></tr></thead>' +
+                '<tbody>' + (matRows || '<tr><td colspan="6">No materials.</td></tr>') + '</tbody>' +
                 '</table>' +
-                '<table><tr class="grand"><td colspan="6" class="r">Materials Total</td><td class="r">₱' + fmt(matAdjTotal) + '</td></tr></table>' +
+                '<table><tr class="grand"><td colspan="5" class="r">Materials Total</td><td class="r">₱' + fmt(matAdjTotal) + '</td></tr></table>' +
                 '<script>window.onload=function(){window.print();}<\/script></body></html>');
             win.document.close();
         }
@@ -1632,6 +1663,8 @@
             });
             var printBOMBtn = document.getElementById('printBOMBtn');
             if (printBOMBtn) printBOMBtn.addEventListener('click', printBOM);
+            var downloadBOMBtn = document.getElementById('downloadBOMBtn');
+            if (downloadBOMBtn) downloadBOMBtn.addEventListener('click', downloadBOM);
 
             // Generate BOM (materials only) modal
             var openMaterialsBOMBtn = document.getElementById('openMaterialsBOMModal');

@@ -69,7 +69,7 @@ body {
     background: linear-gradient(180deg, #333333 0%, #2a2a2a 100%);
     color: var(--white);
     display: grid;
-    grid-template-columns: 1.4fr 1fr 1.4fr;
+    grid-template-columns: 1fr auto;
     align-items: center;
     padding: 0 26px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
@@ -89,6 +89,7 @@ body {
     width: 38px;
     height: 38px;
     min-width: 38px;
+    margin-left: -12px;
     border: 1px solid rgba(255, 255, 255, 0.18);
     background-color: rgba(255, 255, 255, 0.10);
     color: var(--white);
@@ -124,58 +125,11 @@ body {
     font-weight: 700;
 }
 
-.employee-header-center {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
 .employee-header-right {
     display: flex;
     justify-content: flex-end;
     align-items: center;
     gap: 14px;
-}
-
-/* ================= HEADER CLOCK ================= */
-
-.header-clock {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: rgba(255, 255, 255, 0.10);
-    border: 1.5px solid rgba(255, 255, 255, 0.15);
-    border-radius: 12px;
-    padding: 6px 12px;
-}
-
-.header-clock-icon {
-    width: 16px;
-    height: 16px;
-    color: rgba(255, 255, 255, 0.80);
-    flex-shrink: 0;
-}
-
-.header-clock-text {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-}
-
-.header-clock-date {
-    font-size: 10px;
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.55);
-    letter-spacing: 0.01em;
-    line-height: 1.2;
-}
-
-.header-clock-time {
-    font-size: 13px;
-    font-weight: 800;
-    color: var(--white);
-    letter-spacing: 0.01em;
-    line-height: 1.2;
 }
 
 /* ================= NOTIFICATION BUTTON ================= */
@@ -209,18 +163,6 @@ body {
 .notification-btn svg {
     width: 17px;
     height: 17px;
-}
-
-.notification-dot {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    width: 9px;
-    height: 9px;
-    background-color: var(--accent);
-    border: 2px solid var(--white);
-    border-radius: 50%;
-    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.10);
 }
 
 .notification-dropdown-menu {
@@ -289,8 +231,13 @@ body {
     gap: 12px;
     padding: 12px 10px;
     border-radius: 15px;
+    margin-bottom: 4px;
     transition: 0.22s ease;
     cursor: pointer;
+}
+
+.notification-item:last-child {
+    margin-bottom: 0;
 }
 
 .notification-item:hover {
@@ -352,8 +299,8 @@ body {
 
 .notification-count-badge {
     position: absolute;
-    top: 6px;
-    right: 6px;
+    top: -5px;
+    right: -5px;
     min-width: 17px;
     height: 17px;
     background: #e53e3e;
@@ -406,16 +353,44 @@ body {
     gap: 6px;
 }
 
-.notif-icon-info    { background: #e8f0fe; color: #2563eb; }
-.notif-icon-warning { background: #fef3c7; color: #d97706; }
-.notif-icon-success { background: #dcfce7; color: #16a34a; }
+.notification-empty-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: var(--cream-soft);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 6px;
+}
+
+.notif-icon-info    { background: #EAF0FF; color: var(--info); }
+.notif-icon-warning { background: #FFF3D6; color: var(--warning); }
+.notif-icon-success { background: #E7F6EC; color: var(--success); }
 .notif-icon-info svg, .notif-icon-warning svg, .notif-icon-success svg { color: inherit; }
+
+.notif-unread-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 7px;
+    border-radius: 11px;
+    background: var(--dark);
+    color: var(--white);
+    font-size: 12px;
+    font-weight: 800;
+    margin-left: 8px;
+    vertical-align: middle;
+}
 
 .notif-page-item {
     display: flex;
     align-items: flex-start;
     gap: 14px;
     padding: 16px 20px;
+    border-left: 3px solid transparent;
     border-bottom: 1px solid var(--border);
     text-decoration: none;
     color: inherit;
@@ -426,8 +401,14 @@ body {
 .notif-page-item:last-child { border-bottom: none; }
 .notif-page-item:hover      { background: var(--cream-soft); }
 
-.notif-page-item.unread     { background: #f0f7ff; }
-.notif-page-item.unread:hover { background: #e3f0fd; }
+.notif-page-item.unread {
+    background: var(--cream-soft);
+    border-left-color: var(--accent);
+}
+
+.notif-page-item.unread:hover {
+    background: var(--cream-deep);
+}
 
 .notif-page-body { flex: 1; }
 
@@ -608,7 +589,7 @@ body {
     white-space: nowrap;
     overflow: hidden;
     padding: 0 8px;
-    margin: 4px 0 -2px;
+    margin: 0;
     max-height: 0;
     opacity: 0;
     transition:
@@ -695,6 +676,17 @@ body {
     background-color: var(--dark);
     color: var(--white);
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14);
+}
+
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: var(--header-height);
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 110;
 }
 
 /* ================= CONTENT ================= */
@@ -875,6 +867,19 @@ body {
     padding: 24px;
 }
 
+.activity-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.activity-row:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
 /* ================= TABLES ================= */
 
 .table-wrap {
@@ -980,6 +985,114 @@ body {
 
 .search-box input::placeholder {
     color: var(--muted-light);
+}
+
+.filter-tabs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background-color: var(--cream-soft);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 5px;
+}
+
+.filter-tab {
+    height: 38px;
+    padding: 0 18px;
+    border: none;
+    border-radius: 10px;
+    background-color: transparent;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: 0.22s ease;
+}
+
+.filter-tab:hover {
+    color: var(--dark);
+}
+
+.filter-tab.active {
+    background-color: var(--dark);
+    color: var(--white);
+    box-shadow: 0 6px 16px var(--shadow);
+}
+
+/* ================= PAGINATION ================= */
+
+.pagination-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.pagination-btn,
+.pagination-page {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 38px;
+    height: 38px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background-color: var(--white);
+    color: var(--dark);
+    font-size: 13px;
+    font-weight: 800;
+    text-decoration: none;
+    cursor: pointer;
+    transition: 0.22s ease;
+}
+
+.pagination-btn {
+    width: 38px;
+    padding: 0;
+}
+
+.pagination-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+.pagination-btn:hover,
+.pagination-page:hover {
+    background-color: var(--cream-soft);
+}
+
+.pagination-page.active {
+    background-color: var(--dark);
+    color: var(--white);
+    border-color: var(--dark);
+    box-shadow: 0 6px 16px var(--shadow);
+}
+
+.pagination-btn.disabled {
+    color: var(--muted);
+    cursor: not-allowed;
+}
+
+.pagination-btn.disabled:hover {
+    background-color: var(--white);
+}
+
+.pagination-dots {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 38px;
+    height: 38px;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 800;
 }
 
 .table-wrapper {
@@ -1604,65 +1717,129 @@ body {
 
 /* ================= RESPONSIVE ================= */
 
-@media (max-width: 900px) {
+@media (min-width: 769px) and (max-width: 1199px) {
+    .page-grid,
+    .grid-3 {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+
+    .employee-content {
+        padding: 28px 24px 32px;
+    }
+
+    .modal-card {
+        max-width: 80vw !important;
+    }
+}
+
+@media (max-width: 768px) {
     .employee-header {
-        grid-template-columns: 1fr;
+        grid-template-columns: auto 1fr;
         height: auto;
-        gap: 12px;
-        padding: 18px;
+        min-height: var(--header-height);
+        gap: 10px;
+        padding: 0 14px;
     }
 
-    .employee-header-left,
-    .employee-header-center,
+    .sidebar-toggle-btn {
+        margin-left: 0;
+    }
+
+    .system-subtitle,
+    .employee-details {
+        display: none;
+    }
+
     .employee-header-right {
-        justify-content: center;
-        text-align: center;
+        justify-content: flex-end;
+        gap: 10px;
     }
 
-    .employee-header-right {
-        flex-wrap: wrap;
-    }
-
-    .employee-sidebar,
-    .employee-sidebar.open {
-        position: relative;
-        top: auto;
+    .notification-dropdown-menu {
+        position: fixed;
+        top: var(--header-height);
+        left: 0;
+        right: 0;
         width: 100%;
-        height: auto;
-        min-height: auto;
+        max-width: 100%;
+        max-height: calc(100vh - var(--header-height));
+        border-radius: 0;
     }
 
-    .employee-sidebar-nav {
-        flex-direction: row;
-        overflow-x: auto;
+    .employee-sidebar {
+        width: 78vw;
+        max-width: 280px;
+        transform: translateX(-100%);
+        transition:
+            transform 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+            box-shadow 0.25s ease;
+    }
+
+    .employee-sidebar.open {
+        width: 78vw;
+        max-width: 280px;
+        transform: translateX(0);
+        box-shadow: 6px 0 24px rgba(0, 0, 0, 0.18);
     }
 
     .employee-sidebar-nav a,
     .employee-sidebar.open .employee-sidebar-nav a {
-        width: auto;
-        min-width: max-content;
-        padding-right: 18px;
+        width: 100%;
     }
 
-    .employee-sidebar-nav a span {
-        opacity: 1;
-        visibility: visible;
-        max-width: 140px;
-        margin-left: 2px;
-        overflow: visible;
-        transform: none;
+    .employee-sidebar.open ~ .sidebar-overlay {
+        display: block;
     }
 
     .employee-content {
         margin-left: 0;
-        padding: 24px 18px 32px;
+        padding: 20px 16px 28px;
     }
 
-    .stats-grid,
+    .employee-content h1 {
+        font-size: 22px;
+    }
+
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .form-grid,
     .page-grid,
     .grid-2,
-    .grid-3 {
-        grid-template-columns: 1fr;
+    .grid-3,
+    .stats-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    .form-group-full {
+        grid-column: span 1 !important;
+    }
+
+    .modal-card {
+        width: 95vw !important;
+        max-width: 95vw !important;
+        max-height: 95vh !important;
+    }
+
+    .modal-actions {
+        position: sticky;
+        bottom: 0;
+        background: var(--white);
+        padding-top: 12px;
+    }
+
+    .save-btn,
+    .cancel-btn,
+    .add-btn {
+        min-height: 44px;
+    }
+
+    .action-btn {
+        min-width: 36px;
+        min-height: 36px;
     }
 
     .table-toolbar {
@@ -3221,4 +3398,36 @@ body {
     .form-grid { grid-template-columns: 1fr; }
     .form-group-full { grid-column: span 1; }
     .page-header { flex-direction: column; align-items: flex-start; }
+}
+
+/* ================= DASHBOARD ENTRANCE ANIMATION ================= */
+
+@keyframes dashFadeInDown {
+    from { opacity: 0; transform: translateY(-14px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes dashFadeInUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+body.page-enter .employee-header {
+    animation: dashFadeInDown 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+body.page-enter .employee-sidebar {
+    animation: dashFadeInUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both;
+}
+
+body.page-enter .admin-content {
+    animation: dashFadeInUp 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.16s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body.page-enter .employee-header,
+    body.page-enter .employee-sidebar,
+    body.page-enter .admin-content {
+        animation: none;
+    }
 }
