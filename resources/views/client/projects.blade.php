@@ -62,7 +62,7 @@
                 $currentIndex = array_search($project->current_phase, $phases);
             @endphp
             <div class="card" style="margin-bottom:20px;" data-status="{{ $project->status }}">
-                <div class="card-header">
+                <div class="card-header project-card-header">
                     <div>
                         <div class="card-title" style="font-size:17px;font-weight:900;">{{ $project->name }}</div>
                         <div style="font-size:12.5px;color:var(--muted);margin-top:4px;display:flex;gap:16px;flex-wrap:wrap;">
@@ -71,7 +71,7 @@
                             <span><strong>Created:</strong> {{ $project->created_at->format('M d, Y') }}</span>
                         </div>
                     </div>
-                    <div style="display:flex;align-items:center;gap:10px;">
+                    <div class="project-card-actions" style="display:flex;align-items:center;gap:10px;">
                         @if($project->status === 'completed')
                             <span class="status-badge completed">Completed</span>
                         @elseif($project->status === 'ongoing')
@@ -88,7 +88,7 @@
                 </div>
 
                 <div class="card-body">
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start;">
+                    <div class="project-card-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start;">
                         <!-- Progress -->
                         <div>
                             <div class="progress-wrap" style="margin-bottom:0;">
@@ -106,7 +106,7 @@
                         </div>
 
                         <!-- Info grid -->
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                        <div class="project-info-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                             <div style="background:var(--cream-soft);border-radius:12px;padding:12px 14px;">
                                 <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Current Phase</div>
                                 <div style="font-size:13px;font-weight:800;color:var(--accent);">{{ $phaseLabels[$project->current_phase] ?? ucfirst(str_replace('_', ' ', $project->current_phase)) }}</div>
@@ -121,7 +121,7 @@
                     </div>
 
                     <!-- Mini phase tracker -->
-                    <div style="margin-top:20px;display:flex;gap:0;overflow:hidden;border-radius:12px;border:1px solid var(--border);">
+                    <div class="phase-tracker" style="margin-top:20px;display:flex;gap:0;overflow:hidden;border-radius:12px;border:1px solid var(--border);">
                         @foreach($phases as $i => $phase)
                         @php
                             $isDone    = $i < $currentIndex;
@@ -130,7 +130,7 @@
                             $color = ($isDone || $isCurrent) ? '#fff' : 'var(--muted)';
                             $fw    = $isCurrent ? '800' : '600';
                         @endphp
-                        <div style="flex:1;text-align:center;padding:8px 4px;background:{{ $bg }};color:{{ $color }};font-size:10px;font-weight:{{ $fw }};border-right:{{ $i < count($phases)-1 ? '1px solid rgba(0,0,0,.06)' : 'none' }};">
+                        <div class="phase-tracker-item" style="flex:1;text-align:center;padding:8px 4px;background:{{ $bg }};color:{{ $color }};font-size:10px;font-weight:{{ $fw }};border-right:{{ $i < count($phases)-1 ? '1px solid rgba(0,0,0,.06)' : 'none' }};">
                             {{ $phaseLabels[$phase] ?? $phase }}
                         </div>
                         @endforeach
@@ -138,7 +138,7 @@
 
                     @if($project->status === 'completed')
                     @php $review = $reviews->get($project->id); @endphp
-                    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+                    <div class="project-review-row" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
                         @if($review)
                             <div>
                                 <div style="display:flex;gap:2px;margin-bottom:4px;">

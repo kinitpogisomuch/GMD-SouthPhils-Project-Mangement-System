@@ -82,6 +82,9 @@
 
                         <div id="chatActive" style="display:none; flex-direction:column; height:100%;">
                             <div class="message-chat-header">
+                                <button type="button" class="message-attach-btn message-chat-back-btn" id="chatBackBtn" title="Back to conversations">
+                                    <i data-lucide="arrow-left"></i>
+                                </button>
                                 <div class="message-chat-avatar" id="chatAvatar"></div>
                                 <div class="message-chat-info">
                                     <div class="message-chat-name" id="chatName"></div>
@@ -256,6 +259,7 @@
 
             document.getElementById('chatEmptyState').style.display = 'none';
             document.getElementById('chatActive').style.display = 'flex';
+            document.querySelector('.message-list-container').classList.add('chat-open');
 
             setAvatar(document.getElementById('chatAvatar'), activeContact.name, activeContact.photo);
             document.getElementById('chatName').textContent = activeContact.name;
@@ -266,6 +270,10 @@
             if (pollTimer) clearInterval(pollTimer);
             pollTimer = setInterval(loadThread, 4000);
         }
+
+        document.getElementById('chatBackBtn').addEventListener('click', () => {
+            document.querySelector('.message-list-container').classList.remove('chat-open');
+        });
 
         function loadThread(forceScroll = false) {
             if (!activeContact) return;

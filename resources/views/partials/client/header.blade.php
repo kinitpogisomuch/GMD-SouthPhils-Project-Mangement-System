@@ -75,13 +75,19 @@
 document.addEventListener('DOMContentLoaded', function () {
     var toggleBtn = document.getElementById('sidebarToggleBtn');
     var sidebar   = document.querySelector('.client-sidebar');
+    var overlay   = document.querySelector('.sidebar-overlay');
     if (toggleBtn && sidebar) {
         toggleBtn.addEventListener('click', function (e) {
             e.stopPropagation();
             sidebar.classList.toggle('open');
         });
+        if (overlay) {
+            overlay.addEventListener('click', function () {
+                sidebar.classList.remove('open');
+            });
+        }
         document.addEventListener('click', function (e) {
-            if (sidebar.classList.contains('open') && !sidebar.contains(e.target) && e.target !== toggleBtn) {
+            if (sidebar.classList.contains('open') && !sidebar.contains(e.target) && !toggleBtn.contains(e.target)) {
                 sidebar.classList.remove('open');
             }
         });

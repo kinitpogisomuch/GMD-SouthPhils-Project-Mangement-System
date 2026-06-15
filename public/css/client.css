@@ -1393,6 +1393,26 @@ tbody tr:last-child td { border-bottom: none; }
         gap: 10px;
     }
 
+    .client-profile-btn {
+        min-width: 0;
+        padding: 4px 8px;
+        gap: 6px;
+    }
+
+    .client-avatar {
+        width: 30px;
+        height: 30px;
+    }
+
+    .client-avatar span {
+        font-size: 13px !important;
+    }
+
+    .dropdown-arrow {
+        width: 12px;
+        height: 12px;
+    }
+
     .notification-dropdown-menu {
         position: fixed;
         top: var(--header-height);
@@ -1475,9 +1495,107 @@ tbody tr:last-child td { border-bottom: none; }
         min-height: 44px;
     }
 
+    /* Modal already has an X close button, so the Cancel action is redundant on mobile */
+    .modal-actions .cancel-btn {
+        display: none;
+    }
+
+    .modal-actions:has(> .cancel-btn:only-child) {
+        display: none;
+    }
+
+    .modal-actions {
+        justify-content: stretch;
+    }
+
+    .modal-actions .save-btn {
+        flex: 1;
+    }
+
     .action-btn {
         min-width: 36px;
         min-height: 36px;
+    }
+
+    /* Messages: stack conversation list and chat into a single full-width pane,
+       switching views with the back button instead of a cramped side-by-side layout */
+    .message-page-card {
+        height: calc(100vh - 220px);
+        min-height: 440px;
+        border-radius: 16px;
+    }
+
+    .message-list-container {
+        position: relative;
+    }
+
+    .message-list-container .message-sidebar {
+        width: 100%;
+        border-right: none;
+    }
+
+    .message-list-container .message-chat-window {
+        display: none;
+        position: absolute;
+        inset: 0;
+        background: var(--white);
+        z-index: 2;
+    }
+
+    .message-list-container.chat-open .message-sidebar {
+        display: none;
+    }
+
+    .message-list-container.chat-open .message-chat-window {
+        display: flex;
+    }
+
+    .message-chat-header .message-chat-back-btn {
+        display: inline-flex;
+    }
+
+    /* Project cards: stack header into rows so the title has full width
+       and the status badge/View Details button don't crowd it */
+    .project-card-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .project-card-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    /* Progress and Current Phase/Timeline stack into a single column */
+    .project-card-grid {
+        grid-template-columns: 1fr !important;
+        gap: 16px !important;
+    }
+
+    .project-info-grid {
+        gap: 10px !important;
+    }
+
+    /* Phase tracker: scroll horizontally instead of squeezing labels until they overflow */
+    .phase-tracker {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .phase-tracker-item {
+        flex: 0 0 auto !important;
+        min-width: 88px;
+    }
+
+    .project-review-row {
+        flex-direction: column;
+        align-items: stretch !important;
+    }
+
+    .project-review-row button {
+        width: 100%;
+        justify-content: center;
     }
 }
 
@@ -2408,6 +2526,10 @@ tbody tr:last-child td { border-bottom: none; }
     gap: 14px;
 }
 
+.message-chat-back-btn {
+    display: none;
+}
+
 .message-chat-avatar {
     width: 42px;
     height: 42px;
@@ -2837,8 +2959,12 @@ body.page-enter .client-header {
     animation: dashFadeInDown 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-body.page-enter .client-sidebar {
-    animation: dashFadeInUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both;
+/* Sidebar entrance animation is desktop-only: its translateY transform
+   would otherwise override the mobile transform: translateX(-100%) hidden state */
+@media (min-width: 769px) {
+    body.page-enter .client-sidebar {
+        animation: dashFadeInUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both;
+    }
 }
 
 body.page-enter .admin-content {

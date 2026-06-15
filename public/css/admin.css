@@ -2035,6 +2035,10 @@ body {
     gap: 14px;
 }
 
+.message-chat-back-btn {
+    display: none;
+}
+
 .message-chat-avatar {
     width: 42px;
     height: 42px;
@@ -2488,6 +2492,26 @@ body {
         gap: 10px;
     }
 
+    .admin-profile-btn {
+        min-width: 0;
+        padding: 4px 8px;
+        gap: 6px;
+    }
+
+    .admin-avatar {
+        width: 30px;
+        height: 30px;
+    }
+
+    .admin-avatar span {
+        font-size: 13px !important;
+    }
+
+    .dropdown-arrow {
+        width: 12px;
+        height: 12px;
+    }
+
     .notification-dropdown-menu {
         position: fixed;
         top: var(--header-height);
@@ -2570,9 +2594,63 @@ body {
         min-height: 44px;
     }
 
+    /* Modal already has an X close button, so the Cancel action is redundant on mobile */
+    .modal-actions .cancel-btn:not(#backSalaryStep2):not(#backToAddFormBtn) {
+        display: none;
+    }
+
+    .modal-actions:has(> .cancel-btn:only-child) {
+        display: none;
+    }
+
+    .modal-actions {
+        justify-content: stretch;
+    }
+
+    .modal-actions .save-btn {
+        flex: 1;
+    }
+
     .action-btn {
         min-width: 36px;
         min-height: 36px;
+    }
+
+    /* Messages: stack conversation list and chat into a single full-width pane,
+       switching views with the back button instead of a cramped side-by-side layout */
+    .message-page-card {
+        height: calc(100vh - 220px);
+        min-height: 440px;
+        border-radius: 16px;
+    }
+
+    .message-list-container {
+        position: relative;
+    }
+
+    .message-list-container .message-sidebar {
+        width: 100%;
+        border-right: none;
+    }
+
+    .message-list-container .message-chat-window {
+        display: none;
+        position: absolute;
+        inset: 0;
+        background: var(--white);
+        z-index: 2;
+    }
+
+    .message-list-container.chat-open .message-sidebar {
+        display: none;
+    }
+
+    .message-list-container.chat-open .message-chat-window {
+        display: flex;
+    }
+
+    .message-chat-header .message-chat-back-btn {
+        display: inline-flex;
     }
 }
 
@@ -4292,8 +4370,12 @@ body.page-enter .admin-header {
     animation: dashFadeInDown 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-body.page-enter .admin-sidebar {
-    animation: dashFadeInUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both;
+/* Sidebar entrance animation is desktop-only: its translateY transform
+   would otherwise override the mobile transform: translateX(-100%) hidden state */
+@media (min-width: 769px) {
+    body.page-enter .admin-sidebar {
+        animation: dashFadeInUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both;
+    }
 }
 
 body.page-enter .admin-content {
