@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Project;
 use App\Models\Payment;
 use App\Models\Client;
+use App\Models\Review;
 
 class ClientController extends Controller
 {
@@ -37,7 +38,9 @@ class ClientController extends Controller
             ? Project::where('client', $clientName)->orderBy('created_at', 'desc')->get()
             : collect();
 
-        return view('client.projects', compact('projects'));
+        $reviews = Review::whereIn('project_id', $projects->pluck('id'))->get()->keyBy('project_id');
+
+        return view('client.projects', compact('projects', 'reviews'));
     }
 
     public function documents()

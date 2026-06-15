@@ -9,6 +9,7 @@ use App\Models\ProjectUpdate;
 use App\Models\ProgressRequest;
 use App\Models\Client;
 use App\Models\Employee;
+use App\Models\FundTransaction;
 use App\Services\SupabaseStorageService;
 use App\Services\NotificationService;
 
@@ -89,9 +90,19 @@ class ProjectController extends Controller
             return round((float) $material->total_cost * (1 + $factor / 100), 2);
         }) + $laborCost;
 
+        // Revolving Fund Summary for this project
+        $fundReleased    = FundTransaction::totalReleased($project->id);
+        $fundReplenished = FundTransaction::totalReplenished($project->id);
+        $fundOutstanding = $fundReleased - $fundReplenished;
+        $fundHistory     = FundTransaction::where('project_id', $project->id)
+            ->orderByDesc('date')
+            ->orderByDesc('id')
+            ->get();
+
         return view('admin.project_view', compact(
             'project', 'updates', 'openRequest', 'pendingUpdates', 'nextPhase', 'clientAddress',
-            'materialCost', 'laborCost', 'contractAmount', 'profit', 'projectGrandTotal'
+            'materialCost', 'laborCost', 'contractAmount', 'profit', 'projectGrandTotal',
+            'fundReleased', 'fundReplenished', 'fundOutstanding', 'fundHistory'
         ));
     }
 

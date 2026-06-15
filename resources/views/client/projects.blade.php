@@ -24,6 +24,28 @@
                 </div>
             </div>
 
+            @if(session('success'))
+            <div class="alert-banner success">
+                <i data-lucide="check-circle"></i>
+                {{ session('success') }}
+            </div>
+            @endif
+
+            @if(session('error'))
+            <div class="alert-banner error">
+                <i data-lucide="alert-circle"></i>
+                {{ session('error') }}
+            </div>
+            @endif
+
+            @if($projects->isNotEmpty())
+            <div class="emp-tabs" style="margin-bottom:20px;">
+                <button class="emp-tab active" data-filter="all" onclick="filterProjects('all', this)">All Projects</button>
+                <button class="emp-tab" data-filter="active" onclick="filterProjects('active', this)">Active</button>
+                <button class="emp-tab" data-filter="completed" onclick="filterProjects('completed', this)">Completed</button>
+            </div>
+            @endif
+
             @forelse($projects as $project)
             @php
                 $phases = ['planning','procurement','matl_prep','fabrication','inspection','painting','completion','delivery'];
@@ -39,7 +61,7 @@
                 ];
                 $currentIndex = array_search($project->current_phase, $phases);
             @endphp
-            <div class="card" style="margin-bottom:20px;">
+            <div class="card" style="margin-bottom:20px;" data-status="{{ $project->status }}">
                 <div class="card-header">
                     <div>
                         <div class="card-title" style="font-size:17px;font-weight:900;">{{ $project->name }}</div>
@@ -113,6 +135,28 @@
                         </div>
                         @endforeach
                     </div>
+
+                    @if($project->status === 'completed')
+                    @php $review = $reviews->get($project->id); @endphp
+                    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+                        @if($review)
+                            <div>
+                                <div style="display:flex;gap:2px;margin-bottom:4px;">
+                                    @for($i=1;$i<=5;$i++)
+                                        <i data-lucide="star" style="width:14px;height:14px;color:{{ $i <= $review->rating ? 'var(--accent)' : 'var(--border)' }};{{ $i <= $review->rating ? 'fill:var(--accent);' : '' }}"></i>
+                                    @endfor
+                                </div>
+                                <p style="font-size:12.5px;color:var(--muted);max-width:480px;margin:0;">{{ $review->comment }}</p>
+                            </div>
+                        @else
+                            <span style="font-size:12.5px;color:var(--muted);">Share your experience with this project.</span>
+                        @endif
+                        <button type="button" class="btn btn-sm" style="background:var(--accent);color:#fff;font-weight:700;padding:8px 18px;border-radius:12px;font-size:13px;display:flex;align-items:center;gap:6px;border:none;cursor:pointer;"
+                            onclick="openReviewModal({{ $project->id }}, {{ \Illuminate\Support\Js::from($project->name) }}, {{ $review->rating ?? 0 }}, {{ \Illuminate\Support\Js::from($review->comment ?? '') }})">
+                            <i data-lucide="star" style="width:14px;height:14px;"></i> {{ $review ? 'Edit Review' : 'Leave a Review' }}
+                        </button>
+                    </div>
+                    @endif
                 </div>
             </div>
             @empty
@@ -131,10 +175,97 @@
         </main>
     </div>
 
+    {{-- ===================== REVIEW MODAL ===================== --}}
+    <div class="modal-overlay" id="reviewModal">
+        <div class="modal-card" style="max-width:520px;">
+            <div class="modal-header">
+                <div>
+                    <h2>Leave a Review</h2>
+                    <p id="reviewProjectName">Share your experience with this project.</p>
+                </div>
+                <button class="modal-close" type="button" onclick="closeModal('reviewModal')">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+
+            <form method="POST" id="reviewForm" action="">
+                @csrf
+                <div class="form-grid">
+                    <div class="form-group form-group-full">
+                        <label>Your Rating <span style="color:var(--danger);">*</span></label>
+                        <div class="star-rating" id="reviewStarRating">
+                            @for($i=1;$i<=5;$i++)
+                            <button type="button" data-value="{{ $i }}" onclick="setReviewRating({{ $i }})">
+                                <i data-lucide="star"></i>
+                            </button>
+                            @endfor
+                        </div>
+                        <input type="hidden" name="rating" id="reviewRatingInput" required>
+                    </div>
+                    <div class="form-group form-group-full">
+                        <label>Your Review <span style="color:var(--danger);">*</span></label>
+                        <textarea name="comment" id="reviewCommentInput" rows="4" maxlength="1000" placeholder="Tell us about your experience with this project..." required></textarea>
+                    </div>
+                </div>
+                <div style="padding:14px 20px;border-top:1px solid rgba(0,0,0,0.06);display:flex;justify-content:flex-end;gap:10px;">
+                    <button type="button" class="cancel-btn" onclick="closeModal('reviewModal')">Cancel</button>
+                    <button type="submit" class="save-btn">
+                        <i data-lucide="check-circle" style="width:15px;height:15px;"></i>
+                        Submit Review
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>
         lucide.createIcons();
 
+        function openModal(id) {
+            var m = document.getElementById(id);
+            if (m) { m.classList.add('show'); document.body.style.overflow = 'hidden'; }
+        }
+        function closeModal(id) {
+            var m = document.getElementById(id);
+            if (m) { m.classList.remove('show'); document.body.style.overflow = ''; }
+        }
+
+        document.querySelectorAll('.modal-overlay').forEach(function (overlay) {
+            overlay.addEventListener('click', function (e) {
+                if (e.target === overlay) closeModal(overlay.id);
+            });
+        });
+
+        function setReviewRating(value) {
+            document.getElementById('reviewRatingInput').value = value;
+            document.querySelectorAll('#reviewStarRating button').forEach(function (btn) {
+                btn.classList.toggle('filled', parseInt(btn.dataset.value, 10) <= value);
+            });
+        }
+
+        function openReviewModal(projectId, projectName, rating, comment) {
+            document.getElementById('reviewForm').action = '/client/projects/' + projectId + '/review';
+            document.getElementById('reviewProjectName').textContent = 'Share your experience with "' + projectName + '".';
+            document.getElementById('reviewCommentInput').value = comment || '';
+            setReviewRating(rating || 0);
+            openModal('reviewModal');
+        }
+
+        function filterProjects(filter, btn) {
+            document.querySelectorAll('.emp-tab[data-filter]').forEach(function (tab) {
+                tab.classList.remove('active');
+            });
+            btn.classList.add('active');
+
+            document.querySelectorAll('.card[data-status]').forEach(function (card) {
+                var status = card.dataset.status;
+                var show = filter === 'all'
+                    || (filter === 'completed' && status === 'completed')
+                    || (filter === 'active' && status !== 'completed');
+                card.style.display = show ? '' : 'none';
+            });
+        }
     </script>
 </body>
 </html>

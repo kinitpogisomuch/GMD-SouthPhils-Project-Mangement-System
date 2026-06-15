@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use App\Models\Project;
 use App\Models\ProjectMaterial;
 use App\Models\MaterialUsage;
+use App\Models\MaterialRequest;
+use App\Models\FundSetting;
 use App\Models\Employee;
 use App\Services\NotificationService;
 
@@ -21,7 +23,25 @@ class MaterialUsageController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        return view('admin.material_usage', compact('projects'));
+        $requests = MaterialRequest::with(['project', 'projectMaterial', 'requestedBy'])
+            ->orderByDesc('requested_date')
+            ->orderByDesc('id')
+            ->get();
+
+        $pendingCount   = $requests->where('status', 'pending')->count();
+        $fulfilledCount = $requests->where('status', 'fulfilled')->count();
+        $shortageCount  = $requests->where('status', 'shortage')->count();
+
+        $fundBalance = FundSetting::getCurrentBalance();
+
+        return view('admin.material_usage', compact(
+            'projects',
+            'requests',
+            'pendingCount',
+            'fulfilledCount',
+            'shortageCount',
+            'fundBalance'
+        ));
     }
 
     public function adminDetail($projectId)
@@ -56,16 +76,6 @@ class MaterialUsageController extends Controller
     // -----------------------------------------------------------------------
     // Employee
     // -----------------------------------------------------------------------
-
-    public function employeeIndex()
-    {
-        $projects = Project::with('activeMaterials', 'activeMaterialUsages')
-            ->where('status', '!=', 'archived')
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        return view('employee.material_usage', compact('projects'));
-    }
 
     public function employeeDetail($projectId)
     {

@@ -314,7 +314,7 @@ class ProjectMaterialController extends Controller
 
     public function employeeIndex()
     {
-        $projects = Project::with('activeMaterials')
+        $projects = Project::with('activeMaterials', 'activeMaterialUsages')
             ->where('status', '!=', 'archived')
             ->orderBy('created_at', 'desc')
             ->get();

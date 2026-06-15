@@ -14,7 +14,10 @@ class AuthController extends Controller
         if (session('role') === 'client')   return redirect()->route('client.dashboard');
         if (session('role') === 'employee') return redirect()->route('employee.dashboard');
 
-        return view('landing');
+        $portfolioItems = \App\Models\PortfolioItem::active()->orderBy('sort_order')->get();
+        $reviews = \App\Models\Review::active()->with('project')->latest()->take(6)->get();
+
+        return view('landing', compact('portfolioItems', 'reviews'));
     }
 
     public function showLogin()

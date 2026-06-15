@@ -70,7 +70,7 @@
                                 <td><strong>{{ $project->name }}</strong></td>
                                 <td>{{ $project->client }}</td>
                                 <td>
-                                    <span class="status-badge {{ $project->current_phase === 'delivery' ? 'completed' : 'ongoing' }}">
+                                    <span class="status-badge {{ $project->status === 'completed' ? 'completed' : 'ongoing' }}">
                                         {{ ucfirst(str_replace('_', ' ', $project->current_phase ?? 'Planning')) }}
                                     </span>
                                 </td>

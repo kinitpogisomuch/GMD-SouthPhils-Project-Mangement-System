@@ -103,6 +103,7 @@ document.addEventListener('DOMContentLoaded', function () {
         phase_advanced:     'layers',
         project_completed:  'award',
         pending_review:     'clock',
+        new_message:        'message-square',
     };
 
     const priorityClass = {
@@ -220,5 +221,28 @@ document.addEventListener('DOMContentLoaded', function () {
         if (employeeDropdown) employeeDropdown.classList.remove('open');
         if (notificationDropdown) notificationDropdown.classList.remove('open');
     });
+})();
+
+(function () {
+    const UNREAD_MESSAGES_URL = '{{ route("employee.messages.unread_count") }}';
+
+    function loadUnreadMessages() {
+        fetch(UNREAD_MESSAGES_URL, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(r => r.json())
+            .then(data => {
+                const badge = document.getElementById('sidebarMessagesBadge');
+                if (!badge) return;
+                if (data.count > 0) {
+                    badge.style.display = 'flex';
+                    badge.textContent = data.count > 99 ? '99+' : data.count;
+                } else {
+                    badge.style.display = 'none';
+                }
+            })
+            .catch(() => {});
+    }
+
+    loadUnreadMessages();
+    setInterval(loadUnreadMessages, 15000);
 })();
 </script>

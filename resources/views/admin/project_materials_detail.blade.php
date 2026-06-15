@@ -11,16 +11,22 @@
         .mat-combo-dropdown {
             display: none;
             position: fixed;
-            max-height: 260px;
+            max-height: 320px;
             overflow-y: auto;
             background: #fff;
             border: 1px solid rgba(0,0,0,0.12);
             border-radius: 10px;
             box-shadow: 0 8px 24px rgba(0,0,0,0.14);
             z-index: 1000;
-            padding: 6px;
+            padding: 10px;
+            columns: 3 180px;
+            column-gap: 14px;
         }
         .mat-combo-dropdown.show { display: block; }
+        .mat-combo-category {
+            break-inside: avoid;
+            margin-bottom: 4px;
+        }
         .mat-combo-group {
             font-size: 10px;
             font-weight: 800;
@@ -75,6 +81,33 @@
         }
         .mat-combo-warning.show {
             display: block;
+        }
+        #materialsTable th.num-cell,
+        #materialsTable td.num-cell,
+        #laborTable th.num-cell,
+        #laborTable td.num-cell {
+            text-align: right;
+        }
+        #materialsTable tfoot td,
+        #laborTable tfoot td {
+            border-bottom: none;
+            border-top: 2px solid var(--border);
+            padding-top: 14px;
+            padding-bottom: 14px;
+        }
+        .table-total-label {
+            text-align: right;
+            font-weight: 800;
+            color: var(--muted);
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: .06em;
+        }
+        .table-total-value {
+            text-align: right;
+            font-weight: 900;
+            color: var(--dark);
+            font-size: 15px;
         }
     </style>
 </head>
@@ -134,7 +167,7 @@
                     </div>
                     <div>
                         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px;">Current Phase</div>
-                        <span class="status-badge {{ $project->current_phase === 'delivery' ? 'completed' : 'ongoing' }}">
+                        <span class="status-badge {{ $project->status === 'completed' ? 'completed' : 'ongoing' }}">
                             {{ ucfirst(str_replace('_', ' ', $project->current_phase ?? 'Planning')) }}
                         </span>
                     </div>
@@ -209,13 +242,6 @@
                         </div>
                     </div>
                     <div style="display:flex;align-items:center;gap:10px;">
-                        <div class="filter-group">
-                            <select class="filter-select" id="materialStatusFilter">
-                                <option value="active">Active Only</option>
-                                <option value="all">All Materials</option>
-                                <option value="archived">Archived Only</option>
-                            </select>
-                        </div>
                         <button type="button" id="openMaterialsBOMModal"
                                 style="display:flex;align-items:center;gap:7px;background:none;border:1.5px solid rgba(0,0,0,0.18);border-radius:10px;padding:8px 16px;font-size:13px;font-weight:700;color:var(--dark);cursor:pointer;white-space:nowrap;">
                             <i data-lucide="file-text" style="width:15px;height:15px;"></i>
@@ -234,9 +260,9 @@
                         <thead>
                             <tr>
                                 <th>Material Name</th>
-                                <th>Quantity</th>
-                                <th>Price Per Unit</th>
-                                <th>Total Cost</th>
+                                <th class="num-cell">Quantity</th>
+                                <th class="num-cell">Price Per Unit</th>
+                                <th class="num-cell">Total Cost</th>
                                 <th>Date Added</th>
                             </tr>
                         </thead>
@@ -248,9 +274,9 @@
                                     <div style="font-size:12px;color:var(--muted);margin-top:2px;">{{ Str::limit($material->notes, 60) }}</div>
                                     @endif
                                 </td>
-                                <td>{{ number_format($material->quantity, 0) }}</td>
-                                <td>₱{{ number_format($material->price_per_unit, 2) }}</td>
-                                <td><strong>₱{{ number_format($material->total_cost, 2) }}</strong></td>
+                                <td class="num-cell">{{ number_format($material->quantity, 0) }}</td>
+                                <td class="num-cell">₱{{ number_format($material->price_per_unit, 2) }}</td>
+                                <td class="num-cell"><strong>₱{{ number_format($material->total_cost, 2) }}</strong></td>
                                 <td>{{ $material->created_at->format('M d, Y') }}</td>
                             </tr>
                             @empty
@@ -261,6 +287,15 @@
                             </tr>
                             @endforelse
                         </tbody>
+                        @if($materials->isNotEmpty())
+                        <tfoot>
+                            <tr>
+                                <td colspan="3" class="table-total-label">Grand Total</td>
+                                <td class="table-total-value">₱{{ number_format($estimatedCost, 2) }}</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                        @endif
                     </table>
                 </div>
             </div>
@@ -277,13 +312,6 @@
                             <i data-lucide="search"></i>
                             <input type="text" id="laborSearch" placeholder="Search labor...">
                         </div>
-                        <div class="filter-group">
-                            <select class="filter-select" id="laborStatusFilter">
-                                <option value="active">Active Only</option>
-                                <option value="all">All Entries</option>
-                                <option value="archived">Archived Only</option>
-                            </select>
-                        </div>
                         <button type="button" id="openAddLaborModalBtn"
                                 style="display:flex;align-items:center;gap:7px;background:var(--dark);color:#fff;border:none;border-radius:10px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">
                             <i data-lucide="plus" style="width:15px;height:15px;"></i>
@@ -298,9 +326,9 @@
                             <tr>
                                 <th>Employee Name</th>
                                 <th>Role</th>
-                                <th>Daily Rate</th>
-                                <th>Estimated Working Days</th>
-                                <th>Total Cost</th>
+                                <th class="num-cell">Daily Rate</th>
+                                <th class="num-cell">Estimated Working Days</th>
+                                <th class="num-cell">Total Cost</th>
                                 <th>Date Added</th>
                                 <th>Actions</th>
                             </tr>
@@ -332,9 +360,9 @@
                                         <span style="color:var(--muted);">—</span>
                                     @endif
                                 </td>
-                                <td>₱{{ number_format($entry->daily_rate, 2) }}</td>
-                                <td>{{ number_format($project->estimated_working_days, 0) }}</td>
-                                <td><strong>₱{{ number_format($entry->total_cost, 2) }}</strong></td>
+                                <td class="num-cell">₱{{ number_format($entry->daily_rate, 2) }}</td>
+                                <td class="num-cell">{{ number_format($project->estimated_working_days, 0) }}</td>
+                                <td class="num-cell"><strong>₱{{ number_format($entry->total_cost, 2) }}</strong></td>
                                 <td>{{ $entry->created_at->format('M d, Y') }}</td>
                                 <td class="action-cell">
                                     @if($entry->status === 'active')
@@ -364,6 +392,15 @@
                             </tr>
                             @endforelse
                         </tbody>
+                        @if($laborEntries->isNotEmpty())
+                        <tfoot>
+                            <tr>
+                                <td colspan="4" class="table-total-label">Grand Total</td>
+                                <td class="table-total-value">₱{{ number_format($totalLaborCost, 2) }}</td>
+                                <td colspan="2"></td>
+                            </tr>
+                        </tfoot>
+                        @endif
                     </table>
                 </div>
             </div>
@@ -624,7 +661,7 @@
             <form method="POST" action="{{ route('admin.project_materials.store_labor', $project->id) }}" id="addLaborForm">
                 @csrf
 
-                <div style="padding:16px 20px 0;display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;">
+                <div style="padding:16px 20px;display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;">
                     <div class="form-group" style="max-width:200px;margin-bottom:0;">
                         <label>Estimated Working Days <span style="color:var(--danger);">*</span></label>
                         <input type="number" name="estimated_working_days" id="addLaborEstDays" required min="0" step="0.01"
@@ -841,6 +878,7 @@
                 });
                 if (items.length === 0) return;
                 hasMatches = true;
+                html += '<div class="mat-combo-category">';
                 html += '<div class="mat-combo-group">' + escapeHtml(category) + '</div>';
                 items.forEach(function(name) {
                     var isUsed = usedNames.indexOf(name.toLowerCase()) !== -1;
@@ -853,6 +891,7 @@
                         html += '<div class="mat-combo-item" data-value="' + escapeHtml(name) + '">' + escapeHtml(name) + '</div>';
                     }
                 });
+                html += '</div>';
             });
 
             if (!hasMatches) {
@@ -884,12 +923,16 @@
 
         function positionMatCombo(panel, input) {
             var rect       = input.getBoundingClientRect();
-            var maxHeight  = 260;
+            var maxHeight  = 320;
+            var width      = Math.max(rect.width, Math.min(640, window.innerWidth - 32));
             var spaceBelow = window.innerHeight - rect.bottom;
             var spaceAbove = rect.top;
 
-            panel.style.left  = rect.left + 'px';
-            panel.style.width = rect.width + 'px';
+            var left = Math.min(rect.left, window.innerWidth - width - 16);
+            left = Math.max(16, left);
+
+            panel.style.left  = left + 'px';
+            panel.style.width = width + 'px';
 
             if (spaceBelow < maxHeight && spaceAbove > spaceBelow) {
                 // not enough room below — open upward instead
@@ -1622,7 +1665,7 @@
             document.getElementById('editLaborTotalDisplay').value = total > 0 ? formatCurrency(total) : '';
         }
 
-        var currentLaborStatusFilter = 'active';
+        var currentLaborStatusFilter = 'all';
 
         function applyLaborFilters() {
             var q = (document.getElementById('laborSearch').value || '').toLowerCase();
@@ -1635,7 +1678,7 @@
         }
         // ---- end labor ----
 
-        var currentStatusFilter = 'active';
+        var currentStatusFilter = 'all';
 
         function applyMaterialFilters() {
             var q = (document.getElementById('materialSearch').value || '').toLowerCase();
@@ -1714,14 +1757,6 @@
             var searchInput = document.getElementById('materialSearch');
             if (searchInput) searchInput.addEventListener('keyup', applyMaterialFilters);
 
-            var statusFilter = document.getElementById('materialStatusFilter');
-            if (statusFilter) {
-                statusFilter.addEventListener('change', function() {
-                    currentStatusFilter = this.value;
-                    applyMaterialFilters();
-                });
-            }
-
             applyMaterialFilters();
 
             // Labor — Add modal
@@ -1793,12 +1828,6 @@
             // Labor search & filter
             var laborSearch = document.getElementById('laborSearch');
             if (laborSearch) laborSearch.addEventListener('keyup', applyLaborFilters);
-
-            var laborFilter = document.getElementById('laborStatusFilter');
-            if (laborFilter) laborFilter.addEventListener('change', function() {
-                currentLaborStatusFilter = this.value;
-                applyLaborFilters();
-            });
 
             applyLaborFilters();
 

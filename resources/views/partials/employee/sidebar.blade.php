@@ -14,20 +14,18 @@
             <span>Projects</span>
         </a>
         <a href="{{ route('employee.project_materials') }}"
-           class="{{ request()->routeIs(['employee.project_materials', 'employee.project_materials.detail']) ? 'active' : '' }}">
+           class="{{ request()->routeIs(['employee.project_materials', 'employee.project_materials.detail', 'employee.material_usage.detail']) ? 'active' : '' }}">
             <div class="sidebar-icon"><i data-lucide="package"></i></div>
             <span>Project Materials</span>
-        </a>
-        <a href="{{ route('employee.material_usage') }}"
-           class="{{ request()->routeIs(['employee.material_usage', 'employee.material_usage.detail']) ? 'active' : '' }}">
-            <div class="sidebar-icon"><i data-lucide="clipboard-list"></i></div>
-            <span>Material Usage</span>
         </a>
 
         <div class="sidebar-section-label">Communication</div>
         <a href="{{ route('employee.messages') }}"
            class="{{ request()->routeIs('employee.messages') ? 'active' : '' }}">
-            <div class="sidebar-icon"><i data-lucide="message-square"></i></div>
+            <div class="sidebar-icon">
+                <i data-lucide="message-square"></i>
+                <span class="sidebar-badge" id="sidebarMessagesBadge" style="display:none;"></span>
+            </div>
             <span>Messages</span>
         </a>
 

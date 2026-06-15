@@ -18,8 +18,8 @@
 
             {{-- Breadcrumb --}}
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;font-size:13px;color:var(--muted);">
-                <a href="{{ route('employee.material_usage') }}" style="color:var(--muted);text-decoration:none;font-weight:600;">
-                    Material Usage
+                <a href="{{ route('employee.project_materials') }}#usage" style="color:var(--muted);text-decoration:none;font-weight:600;">
+                    Project Materials
                 </a>
                 <i data-lucide="chevron-right" style="width:14px;height:14px;"></i>
                 <span style="color:var(--dark);font-weight:700;">{{ $project->name }}</span>
@@ -30,10 +30,6 @@
                     <h1>{{ $project->name }}</h1>
                     <p>Log materials consumed during fabrication and track usage against the planned BOM.</p>
                 </div>
-                <button type="button" class="btn btn-primary" onclick="openModal('logUsageModal')">
-                    <i data-lucide="plus"></i>
-                    Log Usage
-                </button>
             </div>
 
             @if(session('success'))
@@ -63,7 +59,7 @@
                     </div>
                     <div>
                         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px;">Current Phase</div>
-                        <span class="status-badge {{ $project->current_phase === 'delivery' ? 'completed' : 'ongoing' }}">
+                        <span class="status-badge {{ $project->status === 'completed' ? 'completed' : 'ongoing' }}">
                             {{ ucfirst(str_replace('_', ' ', $project->current_phase ?? 'Planning')) }}
                         </span>
                     </div>
@@ -108,11 +104,11 @@
                         <thead>
                             <tr>
                                 <th>Material Name</th>
-                                <th>Unit</th>
                                 <th>Planned Qty</th>
                                 <th>Used Qty</th>
                                 <th>Remaining</th>
                                 <th>Status</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -127,7 +123,6 @@
                             @endphp
                             <tr>
                                 <td><strong>{{ $row['material']->material_name }}</strong></td>
-                                <td>{{ $row['material']->unit }}</td>
                                 <td>{{ number_format($row['material']->quantity, 0) }}</td>
                                 <td>{{ number_format($row['usedQty'], 0) }}</td>
                                 <td>{{ number_format($row['remaining'], 0) }}</td>
@@ -135,6 +130,11 @@
                                     <span class="status-badge {{ $row['statusKey'] }}">
                                         {{ $statusLabels[$row['statusKey']] }}
                                     </span>
+                                </td>
+                                <td class="action-cell">
+                                    <button class="action-btn view" type="button" onclick="openLogUsageModal({{ $row['material']->id }}, {{ \Illuminate\Support\Js::from($row['material']->material_name) }}, {{ \Illuminate\Support\Js::from($row['material']->unit) }})" title="Log usage for this material">
+                                        <i data-lucide="pencil"></i>
+                                    </button>
                                 </td>
                             </tr>
                             @empty
@@ -161,7 +161,6 @@
                                 <th>Date Used</th>
                                 <th>Material</th>
                                 <th>Quantity</th>
-                                <th>Unit</th>
                                 <th>Used For</th>
                                 <th>Notes</th>
                                 <th>Recorded By</th>
@@ -173,15 +172,14 @@
                                 <td>{{ $entry->used_date->format('M d, Y') }}</td>
                                 <td><strong>{{ $entry->material_name }}</strong></td>
                                 <td>{{ number_format($entry->quantity_used, 0) }}</td>
-                                <td>{{ $entry->unit ?? '—' }}</td>
                                 <td>{{ $entry->used_for ? ucfirst(str_replace('_', ' ', $entry->used_for)) : '—' }}</td>
                                 <td>{{ $entry->notes ?? '—' }}</td>
                                 <td>{{ $entry->recorded_by ?? '—' }}</td>
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="7" style="text-align:center;padding:40px;color:var(--muted);">
-                                    No usage entries yet. Click <strong>Log Usage</strong> to get started.
+                                <td colspan="6" style="text-align:center;padding:32px;color:var(--muted);">
+                                    No usage entries yet. Use the edit icon in <strong>Materials vs Usage</strong> to log usage.
                                 </td>
                             </tr>
                             @endforelse
@@ -210,43 +208,19 @@
                 @csrf
                 <div class="form-grid">
                     <div class="form-group form-group-full">
-                        <label>Material <span style="color:var(--danger);">*</span></label>
-                        <select name="project_material_id" id="usageMaterialSelect" onchange="onUsageMaterialChange()" required>
-                            <option value="">-- Select planned material --</option>
-                            @foreach($plannedMaterials as $m)
-                            <option value="{{ $m->id }}" data-name="{{ $m->material_name }}" data-unit="{{ $m->unit }}">
-                                {{ $m->material_name }} ({{ $m->unit }})
-                            </option>
-                            @endforeach
-                            <option value="">Other (not in BOM)</option>
-                        </select>
-                    </div>
-                    <div class="form-group form-group-full" id="customMaterialNameGroup" style="display:none;">
-                        <label>Material Name <span style="color:var(--danger);">*</span></label>
-                        <input type="text" name="material_name" id="usageMaterialName" placeholder="Enter material name">
+                        <label>Material</label>
+                        <div class="form-static" id="usageMaterialDisplay"></div>
+                        <input type="hidden" name="project_material_id" id="usageMaterialIdInput">
+                        <input type="hidden" name="material_name" id="usageMaterialNameInput">
+                        <input type="hidden" name="unit" id="usageUnitInput">
                     </div>
                     <div class="form-group">
                         <label>Quantity Used <span style="color:var(--danger);">*</span></label>
-                        <input type="number" name="quantity_used" min="0.01" step="0.01" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Unit</label>
-                        <input type="text" name="unit" id="usageUnit" placeholder="e.g. pcs, kg, m">
+                        <input type="number" name="quantity_used" min="0.01" step="0.01" onwheel="this.blur()" required>
                     </div>
                     <div class="form-group">
                         <label>Date Used <span style="color:var(--danger);">*</span></label>
                         <input type="date" name="used_date" value="{{ now()->format('Y-m-d') }}" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Used For (Phase)</label>
-                        <select name="used_for">
-                            <option value="">-- Select phase --</option>
-                            @foreach(\App\Models\Project::PHASES as $phase)
-                            <option value="{{ $phase }}" {{ $project->current_phase === $phase ? 'selected' : '' }}>
-                                {{ ucfirst(str_replace('_', ' ', $phase)) }}
-                            </option>
-                            @endforeach
-                        </select>
                     </div>
                     <div class="form-group form-group-full">
                         <label>Notes</label>
@@ -276,24 +250,12 @@
             if (m) { m.classList.remove('show'); document.body.style.overflow = ''; }
         }
 
-        function onUsageMaterialChange() {
-            var sel = document.getElementById('usageMaterialSelect');
-            var opt = sel.options[sel.selectedIndex];
-            var nameInput = document.getElementById('usageMaterialName');
-            var unitInput = document.getElementById('usageUnit');
-            var customGroup = document.getElementById('customMaterialNameGroup');
-
-            if (opt.dataset.name) {
-                nameInput.value = opt.dataset.name;
-                unitInput.value = opt.dataset.unit || '';
-                customGroup.style.display = 'none';
-                nameInput.removeAttribute('required');
-            } else {
-                nameInput.value = '';
-                unitInput.value = '';
-                customGroup.style.display = '';
-                nameInput.setAttribute('required', 'required');
-            }
+        function openLogUsageModal(materialId, materialName, unit) {
+            document.getElementById('usageMaterialIdInput').value = materialId;
+            document.getElementById('usageMaterialNameInput').value = materialName;
+            document.getElementById('usageUnitInput').value = unit;
+            document.getElementById('usageMaterialDisplay').textContent = unit ? (materialName + ' (' + unit + ')') : materialName;
+            openModal('logUsageModal');
         }
 
         document.addEventListener('DOMContentLoaded', function() {

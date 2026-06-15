@@ -36,6 +36,67 @@ body {
     display: grid;
     grid-template-columns: 1.05fr 0.95fr;
     background: var(--cream);
+    position: relative;
+    overflow: hidden;
+}
+
+.login-left-glow {
+    position: absolute; top: -160px; right: -120px;
+    width: 480px; height: 480px;
+    background: radial-gradient(circle, rgba(245,180,0,0.16) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.login-page::before {
+    content: "";
+    position: absolute;
+    width: 360px;
+    height: 360px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.05);
+    top: -120px;
+    right: -120px;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.login-page::after {
+    content: "";
+    position: absolute;
+    width: 260px;
+    height: 260px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.05);
+    bottom: -90px;
+    left: -90px;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.login-left-hazard {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    height: 6px;
+    background: repeating-linear-gradient(
+        135deg,
+        var(--accent) 0 14px,
+        rgba(0,0,0,0.55) 14px 28px
+    );
+    z-index: 1;
+}
+
+/* Optional background photo support: when present, the photo covers the
+   entire login page (both columns), with the card floating on top. */
+.login-page.has-bg-photo {
+    background-image:
+        linear-gradient(180deg, rgba(26,26,26,0.55) 0%, rgba(26,26,26,0.78) 100%),
+        var(--login-bg-photo);
+    background-size: cover;
+    background-position: center;
+}
+
+.login-page.has-bg-photo .login-left {
+    background: transparent;
 }
 
 /* ================= LEFT SIDE ================= */
@@ -48,58 +109,6 @@ body {
     flex-direction: column;
     justify-content: center;
     position: relative;
-    overflow: hidden;
-}
-
-/* Optional background photo support: when .login-left has an inline
-   background-image, this gradient sits between the photo and the content
-   so text stays readable. */
-.login-left.has-bg-photo {
-    background-image:
-        linear-gradient(180deg, rgba(26,26,26,0.78) 0%, rgba(26,26,26,0.94) 100%),
-        var(--login-bg-photo);
-    background-size: cover;
-    background-position: center;
-}
-
-.login-left-glow {
-    position: absolute; top: -160px; right: -120px;
-    width: 480px; height: 480px;
-    background: radial-gradient(circle, rgba(245,180,0,0.16) 0%, transparent 70%);
-    pointer-events: none;
-}
-
-.login-left::before {
-    content: "";
-    position: absolute;
-    width: 360px;
-    height: 360px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.05);
-    top: -120px;
-    right: -120px;
-}
-
-.login-left::after {
-    content: "";
-    position: absolute;
-    width: 260px;
-    height: 260px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.05);
-    bottom: -90px;
-    left: -90px;
-}
-
-.login-left-hazard {
-    position: absolute; left: 0; right: 0; bottom: 0;
-    height: 6px;
-    background: repeating-linear-gradient(
-        135deg,
-        var(--accent) 0 14px,
-        rgba(0,0,0,0.55) 14px 28px
-    );
-    z-index: 1;
 }
 
 .brand-box {
@@ -145,16 +154,20 @@ body {
     align-items: center;
     justify-content: center;
     padding: 42px;
+    position: relative;
+    z-index: 1;
 }
 
 .login-card {
     width: 100%;
     max-width: 430px;
-    background-color: var(--white);
-    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.6);
     border-radius: 28px;
     padding: 34px;
-    box-shadow: 0 24px 60px var(--shadow);
+    box-shadow: 0 24px 60px var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
 }
 
 .login-header {
@@ -191,18 +204,25 @@ body {
 
 .input-wrapper {
     height: 52px;
-    border: 1px solid var(--border);
-    background-color: var(--cream);
+    border: 1px solid rgba(255, 255, 255, 0.65);
+    background: rgba(255, 255, 255, 0.5);
     border-radius: 16px;
     display: flex;
     align-items: center;
     padding: 0 14px;
     gap: 10px;
     transition: 0.22s ease;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+
+.input-wrapper:hover {
+    border-color: rgba(255, 255, 255, 0.85);
+    background: rgba(255, 255, 255, 0.6);
 }
 
 .input-wrapper:focus-within {
-    background-color: var(--white);
+    background: rgba(255, 255, 255, 0.8);
     border-color: var(--dark);
     box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.08);
 }
@@ -212,6 +232,11 @@ body {
     height: 18px;
     color: var(--muted);
     flex-shrink: 0;
+    transition: color 0.2s ease;
+}
+
+.input-wrapper:focus-within svg {
+    color: var(--dark);
 }
 
 .input-wrapper input {
@@ -226,6 +251,40 @@ body {
 
 .input-wrapper input::placeholder {
     color: #999999;
+}
+
+/* ================= PASSWORD TOGGLE & LINKS ================= */
+
+.pw-toggle-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    color: var(--muted);
+    flex-shrink: 0;
+}
+
+.pw-toggle-btn:hover svg {
+    color: var(--dark);
+}
+
+.form-extra {
+    text-align: right;
+    margin-top: 8px;
+}
+
+.forgot-link {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--muted);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.forgot-link:hover {
+    color: var(--dark);
 }
 
 /* ================= BUTTON ================= */
@@ -272,11 +331,42 @@ body {
     align-items: center;
     gap: 9px;
     font-weight: 700;
+    animation: errorShake 0.4s ease;
 }
 
 .error-message svg {
     width: 18px;
     height: 18px;
+    flex-shrink: 0;
+}
+
+@keyframes errorShake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-4px); }
+    40%, 80% { transform: translateX(4px); }
+}
+
+/* ================= FOOTER ================= */
+
+.login-footer {
+    margin-top: 26px;
+    padding-top: 18px;
+    border-top: 1px solid rgba(255, 255, 255, 0.4);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--muted);
+    text-align: center;
+}
+
+.login-footer svg {
+    width: 13px;
+    height: 13px;
+    margin-top: 2px;
+    color: var(--accent-dark);
     flex-shrink: 0;
 }
 
@@ -402,6 +492,11 @@ body {
 
     .login-header h2 {
         font-size: 26px;
+    }
+
+    .login-footer {
+        flex-direction: column;
+        gap: 4px;
     }
 
     .demo-row {

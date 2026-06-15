@@ -375,14 +375,14 @@ function adjustPhaseDays(duration) {
     return [5, 4, 3, 21, 2, 2, 1, 1];
 }
 
-function getPhaseStatusFromCurrentPhase(currentPhase) {
+function getPhaseStatusFromCurrentPhase(currentPhase, isCompleted) {
     const statuses = [];
     let foundActive = false;
     PHASES.forEach(function (phase) {
         if (foundActive) {
             statuses.push("pending");
         } else if (phase.key === currentPhase) {
-            statuses.push("active");
+            statuses.push(isCompleted ? "done" : "active");
             foundActive = true;
         } else {
             statuses.push("done");
@@ -457,7 +457,7 @@ function updateProgressBadge(progress) {
 
     let statuses;
     if (typeof PROJECT_CURRENT_PHASE !== 'undefined' && PROJECT_CURRENT_PHASE) {
-        statuses = getPhaseStatusFromCurrentPhase(PROJECT_CURRENT_PHASE);
+        statuses = getPhaseStatusFromCurrentPhase(PROJECT_CURRENT_PHASE, PROJECT_STATUS === 'completed');
     } else {
         statuses = getPhaseStatusFromProgress(PROJECT_PROGRESS);
     }

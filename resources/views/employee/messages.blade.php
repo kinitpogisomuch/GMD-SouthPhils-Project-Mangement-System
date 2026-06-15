@@ -25,13 +25,22 @@
 
             <div class="message-page-card">
                 <div class="message-page-header">
-                    <span class="message-page-title">Conversations</span>
+                    <div class="message-page-heading">
+                        <div class="message-page-icon"><i data-lucide="message-square"></i></div>
+                        <div>
+                            <span class="message-page-title">Conversations</span>
+                            <div class="message-page-subtitle">{{ count($contacts) }} {{ count($contacts) === 1 ? 'contact' : 'contacts' }}</div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="message-list-container">
                     <div class="message-sidebar">
                         <div class="message-sidebar-search">
-                            <input type="text" id="contactSearch" placeholder="Search contacts...">
+                            <div class="message-search-wrap">
+                                <i data-lucide="search"></i>
+                                <input type="text" id="contactSearch" placeholder="Search contacts...">
+                            </div>
                         </div>
 
                         <div id="contactList">
@@ -40,7 +49,8 @@
                                  data-type="{{ $c['type'] }}"
                                  data-id="{{ $c['id'] }}"
                                  data-name="{{ $c['name'] }}"
-                                 data-role="{{ $c['role'] }}">
+                                 data-role="{{ $c['role'] }}"
+                                 data-photo="{{ $c['profile_photo'] }}">
                                 <div class="message-thread-avatar"></div>
                                 <div class="message-thread-body">
                                     <div class="message-thread-header">
@@ -77,14 +87,35 @@
                                     <div class="message-chat-name" id="chatName"></div>
                                     <div class="message-chat-role" id="chatRole"></div>
                                 </div>
+                                <button type="button" class="message-attach-btn" id="chatInfoBtn" title="View contact info">
+                                    <i data-lucide="info"></i>
+                                </button>
                             </div>
 
                             <div class="message-thread-content" id="chatMessages"></div>
 
+                            <div class="message-attachment-preview" id="attachmentPreview"></div>
+
                             <div class="message-input-area">
+                                <div class="message-attach-group">
+                                    <button type="button" class="message-attach-btn" id="attachCameraBtn" title="Take a photo">
+                                        <i data-lucide="camera"></i>
+                                    </button>
+                                    <button type="button" class="message-attach-btn" id="attachImageBtn" title="Send a picture">
+                                        <i data-lucide="image"></i>
+                                    </button>
+                                    <button type="button" class="message-attach-btn" id="attachFileBtn" title="Attach a file">
+                                        <i data-lucide="paperclip"></i>
+                                    </button>
+                                </div>
+
+                                <input type="file" id="cameraInput" accept="image/*" capture="environment" hidden>
+                                <input type="file" id="imageInput" accept="image/*" multiple hidden>
+                                <input type="file" id="fileInput" multiple hidden>
+
                                 <input type="text" class="message-input-field" id="chatInput" placeholder="Type a message...">
                                 <button class="message-send-btn" id="chatSendBtn" type="button">
-                                    <i data-lucide="send"></i> Send
+                                    <i data-lucide="send"></i> <span>Send</span>
                                 </button>
                             </div>
                         </div>
@@ -95,15 +126,83 @@
         </main>
     </div>
 
+    <div class="modal-overlay" id="cameraModal">
+        <div class="modal-card" style="max-width:480px;">
+            <div class="modal-header">
+                <div>
+                    <h2>Take a Photo</h2>
+                    <p>Position the camera and capture a photo to attach.</p>
+                </div>
+                <button class="modal-close" type="button" id="closeCameraModal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+
+            <div class="camera-preview-wrap">
+                <video id="cameraVideo" autoplay playsinline muted></video>
+            </div>
+            <canvas id="cameraCanvas" style="display:none;"></canvas>
+
+            <div class="modal-actions">
+                <button type="button" class="cancel-btn" id="cameraCancelBtn">Cancel</button>
+                <button type="button" class="save-btn" id="cameraCaptureBtn">
+                    <i data-lucide="camera"></i> Capture
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="userInfoModal">
+        <div class="modal-card" style="max-width:420px;">
+            <div class="modal-header">
+                <div>
+                    <h2>Contact Info</h2>
+                    <p>Details for this conversation.</p>
+                </div>
+                <button class="modal-close" type="button" id="closeUserInfoModal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+
+            <div class="user-info-card">
+                <div class="user-info-avatar" id="infoAvatar"></div>
+                <div class="user-info-name" id="infoName"></div>
+                <div class="user-info-role" id="infoRole"></div>
+            </div>
+
+            <div class="user-info-details">
+                <div class="user-info-row">
+                    <i data-lucide="mail"></i>
+                    <span id="infoEmail">—</span>
+                </div>
+                <div class="user-info-row">
+                    <i data-lucide="phone"></i>
+                    <span id="infoContact">—</span>
+                </div>
+                <div class="user-info-row">
+                    <i data-lucide="map-pin"></i>
+                    <span id="infoAddress">—</span>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="cancel-btn" id="closeUserInfoBtn">Close</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>
         lucide.createIcons();
 
         const CSRF = '{{ csrf_token() }}';
+        const MY_NAME = @json($myName);
+        const MY_PHOTO = @json($myPhoto);
         const THREAD_URL_TEMPLATE = "{{ route('employee.messages.thread', ['type' => '__TYPE__', 'id' => '__ID__']) }}";
         const SEND_URL = "{{ route('employee.messages.send') }}";
 
         let activeContact = null;
+        let activeContactInfo = null;
         let pollTimer = null;
 
         function threadUrl(type, id) {
@@ -122,9 +221,17 @@
             return div.innerHTML;
         }
 
+        function setAvatar(el, name, photo) {
+            if (photo) {
+                el.innerHTML = `<img src="${photo}" alt="${escapeHtml(name)}">`;
+            } else {
+                el.textContent = getInitials(name);
+            }
+        }
+
         document.querySelectorAll('.message-thread-avatar').forEach(el => {
             const thread = el.closest('.message-thread');
-            el.textContent = getInitials(thread.dataset.name);
+            setAvatar(el, thread.dataset.name, thread.dataset.photo);
         });
 
         document.querySelectorAll('.message-thread').forEach(el => {
@@ -143,32 +250,39 @@
                 id: el.dataset.id,
                 name: el.dataset.name,
                 role: el.dataset.role,
+                photo: el.dataset.photo,
             };
+            activeContactInfo = null;
 
             document.getElementById('chatEmptyState').style.display = 'none';
             document.getElementById('chatActive').style.display = 'flex';
 
-            document.getElementById('chatAvatar').textContent = getInitials(activeContact.name);
+            setAvatar(document.getElementById('chatAvatar'), activeContact.name, activeContact.photo);
             document.getElementById('chatName').textContent = activeContact.name;
             document.getElementById('chatRole').textContent = activeContact.role;
 
-            loadThread();
+            loadThread(true);
 
             if (pollTimer) clearInterval(pollTimer);
             pollTimer = setInterval(loadThread, 4000);
         }
 
-        function loadThread() {
+        function loadThread(forceScroll = false) {
             if (!activeContact) return;
             fetch(threadUrl(activeContact.type, activeContact.id), {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             })
             .then(r => r.json())
-            .then(data => renderMessages(data.messages));
+            .then(data => {
+                activeContactInfo = data.contact || null;
+                renderMessages(data.messages, forceScroll);
+            });
         }
 
-        function renderMessages(messages) {
+        function renderMessages(messages, forceScroll = false) {
             const container = document.getElementById('chatMessages');
+            const wasNearBottom = forceScroll
+                || (container.scrollHeight - container.scrollTop - container.clientHeight < 80);
 
             if (!messages.length) {
                 container.innerHTML = '<div class="message-empty-state"><i data-lucide="message-circle"></i><p>No messages yet. Say hello!</p></div>';
@@ -181,48 +295,73 @@
                 const bubble = document.createElement('div');
                 bubble.className = 'message-bubble ' + (m.is_mine ? 'sent' : 'received');
 
-                if (!m.is_mine) {
-                    const avatar = document.createElement('div');
-                    avatar.className = 'message-bubble-avatar';
-                    avatar.textContent = getInitials(activeContact.name);
-                    bubble.appendChild(avatar);
-                }
+                const avatar = document.createElement('div');
+                avatar.className = 'message-bubble-avatar';
+                setAvatar(avatar, m.is_mine ? MY_NAME : activeContact.name, m.is_mine ? MY_PHOTO : activeContact.photo);
+                bubble.appendChild(avatar);
 
                 const content = document.createElement('div');
                 content.className = 'message-bubble-content';
-                content.innerHTML = `<div class="message-text">${escapeHtml(m.body)}</div><div class="message-time">${m.time}</div>`;
+
+                let html = '';
+                if (m.body) {
+                    html += `<div class="message-text">${escapeHtml(m.body)}</div>`;
+                }
+                if (m.attachments && m.attachments.length) {
+                    html += '<div class="message-attachments">';
+                    m.attachments.forEach(att => {
+                        if (att.mime && att.mime.startsWith('image/')) {
+                            html += `<a href="${att.url}" target="_blank" rel="noopener"><img src="${att.url}" class="message-attachment-img" alt="${escapeHtml(att.name)}"></a>`;
+                        } else {
+                            html += `<a href="${att.url}" target="_blank" rel="noopener" class="message-attachment-file"><i data-lucide="file-text"></i><span>${escapeHtml(att.name)}</span></a>`;
+                        }
+                    });
+                    html += '</div>';
+                }
+                html += `<div class="message-time">${m.time}</div>`;
+                content.innerHTML = html;
                 bubble.appendChild(content);
 
                 container.appendChild(bubble);
             });
 
-            container.scrollTop = container.scrollHeight;
+            lucide.createIcons();
+
+            if (wasNearBottom) {
+                container.scrollTop = container.scrollHeight;
+            }
         }
 
         function sendMessage() {
             if (!activeContact) return;
             const input = document.getElementById('chatInput');
             const body = input.value.trim();
-            if (!body) return;
+            if (!body && !pendingAttachments.length) return;
+
+            const formData = new FormData();
+            formData.append('recipient_type', activeContact.type);
+            formData.append('recipient_id', activeContact.id);
+            formData.append('body', body);
+            pendingAttachments.forEach(a => formData.append('attachments[]', a.file));
 
             input.value = '';
+            clearAttachmentPreviews();
 
             fetch(SEND_URL, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': CSRF,
                     'X-Requested-With': 'XMLHttpRequest'
                 },
-                body: JSON.stringify({
-                    recipient_type: activeContact.type,
-                    recipient_id: activeContact.id,
-                    body: body
-                })
+                body: formData
             })
-            .then(r => r.json())
-            .then(data => {
-                loadThread();
+            .then(r => r.json().then(data => ({ ok: r.ok, data })))
+            .then(({ ok, data }) => {
+                if (!ok) {
+                    alert(data.message || 'Failed to send message.');
+                    return;
+                }
+                loadThread(true);
                 updateSidebarPreview(activeContact, data.message);
             });
         }
@@ -231,7 +370,7 @@
             const el = document.querySelector(`.message-thread[data-type="${contact.type}"][data-id="${contact.id}"]`);
             if (!el) return;
             const preview = el.querySelector('.message-thread-preview');
-            if (preview) preview.textContent = message.body;
+            if (preview) preview.textContent = message.body || (message.attachments && message.attachments.length ? 'Sent an attachment' : '');
             const time = el.querySelector('.message-thread-time');
             if (time) time.textContent = message.time;
             el.parentNode.prepend(el);
@@ -242,6 +381,30 @@
             if (e.key === 'Enter') sendMessage();
         });
 
+        /* ── Contact info modal ──────────────────────────────────────── */
+        document.getElementById('chatInfoBtn').addEventListener('click', () => {
+            if (!activeContact) return;
+            const info = activeContactInfo || {};
+
+            const avatar = document.getElementById('infoAvatar');
+            if (info.profile_photo) {
+                avatar.innerHTML = `<img src="${info.profile_photo}" alt="${escapeHtml(activeContact.name)}">`;
+            } else {
+                avatar.textContent = getInitials(activeContact.name);
+            }
+
+            document.getElementById('infoName').textContent = activeContact.name;
+            document.getElementById('infoRole').textContent = activeContact.role;
+            document.getElementById('infoEmail').textContent = info.email || 'Not provided';
+            document.getElementById('infoContact').textContent = info.contact || 'Not provided';
+            document.getElementById('infoAddress').textContent = info.address || 'Not provided';
+
+            openModal('userInfoModal');
+        });
+
+        document.getElementById('closeUserInfoModal').addEventListener('click', () => closeModal('userInfoModal'));
+        document.getElementById('closeUserInfoBtn').addEventListener('click', () => closeModal('userInfoModal'));
+
         document.getElementById('contactSearch').addEventListener('input', e => {
             const term = e.target.value.trim().toLowerCase();
             document.querySelectorAll('#contactList .message-thread').forEach(el => {
@@ -249,6 +412,141 @@
                 el.style.display = name.includes(term) ? 'flex' : 'none';
             });
         });
+
+        /* ── Attachment pickers (UI preview only, not yet sent) ──────────── */
+        let pendingAttachments = [];
+
+        function setupAttachmentPicker(buttonId, inputId) {
+            const button = document.getElementById(buttonId);
+            const input = document.getElementById(inputId);
+            button.addEventListener('click', () => input.click());
+            input.addEventListener('change', () => {
+                Array.from(input.files).forEach(file => addAttachmentPreview(file));
+                input.value = '';
+            });
+        }
+
+        function addAttachmentPreview(file) {
+            const id = 'att-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+            pendingAttachments.push({ id, file });
+
+            const preview = document.getElementById('attachmentPreview');
+            const chip = document.createElement('div');
+            chip.className = 'attachment-chip';
+            chip.dataset.id = id;
+
+            if (file.type.startsWith('image/')) {
+                const img = document.createElement('img');
+                img.src = URL.createObjectURL(file);
+                img.className = 'attachment-chip-thumb';
+                chip.appendChild(img);
+            } else {
+                const icon = document.createElement('div');
+                icon.className = 'attachment-chip-icon';
+                icon.innerHTML = '<i data-lucide="file-text"></i>';
+                chip.appendChild(icon);
+            }
+
+            const name = document.createElement('span');
+            name.className = 'attachment-chip-name';
+            name.textContent = file.name;
+            chip.appendChild(name);
+
+            const remove = document.createElement('button');
+            remove.type = 'button';
+            remove.className = 'attachment-chip-remove';
+            remove.innerHTML = '<i data-lucide="x"></i>';
+            remove.addEventListener('click', () => removeAttachmentPreview(id));
+            chip.appendChild(remove);
+
+            preview.appendChild(chip);
+            preview.classList.add('show');
+            lucide.createIcons();
+        }
+
+        function removeAttachmentPreview(id) {
+            pendingAttachments = pendingAttachments.filter(a => a.id !== id);
+            const preview = document.getElementById('attachmentPreview');
+            const chip = preview.querySelector(`.attachment-chip[data-id="${id}"]`);
+            if (chip) chip.remove();
+            if (!preview.children.length) preview.classList.remove('show');
+        }
+
+        function clearAttachmentPreviews() {
+            pendingAttachments = [];
+            const preview = document.getElementById('attachmentPreview');
+            preview.innerHTML = '';
+            preview.classList.remove('show');
+        }
+
+        /* ── Camera capture ───────────────────────────────────────────── */
+        let cameraStream = null;
+
+        function openModal(id) {
+            const m = document.getElementById(id);
+            if (m) { m.classList.add('show'); document.body.style.overflow = 'hidden'; }
+        }
+
+        function closeModal(id) {
+            const m = document.getElementById(id);
+            if (m) { m.classList.remove('show'); document.body.style.overflow = ''; }
+        }
+
+        function openCamera() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                document.getElementById('cameraInput').click();
+                return;
+            }
+
+            openModal('cameraModal');
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+                .then(stream => {
+                    cameraStream = stream;
+                    document.getElementById('cameraVideo').srcObject = stream;
+                })
+                .catch(() => {
+                    closeCamera();
+                    document.getElementById('cameraInput').click();
+                });
+        }
+
+        function closeCamera() {
+            closeModal('cameraModal');
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+                cameraStream = null;
+            }
+        }
+
+        function capturePhoto() {
+            const video = document.getElementById('cameraVideo');
+            const canvas = document.getElementById('cameraCanvas');
+            if (!video.videoWidth) return;
+
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            canvas.toBlob(blob => {
+                if (blob) {
+                    addAttachmentPreview(new File([blob], `photo-${Date.now()}.jpg`, { type: 'image/jpeg' }));
+                }
+                closeCamera();
+            }, 'image/jpeg', 0.9);
+        }
+
+        document.getElementById('attachCameraBtn').addEventListener('click', openCamera);
+        document.getElementById('cameraCaptureBtn').addEventListener('click', capturePhoto);
+        document.getElementById('cameraCancelBtn').addEventListener('click', closeCamera);
+        document.getElementById('closeCameraModal').addEventListener('click', closeCamera);
+
+        document.getElementById('cameraInput').addEventListener('change', e => {
+            Array.from(e.target.files).forEach(file => addAttachmentPreview(file));
+            e.target.value = '';
+        });
+
+        setupAttachmentPicker('attachImageBtn', 'imageInput');
+        setupAttachmentPicker('attachFileBtn', 'fileInput');
     </script>
 </body>
 </html>

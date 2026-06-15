@@ -14,11 +14,13 @@ class Message extends Model
         'recipient_type',
         'subject',
         'body',
+        'attachments',
         'is_read',
     ];
 
     protected $casts = [
-        'is_read' => PostgresBoolean::class,
+        'is_read'     => PostgresBoolean::class,
+        'attachments' => 'array',
     ];
 
     /** All messages exchanged between two actors, oldest first */

@@ -30,6 +30,9 @@ class NotificationService
     const TYPE_SHOP_DRAWING_APPROVED  = 'shop_drawing_approved';
     const TYPE_SHOP_DRAWING_REVISION  = 'shop_drawing_revision_requested';
     const TYPE_QUOTATION_SENT         = 'quotation_sent';
+    const TYPE_NEW_MESSAGE             = 'new_message';
+    const TYPE_FUND_RELEASED            = 'fund_released';
+    const TYPE_FUND_REPLENISHED         = 'fund_replenished';
 
     // -------------------------------------------------------------------------
     // Core send — accepts any model with an id, or a raw integer ID + type
@@ -139,6 +142,22 @@ class NotificationService
         }
     }
 
+    /** New chat message received → notify the recipient (admin, employee, or client) */
+    public static function newMessage(string $recipientType, int $recipientId, string $senderName, string $preview, string $actionUrl): void
+    {
+        self::send(
+            $recipientId,
+            $recipientType,
+            'New Message',
+            "{$senderName} sent you a message.\n{$preview}",
+            self::TYPE_NEW_MESSAGE,
+            'info',
+            null,
+            null,
+            $actionUrl
+        );
+    }
+
     // -------------------------------------------------------------------------
     // Event-specific notification builders
     // -------------------------------------------------------------------------
@@ -174,6 +193,38 @@ class NotificationService
             $project->id,
             null,
             "/admin/material-usage/{$project->id}"
+        );
+    }
+
+    /** Admin releases revolving fund money to a project → activity log for admins */
+    public static function revolvingFundReleased(Project $project, float $amount, string $purpose): void
+    {
+        $message = "₱" . number_format($amount, 2) . " released for Project: {$project->name}.\nPurpose: {$purpose}";
+
+        self::notifyAdmins(
+            'Revolving Fund Released',
+            $message,
+            self::TYPE_FUND_RELEASED,
+            'info',
+            $project->id,
+            null,
+            '/admin/revolving-fund'
+        );
+    }
+
+    /** A project payment automatically replenishes the revolving fund → activity log for admins */
+    public static function revolvingFundReplenished(Project $project, float $amount): void
+    {
+        $message = "₱" . number_format($amount, 2) . " replenished from Project: {$project->name} payment.";
+
+        self::notifyAdmins(
+            'Revolving Fund Replenished',
+            $message,
+            self::TYPE_FUND_REPLENISHED,
+            'info',
+            $project->id,
+            null,
+            '/admin/revolving-fund'
         );
     }
 

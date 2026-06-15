@@ -17,7 +17,11 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\SalaryController;
 use App\Http\Controllers\ProjectMaterialController;
 use App\Http\Controllers\MaterialUsageController;
+use App\Http\Controllers\PortfolioItemController;
+use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\FundController;
+use App\Http\Controllers\MaterialRequestController;
 use App\Http\Controllers\MessageController;
 
 /*
@@ -64,10 +68,24 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::patch('/project-materials/{projectId}/labor/{laborId}/archive', [ProjectMaterialController::class, 'archiveLabor'])->name('project_materials.archive_labor');
     Route::patch('/project-materials/{projectId}/estimated-days', [ProjectMaterialController::class, 'updateEstimatedDays'])->name('project_materials.update_estimated_days');
 
+    Route::post('/material-requests/{id}/fund', [MaterialRequestController::class, 'fund'])->name('material_requests.fund');
+    Route::post('/material-requests/{id}/rerequest', [MaterialRequestController::class, 'rerequest'])->name('material_requests.rerequest');
+
     Route::get('/material-usage', [MaterialUsageController::class, 'adminIndex'])->name('material_usage');
     Route::get('/material-usage/{projectId}', [MaterialUsageController::class, 'adminDetail'])->name('material_usage.detail');
     Route::post('/material-usage/{projectId}', [MaterialUsageController::class, 'store'])->name('material_usage.store');
     Route::patch('/material-usage/{projectId}/{usageId}/archive', [MaterialUsageController::class, 'archive'])->name('material_usage.archive');
+
+    // Landing Page Portfolio Items (CMS)
+    Route::post('/portfolio-items', [PortfolioItemController::class, 'store'])->name('portfolio.store');
+    Route::put('/portfolio-items/{id}', [PortfolioItemController::class, 'update'])->name('portfolio.update');
+    Route::patch('/portfolio-items/{id}/archive', [PortfolioItemController::class, 'archive'])->name('portfolio.archive');
+    Route::delete('/portfolio-items/{id}', [PortfolioItemController::class, 'destroy'])->name('portfolio.destroy');
+
+    // Landing Page Client Reviews (moderation)
+    Route::patch('/reviews/{id}/archive', [ReviewController::class, 'archive'])->name('reviews.archive');
+    Route::delete('/reviews/{id}', [ReviewController::class, 'destroy'])->name('reviews.destroy');
+
     Route::get('/messages', [MessageController::class, 'index'])->name('messages');
     Route::get('/messages/thread/{type}/{id}', [MessageController::class, 'thread'])->name('messages.thread');
     Route::post('/messages/send', [MessageController::class, 'send'])->name('messages.send');
@@ -76,6 +94,9 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::post('/payments/setup', [PaymentController::class, 'setup'])->name('payments.setup');
     Route::get('/payments/{id}', [PaymentController::class, 'show'])->name('payments.show');
     Route::post('/payments/{id}/record', [PaymentController::class, 'recordPayment'])->name('payments.record');
+    Route::get('/revolving-fund', [FundController::class, 'index'])->name('revolving_fund');
+    Route::post('/revolving-fund/setup', [FundController::class, 'setupInitial'])->name('revolving_fund.setup_initial');
+    Route::post('/revolving-fund/release', [FundController::class, 'release'])->name('revolving_fund.release');
     Route::get('/projects', [AdminController::class, 'projects'])->name('projects');
     Route::get('/settings', [AdminController::class, 'settings'])->name('settings');
     Route::get('/clients', [AdminController::class, 'clients'])->name('clients');
@@ -172,6 +193,7 @@ Route::prefix('client')->name('client.')->middleware(['role:client', 'profile.co
     Route::post('/project/{id}/shop-drawing/approve', [ProjectController::class, 'approveShopDrawing'])->name('project.shop_drawing.approve');
     Route::post('/project/{id}/shop-drawing/request-revision', [ProjectController::class, 'requestShopDrawingRevision'])->name('project.shop_drawing.request_revision');
     Route::get('/projects', [ClientController::class, 'projectList'])->name('projects');
+    Route::post('/projects/{projectId}/review', [ReviewController::class, 'store'])->name('reviews.store');
     Route::get('/settings', [ClientController::class, 'settings'])->name('settings');
     Route::put('/settings/profile',  [ProfileController::class, 'updateClient'])->name('settings.profile');
     Route::put('/settings/password', [ProfileController::class, 'updateClientPassword'])->name('settings.password');
@@ -210,7 +232,6 @@ Route::prefix('employee')->name('employee.')->middleware(['role:employee', 'prof
     Route::get('/project-materials/{projectId}', [ProjectMaterialController::class, 'employeeDetail'])->name('project_materials.detail');
     Route::post('/project-materials/{projectId}/request', [ProjectMaterialController::class, 'requestMaterial'])->name('project_materials.request');
 
-    Route::get('/material-usage', [MaterialUsageController::class, 'employeeIndex'])->name('material_usage');
     Route::get('/material-usage/{projectId}', [MaterialUsageController::class, 'employeeDetail'])->name('material_usage.detail');
     Route::post('/material-usage/{projectId}', [MaterialUsageController::class, 'employeeStore'])->name('material_usage.store');
     Route::get('/salary', [EmployeeController::class, 'salary'])->name('salary');

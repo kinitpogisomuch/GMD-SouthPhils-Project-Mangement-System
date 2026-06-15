@@ -6,11 +6,20 @@ use App\Models\Client;
 use App\Models\Employee;
 use App\Models\Message;
 use App\Models\User;
+use App\Services\NotificationService;
+use App\Services\SupabaseStorageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class MessageController extends Controller
 {
+    protected SupabaseStorageService $storage;
+
+    public function __construct(SupabaseStorageService $storage)
+    {
+        $this->storage = $storage;
+    }
+
     private function currentActor(): array
     {
         return ['type' => session('role'), 'id' => (int) session('user_id')];
@@ -22,6 +31,8 @@ class MessageController extends Controller
         $me = $this->currentActor();
 
         $contacts = $this->contactsFor($me['type'], $me['id']);
+        $myName   = session('name', 'Me');
+        $myPhoto  = session('profile_photo');
 
         $view = match ($me['type']) {
             'employee' => 'employee.messages',
@@ -29,7 +40,7 @@ class MessageController extends Controller
             default    => 'admin.messages',
         };
 
-        return view($view, compact('contacts'));
+        return view($view, compact('contacts', 'myName', 'myPhoto'));
     }
 
     /** GET /{portal}/messages/thread/{type}/{id} */
@@ -66,16 +77,54 @@ class MessageController extends Controller
         $validated = $request->validate([
             'recipient_type' => 'required|in:admin,employee,client',
             'recipient_id'   => 'required|integer',
-            'body'           => 'required|string|max:2000',
+            'body'           => 'nullable|string|max:2000',
+            'attachments'    => 'array|max:5',
+            'attachments.*'  => 'file|max:10240|mimes:jpg,jpeg,png,gif,webp,pdf,doc,docx,xls,xlsx,txt',
         ]);
+
+        if (empty($validated['body']) && !$request->hasFile('attachments')) {
+            return response()->json(['message' => 'A message or attachment is required.'], 422);
+        }
+
+        $attachments = [];
+        if ($request->hasFile('attachments')) {
+            foreach ($request->file('attachments') as $file) {
+                $url = $this->storage->upload($file, 'messages');
+                if ($url) {
+                    $attachments[] = [
+                        'url'  => $url,
+                        'name' => $file->getClientOriginalName(),
+                        'mime' => $file->getMimeType(),
+                    ];
+                }
+            }
+        }
 
         $message = Message::create([
             'sender_id'      => $me['id'],
             'sender_type'    => $me['type'],
             'recipient_id'   => $validated['recipient_id'],
             'recipient_type' => $validated['recipient_type'],
-            'body'           => $validated['body'],
+            'body'           => $validated['body'] ?? '',
+            'attachments'    => $attachments,
         ]);
+
+        $senderName = session('name', 'Someone');
+        $body       = $validated['body'] ?? '';
+        $preview    = $body !== '' ? $body : ($attachments ? 'Sent an attachment' : '');
+        $actionUrl  = match ($validated['recipient_type']) {
+            'admin'    => '/admin/messages',
+            'employee' => '/employee/messages',
+            'client'   => '/client/messages',
+        };
+
+        NotificationService::newMessage(
+            $validated['recipient_type'],
+            $validated['recipient_id'],
+            $senderName,
+            $preview,
+            $actionUrl
+        );
 
         return response()->json(['message' => $this->format($message, $me)]);
     }
@@ -119,7 +168,9 @@ class MessageController extends Controller
                 ->orderByDesc('created_at')
                 ->first();
 
-            $c['last_message'] = $last?->body;
+            $c['last_message'] = $last
+                ? ($last->body !== '' ? $last->body : ($last->attachments ? 'Sent an attachment' : ''))
+                : null;
             $c['last_time']    = $last ? $this->formatTimestamp($last->created_at) : null;
             $c['last_at']      = $last?->created_at?->timestamp ?? 0;
             $c['unread']       = Message::where('sender_type', $c['type'])
@@ -145,6 +196,7 @@ class MessageController extends Controller
                 'id'   => $u->id,
                 'name' => $u->full_name ?: 'Admin',
                 'role' => 'Admin',
+                'profile_photo' => $u->profile_photo,
             ]);
     }
 
@@ -158,6 +210,7 @@ class MessageController extends Controller
                 'id'   => $e->id,
                 'name' => $e->name,
                 'role' => $e->role ?? 'Employee',
+                'profile_photo' => $e->profile_photo,
             ]);
     }
 
@@ -170,15 +223,25 @@ class MessageController extends Controller
                 'id'   => $c->id,
                 'name' => $c->full_name,
                 'role' => 'Client',
+                'profile_photo' => $c->profile_photo,
             ]);
     }
 
     private function contactInfo(string $type, int $id): ?array
     {
         return match ($type) {
-            'admin'    => ($u = User::find($id)) ? ['type' => 'admin', 'id' => $u->id, 'name' => $u->full_name ?: 'Admin', 'role' => 'Admin'] : null,
-            'employee' => ($e = Employee::find($id)) ? ['type' => 'employee', 'id' => $e->id, 'name' => $e->name, 'role' => $e->role ?? 'Employee'] : null,
-            'client'   => ($c = Client::find($id)) ? ['type' => 'client', 'id' => $c->id, 'name' => $c->full_name, 'role' => 'Client'] : null,
+            'admin'    => ($u = User::find($id)) ? [
+                'type' => 'admin', 'id' => $u->id, 'name' => $u->full_name ?: 'Admin', 'role' => 'Admin',
+                'email' => $u->email, 'contact' => $u->phone, 'address' => $u->address, 'profile_photo' => $u->profile_photo,
+            ] : null,
+            'employee' => ($e = Employee::find($id)) ? [
+                'type' => 'employee', 'id' => $e->id, 'name' => $e->name, 'role' => $e->role ?? 'Employee',
+                'email' => $e->email, 'contact' => $e->contact, 'address' => $e->address, 'profile_photo' => $e->profile_photo,
+            ] : null,
+            'client'   => ($c = Client::find($id)) ? [
+                'type' => 'client', 'id' => $c->id, 'name' => $c->full_name, 'role' => 'Client',
+                'email' => $c->email, 'contact' => $c->contact, 'address' => $c->address, 'profile_photo' => $c->profile_photo,
+            ] : null,
             default    => null,
         };
     }
@@ -186,12 +249,13 @@ class MessageController extends Controller
     private function format(Message $m, array $me): array
     {
         return [
-            'id'         => $m->id,
-            'body'       => $m->body,
-            'is_mine'    => $m->sender_type === $me['type'] && (int) $m->sender_id === $me['id'],
-            'time'       => $m->created_at->format('g:i A'),
-            'date_label' => $m->created_at->format('M j, Y'),
-            'created_at' => $m->created_at->toIso8601String(),
+            'id'          => $m->id,
+            'body'        => $m->body,
+            'attachments' => $m->attachments ?? [],
+            'is_mine'     => $m->sender_type === $me['type'] && (int) $m->sender_id === $me['id'],
+            'time'        => $m->created_at->format('g:i A'),
+            'date_label'  => $m->created_at->format('M j, Y'),
+            'created_at'  => $m->created_at->toIso8601String(),
         ];
     }
 

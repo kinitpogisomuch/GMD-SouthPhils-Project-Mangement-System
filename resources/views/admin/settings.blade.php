@@ -44,6 +44,10 @@
                     <i data-lucide="users"></i>
                     Manage Users
                 </button>
+                <button class="emp-tab" data-tab="landing">
+                    <i data-lucide="image"></i>
+                    Landing Page
+                </button>
             </div>
 
             <!-- ===== TAB: PROFILE ===== -->
@@ -296,7 +300,282 @@
                 </div>
             </div>
 
+            <!-- ===== TAB: LANDING PAGE ===== -->
+            <div class="emp-tab-content" id="tab-landing">
+                <div class="table-card">
+                    <div class="table-toolbar">
+                        <span style="font-weight:700;font-size:15px;">"Our Work" Portfolio Items</span>
+                        <button class="add-btn" type="button" id="openAddPortfolioModal">
+                            <i data-lucide="plus"></i>
+                            Add Portfolio Item
+                        </button>
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Preview</th>
+                                    <th>Spec</th>
+                                    <th>Tag</th>
+                                    <th>Title</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($portfolioItems as $item)
+                                @php
+                                    $itemSrc = $item->image_url && !str_starts_with($item->image_url, 'http')
+                                        ? asset($item->image_url)
+                                        : $item->image_url;
+                                @endphp
+                                <tr>
+                                    <td>
+                                        @if($itemSrc)
+                                            <img src="{{ $itemSrc }}" alt="" style="width:60px;height:40px;object-fit:cover;border-radius:8px;">
+                                        @else
+                                            <div style="width:60px;height:40px;border-radius:8px;background:var(--cream-soft);display:flex;align-items:center;justify-content:center;">
+                                                <i data-lucide="{{ $item->icon ?: 'image' }}" style="width:18px;height:18px;"></i>
+                                            </div>
+                                        @endif
+                                    </td>
+                                    <td>{{ $item->spec }}</td>
+                                    <td>{{ $item->tag }}</td>
+                                    <td><strong>{{ $item->title }}</strong></td>
+                                    <td>
+                                        <span class="status-badge {{ $item->status === 'active' ? 'active' : 'archived' }}">
+                                            {{ $item->status === 'active' ? 'Visible' : 'Hidden' }}
+                                        </span>
+                                    </td>
+                                    <td class="action-cell">
+                                        <button class="action-btn view edit-portfolio-btn" type="button"
+                                                data-id="{{ $item->id }}"
+                                                data-image="{{ $itemSrc }}"
+                                                data-icon="{{ $item->icon }}"
+                                                data-spec="{{ $item->spec }}"
+                                                data-tag="{{ $item->tag }}"
+                                                data-title="{{ $item->title }}"
+                                                data-description="{{ $item->description }}"
+                                                data-sort-order="{{ $item->sort_order }}"
+                                                title="Edit">
+                                            <i data-lucide="pencil"></i>
+                                        </button>
+                                        <form method="POST" action="{{ route('admin.portfolio.archive', $item->id) }}" style="display:inline;"
+                                              onsubmit="return confirm('{{ $item->status === 'archived' ? 'Show this item on the landing page again?' : 'Hide this item from the landing page?' }}');">
+                                            @csrf
+                                            @method('PATCH')
+                                            <button class="action-btn view" type="submit" title="{{ $item->status === 'archived' ? 'Show on landing page' : 'Hide from landing page' }}">
+                                                <i data-lucide="{{ $item->status === 'archived' ? 'eye' : 'eye-off' }}"></i>
+                                            </button>
+                                        </form>
+                                        <form method="POST" action="{{ route('admin.portfolio.destroy', $item->id) }}" style="display:inline;"
+                                              onsubmit="return confirm('Permanently delete this portfolio item?');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button class="action-btn view" type="submit" title="Delete">
+                                                <i data-lucide="trash-2"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                @empty
+                                <tr>
+                                    <td colspan="6" style="text-align:center;padding:40px;color:var(--muted);">
+                                        No portfolio items yet. Click "Add Portfolio Item" to create one.
+                                    </td>
+                                </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="table-card" style="margin-top:24px;">
+                    <div class="table-toolbar">
+                        <span style="font-weight:700;font-size:15px;">Client Reviews</span>
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Project</th>
+                                    <th>Client</th>
+                                    <th>Rating</th>
+                                    <th>Review</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($reviews as $review)
+                                <tr>
+                                    <td><strong>{{ $review->project->name ?? 'N/A' }}</strong></td>
+                                    <td>{{ $review->client_name }}</td>
+                                    <td>
+                                        <div style="display:flex;gap:2px;">
+                                            @for($i=1;$i<=5;$i++)
+                                                <i data-lucide="star" style="width:13px;height:13px;color:{{ $i <= $review->rating ? 'var(--accent)' : 'var(--border)' }};{{ $i <= $review->rating ? 'fill:var(--accent);' : '' }}"></i>
+                                            @endfor
+                                        </div>
+                                    </td>
+                                    <td style="max-width:320px;">{{ \Illuminate\Support\Str::limit($review->comment, 80) }}</td>
+                                    <td>
+                                        <span class="status-badge {{ $review->status === 'active' ? 'active' : 'archived' }}">
+                                            {{ $review->status === 'active' ? 'Visible' : 'Hidden' }}
+                                        </span>
+                                    </td>
+                                    <td class="action-cell">
+                                        <form method="POST" action="{{ route('admin.reviews.archive', $review->id) }}" style="display:inline;"
+                                              onsubmit="return confirm('{{ $review->status === 'archived' ? 'Show this review on the landing page again?' : 'Hide this review from the landing page?' }}');">
+                                            @csrf
+                                            @method('PATCH')
+                                            <button class="action-btn view" type="submit" title="{{ $review->status === 'archived' ? 'Show on landing page' : 'Hide from landing page' }}">
+                                                <i data-lucide="{{ $review->status === 'archived' ? 'eye' : 'eye-off' }}"></i>
+                                            </button>
+                                        </form>
+                                        <form method="POST" action="{{ route('admin.reviews.destroy', $review->id) }}" style="display:inline;"
+                                              onsubmit="return confirm('Permanently delete this review?');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button class="action-btn view" type="submit" title="Delete">
+                                                <i data-lucide="trash-2"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                @empty
+                                <tr>
+                                    <td colspan="6" style="text-align:center;padding:40px;color:var(--muted);">
+                                        No client reviews yet.
+                                    </td>
+                                </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
         </main>
+    </div>
+
+    <!-- ===== ADD PORTFOLIO ITEM MODAL ===== -->
+    <div class="modal-overlay" id="addPortfolioModal">
+        <div class="modal-card" style="max-width:560px;">
+            <div class="modal-header">
+                <div>
+                    <h2>Add Portfolio Item</h2>
+                    <p>Add a new project card to the "Our Work" section of the landing page.</p>
+                </div>
+                <button class="modal-close" type="button" id="closeAddPortfolioModal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <form method="POST" action="{{ route('admin.portfolio.store') }}" enctype="multipart/form-data">
+                @csrf
+                <div class="form-grid">
+                    <div class="form-group form-group-full">
+                        <label>Image <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
+                        <input type="file" name="image" accept="image/*">
+                    </div>
+                    <div class="form-group form-group-full">
+                        <label>Icon <span style="font-weight:400;color:var(--muted);">(used when no image is set, e.g. flame, droplets, container — see lucide.dev)</span></label>
+                        <input type="text" name="icon" placeholder="e.g. flame">
+                    </div>
+                    <div class="form-group">
+                        <label>Spec / Badge <span style="color:var(--danger);">*</span></label>
+                        <input type="text" name="spec" required placeholder="e.g. 10,000 L">
+                    </div>
+                    <div class="form-group">
+                        <label>Category Tag <span style="color:var(--danger);">*</span></label>
+                        <input type="text" name="tag" required placeholder="e.g. Fuel Storage">
+                    </div>
+                    <div class="form-group form-group-full">
+                        <label>Title <span style="color:var(--danger);">*</span></label>
+                        <input type="text" name="title" required placeholder="e.g. Diesel Storage Tank — Distribution Depot">
+                    </div>
+                    <div class="form-group form-group-full">
+                        <label>Description <span style="color:var(--danger);">*</span></label>
+                        <textarea name="description" rows="3" required placeholder="Short description of the project"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Display Order <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
+                        <input type="number" name="sort_order" min="0" step="1" onwheel="this.blur()" placeholder="0">
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="cancel-btn" id="cancelAddPortfolio">Cancel</button>
+                    <button type="submit" class="save-btn">
+                        <i data-lucide="check-circle" style="width:15px;height:15px;"></i>
+                        Add Item
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ===== EDIT PORTFOLIO ITEM MODAL ===== -->
+    <div class="modal-overlay" id="editPortfolioModal">
+        <div class="modal-card" style="max-width:560px;">
+            <div class="modal-header">
+                <div>
+                    <h2>Edit Portfolio Item</h2>
+                    <p>Update this project card on the landing page.</p>
+                </div>
+                <button class="modal-close" type="button" id="closeEditPortfolioModal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <form method="POST" id="editPortfolioForm" enctype="multipart/form-data">
+                @csrf
+                @method('PUT')
+                <div class="form-grid">
+                    <div class="form-group form-group-full" id="editPortfolioImagePreviewWrap" style="display:none;">
+                        <label>Current Image</label>
+                        <img id="editPortfolioImagePreview" src="" alt="" style="max-width:100%;max-height:140px;border-radius:10px;object-fit:cover;">
+                        <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-weight:400;">
+                            <input type="checkbox" name="remove_image" id="editPortfolioRemoveImage" value="1" style="width:auto;">
+                            Remove current image
+                        </label>
+                    </div>
+                    <div class="form-group form-group-full">
+                        <label>Replace Image <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
+                        <input type="file" name="image" accept="image/*">
+                    </div>
+                    <div class="form-group form-group-full">
+                        <label>Icon <span style="font-weight:400;color:var(--muted);">(used when no image is set, e.g. flame, droplets, container — see lucide.dev)</span></label>
+                        <input type="text" name="icon" id="editPortfolioIcon" placeholder="e.g. flame">
+                    </div>
+                    <div class="form-group">
+                        <label>Spec / Badge <span style="color:var(--danger);">*</span></label>
+                        <input type="text" name="spec" id="editPortfolioSpec" required placeholder="e.g. 10,000 L">
+                    </div>
+                    <div class="form-group">
+                        <label>Category Tag <span style="color:var(--danger);">*</span></label>
+                        <input type="text" name="tag" id="editPortfolioTag" required placeholder="e.g. Fuel Storage">
+                    </div>
+                    <div class="form-group form-group-full">
+                        <label>Title <span style="color:var(--danger);">*</span></label>
+                        <input type="text" name="title" id="editPortfolioTitle" required>
+                    </div>
+                    <div class="form-group form-group-full">
+                        <label>Description <span style="color:var(--danger);">*</span></label>
+                        <textarea name="description" id="editPortfolioDescription" rows="3" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Display Order <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
+                        <input type="number" name="sort_order" id="editPortfolioSortOrder" min="0" step="1" onwheel="this.blur()">
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="cancel-btn" id="cancelEditPortfolio">Cancel</button>
+                    <button type="submit" class="save-btn">
+                        <i data-lucide="check-circle" style="width:15px;height:15px;"></i>
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <div class="toast" id="successToast">
@@ -355,7 +634,61 @@
             pwInput.addEventListener('input', checkPw);
             if (confInput) confInput.addEventListener('input', checkPw);
         }
+
+        // ---- Add Portfolio Item Modal ----
+        document.getElementById('openAddPortfolioModal')
+            .addEventListener('click', function () { openModal('addPortfolioModal'); });
+        document.getElementById('closeAddPortfolioModal')
+            .addEventListener('click', function () { closeModal('addPortfolioModal'); });
+        document.getElementById('cancelAddPortfolio')
+            .addEventListener('click', function () { closeModal('addPortfolioModal'); });
+
+        // ---- Edit Portfolio Item Modal ----
+        document.querySelectorAll('.edit-portfolio-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                document.getElementById('editPortfolioForm').action = '/admin/portfolio-items/' + this.dataset.id;
+                document.getElementById('editPortfolioIcon').value = this.dataset.icon || '';
+                document.getElementById('editPortfolioSpec').value = this.dataset.spec || '';
+                document.getElementById('editPortfolioTag').value = this.dataset.tag || '';
+                document.getElementById('editPortfolioTitle').value = this.dataset.title || '';
+                document.getElementById('editPortfolioDescription').value = this.dataset.description || '';
+                document.getElementById('editPortfolioSortOrder').value = this.dataset.sortOrder || '';
+                document.getElementById('editPortfolioRemoveImage').checked = false;
+
+                var preview = document.getElementById('editPortfolioImagePreview');
+                var previewWrap = document.getElementById('editPortfolioImagePreviewWrap');
+                if (this.dataset.image) {
+                    preview.src = this.dataset.image;
+                    previewWrap.style.display = '';
+                } else {
+                    preview.src = '';
+                    previewWrap.style.display = 'none';
+                }
+
+                openModal('editPortfolioModal');
+            });
+        });
+        document.getElementById('closeEditPortfolioModal')
+            .addEventListener('click', function () { closeModal('editPortfolioModal'); });
+        document.getElementById('cancelEditPortfolio')
+            .addEventListener('click', function () { closeModal('editPortfolioModal'); });
+
+        // ---- Overlay click to close ----
+        document.querySelectorAll('.modal-overlay').forEach(function (modal) {
+            modal.addEventListener('click', function (e) {
+                if (e.target === this) closeModal(this.id);
+            });
+        });
     });
+
+    function openModal(id) {
+        var m = document.getElementById(id);
+        if (m) { m.classList.add('show'); document.body.style.overflow = 'hidden'; }
+    }
+    function closeModal(id) {
+        var m = document.getElementById(id);
+        if (m) { m.classList.remove('show'); document.body.style.overflow = ''; }
+    }
 
     // --- Profile edit/cancel ---
     var originalValues = {};
@@ -438,6 +771,31 @@
         }
         .pw-req.met  { background: #dcfce7; border-color: #86efac; color: #15803d; }
         .pw-req.fail { background: #fee2e2; border-color: #fca5a5; color: #dc2626; }
+
+        /* Landing Page tables: keep row divider lines flush across all columns
+           (table-cell action columns with flex children can throw off row height/border alignment) */
+        #tab-landing .data-table td,
+        #tab-landing .data-table th {
+            border-bottom: 1px solid var(--border);
+        }
+        #tab-landing .data-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+        #tab-landing .action-cell {
+            display: table-cell;
+            white-space: nowrap;
+            vertical-align: middle;
+        }
+        #tab-landing .action-cell .action-btn,
+        #tab-landing .action-cell form {
+            display: inline-flex;
+            vertical-align: middle;
+            margin-right: 6px;
+        }
+        #tab-landing .action-cell .action-btn:last-child,
+        #tab-landing .action-cell form:last-child {
+            margin-right: 0;
+        }
     </style>
 </body>
 </html>

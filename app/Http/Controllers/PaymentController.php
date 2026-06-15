@@ -7,6 +7,7 @@ use App\Models\Payment;
 use App\Models\PaymentTransaction;
 use App\Models\Project;
 use App\Models\Client;
+use App\Models\FundTransaction;
 
 class PaymentController extends Controller
 {
@@ -131,6 +132,12 @@ class PaymentController extends Controller
         ]);
 
         $payment->recalculate();
+
+        FundTransaction::autoReplenish(
+            $payment->project,
+            (float) $validated['amount_paid'],
+            PaymentTransaction::stageLabel($validated['payment_stage'])
+        );
 
         return redirect()->route('admin.payments.show', $payment->id)
             ->with('success', 'Payment recorded successfully.');

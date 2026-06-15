@@ -26,9 +26,9 @@
 
         <a href="{{ route('admin.material_usage') }}"
            class="{{ request()->routeIs(['admin.material_usage', 'admin.material_usage.detail']) ? 'active' : '' }}"
-           title="Material Usage">
+           title="Materials">
             <div class="sidebar-icon"><i data-lucide="clipboard-list"></i></div>
-            <span>Material Usage</span>
+            <span>Materials</span>
         </a>
 
         <div class="sidebar-section-label">People</div>
@@ -46,7 +46,7 @@
             <span>Clients</span>
         </a>
 
-        <div class="sidebar-section-label">Finance</div>
+        <div class="sidebar-section-label">Financial Management</div>
         <a href="{{ route('admin.payments') }}"
            class="{{ request()->routeIs('admin.payments') ? 'active' : '' }}"
            title="Payments">
@@ -54,11 +54,21 @@
             <span>Payments</span>
         </a>
 
+        <a href="{{ route('admin.revolving_fund') }}"
+           class="{{ request()->routeIs('admin.revolving_fund') ? 'active' : '' }}"
+           title="Revolving Fund">
+            <div class="sidebar-icon"><i data-lucide="refresh-cw"></i></div>
+            <span>Revolving Fund</span>
+        </a>
+
         <div class="sidebar-section-label">Communication</div>
         <a href="{{ route('admin.messages') }}"
            class="{{ request()->routeIs('admin.messages') ? 'active' : '' }}"
            title="Messages">
-            <div class="sidebar-icon"><i data-lucide="message-square"></i></div>
+            <div class="sidebar-icon">
+                <i data-lucide="message-square"></i>
+                <span class="sidebar-badge" id="sidebarMessagesBadge" style="display:none;"></span>
+            </div>
             <span>Messages</span>
         </a>
 

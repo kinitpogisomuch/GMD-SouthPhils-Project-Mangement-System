@@ -63,7 +63,7 @@
                     </div>
                     <div>
                         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px;">Current Phase</div>
-                        <span class="status-badge {{ $project->current_phase === 'delivery' ? 'completed' : 'ongoing' }}">
+                        <span class="status-badge {{ $project->status === 'completed' ? 'completed' : 'ongoing' }}">
                             {{ ucfirst(str_replace('_', ' ', $project->current_phase ?? 'Planning')) }}
                         </span>
                     </div>

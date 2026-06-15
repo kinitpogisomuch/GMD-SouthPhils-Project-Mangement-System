@@ -24,6 +24,7 @@
         </a>
 
         <ul class="nav-links">
+            <li class="nav-pill" id="navPill" aria-hidden="true"></li>
             <li><a href="#about">About</a></li>
             <li><a href="#services">Services</a></li>
             <li><a href="#process">Our Process</a></li>
@@ -344,71 +345,29 @@
             <p class="section-sub reveal">A look at the kind of storage tanks and fabrication work we deliver — built to spec, tested, and ready for the field.</p>
 
             <div class="portfolio-grid">
+                @foreach($portfolioItems as $item)
                 @php
-                $portfolio = [
-                    [
-                        'image' => 'images/portfolio/fuel-tank-1.jpg', 'icon' => 'flame',
-                        'spec'  => '10,000 L',
-                        'tag'   => 'Fuel Storage',
-                        'title' => 'Diesel Storage Tank — Distribution Depot',
-                        'desc'  => 'Cylindrical carbon steel tank with internal baffles, fitted with vents, gauges, and dike containment for a fuel distribution site.',
-                    ],
-                    [
-                        'image' => null, 'icon' => 'droplets',
-                        'spec'  => '5,000 L',
-                        'tag'   => 'Water Storage',
-                        'title' => 'Elevated Water Tank — Municipal Supply',
-                        'desc'  => 'Steel elevated water reservoir with support tower, designed for consistent pressure delivery to a community water system.',
-                    ],
-                    [
-                        'image' => null, 'icon' => 'wheat',
-                        'spec'  => 'Food-grade',
-                        'tag'   => 'Cooking Oil Tank',
-                        'title' => 'Stainless Storage Vessel — Food Plant',
-                        'desc'  => 'Hygiene-compliant stainless interior with polished welds, built for edible oil storage in a food manufacturing facility.',
-                    ],
-                    [
-                        'image' => null, 'icon' => 'flask-conical',
-                        'spec'  => 'Corrosion-resist.',
-                        'tag'   => 'Chemical Storage',
-                        'title' => 'Acid-Resistant Tank — Chemical Plant',
-                        'desc'  => 'Reinforced shell with corrosion-resistant lining and secondary containment, fabricated for industrial chemical storage.',
-                    ],
-                    [
-                        'image' => null, 'icon' => 'flame-kindling',
-                        'spec'  => 'Pressurized',
-                        'tag'   => 'LPG / Gas Vessel',
-                        'title' => 'Pressure Vessel — LPG Storage',
-                        'desc'  => 'ASME-style pressure vessel with full weld inspection and pneumatic pressure testing prior to client handover.',
-                    ],
-                    [
-                        'image' => null, 'icon' => 'container',
-                        'spec'  => 'Custom',
-                        'tag'   => 'Custom Fabrication',
-                        'title' => 'Custom Tank — On-Site Installation',
-                        'desc'  => 'Engineered to a client\'s exact dimensions and capacity, fabricated in our shop and delivered with on-site installation support.',
-                    ],
-                ];
+                    $src = $item->image_url && !str_starts_with($item->image_url, 'http')
+                        ? asset($item->image_url)
+                        : $item->image_url;
                 @endphp
-
-                @foreach($portfolio as $item)
                 <div class="portfolio-card reveal">
                     <div class="portfolio-media"
-                         @if($item['image']) style="background-image:url('{{ asset($item['image']) }}')" @endif>
-                        <span class="portfolio-spec">{{ $item['spec'] }}</span>
-                        @if($item['image'])
-                            <img src="{{ asset($item['image']) }}" alt="{{ $item['title'] }}">
+                         @if($src) style="background-image:url('{{ $src }}')" @endif>
+                        <span class="portfolio-spec">{{ $item->spec }}</span>
+                        @if($src)
+                            <img src="{{ $src }}" alt="{{ $item->title }}">
                         @else
-                            <div class="portfolio-media-icon"><i data-lucide="{{ $item['icon'] }}"></i></div>
+                            <div class="portfolio-media-icon"><i data-lucide="{{ $item->icon }}"></i></div>
                         @endif
                     </div>
                     <div class="portfolio-body">
                         <div class="portfolio-tag">
                             <i data-lucide="tag" style="width:11px;height:11px;"></i>
-                            {{ $item['tag'] }}
+                            {{ $item->tag }}
                         </div>
-                        <div class="portfolio-title">{{ $item['title'] }}</div>
-                        <p class="portfolio-desc">{{ $item['desc'] }}</p>
+                        <div class="portfolio-title">{{ $item->title }}</div>
+                        <p class="portfolio-desc">{{ $item->description }}</p>
                     </div>
                 </div>
                 @endforeach
@@ -469,6 +428,42 @@
                 </div>
 
             </div>
+        </div>
+    </section>
+
+
+    <!-- ============================================================
+         CLIENT REVIEWS
+    ============================================================ -->
+    <section class="reviews-wrap" id="reviews">
+        <div class="reviews-inner">
+            <div class="section-tag reveal">Client Feedback</div>
+            <h2 class="section-title reveal">What Our Clients Say</h2>
+            <p class="section-sub reveal">Real feedback from clients after their completed tank fabrication projects.</p>
+
+            @if($reviews->isNotEmpty())
+            <div class="reviews-grid">
+                @foreach($reviews as $review)
+                <div class="review-card reveal">
+                    <div class="review-stars">
+                        @for($i=1;$i<=5;$i++)
+                            <i data-lucide="star" style="width:16px;height:16px;color:{{ $i <= $review->rating ? 'var(--accent)' : 'var(--border)' }};{{ $i <= $review->rating ? 'fill:var(--accent);' : '' }}"></i>
+                        @endfor
+                    </div>
+                    <p class="review-text">"{{ $review->comment }}"</p>
+                    <div class="review-author">
+                        <div class="review-avatar">{{ strtoupper(substr($review->client_name, 0, 1)) }}</div>
+                        <div>
+                            <div class="review-name">{{ $review->client_name }}</div>
+                            <div class="review-project">{{ $review->project->tank_type ?? $review->project->name }}</div>
+                        </div>
+                    </div>
+                </div>
+                @endforeach
+            </div>
+            @else
+            <p class="section-sub reveal" style="margin-top:40px;">No reviews yet — check back soon!</p>
+            @endif
         </div>
     </section>
 
@@ -692,6 +687,49 @@
             }
         });
 
+        // Highlight the nav link for the section currently in view, with a sliding pill
+        (function () {
+            var navList = document.querySelector('.nav-links');
+            var navLinks = document.querySelectorAll('.nav-links a');
+            var navPill = document.getElementById('navPill');
+            var sections = document.querySelectorAll('section[id]');
+
+            if (!('IntersectionObserver' in window) || !sections.length) return;
+
+            function movePill(link) {
+                var listRect = navList.getBoundingClientRect();
+                var linkRect = link.getBoundingClientRect();
+                navPill.style.left = (linkRect.left - listRect.left) + 'px';
+                navPill.style.width = linkRect.width + 'px';
+                navPill.classList.add('visible');
+            }
+
+            var spyObserver = new IntersectionObserver(function (entries) {
+                entries.forEach(function (entry) {
+                    if (!entry.isIntersecting) return;
+                    var id = entry.target.getAttribute('id');
+                    var activeLink = null;
+                    navLinks.forEach(function (link) {
+                        var isActive = link.getAttribute('href') === '#' + id;
+                        link.classList.toggle('active', isActive);
+                        if (isActive) activeLink = link;
+                    });
+                    if (activeLink) {
+                        movePill(activeLink);
+                    } else {
+                        navPill.classList.remove('visible');
+                    }
+                });
+            }, { rootMargin: '-40% 0px -55% 0px' });
+
+            sections.forEach(function (section) { spyObserver.observe(section); });
+
+            window.addEventListener('resize', function () {
+                var current = document.querySelector('.nav-links a.active');
+                if (current) movePill(current);
+            });
+        })();
+
         // Smooth scroll for anchor links
         document.querySelectorAll('a[href^="#"]').forEach(function (anchor) {
             anchor.addEventListener('click', function (e) {
@@ -706,7 +744,7 @@
         // Scroll reveal animations
         (function () {
             var revealEls = document.querySelectorAll('.reveal, .reveal-left, .reveal-right, .reveal-scale');
-            var staggerGroups = ['services-grid', 'tanks-grid', 'process-grid', 'portfolio-grid', 'why-grid', 'stats-bar', 'about-highlights'];
+            var staggerGroups = ['services-grid', 'tanks-grid', 'process-grid', 'portfolio-grid', 'why-grid', 'reviews-grid', 'stats-bar', 'about-highlights'];
 
             revealEls.forEach(function (el) {
                 var parent = el.parentElement;

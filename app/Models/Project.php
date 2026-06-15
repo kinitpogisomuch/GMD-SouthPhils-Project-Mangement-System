@@ -144,6 +144,12 @@ class Project extends Model
         return $this->hasMany(Payment::class);
     }
 
+    // Relationship: Project has one client review
+    public function review()
+    {
+        return $this->hasOne(Review::class);
+    }
+
     // Relationship: Get the user who last updated the phase
     public function lastPhaseUpdatedBy()
     {

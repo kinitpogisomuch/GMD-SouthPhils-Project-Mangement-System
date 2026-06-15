@@ -485,6 +485,7 @@
 
     <script>
         const PROJECT_CURRENT_PHASE = "{{ $project->current_phase }}";
+        const PROJECT_STATUS = "{{ $project->status }}";
     </script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>
@@ -500,12 +501,12 @@
             { key: "delivery",    icon: "truck",         shortLabel: "Delivery"    }
         ];
 
-        function getPhaseStatuses(currentPhase) {
+        function getPhaseStatuses(currentPhase, isCompleted) {
             const statuses = [];
             let foundActive = false;
             PHASES.forEach(function(phase) {
                 if (foundActive)                     statuses.push("pending");
-                else if (phase.key === currentPhase) { statuses.push("active"); foundActive = true; }
+                else if (phase.key === currentPhase) { statuses.push(isCompleted ? "done" : "active"); foundActive = true; }
                 else                                 statuses.push("done");
             });
             return statuses;
@@ -532,7 +533,7 @@
             if (typeof lucide !== "undefined") lucide.createIcons();
         }
 
-        buildPhaseSteps(getPhaseStatuses(PROJECT_CURRENT_PHASE));
+        buildPhaseSteps(getPhaseStatuses(PROJECT_CURRENT_PHASE, PROJECT_STATUS === 'completed'));
 
         /* ── Read more / less toggle ─────────────────────────────────────── */
         function toggleWorkText(btn) {

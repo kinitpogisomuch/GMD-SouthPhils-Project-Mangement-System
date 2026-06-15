@@ -120,7 +120,10 @@ class AdminController extends Controller
 
         $users = $employees->merge($clients)->sortBy('created_at')->values();
 
-        return view('admin.settings', compact('adminData', 'users'));
+        $portfolioItems = \App\Models\PortfolioItem::orderBy('sort_order')->get();
+        $reviews = \App\Models\Review::with('project')->orderBy('created_at', 'desc')->get();
+
+        return view('admin.settings', compact('adminData', 'users', 'portfolioItems', 'reviews'));
     }
 
     public function clients()

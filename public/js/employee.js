@@ -338,7 +338,10 @@ function showLogSuccess(message) {
     var adjustedDays = empAdjustDays(PROJECT_DURATION);
     EMP_PHASES.forEach(function(p, i) { p.days = adjustedDays[i]; });
 
-    var statuses    = empGetStatuses(PROJECT_PROGRESS);
+    var statuses = empGetStatuses(PROJECT_PROGRESS);
+    if (PROJECT_STATUS === 'completed') {
+        statuses = statuses.map(function() { return 'done'; });
+    }
     var activeIndex = empGetActiveIndex(statuses);
 
     updateEmpBadge(PROJECT_PROGRESS);

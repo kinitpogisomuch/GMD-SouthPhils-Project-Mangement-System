@@ -9,15 +9,16 @@
 </head>
 <body>
 
-    <div class="login-page">
-        @php
-        $loginBgPath = public_path('images/login.jpg');
-        $hasLoginBg = file_exists($loginBgPath);
-        @endphp
-        <div class="login-left @if($hasLoginBg) has-bg-photo @endif"
-             @if($hasLoginBg) style="--login-bg-photo: url('{{ asset('images/login.jpg') }}')" @endif>
-            <div class="login-left-glow"></div>
+    @php
+    $loginBgPath = public_path('images/login.jpg');
+    $hasLoginBg = file_exists($loginBgPath);
+    @endphp
+    <div class="login-page @if($hasLoginBg) has-bg-photo @endif"
+         @if($hasLoginBg) style="--login-bg-photo: url('{{ asset('images/login.jpg') }}')" @endif>
 
+        <div class="login-left-glow"></div>
+
+        <div class="login-left">
             <div class="brand-box">
                 <div class="brand-badge">
                     <i data-lucide="shield-check"></i>
@@ -26,8 +27,6 @@
                 <h1>GMD South Phils Metal Fabrication Works</h1>
                 <p>From planning to delivery, manage every phase of your storage tank fabrication projects — built strong, tracked with precision.</p>
             </div>
-
-            <div class="login-left-hazard"></div>
         </div>
 
         <div class="login-right">
@@ -50,8 +49,8 @@
                         <label>Email / Username</label>
                         <div class="input-wrapper">
                             <i data-lucide="user"></i>
-                            <input type="text" name="email" required placeholder="Enter your username"
-                                   value="{{ old('email') }}">
+                            <input type="text" name="email" required placeholder="Enter your email or username"
+                                   value="{{ old('email') }}" autofocus>
                         </div>
                     </div>
 
@@ -60,15 +59,12 @@
                         <div class="input-wrapper">
                             <i data-lucide="lock"></i>
                             <input type="password" name="password" id="loginPassword" required placeholder="Enter your password">
-                            <button type="button" id="toggleLoginPw"
-                                style="background:none;border:none;cursor:pointer;padding:0;display:flex;align-items:center;color:var(--muted);flex-shrink:0;">
-                                <i data-lucide="eye" style="width:18px;height:18px;"></i>
+                            <button type="button" id="toggleLoginPw" class="pw-toggle-btn" aria-label="Show password">
+                                <i data-lucide="eye"></i>
                             </button>
                         </div>
-                        <div style="text-align:right;margin-top:6px;">
-                            <a href="{{ route('password.request') }}"
-                               style="font-size:12.5px;font-weight:600;color:var(--muted);text-decoration:none;"
-                               onmouseover="this.style.color='var(--dark)'" onmouseout="this.style.color='var(--muted)'">
+                        <div class="form-extra">
+                            <a href="{{ route('password.request') }}" class="forgot-link">
                                 Forgot Password?
                             </a>
                         </div>
@@ -79,8 +75,14 @@
                     </button>
                 </form>
 
+                <div class="login-footer">
+                    <i data-lucide="shield-check"></i>
+                    <span>Secured access · GMD South Phils Metal Fabrication Works</span>
+                </div>
             </div>
         </div>
+
+        <div class="login-left-hazard"></div>
     </div>
 
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -91,7 +93,8 @@
             var input = document.getElementById('loginPassword');
             var isHidden = input.type === 'password';
             input.type = isHidden ? 'text' : 'password';
-            this.innerHTML = '<i data-lucide="' + (isHidden ? 'eye-off' : 'eye') + '" style="width:18px;height:18px;"></i>';
+            this.innerHTML = '<i data-lucide="' + (isHidden ? 'eye-off' : 'eye') + '"></i>';
+            this.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
             if (typeof lucide !== 'undefined') lucide.createIcons();
         });
 

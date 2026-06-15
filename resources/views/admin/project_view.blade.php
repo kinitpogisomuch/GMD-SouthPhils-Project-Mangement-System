@@ -667,6 +667,57 @@
                 </div>
             </div>
 
+            <!-- Revolving Fund Summary -->
+            <div class="pv-card" style="margin-top:20px;">
+                <h3 class="pv-card-title">Revolving Fund Summary</h3>
+                <div class="project-detail-grid" style="margin-bottom:16px;">
+                    <div class="project-detail-box"><span>Total Released</span><strong>₱{{ number_format($fundReleased, 2) }}</strong></div>
+                    <div class="project-detail-box"><span>Total Replenished</span><strong>₱{{ number_format($fundReplenished, 2) }}</strong></div>
+                    <div class="project-detail-box"><span>Outstanding Balance</span><strong>₱{{ number_format($fundOutstanding, 2) }}</strong></div>
+                </div>
+
+                @if($fundHistory->isEmpty())
+                <p style="color:var(--muted);font-size:13.5px;">No revolving fund activity for this project yet.</p>
+                @else
+                <div class="table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Type</th>
+                                <th>Amount</th>
+                                <th>Purpose</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($fundHistory as $tx)
+                            <tr>
+                                <td>{{ \Carbon\Carbon::parse($tx->date)->format('M d, Y') }}</td>
+                                <td>
+                                    <span class="status-badge {{ $tx->type === 'release' ? 'shortage' : 'completed' }}">
+                                        {{ $tx->type === 'release' ? 'Release' : 'Replenishment' }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <strong style="color:{{ $tx->type === 'release' ? 'var(--danger)' : 'var(--success)' }};">
+                                        {{ $tx->type === 'release' ? '-' : '+' }}₱{{ number_format($tx->amount, 2) }}
+                                    </strong>
+                                </td>
+                                <td>{{ $tx->purpose ?? $tx->description ?? '—' }}</td>
+                                <td>
+                                    <span class="status-badge {{ $tx->status === 'Completed' ? 'completed' : 'pending' }}">
+                                        {{ $tx->status ?? '—' }}
+                                    </span>
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                @endif
+            </div>
+
         </main>
     </div>
 
