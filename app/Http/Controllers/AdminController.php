@@ -36,9 +36,9 @@ class AdminController extends Controller
         $fullyPaidPayments      = $allPayments->filter(fn($p) => $p->computeStatus() === 'Fully Paid')->count();
         $pendingPayments        = $allPayments->filter(fn($p) => $p->computeStatus() === 'Pending Down Payment')->count();
 
-        // Monthly revenue for the last 6 months
+        // Monthly revenue for the last 12 months (used by all chart filters)
         $monthlyRevenue = [];
-        for ($i = 5; $i >= 0; $i--) {
+        for ($i = 11; $i >= 0; $i--) {
             $month = now()->subMonths($i);
             $monthlyRevenue[] = [
                 'label'  => $month->format('M Y'),
@@ -46,6 +46,37 @@ class AdminController extends Controller
                     ->whereMonth('payment_date', $month->month)
                     ->sum('amount_paid'),
             ];
+        }
+
+        // Revenue for the current calendar year (Jan–Dec)
+        $yearlyRevenue = [];
+        for ($m = 1; $m <= 12; $m++) {
+            $yearlyRevenue[] = [
+                'label'  => \Carbon\Carbon::create(now()->year, $m)->format('M Y'),
+                'amount' => (float) PaymentTransaction::whereYear('payment_date', now()->year)
+                    ->whereMonth('payment_date', $m)
+                    ->sum('amount_paid'),
+            ];
+        }
+
+        // Weekly breakdown for the current month
+        $weeklyRevenue   = [];
+        $weekStart       = now()->startOfMonth()->copy();
+        $monthEnd        = now()->endOfMonth()->copy();
+        $weekNum         = 1;
+        while ($weekStart->lte(now())) {
+            $weekEnd = $weekStart->copy()->addDays(6)->min($monthEnd)->min(now());
+            $weeklyRevenue[] = [
+                'label'  => 'Wk ' . $weekNum
+                            . ' (' . $weekStart->format('M j')
+                            . '–' . $weekEnd->format('j') . ')',
+                'amount' => (float) PaymentTransaction::whereBetween(
+                    'payment_date',
+                    [$weekStart->toDateString(), $weekEnd->toDateString()]
+                )->sum('amount_paid'),
+            ];
+            $weekStart = $weekEnd->copy()->addDay();
+            $weekNum++;
         }
 
         // Top client by project count + contract value
@@ -77,6 +108,21 @@ class AdminController extends Controller
             ->unread()
             ->count();
 
+        // Project status donut chart data
+        $overdueCount  = Project::whereNotIn('status', ['completed', 'archived'])
+            ->whereNotNull('end_date')
+            ->where('end_date', '<', now()->toDateString())
+            ->where('progress', '<', 100)
+            ->count();
+        $planningCount = Project::where('current_phase', 'planning')
+            ->whereNotIn('status', ['archived', 'completed'])
+            ->count();
+        $projectStatusChart = [
+            ['label' => 'Completed', 'count' => $completedProjects, 'color' => '#16a34a'],
+            ['label' => 'Planning',  'count' => $planningCount,     'color' => '#f59e0b'],
+            ['label' => 'Overdue',   'count' => $overdueCount,      'color' => '#ef4444'],
+        ];
+
         return view('admin.dashboard', compact(
             'totalProjects',
             'activeProjects',
@@ -95,7 +141,10 @@ class AdminController extends Controller
             'pendingPayments',
             'unreadMessages',
             'topClient',
-            'monthlyRevenue'
+            'monthlyRevenue',
+            'yearlyRevenue',
+            'weeklyRevenue',
+            'projectStatusChart'
         ));
     }
 
@@ -210,5 +259,40 @@ class AdminController extends Controller
         });
 
         return view('admin.clients', compact('clients'));
+    }
+
+    public function weeklyRevenue(Request $request)
+    {
+        $year  = (int) $request->query('year',  now()->year);
+        $month = (int) $request->query('month', now()->month);
+
+        $start = \Carbon\Carbon::create($year, $month, 1)->startOfMonth();
+        $end   = $start->copy()->endOfMonth();
+        $today = now();
+
+        $weeks     = [];
+        $weekStart = $start->copy();
+        $weekNum   = 1;
+
+        while ($weekStart->lte($end) && $weekStart->lte($today)) {
+            $weekEnd   = $weekStart->copy()->addDays(6)->min($end)->min($today);
+            $weeks[]   = [
+                'label'  => 'Wk ' . $weekNum
+                            . ' (' . $weekStart->format('M j')
+                            . '–' . $weekEnd->format('j') . ')',
+                'amount' => (float) PaymentTransaction::whereBetween('payment_date', [
+                    $weekStart->toDateString(),
+                    $weekEnd->toDateString(),
+                ])->sum('amount_paid'),
+            ];
+            $weekStart = $weekEnd->copy()->addDay();
+            $weekNum++;
+        }
+
+        return response()->json([
+            'month'   => $start->format('F Y'),
+            'labels'  => array_column($weeks, 'label'),
+            'amounts' => array_column($weeks, 'amount'),
+        ]);
     }
 }

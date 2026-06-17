@@ -105,6 +105,7 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::get('/projects', [AdminController::class, 'projects'])->name('projects');
     Route::get('/settings', [AdminController::class, 'settings'])->name('settings');
     Route::get('/clients', [AdminController::class, 'clients'])->name('clients');
+    Route::get('/revenue/weekly', [AdminController::class, 'weeklyRevenue'])->name('revenue.weekly');
 
     // Project View & Workflow
     Route::get('/project-view/{id}', [ProjectController::class, 'adminView'])->name('project_view');

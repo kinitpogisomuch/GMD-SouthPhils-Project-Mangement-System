@@ -42,10 +42,7 @@
                 </div>
             </div>
 
-            <!-- ── KPI + Three-panel side by side ── -->
-            <div style="display:grid;grid-template-columns:260px 1fr;gap:20px;margin-bottom:20px;align-items:start;">
-
-            <!-- Left: KPI stack -->
+            <!-- ── KPI strip ── -->
             <div class="db-kpi-row">
 
                 <a href="{{ route('admin.projects') }}" class="db-kpi-card" style="text-decoration:none;">
@@ -106,69 +103,20 @@
                     </div>
                 </a>
 
-                <!-- ── System Stats card ── -->
-                @php $estimatedProfit = max(0, $totalContractValue - $totalMaterialCost); @endphp
-                <div class="db-kpi-card" style="flex-direction:column;align-items:stretch;gap:0;padding:18px;cursor:default;transform:none !important;box-shadow:none !important;">
-                    <div style="font-size:10px;font-weight:700;color:var(--muted-light);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;display:flex;align-items:center;gap:5px;">
-                        <i data-lucide="bar-chart-2" style="width:12px;height:12px;"></i>
-                        System Stats
-                    </div>
-                    <div style="display:flex;flex-direction:column;gap:10px;">
-                        <div style="display:flex;justify-content:space-between;align-items:center;">
-                            <span style="font-size:11px;color:var(--muted);">Contract Value</span>
-                            <span style="font-size:12px;font-weight:700;color:var(--dark);">₱{{ number_format($totalContractValue, 0) }}</span>
-                        </div>
-                        <div style="height:1px;background:var(--border);"></div>
-                        <div style="display:flex;justify-content:space-between;align-items:center;">
-                            <span style="font-size:11px;color:var(--muted);">Est. Profit</span>
-                            <span style="font-size:12px;font-weight:700;color:#16a34a;">₱{{ number_format($estimatedProfit, 0) }}</span>
-                        </div>
-                        <div style="height:1px;background:var(--border);"></div>
-                        <div style="display:flex;justify-content:space-between;align-items:center;">
-                            <span style="font-size:11px;color:var(--muted);">Material Cost</span>
-                            <span style="font-size:12px;font-weight:700;color:var(--dark);">₱{{ number_format($totalMaterialCost, 0) }}</span>
-                        </div>
-                        <div style="height:1px;background:var(--border);"></div>
-                        <div style="display:flex;justify-content:space-between;align-items:center;">
-                            <span style="font-size:11px;color:var(--muted);">Total Received</span>
-                            <span style="font-size:12px;font-weight:700;color:#16a34a;">₱{{ number_format($totalReceived, 0) }}</span>
-                        </div>
-                    </div>
-                </div>
+            </div>
 
-            </div><!-- end db-kpi-row -->
-
-            <!-- Right: Three-panel column -->
-            <div>
-
-            <!-- ── Three-card horizontal row moved here ── -->
-            <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;margin-bottom:20px;">
-
-            <div class="db-chart-card" style="margin-bottom:0;">
+            <!-- ── Revenue chart ── -->
+            <div class="db-chart-card">
                 <div class="db-chart-head">
                     <div>
-                        <div style="display:flex;align-items:center;gap:8px;">
-                            <div class="db-section-title">Revenue Trend</div>
-                            <button id="chartBackBtn" style="display:none;font-size:11px;font-weight:600;color:var(--muted);background:none;border:1px solid var(--border);border-radius:6px;padding:2px 8px;cursor:pointer;">← Back</button>
-                        </div>
-                        <div id="chartSubtitle" style="font-size:12px;color:var(--muted-light);font-weight:500;margin-top:2px;">Monthly payments received — last 6 months</div>
-                        <div id="chartDrillHint" style="font-size:11px;color:var(--muted-light);margin-top:2px;">Click a bar to see weekly breakdown</div>
+                        <div class="db-section-title">Revenue Trend</div>
+                        <div style="font-size:12px;color:var(--muted-light);font-weight:500;margin-top:2px;">Monthly payments received — last 6 months</div>
                     </div>
-                    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-                        <!-- Filter buttons -->
-                        <div class="db-chart-filters">
-                            <button class="db-chart-filter-btn" data-range="1">1M</button>
-                            <button class="db-chart-filter-btn" data-range="3">3M</button>
-                            <button class="db-chart-filter-btn active" data-range="6">6M</button>
-                            <button class="db-chart-filter-btn" data-range="12">12M</button>
-                            <button class="db-chart-filter-btn" data-range="year">This Year</button>
-                        </div>
-                        <div class="db-chart-total">
-                            <span style="font-size:11px;font-weight:700;color:var(--muted-light);text-transform:uppercase;letter-spacing:0.4px;" id="chartTotalLabel">6-Month Total</span>
-                            <span style="font-size:18px;font-weight:900;color:var(--dark);" id="chartTotalValue">
-                                ₱{{ number_format(array_sum(array_column(array_slice($monthlyRevenue, -6), 'amount')), 0) }}
-                            </span>
-                        </div>
+                    <div class="db-chart-total">
+                        <span style="font-size:11px;font-weight:700;color:var(--muted-light);text-transform:uppercase;letter-spacing:0.4px;">6-Month Total</span>
+                        <span style="font-size:18px;font-weight:900;color:var(--dark);">
+                            ₱{{ number_format(array_sum(array_column($monthlyRevenue, 'amount')), 0) }}
+                        </span>
                     </div>
                 </div>
                 <div class="db-chart-wrap">
@@ -176,71 +124,76 @@
                 </div>
             </div>
 
-            <!-- Donut chart: Project Status Breakdown -->
-            <div class="db-panel-card" style="display:flex;flex-direction:column;">
-                <div class="db-panel-title">
-                    <i data-lucide="pie-chart"></i>
-                    Project Status Breakdown
+            <!-- ── Main content: projects + right panel ── -->
+            <div class="db-main-grid">
+
+                <!-- Recent Projects -->
+                <div class="db-project-card">
+                    <!-- Card header -->
+                    <div class="db-project-card-head">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <i data-lucide="folder-kanban" style="width:16px;height:16px;color:var(--muted);"></i>
+                            <span class="db-section-title">Recent Projects</span>
+                        </div>
+                        <span class="db-project-count">{{ $projects->count() }} shown</span>
+                    </div>
+
+                    <!-- Table header -->
+                    <div class="db-proj-table-head">
+                        <span style="flex:1;">Project</span>
+                        <span style="width:110px;text-align:center;">Status</span>
+                        <span style="width:150px;text-align:right;">Progress</span>
+                    </div>
+
+                    <!-- Rows -->
+                    <div class="db-project-list">
+                        @forelse($projects as $project)
+                        @php
+                            $progress = $project->progress ?? 0;
+                            $status   = strtolower($project->status ?? 'planning');
+                            $badgeMap = [
+                                'completed' => ['label' => 'Completed', 'css' => 'completed'],
+                                'ongoing'   => ['label' => 'Ongoing',   'css' => 'ongoing'],
+                                'archived'  => ['label' => 'Archived',  'css' => 'archived'],
+                            ];
+                            $badge = $badgeMap[$status] ?? ['label' => ucfirst($status), 'css' => 'pending'];
+                            $progressColor = $progress >= 100 ? '#16a34a' : ($progress >= 50 ? '#2A4EAA' : 'var(--dark)');
+                        @endphp
+                        <div class="db-project-row">
+                            <div class="db-project-info" style="flex:1;">
+                                <div class="db-project-name">{{ $project->name }}</div>
+                                <div class="db-project-meta">
+                                    <i data-lucide="building-2"></i> {{ $project->client }}
+                                    &nbsp;·&nbsp;
+                                    <i data-lucide="calendar"></i> {{ $project->start_date->format('M j, Y') }}
+                                </div>
+                            </div>
+                            <div style="width:110px;display:flex;justify-content:center;">
+                                <span class="status-badge {{ $badge['css'] }}">{{ $badge['label'] }}</span>
+                            </div>
+                            <div class="db-progress-wrap" style="width:150px;justify-content:flex-end;">
+                                <div class="db-progress-bar">
+                                    <div class="db-progress-fill" data-width="{{ $progress }}" data-color="{{ $progressColor }}"></div>
+                                </div>
+                                <span class="db-progress-label">{{ $progress }}%</span>
+                            </div>
+                        </div>
+                        @empty
+                        <div style="text-align:center;padding:40px 20px;color:var(--muted);font-size:14px;">
+                            No projects yet.
+                        </div>
+                        @endforelse
+                    </div>
+
+                    <!-- Card footer -->
+                    <a href="{{ route('admin.projects') }}" class="db-project-card-footer">
+                        <span>View all projects</span>
+                        <i data-lucide="arrow-right"></i>
+                    </a>
                 </div>
-                <div style="display:flex;align-items:center;justify-content:center;flex:1;gap:20px;flex-wrap:wrap;">
-                    <div style="position:relative;width:140px;height:140px;flex-shrink:0;">
-                        <canvas id="statusDonutChart"></canvas>
-                    </div>
-                    <div style="display:flex;flex-direction:column;gap:10px;">
-                        @foreach($projectStatusChart as $item)
-                        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;min-width:110px;">
-                            <div style="display:flex;align-items:center;gap:7px;">
-                                <span style="width:9px;height:9px;border-radius:50%;background:{{ $item['color'] }};display:inline-block;flex-shrink:0;"></span>
-                                <span style="font-size:12px;color:var(--muted);">{{ $item['label'] }}</span>
-                            </div>
-                            <span style="font-size:13px;font-weight:800;color:var(--dark);">{{ $item['count'] }}</span>
-                        </div>
-                        @endforeach
-                    </div>
-                </div>
-            </div>
 
-            </div><!-- end grid wrapper -->
-
-            <!-- ── Three-card horizontal row ── -->
-            <div class="db-three-panel-row">
-
-                    <!-- Top Client -->
-                    @if($topClient)
-                    <div class="db-panel-card db-top-client-card">
-                        <div class="db-panel-title">
-                            <i data-lucide="trophy"></i>
-                            Top Client
-                        </div>
-
-                        <div class="db-tc-identity">
-                            <div class="db-tc-avatar">
-                                {{ strtoupper(substr($topClient['name'], 0, 1)) }}
-                            </div>
-                            <div>
-                                <div class="db-tc-name">{{ $topClient['name'] }}</div>
-                                <div class="db-tc-sub">{{ $topClient['project_count'] }} project{{ $topClient['project_count'] !== 1 ? 's' : '' }} &nbsp;·&nbsp; {{ $topClient['completed'] }} completed</div>
-                            </div>
-                        </div>
-
-                        <div class="db-panel-divider"></div>
-
-                        <div class="db-mat-grid">
-                            <div class="db-mat-stat">
-                                <div class="db-mat-stat-val">₱{{ number_format($topClient['contract_value'], 0) }}</div>
-                                <div class="db-mat-stat-label">Contract</div>
-                            </div>
-                            <div class="db-mat-stat">
-                                <div class="db-mat-stat-val" style="color:#16a34a;">₱{{ number_format($topClient['received'], 0) }}</div>
-                                <div class="db-mat-stat-label">Received</div>
-                            </div>
-                        </div>
-
-                        <a href="{{ route('admin.clients') }}" class="db-panel-link" style="margin-top:14px;">
-                            View all clients <i data-lucide="arrow-right"></i>
-                        </a>
-                    </div>
-                    @endif
+                <!-- Right panel -->
+                <div class="db-right-panel">
 
                     <!-- Payment Overview -->
                     <div class="db-panel-card">
@@ -323,80 +276,45 @@
                         </a>
                     </div>
 
-            </div><!-- end db-three-panel-row -->
-
-            </div><!-- end right column -->
-            </div><!-- end kpi + three-panel wrapper -->
-
-            <!-- ── Main content: projects (full width) ── -->
-            <div class="db-main-grid">
-
-                <!-- Recent Projects -->
-                <div class="db-project-card">
-                    <!-- Card header -->
-                    <div class="db-project-card-head">
-                        <div style="display:flex;align-items:center;gap:8px;">
-                            <i data-lucide="folder-kanban" style="width:16px;height:16px;color:var(--muted);"></i>
-                            <span class="db-section-title">Recent Projects</span>
+                    <!-- Top Client -->
+                    @if($topClient)
+                    <div class="db-panel-card db-top-client-card">
+                        <div class="db-panel-title">
+                            <i data-lucide="trophy"></i>
+                            Top Client
                         </div>
-                        <span class="db-project-count">{{ $projects->count() }} shown</span>
-                    </div>
 
-                    <!-- Table header -->
-                    <div class="db-proj-table-head">
-                        <span style="flex:1;">Project</span>
-                        <span style="width:110px;text-align:center;">Status</span>
-                        <span style="width:150px;text-align:right;">Progress</span>
-                    </div>
-
-                    <!-- Rows -->
-                    <div class="db-project-list">
-                        @forelse($projects as $project)
-                        @php
-                            $progress = $project->progress ?? 0;
-                            $status   = strtolower($project->status ?? 'planning');
-                            $badgeMap = [
-                                'completed' => ['label' => 'Completed', 'css' => 'completed'],
-                                'ongoing'   => ['label' => 'Ongoing',   'css' => 'ongoing'],
-                                'archived'  => ['label' => 'Archived',  'css' => 'archived'],
-                            ];
-                            $badge = $badgeMap[$status] ?? ['label' => ucfirst($status), 'css' => 'pending'];
-                            $progressColor = $progress >= 100 ? '#16a34a' : ($progress >= 50 ? '#2A4EAA' : 'var(--dark)');
-                        @endphp
-                        <div class="db-project-row">
-                            <div class="db-project-info" style="flex:1;">
-                                <div class="db-project-name">{{ $project->name }}</div>
-                                <div class="db-project-meta">
-                                    <i data-lucide="building-2"></i> {{ $project->client }}
-                                    &nbsp;·&nbsp;
-                                    <i data-lucide="calendar"></i> {{ $project->start_date->format('M j, Y') }}
-                                </div>
+                        <div class="db-tc-identity">
+                            <div class="db-tc-avatar">
+                                {{ strtoupper(substr($topClient['name'], 0, 1)) }}
                             </div>
-                            <div style="width:110px;display:flex;justify-content:center;">
-                                <span class="status-badge {{ $badge['css'] }}">{{ $badge['label'] }}</span>
-                            </div>
-                            <div class="db-progress-wrap" style="width:150px;justify-content:flex-end;">
-                                <div class="db-progress-bar">
-                                    <div class="db-progress-fill" data-width="{{ $progress }}" data-color="{{ $progressColor }}"></div>
-                                </div>
-                                <span class="db-progress-label">{{ $progress }}%</span>
+                            <div>
+                                <div class="db-tc-name">{{ $topClient['name'] }}</div>
+                                <div class="db-tc-sub">{{ $topClient['project_count'] }} project{{ $topClient['project_count'] !== 1 ? 's' : '' }} &nbsp;·&nbsp; {{ $topClient['completed'] }} completed</div>
                             </div>
                         </div>
-                        @empty
-                        <div style="text-align:center;padding:40px 20px;color:var(--muted);font-size:14px;">
-                            No projects yet.
-                        </div>
-                        @endforelse
-                    </div>
 
-                    <!-- Card footer -->
-                    <a href="{{ route('admin.projects') }}" class="db-project-card-footer">
-                        <span>View all projects</span>
-                        <i data-lucide="arrow-right"></i>
-                    </a>
+                        <div class="db-panel-divider"></div>
+
+                        <div class="db-mat-grid">
+                            <div class="db-mat-stat">
+                                <div class="db-mat-stat-val">₱{{ number_format($topClient['contract_value'], 0) }}</div>
+                                <div class="db-mat-stat-label">Contract</div>
+                            </div>
+                            <div class="db-mat-stat">
+                                <div class="db-mat-stat-val" style="color:#16a34a;">₱{{ number_format($topClient['received'], 0) }}</div>
+                                <div class="db-mat-stat-label">Received</div>
+                            </div>
+                        </div>
+
+                        <a href="{{ route('admin.clients') }}" class="db-panel-link" style="margin-top:14px;">
+                            View all clients <i data-lucide="arrow-right"></i>
+                        </a>
+                    </div>
+                    @endif
+
                 </div>
-
-            </div><!-- end db-main-grid -->
+            </div>
 
         </main>
     </div>
@@ -413,78 +331,27 @@
             el.style.width = el.dataset.width + '%';
         });
 
-        // Revenue chart with filters
+        // Revenue chart
         (function() {
-            // All data sets
-            var all12Labels   = @json(array_column($monthlyRevenue, 'label'));
-            var all12Amounts  = @json(array_column($monthlyRevenue, 'amount'));
-            var yearLabels    = @json(array_column($yearlyRevenue, 'label'));
-            var yearAmounts   = @json(array_column($yearlyRevenue, 'amount'));
-            var weeklyLabels  = @json(array_column($weeklyRevenue, 'label'));
-            var weeklyAmounts = @json(array_column($weeklyRevenue, 'amount'));
+            var labels  = @json(array_column($monthlyRevenue, 'label'));
+            var amounts = @json(array_column($monthlyRevenue, 'amount'));
 
-            var ctx         = document.getElementById('revenueChart').getContext('2d');
-            var subtitleEl  = document.getElementById('chartSubtitle');
-            var totalLblEl  = document.getElementById('chartTotalLabel');
-            var totalValEl  = document.getElementById('chartTotalValue');
-            var backBtn     = document.getElementById('chartBackBtn');
-            var drillHint   = document.getElementById('chartDrillHint');
-            var WEEKLY_URL  = '{{ route("admin.revenue.weekly") }}';
-            var CSRF        = '{{ csrf_token() }}';
+            var ctx = document.getElementById('revenueChart').getContext('2d');
 
-            // Track drill-down state
-            var drillActive    = false;
-            var lastRange      = '6';
-            var lastFilterMeta = null;
+            var gradient = ctx.createLinearGradient(0, 0, 0, 220);
+            gradient.addColorStop(0,   'rgba(51,51,51,0.18)');
+            gradient.addColorStop(1,   'rgba(51,51,51,0.01)');
 
-            function makeColors(data, highlight) {
-                return data.map(function(v, i) {
-                    if (highlight !== undefined) return i === highlight ? '#333333' : 'rgba(51,51,51,0.12)';
-                    return i === data.length - 1 ? '#333333' : 'rgba(51,51,51,0.15)';
-                });
-            }
-
-            function formatPHP(v) {
-                return '₱' + Math.round(v).toLocaleString();
-            }
-
-            function updateChart(labels, amounts, subtitle, totalLabel) {
-                chart.data.labels                      = labels;
-                chart.data.datasets[0].data            = amounts;
-                chart.data.datasets[0].backgroundColor = makeColors(amounts);
-                chart.update();
-                subtitleEl.textContent = subtitle;
-                totalLblEl.textContent = totalLabel;
-                var total = amounts.reduce(function(s, v) { return s + v; }, 0);
-                totalValEl.textContent = formatPHP(total);
-            }
-
-            function enterDrill(monthLabel, labels, amounts) {
-                drillActive = true;
-                backBtn.style.display  = '';
-                drillHint.style.display = 'none';
-                document.querySelectorAll('.db-chart-filter-btn').forEach(function(b) { b.disabled = true; b.style.opacity = '.4'; });
-                updateChart(labels, amounts, 'Weekly breakdown — ' + monthLabel, monthLabel + ' Total');
-                chart.data.datasets[0].backgroundColor = makeColors(amounts);
-                chart.update();
-            }
-
-            function exitDrill() {
-                drillActive = false;
-                backBtn.style.display   = 'none';
-                drillHint.style.display = '';
-                document.querySelectorAll('.db-chart-filter-btn').forEach(function(b) { b.disabled = false; b.style.opacity = ''; });
-                if (lastFilterMeta) updateChart(lastFilterMeta.labels, lastFilterMeta.amounts, lastFilterMeta.subtitle, lastFilterMeta.totalLabel);
-            }
-
-            var chart = new Chart(ctx, {
+            new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: all12Labels.slice(-6),
+                    labels: labels,
                     datasets: [{
                         label: 'Received (₱)',
-                        data: all12Amounts.slice(-6),
-                        backgroundColor: makeColors(all12Amounts.slice(-6)),
+                        data: amounts,
+                        backgroundColor: amounts.map(function(v, i) {
+                            return i === amounts.length - 1 ? '#333333' : 'rgba(51,51,51,0.15)';
+                        }),
                         borderRadius: 8,
                         borderSkipped: false,
                         maxBarThickness: 52,
@@ -493,40 +360,13 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    cursor: 'pointer',
-                    onClick: function(e, elements) {
-                        // Only drill down when viewing monthly data (not already drilled)
-                        if (drillActive || lastRange === '1') return;
-                        if (!elements || elements.length === 0) return;
-
-                        var idx       = elements[0].index;
-                        var label     = chart.data.labels[idx]; // e.g. "Jun 2026"
-                        var parts     = label.split(' ');        // ["Jun", "2026"]
-                        if (parts.length < 2) return;
-
-                        var monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-                        var monthNum   = monthNames.indexOf(parts[0]) + 1;
-                        var year       = parseInt(parts[1]);
-                        if (!monthNum || !year) return;
-
-                        // Highlight clicked bar while loading
-                        chart.data.datasets[0].backgroundColor = makeColors(chart.data.datasets[0].data, idx);
-                        chart.update();
-
-                        fetch(WEEKLY_URL + '?year=' + year + '&month=' + monthNum, {
-                            headers: { 'X-CSRF-TOKEN': CSRF, 'X-Requested-With': 'XMLHttpRequest' }
-                        })
-                        .then(function(r) { return r.json(); })
-                        .then(function(data) {
-                            enterDrill(data.month, data.labels, data.amounts);
-                        });
-                    },
                     plugins: {
                         legend: { display: false },
                         tooltip: {
                             callbacks: {
-                                label: function(c) { return ' ₱' + c.parsed.y.toLocaleString(); },
-                                afterTitle: function() { return drillActive ? '' : 'Click to see weekly'; }
+                                label: function(ctx) {
+                                    return ' ₱' + ctx.parsed.y.toLocaleString();
+                                }
                             },
                             backgroundColor: '#1a1a1a',
                             padding: 10,
@@ -551,81 +391,6 @@
                                     return v >= 1000 ? '₱' + (v/1000).toFixed(0) + 'k' : '₱' + v;
                                 }
                             }
-                        }
-                    }
-                }
-            });
-
-            // Back button
-            backBtn.addEventListener('click', exitDrill);
-
-            var filterMeta = {
-                '1':    { labels: weeklyLabels, amounts: weeklyAmounts, subtitle: 'Weekly payments received — {{ now()->format("F Y") }}', totalLabel: '{{ now()->format("M Y") }} Total' },
-                '3':    { labels: all12Labels.slice(-3),  amounts: all12Amounts.slice(-3),  subtitle: 'Monthly payments received — last 3 months',  totalLabel: '3-Month Total' },
-                '6':    { labels: all12Labels.slice(-6),  amounts: all12Amounts.slice(-6),  subtitle: 'Monthly payments received — last 6 months',  totalLabel: '6-Month Total' },
-                '12':   { labels: all12Labels.slice(-12), amounts: all12Amounts.slice(-12), subtitle: 'Monthly payments received — last 12 months', totalLabel: '12-Month Total' },
-                'year': { labels: yearLabels,             amounts: yearAmounts,             subtitle: 'Monthly payments received — {{ now()->year }}', totalLabel: '{{ now()->year }} Total' },
-            };
-
-            document.querySelectorAll('.db-chart-filter-btn').forEach(function(btn) {
-                btn.addEventListener('click', function() {
-                    var range = this.dataset.range;
-                    var meta  = filterMeta[range];
-                    if (!meta) return;
-
-                    lastRange      = range;
-                    lastFilterMeta = meta;
-                    drillActive    = false;
-                    backBtn.style.display   = 'none';
-                    drillHint.style.display = range === '1' ? 'none' : '';
-
-                    document.querySelectorAll('.db-chart-filter-btn').forEach(function(b) { b.classList.remove('active'); });
-                    this.classList.add('active');
-
-                    updateChart(meta.labels, meta.amounts, meta.subtitle, meta.totalLabel);
-                });
-            });
-
-            // Set initial state
-            lastFilterMeta = filterMeta['6'];
-        })();
-
-        // ── Project Status Donut ──
-        (function () {
-            var data   = @json($projectStatusChart);
-            var labels = data.map(function(d){ return d.label; });
-            var counts = data.map(function(d){ return d.count; });
-            var colors = data.map(function(d){ return d.color; });
-
-            new Chart(document.getElementById('statusDonutChart').getContext('2d'), {
-                type: 'doughnut',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: counts,
-                        backgroundColor: colors,
-                        borderWidth: 2,
-                        borderColor: '#ffffff',
-                        hoverOffset: 4,
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: '65%',
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                label: function(c) {
-                                    return '  ' + c.label + ': ' + c.parsed + ' project' + (c.parsed !== 1 ? 's' : '');
-                                }
-                            },
-                            backgroundColor: '#1a1a1a',
-                            padding: 10,
-                            cornerRadius: 8,
-                            titleFont: { weight: '700' },
-                            bodyFont:  { weight: '500' },
                         }
                     }
                 }
@@ -675,9 +440,9 @@
         /* ── KPI strip ── */
         .db-kpi-row {
             display: grid;
-            grid-template-columns: 1fr;
-            gap: 12px;
-            margin-bottom: 0;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
         }
         .db-kpi-card {
             background: var(--white);
@@ -728,29 +493,12 @@
             margin-top: 5px;
         }
 
-        /* ── Main grid (recent projects full width) ── */
+        /* ── Main grid ── */
         .db-main-grid {
             display: grid;
-            grid-template-columns: 1fr;
+            grid-template-columns: 1fr 320px;
             gap: 20px;
-        }
-
-        /* ── Three-card horizontal row ── */
-        .db-three-panel-row {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 20px;
-            align-items: stretch;
-        }
-        .db-three-panel-row .db-panel-card,
-        .db-three-panel-row .db-top-client-card {
-            height: 100%;
-            box-sizing: border-box;
-        }
-
-        /* ── Recent projects grid (below three-card row) ── */
-        .db-main-grid {
-            margin-top: 20px;
+            align-items: start;
         }
 
         /* ── Section header ── */
@@ -1119,32 +867,6 @@
             align-items: flex-end;
             gap: 2px;
         }
-        .db-chart-filters {
-            display: flex;
-            gap: 4px;
-            background: #e8e8e8;
-            border-radius: 10px;
-            padding: 3px;
-        }
-        .db-chart-filter-btn {
-            background: transparent;
-            border: none;
-            border-radius: 7px;
-            padding: 5px 12px;
-            font-size: 12px;
-            font-weight: 600;
-            color: #888;
-            cursor: pointer;
-            transition: background 0.15s, color 0.15s;
-        }
-        .db-chart-filter-btn:hover {
-            color: #333;
-        }
-        .db-chart-filter-btn.active {
-            background: #fff;
-            color: #111;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
-        }
         .db-chart-wrap {
             height: 220px;
             position: relative;
@@ -1153,10 +875,8 @@
         /* ── Responsive ── */
         @media (max-width: 1100px) {
             .db-kpi-row { grid-template-columns: repeat(2, 1fr); }
-            .db-three-panel-row { grid-template-columns: repeat(2, 1fr); }
-        }
-        @media (max-width: 700px) {
-            .db-three-panel-row { grid-template-columns: 1fr; }
+            .db-main-grid { grid-template-columns: 1fr; }
+            .db-right-panel { display: grid; grid-template-columns: repeat(2, 1fr); }
         }
         @media (max-width: 640px) {
             .db-hero { flex-direction: column; align-items: flex-start; }
