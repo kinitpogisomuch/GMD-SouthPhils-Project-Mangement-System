@@ -529,17 +529,20 @@
         function capturePhoto() {
             const video = document.getElementById('cameraVideo');
             const canvas = document.getElementById('cameraCanvas');
-            if (!video.videoWidth) return;
 
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+            const w = video.videoWidth || video.offsetWidth;
+            const h = video.videoHeight || video.offsetHeight;
+            if (!w || !h) return;
+
+            canvas.width = w;
+            canvas.height = h;
+            canvas.getContext('2d').drawImage(video, 0, 0, w, h);
 
             canvas.toBlob(blob => {
+                closeCamera();
                 if (blob) {
                     addAttachmentPreview(new File([blob], `photo-${Date.now()}.jpg`, { type: 'image/jpeg' }));
                 }
-                closeCamera();
             }, 'image/jpeg', 0.9);
         }
 
@@ -549,6 +552,7 @@
         document.getElementById('closeCameraModal').addEventListener('click', closeCamera);
 
         document.getElementById('cameraInput').addEventListener('change', e => {
+            if (!e.target.files.length) return;
             Array.from(e.target.files).forEach(file => addAttachmentPreview(file));
             e.target.value = '';
         });

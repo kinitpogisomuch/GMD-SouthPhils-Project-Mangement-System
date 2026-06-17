@@ -31,21 +31,6 @@
             <span>Materials</span>
         </a>
 
-        <div class="sidebar-section-label">People</div>
-        <a href="{{ route('admin.employees') }}"
-           class="{{ request()->routeIs('admin.employees') ? 'active' : '' }}"
-           title="Employees">
-            <div class="sidebar-icon"><i data-lucide="users"></i></div>
-            <span>Employees</span>
-        </a>
-
-        <a href="{{ route('admin.clients') }}"
-           class="{{ request()->routeIs('admin.clients') ? 'active' : '' }}"
-           title="Clients">
-            <div class="sidebar-icon"><i data-lucide="building-2"></i></div>
-            <span>Clients</span>
-        </a>
-
         <div class="sidebar-section-label">Financial Management</div>
         <a href="{{ route('admin.payments') }}"
            class="{{ request()->routeIs('admin.payments') ? 'active' : '' }}"
@@ -59,6 +44,21 @@
            title="Revolving Fund">
             <div class="sidebar-icon"><i data-lucide="refresh-cw"></i></div>
             <span>Revolving Fund</span>
+        </a>
+
+        <div class="sidebar-section-label">People</div>
+        <a href="{{ route('admin.employees') }}"
+           class="{{ request()->routeIs('admin.employees') ? 'active' : '' }}"
+           title="Employees">
+            <div class="sidebar-icon"><i data-lucide="users"></i></div>
+            <span>Employees</span>
+        </a>
+
+        <a href="{{ route('admin.clients') }}"
+           class="{{ request()->routeIs('admin.clients') ? 'active' : '' }}"
+           title="Clients">
+            <div class="sidebar-icon"><i data-lucide="building-2"></i></div>
+            <span>Clients</span>
         </a>
 
         <div class="sidebar-section-label">Communication</div>

@@ -313,6 +313,60 @@
 
             <!-- ===== TAB: LANDING PAGE ===== -->
             <div class="emp-tab-content" id="tab-landing">
+
+                <!-- Contact Info -->
+                <div class="pv-card" style="margin-bottom:24px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                        <div>
+                            <h3 class="pv-card-title" style="margin-bottom:4px;">Contact Information</h3>
+                            <p style="font-size:13px;color:var(--muted);margin:0;">Displayed on the public landing page.</p>
+                        </div>
+                    </div>
+
+                    <form method="POST" action="{{ route('admin.settings.contact_info') }}" id="contactInfoForm">
+                        @csrf
+                        @method('PUT')
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Phone</label>
+                                <input type="text" name="phone" value="{{ old('phone', $contactInfo->phone) }}"
+                                       placeholder="e.g. (082) 123-4567" maxlength="20">
+                            </div>
+                            <div class="form-group">
+                                <label>Mobile</label>
+                                <input type="text" name="mobile" value="{{ old('mobile', $contactInfo->mobile) }}"
+                                       placeholder="e.g. 09XX XXX XXXX" maxlength="20">
+                            </div>
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" name="email" value="{{ old('email', $contactInfo->email) }}"
+                                       placeholder="e.g. info@gmdsouthphils.com" maxlength="255">
+                            </div>
+                            <div class="form-group">
+                                <label>Business Hours</label>
+                                <input type="text" name="business_hours" value="{{ old('business_hours', $contactInfo->business_hours) }}"
+                                       placeholder="e.g. Mon–Fri: 8AM–5PM" maxlength="255">
+                            </div>
+                            <div class="form-group form-group-full">
+                                <label>Address</label>
+                                <input type="text" name="address" value="{{ old('address', $contactInfo->address) }}"
+                                       placeholder="e.g. 123 Main Street, Davao City, Philippines" maxlength="500">
+                            </div>
+                            <div class="form-group form-group-full">
+                                <label>Facebook Page URL</label>
+                                <input type="text" name="facebook" value="{{ old('facebook', $contactInfo->facebook) }}"
+                                       placeholder="e.g. https://facebook.com/gmdsouthphils" maxlength="255">
+                            </div>
+                        </div>
+                        <div class="settings-form-actions">
+                            <button type="submit" class="save-btn">
+                                <i data-lucide="save"></i>
+                                Save Contact Info
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
                 <div class="table-card">
                     <div class="table-toolbar">
                         <span style="font-weight:700;font-size:15px;">"Our Work" Portfolio Items</span>
@@ -594,7 +648,7 @@
         <span id="toastMsg">Saved successfully.</span>
     </div>
 
-    <script>const ACTIVE_TAB = "{{ session('active_tab', 'profile') }}";</script>
+    <script>const ACTIVE_TAB = "{{ session('active_tab', request('tab', 'profile')) }}";</script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="{{ asset('js/admin.js') }}"></script>
     <script>

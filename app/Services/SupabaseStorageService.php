@@ -26,23 +26,26 @@ class SupabaseStorageService
             return $this->uploadLocal($file, $folder);
         }
 
-        $extension = $file->getClientOriginalExtension();
-        $filename  = $folder . '/' . Str::uuid() . '.' . $extension;
-        $contents  = file_get_contents($file->getRealPath());
-        $mimeType  = $file->getMimeType();
+        try {
+            $extension = $file->getClientOriginalExtension();
+            $filename  = $folder . '/' . Str::uuid() . '.' . $extension;
+            $contents  = file_get_contents($file->getRealPath());
+            $mimeType  = $file->getMimeType();
 
-        $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . $this->serviceKey,
-            'Content-Type'  => $mimeType,
-            'x-upsert'      => 'true',
-        ])->withBody($contents, $mimeType)
-          ->post("{$this->url}/storage/v1/object/{$this->bucket}/{$filename}");
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $this->serviceKey,
+                'Content-Type'  => $mimeType,
+                'x-upsert'      => 'true',
+            ])->withBody($contents, $mimeType)
+              ->post("{$this->url}/storage/v1/object/{$this->bucket}/{$filename}");
 
-        if ($response->successful()) {
-            return "{$this->url}/storage/v1/object/public/{$this->bucket}/{$filename}";
+            if ($response->successful()) {
+                return "{$this->url}/storage/v1/object/public/{$this->bucket}/{$filename}";
+            }
+        } catch (\Exception $e) {
+            // Network unreachable (DNS failure, timeout, etc.) — fall through to local storage
         }
 
-        // Fall back to local public storage
         return $this->uploadLocal($file, $folder);
     }
 

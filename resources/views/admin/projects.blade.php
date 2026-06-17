@@ -47,9 +47,18 @@
                         <input type="text" id="projectSearch" placeholder="Search project or client...">
                     </div>
                     <div class="filter-tabs" id="projectFilterTabs">
-                        <button type="button" class="filter-tab active" data-filter="active">Active</button>
-                        <button type="button" class="filter-tab" data-filter="completed">Completed</button>
-                        <button type="button" class="filter-tab" data-filter="archived">Archived</button>
+                        <button type="button" class="filter-tab active" data-filter="active">
+                            Active
+                            <span class="filter-count">{{ $projects->whereNotIn('status', ['completed', 'archived'])->count() }}</span>
+                        </button>
+                        <button type="button" class="filter-tab" data-filter="completed">
+                            Completed
+                            <span class="filter-count">{{ $projects->where('status', 'completed')->count() }}</span>
+                        </button>
+                        <button type="button" class="filter-tab" data-filter="archived">
+                            Archived
+                            <span class="filter-count">{{ $projects->where('status', 'archived')->count() }}</span>
+                        </button>
                     </div>
                 </div>
 
@@ -304,11 +313,11 @@
                 <div class="form-grid">
                     <div class="form-group">
                         <label>Start Date</label>
-                        <input type="date" name="start_date" required>
+                        <input type="date" name="start_date" id="addProjectStartDate" required>
                     </div>
                     <div class="form-group">
                         <label>End Date</label>
-                        <input type="date" name="end_date" required>
+                        <input type="date" name="end_date" id="addProjectEndDate" required>
                     </div>
                     <div class="form-group form-group-full">
                         <label>Notes</label>
@@ -837,6 +846,7 @@
                     document.getElementById('editProjectNotes').value     = this.dataset.notes || '';
                     document.getElementById('editProjectStartDate').value = this.dataset.startDate;
                     document.getElementById('editProjectEndDate').value   = this.dataset.endDate;
+                    document.getElementById('editProjectEndDate').min     = this.dataset.startDate;
                     document.getElementById('editProjectSubtitle').textContent = 'Editing: ' + this.dataset.name;
                     document.getElementById('editProjectForm').action = '/admin/projects/' + this.dataset.id;
                     var sel = document.getElementById('editProjectTankType');
@@ -855,6 +865,49 @@
                 var btn = document.getElementById(id);
                 if (btn) btn.addEventListener('click', function() { closeModal('editProjectModal'); });
             });
+
+            // Date validation: no past dates, end date must be >= start date (Add form)
+            var addStart = document.getElementById('addProjectStartDate');
+            var addEnd   = document.getElementById('addProjectEndDate');
+            if (addStart && addEnd) {
+                var today = new Date().toISOString().split('T')[0];
+                addStart.min = today;
+                addEnd.min   = today;
+
+                addStart.addEventListener('change', function() {
+                    addEnd.min = this.value || today;
+                    if (addEnd.value && addEnd.value < this.value) {
+                        addEnd.value = this.value;
+                    }
+                    addEnd.setCustomValidity('');
+                });
+                addEnd.addEventListener('change', function() {
+                    if (addStart.value && this.value < addStart.value) {
+                        this.setCustomValidity('End date must be on or after the start date.');
+                    } else {
+                        this.setCustomValidity('');
+                    }
+                });
+            }
+
+            // Date validation: end date must be >= start date (Edit form)
+            var editStart = document.getElementById('editProjectStartDate');
+            var editEnd   = document.getElementById('editProjectEndDate');
+            if (editStart && editEnd) {
+                editStart.addEventListener('change', function() {
+                    editEnd.min = this.value;
+                    if (editEnd.value && editEnd.value < this.value) {
+                        editEnd.value = this.value;
+                    }
+                });
+                editEnd.addEventListener('change', function() {
+                    if (editStart.value && this.value < editStart.value) {
+                        this.setCustomValidity('End date must be on or after the start date.');
+                    } else {
+                        this.setCustomValidity('');
+                    }
+                });
+            }
 
             // Archive Project Modal
             document.querySelectorAll('.archive-project-btn').forEach(function(btn) {

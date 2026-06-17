@@ -8,21 +8,26 @@ use App\Models\Payment;
 use App\Models\PaymentTransaction;
 use App\Models\ProjectMaterial;
 use App\Models\Client;
+use App\Models\SiteSetting;
+use Illuminate\Http\Request;
 
 class AdminController extends Controller
 {
     public function dashboard()
     {
         $totalProjects          = Project::count();
+        $activeProjects         = Project::whereNotIn('status', ['completed', 'archived'])->count();
         $ongoingProjects        = Project::where('status', 'ongoing')->count();
         $completedProjects      = Project::where('status', 'completed')->count();
-        $pendingProjects        = Project::where('status', 'pending')->count();
+        $pendingProjects        = Project::where('status', 'planning')->count();
         $totalEmployees         = Employee::where('status', 'Active')->count();
+        $totalClients           = Client::count();
         $totalMaterialEntries   = ProjectMaterial::where('status', 'active')->count();
         $totalMaterialCost      = ProjectMaterial::where('status', 'active')->sum('total_cost');
         $projectsWithMaterials  = ProjectMaterial::where('status', 'active')
             ->distinct('project_id')->count('project_id');
-        $projects               = Project::orderBy('created_at', 'desc')->take(5)->get();
+        $projects               = Project::whereNotIn('status', ['archived'])
+            ->orderBy('created_at', 'desc')->take(6)->get();
 
         // Payment stats
         $allPayments            = Payment::all();
@@ -31,12 +36,55 @@ class AdminController extends Controller
         $fullyPaidPayments      = $allPayments->filter(fn($p) => $p->computeStatus() === 'Fully Paid')->count();
         $pendingPayments        = $allPayments->filter(fn($p) => $p->computeStatus() === 'Pending Down Payment')->count();
 
+        // Monthly revenue for the last 6 months
+        $monthlyRevenue = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $month = now()->subMonths($i);
+            $monthlyRevenue[] = [
+                'label'  => $month->format('M Y'),
+                'amount' => (float) PaymentTransaction::whereYear('payment_date', $month->year)
+                    ->whereMonth('payment_date', $month->month)
+                    ->sum('amount_paid'),
+            ];
+        }
+
+        // Top client by project count + contract value
+        $topClientData = Project::select('client')
+            ->selectRaw('COUNT(*) as project_count')
+            ->whereNotNull('client')
+            ->where('client', '!=', '')
+            ->groupBy('client')
+            ->orderByRaw('COUNT(*) DESC')
+            ->first();
+
+        $topClient = null;
+        if ($topClientData) {
+            $topClientProjects = Project::where('client', $topClientData->client)->get();
+            $topClientPayments = Payment::whereIn('project_id', $topClientProjects->pluck('id'))->get();
+            $topClientReceived = PaymentTransaction::whereIn('payment_id', $topClientPayments->pluck('id'))->sum('amount_paid');
+            $topClient = [
+                'name'          => $topClientData->client,
+                'project_count' => $topClientData->project_count,
+                'contract_value'=> $topClientPayments->sum('contract_amount'),
+                'received'      => $topClientReceived,
+                'completed'     => $topClientProjects->where('status', 'completed')->count(),
+            ];
+        }
+
+        // Unread messages
+        $unreadMessages = \App\Models\Message::where('recipient_type', 'admin')
+            ->where('recipient_id', session('user_id'))
+            ->unread()
+            ->count();
+
         return view('admin.dashboard', compact(
             'totalProjects',
+            'activeProjects',
             'ongoingProjects',
             'completedProjects',
             'pendingProjects',
             'totalEmployees',
+            'totalClients',
             'totalMaterialEntries',
             'totalMaterialCost',
             'projectsWithMaterials',
@@ -44,7 +92,10 @@ class AdminController extends Controller
             'totalContractValue',
             'totalReceived',
             'fullyPaidPayments',
-            'pendingPayments'
+            'pendingPayments',
+            'unreadMessages',
+            'topClient',
+            'monthlyRevenue'
         ));
     }
 
@@ -123,7 +174,27 @@ class AdminController extends Controller
         $portfolioItems = \App\Models\PortfolioItem::orderBy('sort_order')->get();
         $reviews = \App\Models\Review::with('project')->orderBy('created_at', 'desc')->get();
 
-        return view('admin.settings', compact('adminData', 'users', 'portfolioItems', 'reviews'));
+        $contactInfo = SiteSetting::instance();
+
+        return view('admin.settings', compact('adminData', 'users', 'portfolioItems', 'reviews', 'contactInfo'));
+    }
+
+    public function updateContactInfo(Request $request)
+    {
+        $validated = $request->validate([
+            'phone'          => 'nullable|string|max:20',
+            'mobile'         => 'nullable|string|max:20',
+            'email'          => 'nullable|email|max:255',
+            'address'        => 'nullable|string|max:500',
+            'facebook'       => 'nullable|string|max:255',
+            'business_hours' => 'nullable|string|max:255',
+        ]);
+
+        SiteSetting::instance()->update($validated);
+
+        return redirect()->route('admin.settings')
+            ->with('success', 'Contact information updated successfully.')
+            ->with('active_tab', 'landing');
     }
 
     public function clients()

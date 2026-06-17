@@ -282,7 +282,7 @@ class ProjectController extends Controller
             'tank_type'  => 'required|string',
             'capacity'   => 'required|string',
             'start_date' => 'required|date',
-            'end_date'   => 'required|date',
+            'end_date'   => 'required|date|after_or_equal:start_date',
             'client'     => 'required|string',
         ]);
 

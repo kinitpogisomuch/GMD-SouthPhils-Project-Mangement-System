@@ -167,9 +167,10 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::delete('/salary-records/{id}', [SalaryController::class, 'destroy'])->name('salary.destroy');
 
     // Profile, password & photo settings
-    Route::put('/settings/profile',  [ProfileController::class, 'updateAdmin'])->name('settings.profile');
-    Route::put('/settings/password', [ProfileController::class, 'updateAdminPassword'])->name('settings.password');
-    Route::post('/settings/photo',   [ProfileController::class, 'uploadAdminPhoto'])->name('settings.photo');
+    Route::put('/settings/profile',       [ProfileController::class, 'updateAdmin'])->name('settings.profile');
+    Route::put('/settings/password',      [ProfileController::class, 'updateAdminPassword'])->name('settings.password');
+    Route::post('/settings/photo',        [ProfileController::class, 'uploadAdminPhoto'])->name('settings.photo');
+    Route::put('/settings/contact-info',  [AdminController::class, 'updateContactInfo'])->name('settings.contact_info');
 
     // Notifications
     Route::get('/notifications', [NotificationController::class, 'page'])->name('notifications');
