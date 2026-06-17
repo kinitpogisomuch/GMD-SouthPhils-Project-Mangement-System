@@ -16,7 +16,18 @@
 
         <main class="admin-content">
             <h1>Dashboard</h1>
-            <p>Welcome to the GMD South Phils Project Management System.</p>
+            @php
+                $adminFullName = session('name', '');
+                // stored as "LastName, FirstName" — extract first name
+                if (str_contains($adminFullName, ', ')) {
+                    $adminFirstName = trim(explode(', ', $adminFullName, 2)[1]);
+                } else {
+                    $adminFirstName = trim($adminFullName);
+                }
+                // use only the first word of the first name
+                $adminFirstName = $adminFirstName ? explode(' ', $adminFirstName)[0] : 'Admin';
+            @endphp
+            <p>Hi {{ $adminFirstName }}! Welcome to the GMD South Phils Project Management System.</p>
 
             <!-- Summary Cards -->
             <div class="page-grid" style="margin-top: 28px;">

@@ -353,28 +353,37 @@
                     <i data-lucide="x"></i>
                 </button>
             </div>
-            <form method="POST" action="{{ route('admin.supplier_contacts.store') }}">
+            <form method="POST" action="{{ route('admin.supplier_contacts.store') }}" id="addSupplierForm">
                 @csrf
                 <div class="form-grid">
                     <div class="form-group">
-                        <label>Name <span style="color:var(--danger);">*</span></label>
-                        <input type="text" name="name" required maxlength="255" placeholder="e.g. Juan Dela Cruz">
+                        <label>Supplier Name <span style="color:var(--danger);">*</span></label>
+                        <input type="text" name="name" required maxlength="255" placeholder="e.g. Juan Dela Cruz"
+                               oninput="supplierCapFirst(this)">
                     </div>
                     <div class="form-group">
-                        <label>Company</label>
-                        <input type="text" name="company" maxlength="255" placeholder="e.g. ABC Supplies Inc.">
+                        <label>Company <span style="font-weight:400;color:var(--muted);font-size:11px;">(optional)</span></label>
+                        <input type="text" name="company" maxlength="255" placeholder="e.g. ABC Supplies Inc."
+                               oninput="supplierCapFirst(this)">
                     </div>
                     <div class="form-group">
                         <label>Phone</label>
-                        <input type="text" name="phone" maxlength="50" placeholder="e.g. 09XX-XXX-XXXX">
+                        <input type="text" name="phone" id="addSupplierPhone" maxlength="11"
+                               placeholder="e.g. 09171234567"
+                               oninput="supplierPhoneInput(this, 'addSupplierPhoneErr')">
+                        <span class="supplier-field-err" id="addSupplierPhoneErr"></span>
                     </div>
                     <div class="form-group">
                         <label>Email</label>
-                        <input type="email" name="email" maxlength="255" placeholder="e.g. supplier@email.com">
+                        <input type="email" name="email" id="addSupplierEmail" maxlength="255"
+                               placeholder="e.g. supplier@email.com"
+                               oninput="supplierEmailValidate(this, 'addSupplierEmailErr')">
+                        <span class="supplier-field-err" id="addSupplierEmailErr"></span>
                     </div>
                     <div class="form-group form-group-full">
                         <label>Address</label>
-                        <input type="text" name="address" maxlength="500" placeholder="e.g. 123 Main St, Davao City">
+                        <input type="text" name="address" maxlength="500" placeholder="e.g. 123 Main St, Davao City"
+                               oninput="supplierCapFirst(this)">
                     </div>
                     <div class="form-group form-group-full">
                         <label>Notes</label>
@@ -410,23 +419,30 @@
                 <div class="form-grid">
                     <div class="form-group">
                         <label>Name <span style="color:var(--danger);">*</span></label>
-                        <input type="text" name="name" id="editSupplierName" required maxlength="255">
+                        <input type="text" name="name" id="editSupplierName" required maxlength="255"
+                               oninput="supplierCapFirst(this)">
                     </div>
                     <div class="form-group">
-                        <label>Company</label>
-                        <input type="text" name="company" id="editSupplierCompany" maxlength="255">
+                        <label>Company <span style="font-weight:400;color:var(--muted);font-size:11px;">(optional)</span></label>
+                        <input type="text" name="company" id="editSupplierCompany" maxlength="255"
+                               oninput="supplierCapFirst(this)">
                     </div>
                     <div class="form-group">
                         <label>Phone</label>
-                        <input type="text" name="phone" id="editSupplierPhone" maxlength="50">
+                        <input type="text" name="phone" id="editSupplierPhone" maxlength="11"
+                               oninput="supplierPhoneInput(this, 'editSupplierPhoneErr')">
+                        <span class="supplier-field-err" id="editSupplierPhoneErr"></span>
                     </div>
                     <div class="form-group">
                         <label>Email</label>
-                        <input type="email" name="email" id="editSupplierEmail" maxlength="255">
+                        <input type="email" name="email" id="editSupplierEmail" maxlength="255"
+                               oninput="supplierEmailValidate(this, 'editSupplierEmailErr')">
+                        <span class="supplier-field-err" id="editSupplierEmailErr"></span>
                     </div>
                     <div class="form-group form-group-full">
                         <label>Address</label>
-                        <input type="text" name="address" id="editSupplierAddress" maxlength="500">
+                        <input type="text" name="address" id="editSupplierAddress" maxlength="500"
+                               oninput="supplierCapFirst(this)">
                     </div>
                     <div class="form-group form-group-full">
                         <label>Notes</label>
@@ -629,7 +645,95 @@
             @if(session('success'))
             closeFundModal();
             @endif
+
+            // Block supplier form submission on invalid phone/email
+            var addSupplierForm = document.getElementById('addSupplierForm');
+            if (addSupplierForm) {
+                addSupplierForm.addEventListener('submit', function (e) {
+                    if (!supplierFormValid('addSupplierPhone', 'addSupplierPhoneErr', 'addSupplierEmail', 'addSupplierEmailErr')) {
+                        e.preventDefault();
+                    }
+                });
+            }
+            var editSupplierForm = document.getElementById('editSupplierForm');
+            if (editSupplierForm) {
+                editSupplierForm.addEventListener('submit', function (e) {
+                    if (!supplierFormValid('editSupplierPhone', 'editSupplierPhoneErr', 'editSupplierEmail', 'editSupplierEmailErr')) {
+                        e.preventDefault();
+                    }
+                });
+            }
         });
+
+    // ---- Supplier field helpers ----
+    function supplierCapFirst(input) {
+        var pos = input.selectionStart;
+        input.value = input.value.replace(/(^|[\s\-])(\S)/g, function(_, sep, ch) {
+            return sep + ch.toUpperCase();
+        });
+        input.setSelectionRange(pos, pos);
+    }
+
+    function supplierSetErr(errId, msg) {
+        var el = document.getElementById(errId);
+        if (!el) return;
+        el.textContent = msg;
+        el.style.display = msg ? 'block' : 'none';
+        var input = el.previousElementSibling;
+        if (input) input.style.borderColor = msg ? '#dc2626' : '';
+    }
+
+    function supplierPhoneInput(input, errId) {
+        var pos     = input.selectionStart;
+        var digits  = input.value.replace(/[^0-9]/g, '').slice(0, 11);
+        input.value = digits;
+        input.setSelectionRange(Math.min(pos, digits.length), Math.min(pos, digits.length));
+        var len = digits.length;
+        if (len === 0) {
+            supplierSetErr(errId, '');
+        } else if (len < 11) {
+            supplierSetErr(errId, 'Phone number must be exactly 11 digits.');
+        } else {
+            supplierSetErr(errId, '');
+        }
+    }
+
+    function supplierEmailValidate(input, errId) {
+        var val = input.value.trim();
+        var ok  = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+        supplierSetErr(errId, val && !ok ? 'Enter a valid email address (e.g. supplier@email.com).' : '');
+    }
+
+    function supplierFormValid(phoneId, phoneErrId, emailId, emailErrId) {
+        var valid = true;
+        var phone = document.getElementById(phoneId);
+        if (phone && phone.value) {
+            var digits = phone.value.replace(/[^0-9]/g, '');
+            if (digits.length !== 11) {
+                supplierSetErr(phoneErrId, 'Phone number must be exactly 11 digits.');
+                valid = false;
+            }
+        }
+        var email = document.getElementById(emailId);
+        if (email && email.value.trim()) {
+            var ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim());
+            if (!ok) {
+                supplierSetErr(emailErrId, 'Enter a valid email address (e.g. supplier@email.com).');
+                valid = false;
+            }
+        }
+        return valid;
+    }
     </script>
+
+    <style>
+    .supplier-field-err {
+        display: none;
+        color: #dc2626;
+        font-size: 11.5px;
+        margin-top: 4px;
+        line-height: 1.4;
+    }
+    </style>
 </body>
 </html>
