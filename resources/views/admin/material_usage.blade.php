@@ -36,6 +36,76 @@
             </div>
             @endif
 
+            <!-- ===== SUPPLIER CONTACTS ===== -->
+            <div class="table-card" style="margin-bottom:24px;">
+                <div class="table-toolbar" style="padding-bottom:0;">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <i data-lucide="users" style="color:var(--primary);width:20px;height:20px;"></i>
+                        <span style="font-size:15px;font-weight:700;color:var(--dark);">Supplier Contacts</span>
+                        <span style="background:var(--light);color:var(--muted);font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px;">{{ $supplierContacts->count() }}</span>
+                    </div>
+                    <button class="save-btn" type="button" onclick="openAddSupplierModal()" style="font-size:13px;padding:8px 16px;">
+                        <i data-lucide="plus"></i>
+                        Add Contact
+                    </button>
+                </div>
+
+                @if($supplierContacts->isEmpty())
+                <div style="text-align:center;padding:32px 20px;color:var(--muted);font-size:14px;">
+                    No supplier contacts yet. Click <strong>Add Contact</strong> to add one.
+                </div>
+                @else
+                <div class="table-wrapper">
+                    <table class="data-table" id="supplierTable">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Company</th>
+                                <th>Phone</th>
+                                <th>Email</th>
+                                <th>Address</th>
+                                <th>Notes</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($supplierContacts as $contact)
+                            <tr>
+                                <td><strong>{{ $contact->name }}</strong></td>
+                                <td>{{ $contact->company ?? '—' }}</td>
+                                <td>{{ $contact->phone ?? '—' }}</td>
+                                <td>{{ $contact->email ?? '—' }}</td>
+                                <td>{{ $contact->address ?? '—' }}</td>
+                                <td style="max-width:200px;white-space:normal;font-size:13px;color:var(--muted);">{{ $contact->notes ?? '—' }}</td>
+                                <td class="action-cell">
+                                    <button class="action-btn view" type="button" title="Edit"
+                                        onclick="openEditSupplierModal(this)"
+                                        data-id="{{ $contact->id }}"
+                                        data-name="{{ $contact->name }}"
+                                        data-company="{{ $contact->company }}"
+                                        data-phone="{{ $contact->phone }}"
+                                        data-email="{{ $contact->email }}"
+                                        data-address="{{ $contact->address }}"
+                                        data-notes="{{ $contact->notes }}">
+                                        <i data-lucide="pencil"></i>
+                                    </button>
+                                    <form method="POST" action="{{ route('admin.supplier_contacts.destroy', $contact->id) }}" style="display:inline;"
+                                          onsubmit="return confirm('Delete this supplier contact?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button class="action-btn delete" type="submit" title="Delete">
+                                            <i data-lucide="trash-2"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                @endif
+            </div>
+
             <!-- Materials Tabs -->
             <div class="emp-tabs">
                 <button class="emp-tab" data-tab="usage">
@@ -271,6 +341,109 @@
         </main>
     </div>
 
+    <!-- ==================== ADD SUPPLIER CONTACT MODAL ==================== -->
+    <div class="modal-overlay" id="addSupplierModal">
+        <div class="modal-card" style="max-width:520px;">
+            <div class="modal-header">
+                <div>
+                    <h2>Add Supplier Contact</h2>
+                    <p>Enter the supplier's contact details.</p>
+                </div>
+                <button class="modal-close" type="button" onclick="closeModal('addSupplierModal')">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <form method="POST" action="{{ route('admin.supplier_contacts.store') }}">
+                @csrf
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Name <span style="color:var(--danger);">*</span></label>
+                        <input type="text" name="name" required maxlength="255" placeholder="e.g. Juan Dela Cruz">
+                    </div>
+                    <div class="form-group">
+                        <label>Company</label>
+                        <input type="text" name="company" maxlength="255" placeholder="e.g. ABC Supplies Inc.">
+                    </div>
+                    <div class="form-group">
+                        <label>Phone</label>
+                        <input type="text" name="phone" maxlength="50" placeholder="e.g. 09XX-XXX-XXXX">
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" name="email" maxlength="255" placeholder="e.g. supplier@email.com">
+                    </div>
+                    <div class="form-group form-group-full">
+                        <label>Address</label>
+                        <input type="text" name="address" maxlength="500" placeholder="e.g. 123 Main St, Davao City">
+                    </div>
+                    <div class="form-group form-group-full">
+                        <label>Notes</label>
+                        <textarea name="notes" rows="3" maxlength="1000" placeholder="Additional notes about this supplier..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="cancel-btn" onclick="closeModal('addSupplierModal')">Cancel</button>
+                    <button type="submit" class="save-btn">
+                        <i data-lucide="plus"></i>
+                        Add Contact
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==================== EDIT SUPPLIER CONTACT MODAL ==================== -->
+    <div class="modal-overlay" id="editSupplierModal">
+        <div class="modal-card" style="max-width:520px;">
+            <div class="modal-header">
+                <div>
+                    <h2>Edit Supplier Contact</h2>
+                    <p>Update the supplier's contact details.</p>
+                </div>
+                <button class="modal-close" type="button" onclick="closeModal('editSupplierModal')">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <form method="POST" id="editSupplierForm" action="">
+                @csrf
+                @method('PUT')
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Name <span style="color:var(--danger);">*</span></label>
+                        <input type="text" name="name" id="editSupplierName" required maxlength="255">
+                    </div>
+                    <div class="form-group">
+                        <label>Company</label>
+                        <input type="text" name="company" id="editSupplierCompany" maxlength="255">
+                    </div>
+                    <div class="form-group">
+                        <label>Phone</label>
+                        <input type="text" name="phone" id="editSupplierPhone" maxlength="50">
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" name="email" id="editSupplierEmail" maxlength="255">
+                    </div>
+                    <div class="form-group form-group-full">
+                        <label>Address</label>
+                        <input type="text" name="address" id="editSupplierAddress" maxlength="500">
+                    </div>
+                    <div class="form-group form-group-full">
+                        <label>Notes</label>
+                        <textarea name="notes" id="editSupplierNotes" rows="3" maxlength="1000"></textarea>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="cancel-btn" onclick="closeModal('editSupplierModal')">Cancel</button>
+                    <button type="submit" class="save-btn">
+                        <i data-lucide="save"></i>
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- ==================== FUND FROM REVOLVING FUND MODAL ==================== -->
     <div class="modal-overlay" id="fundMaterialModal">
         <div class="modal-card" style="max-width:480px;">
@@ -327,6 +500,28 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="{{ asset('js/admin.js') }}"></script>
     <script>
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('show');
+            document.body.style.overflow = '';
+        }
+
+        function openAddSupplierModal() {
+            document.getElementById('addSupplierModal').classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function openEditSupplierModal(btn) {
+            document.getElementById('editSupplierForm').action = '{{ url("admin/supplier-contacts") }}/' + btn.dataset.id;
+            document.getElementById('editSupplierName').value    = btn.dataset.name    || '';
+            document.getElementById('editSupplierCompany').value = btn.dataset.company || '';
+            document.getElementById('editSupplierPhone').value   = btn.dataset.phone   || '';
+            document.getElementById('editSupplierEmail').value   = btn.dataset.email   || '';
+            document.getElementById('editSupplierAddress').value = btn.dataset.address || '';
+            document.getElementById('editSupplierNotes').value   = btn.dataset.notes   || '';
+            document.getElementById('editSupplierModal').classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+
         function openFundModal(btn) {
             document.getElementById('fundMaterialForm').action = btn.dataset.action;
             document.getElementById('fundMaterialName').value = btn.dataset.material;
@@ -384,6 +579,14 @@
                     applyUsageFilters();
                 });
             }
+
+            // Supplier modal backdrop close
+            ['addSupplierModal', 'editSupplierModal'].forEach(function(id) {
+                var el = document.getElementById(id);
+                el.addEventListener('click', function(e) {
+                    if (e.target === this) closeModal(id);
+                });
+            });
 
             // Fund from Revolving Fund modal close handlers
             var fundModal = document.getElementById('fundMaterialModal');

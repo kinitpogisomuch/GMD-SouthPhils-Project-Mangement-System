@@ -9,6 +9,7 @@ use App\Models\MaterialUsage;
 use App\Models\MaterialRequest;
 use App\Models\FundSetting;
 use App\Models\Employee;
+use App\Models\SupplierContact;
 use App\Services\NotificationService;
 
 class MaterialUsageController extends Controller
@@ -34,13 +35,16 @@ class MaterialUsageController extends Controller
 
         $fundBalance = FundSetting::getCurrentBalance();
 
+        $supplierContacts = SupplierContact::orderBy('name')->get();
+
         return view('admin.material_usage', compact(
             'projects',
             'requests',
             'pendingCount',
             'fulfilledCount',
             'shortageCount',
-            'fundBalance'
+            'fundBalance',
+            'supplierContacts'
         ));
     }
 

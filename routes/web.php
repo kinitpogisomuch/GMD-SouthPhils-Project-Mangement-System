@@ -22,6 +22,7 @@ use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\FundController;
 use App\Http\Controllers\MaterialRequestController;
+use App\Http\Controllers\SupplierContactController;
 use App\Http\Controllers\MessageController;
 
 /*
@@ -75,6 +76,10 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::get('/material-usage/{projectId}', [MaterialUsageController::class, 'adminDetail'])->name('material_usage.detail');
     Route::post('/material-usage/{projectId}', [MaterialUsageController::class, 'store'])->name('material_usage.store');
     Route::patch('/material-usage/{projectId}/{usageId}/archive', [MaterialUsageController::class, 'archive'])->name('material_usage.archive');
+
+    Route::post('/supplier-contacts', [SupplierContactController::class, 'store'])->name('supplier_contacts.store');
+    Route::put('/supplier-contacts/{id}', [SupplierContactController::class, 'update'])->name('supplier_contacts.update');
+    Route::delete('/supplier-contacts/{id}', [SupplierContactController::class, 'destroy'])->name('supplier_contacts.destroy');
 
     // Landing Page Portfolio Items (CMS)
     Route::post('/portfolio-items', [PortfolioItemController::class, 'store'])->name('portfolio.store');
