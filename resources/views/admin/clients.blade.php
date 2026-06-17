@@ -302,11 +302,13 @@
                 <div class="form-grid">
                     <div class="form-group">
                         <label>First Name *</label>
-                        <input type="text" name="first_name" id="editClientFirstName" required placeholder="First name">
+                        <input type="text" name="first_name" id="editClientFirstName" required placeholder="First name"
+                               oninput="clientStripDigits(this); clientCapName(this)">
                     </div>
                     <div class="form-group">
                         <label>Last Name *</label>
-                        <input type="text" name="last_name" id="editClientLastName" required placeholder="Last name">
+                        <input type="text" name="last_name" id="editClientLastName" required placeholder="Last name"
+                               oninput="clientStripDigits(this); clientCapName(this)">
                     </div>
                     <div class="form-group">
                         <label>Contact Number *</label>
@@ -318,19 +320,23 @@
                     </div>
                     <div class="form-group">
                         <label>Province</label>
-                        <input type="text" name="province" id="editClientProvince" placeholder="e.g. Laguna">
+                        <input type="text" name="province" id="editClientProvince" placeholder="e.g. Laguna"
+                               oninput="clientStripDigits(this); clientCapName(this)">
                     </div>
                     <div class="form-group">
                         <label>City / Municipality</label>
-                        <input type="text" name="city" id="editClientCity" placeholder="e.g. Santa Cruz">
+                        <input type="text" name="city" id="editClientCity" placeholder="e.g. Santa Cruz"
+                               oninput="clientStripDigits(this); clientCapName(this)">
                     </div>
                     <div class="form-group">
                         <label>Region</label>
-                        <input type="text" name="region" id="editClientRegion" placeholder="e.g. Region IV-A">
+                        <input type="text" name="region" id="editClientRegion" placeholder="e.g. Region IV-A"
+                               oninput="clientCapName(this)">
                     </div>
                     <div class="form-group">
                         <label>Street Address</label>
-                        <input type="text" name="street_address" id="editClientStreetAddress" placeholder="e.g. Poblacion Street">
+                        <input type="text" name="street_address" id="editClientStreetAddress" placeholder="e.g. Poblacion Street"
+                               oninput="clientCapName(this)">
                     </div>
                 </div>
                 <div class="modal-actions">
@@ -581,6 +587,23 @@
                 document.body.removeChild(ta);
                 showToast('Credentials copied!');
             });
+        }
+
+        function clientStripDigits(input) {
+            var pos = input.selectionStart;
+            var cleaned = input.value.replace(/[0-9]/g, '');
+            if (cleaned !== input.value) {
+                input.value = cleaned;
+                input.setSelectionRange(Math.max(0, pos - 1), Math.max(0, pos - 1));
+            }
+        }
+
+        function clientCapName(input) {
+            var pos = input.selectionStart;
+            input.value = input.value.replace(/(^|[\s'\-])([a-zà-öø-ÿñ])/g, function(_, sep, ch) {
+                return sep + ch.toUpperCase();
+            });
+            input.setSelectionRange(pos, pos);
         }
 
         function showToast(msg) {

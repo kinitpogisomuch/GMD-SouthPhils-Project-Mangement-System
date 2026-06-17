@@ -70,6 +70,7 @@ class SalaryController extends Controller
             'pay_period'       => $payPeriod,
             'daily_rate'       => (float) ($employee->daily_rate ?? 0),
             'days_worked'      => 0,
+            'overtime_hours'   => 0,
             'gross_pay'        => 0,
             'total_deductions' => 0,
             'net_pay'          => 0,
@@ -81,20 +82,22 @@ class SalaryController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'employee_id' => 'required|exists:employees,id',
-            'pay_period'  => 'required|date_format:Y-m-d',  // week-start Monday
-            'days_worked' => 'required|numeric|min:0|max:7',
-            'notes'       => 'nullable|string|max:500',
+            'employee_id'    => 'required|exists:employees,id',
+            'pay_period'     => 'required|date_format:Y-m-d',
+            'days_worked'    => 'required|numeric|min:0|max:7',
+            'overtime_hours' => 'nullable|numeric|min:0|max:24',
+            'notes'          => 'nullable|string|max:500',
         ]);
 
         $employee = Employee::findOrFail($validated['employee_id']);
 
         $data = SalaryRecord::compute([
-            'employee_id' => $employee->id,
-            'pay_period'  => $validated['pay_period'],
-            'daily_rate'  => $employee->daily_rate ?? 0,
-            'days_worked' => $validated['days_worked'],
-            'notes'       => $validated['notes'] ?? null,
+            'employee_id'    => $employee->id,
+            'pay_period'     => $validated['pay_period'],
+            'daily_rate'     => $employee->daily_rate ?? 0,
+            'days_worked'    => $validated['days_worked'],
+            'overtime_hours' => $validated['overtime_hours'] ?? 0,
+            'notes'          => $validated['notes'] ?? null,
         ]);
 
         $record = SalaryRecord::updateOrCreate(
@@ -111,13 +114,15 @@ class SalaryController extends Controller
         $record = SalaryRecord::findOrFail($id);
 
         $validated = $request->validate([
-            'days_worked' => 'required|numeric|min:0|max:7',
-            'notes'       => 'nullable|string|max:500',
+            'days_worked'    => 'required|numeric|min:0|max:7',
+            'overtime_hours' => 'nullable|numeric|min:0|max:24',
+            'notes'          => 'nullable|string|max:500',
         ]);
 
         $data = SalaryRecord::compute([
-            'daily_rate'  => $record->employee->daily_rate ?? 0,
-            'days_worked' => $validated['days_worked'],
+            'daily_rate'     => $record->employee->daily_rate ?? 0,
+            'days_worked'    => $validated['days_worked'],
+            'overtime_hours' => $validated['overtime_hours'] ?? 0,
         ]);
 
         $record->update(array_merge($data, [
@@ -145,6 +150,7 @@ class SalaryController extends Controller
             'pay_period'       => $r->pay_period,
             'daily_rate'       => (float) ($r->employee->daily_rate ?? $r->daily_rate),
             'days_worked'      => (float) $r->days_worked,
+            'overtime_hours'   => (float) $r->overtime_hours,
             'gross_pay'        => (float) $r->gross_pay,
             'total_deductions' => (float) $r->total_deductions,
             'net_pay'          => (float) $r->net_pay,

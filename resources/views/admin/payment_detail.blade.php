@@ -232,11 +232,7 @@
                         <input type="date" name="payment_date" required
                                value="{{ now()->format('Y-m-d') }}">
                     </div>
-                    <div class="form-group">
-                        <label>Reference Number</label>
-                        <input type="text" name="reference_number"
-                               placeholder="OR#, Check#, Transfer ref...">
-                    </div>
+
                     <div class="form-group form-group-full">
                         <label>Notes</label>
                         <textarea name="notes" rows="2"

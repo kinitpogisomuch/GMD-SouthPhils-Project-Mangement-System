@@ -106,11 +106,11 @@
                                         Edit Profile
                                     </button>
                                 </div>
-                                <div id="profileEditActions" style="display:none;gap:8px;display:none;">
+                                <div id="profileEditActions" style="display:none;">
                                     <button type="button" class="cancel-btn" onclick="cancelEdit()">
                                         <i data-lucide="x"></i> Cancel
                                     </button>
-                                    <button type="submit" form="profileForm" class="save-btn">
+                                    <button type="button" id="saveProfileBtn" class="save-btn">
                                         <i data-lucide="save"></i> Save Changes
                                     </button>
                                 </div>
@@ -132,13 +132,17 @@
                                         <label>First Name</label>
                                         <input type="text" name="first_name" class="profile-field"
                                                value="{{ old('first_name', $adminData->first_name) }}"
-                                               placeholder="First name" disabled>
+                                               placeholder="First name" disabled maxlength="100"
+                                               oninput="profileStripDigits(this); profileCapName(this)">
+                                        <span class="profile-field-err" id="profileFirstNameErr"></span>
                                     </div>
                                     <div class="form-group">
                                         <label>Last Name</label>
                                         <input type="text" name="last_name" class="profile-field"
                                                value="{{ old('last_name', $adminData->last_name) }}"
-                                               placeholder="Last name" disabled>
+                                               placeholder="Last name" disabled maxlength="100"
+                                               oninput="profileStripDigits(this); profileCapName(this)">
+                                        <span class="profile-field-err" id="profileLastNameErr"></span>
                                     </div>
                                     <div class="form-group">
                                         <label>Username <span style="font-size:11px;color:var(--muted);font-weight:400;">(cannot be changed)</span></label>
@@ -149,13 +153,17 @@
                                         <label>Email Address</label>
                                         <input type="email" name="email" class="profile-field"
                                                value="{{ old('email', $adminData->email) }}"
-                                               placeholder="Email address" disabled>
+                                               placeholder="Email address" disabled maxlength="255"
+                                               oninput="profileValidateEmail(this)">
+                                        <span class="profile-field-err" id="profileEmailErr"></span>
                                     </div>
                                     <div class="form-group">
                                         <label>Phone Number</label>
                                         <input type="text" name="phone" class="profile-field"
                                                value="{{ old('phone', $adminData->phone) }}"
-                                               placeholder="e.g. 09XX XXX XXXX" disabled>
+                                               placeholder="e.g. 09XX XXX XXXX" disabled maxlength="12"
+                                               oninput="profilePhoneInput(this)">
+                                        <span class="profile-field-err" id="profilePhoneErr"></span>
                                     </div>
                                     <div class="form-group">
                                         <label>Position / Role <span style="font-size:11px;color:var(--muted);font-weight:400;">(cannot be changed)</span></label>
@@ -201,7 +209,8 @@
                                     <input type="password" name="current_password" id="currentPassword"
                                            placeholder="Enter current password">
                                     <button type="button" class="toggle-pw" data-target="currentPassword">
-                                        <i data-lucide="eye"></i>
+                                        <span class="pw-icon-off">@include('partials.icons.eye-off')</span>
+                                        <span class="pw-icon-on" style="display:none;">@include('partials.icons.eye')</span>
                                     </button>
                                 </div>
                             </div>
@@ -211,7 +220,8 @@
                                     <input type="password" name="new_password" id="newPassword"
                                            placeholder="Enter new password">
                                     <button type="button" class="toggle-pw" data-target="newPassword">
-                                        <i data-lucide="eye"></i>
+                                        <span class="pw-icon-off">@include('partials.icons.eye-off')</span>
+                                        <span class="pw-icon-on" style="display:none;">@include('partials.icons.eye')</span>
                                     </button>
                                 </div>
                                 <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;">
@@ -227,7 +237,8 @@
                                     <input type="password" name="new_password_confirmation" id="confirmPassword"
                                            placeholder="Confirm new password">
                                     <button type="button" class="toggle-pw" data-target="confirmPassword">
-                                        <i data-lucide="eye"></i>
+                                        <span class="pw-icon-off">@include('partials.icons.eye-off')</span>
+                                        <span class="pw-icon-on" style="display:none;">@include('partials.icons.eye')</span>
                                     </button>
                                 </div>
                                 <span class="pw-req" id="req-match" style="margin-top:8px;display:inline-flex;">Passwords match</span>
@@ -609,6 +620,15 @@
         enableEdit();
         @endif
 
+        // Save profile — validate then enable all fields and submit
+        document.getElementById('saveProfileBtn').addEventListener('click', function () {
+            if (!profileFormValid()) return;
+            document.querySelectorAll('#profileForm .profile-field').forEach(function (f) {
+                f.removeAttribute('disabled');
+            });
+            document.getElementById('profileForm').submit();
+        });
+
         // User search
         document.getElementById('userSearch').addEventListener('keyup', function () {
             var q = this.value.toLowerCase();
@@ -617,15 +637,6 @@
             });
         });
 
-        // Password toggles
-        document.querySelectorAll('.toggle-pw').forEach(function (btn) {
-            btn.addEventListener('click', function () {
-                var field = document.getElementById(this.dataset.target);
-                field.type = field.type === 'password' ? 'text' : 'password';
-                this.querySelector('i').setAttribute('data-lucide', field.type === 'password' ? 'eye' : 'eye-off');
-                if (typeof lucide !== 'undefined') lucide.createIcons();
-            });
-        });
 
         // Password strength indicators
         var pwInput   = document.getElementById('newPassword');
@@ -693,10 +704,87 @@
     // --- Profile edit/cancel ---
     var originalValues = {};
 
+    // ---- Profile field helpers ----
+    function profileSetErr(id, msg) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = msg;
+        el.style.display = msg ? 'block' : 'none';
+        var input = el.previousElementSibling;
+        if (input) input.style.borderColor = msg ? '#dc2626' : '';
+    }
+
+    function profileStripDigits(input) {
+        var pos     = input.selectionStart;
+        var cleaned = input.value.replace(/[0-9]/g, '');
+        if (cleaned !== input.value) {
+            input.value = cleaned;
+            input.setSelectionRange(Math.max(0, pos - 1), Math.max(0, pos - 1));
+        }
+    }
+
+    function profileCapName(input) {
+        var pos = input.selectionStart;
+        input.value = input.value.replace(/(^|[\s'\-])([a-zà-öø-ÿñ])/g, function(_, sep, ch) {
+            return sep + ch.toUpperCase();
+        });
+        input.setSelectionRange(pos, pos);
+    }
+
+    function profilePhoneInput(input) {
+        var pos     = input.selectionStart;
+        var digits  = input.value.replace(/[^0-9]/g, '').slice(0, 12);
+        input.value = digits;
+        input.setSelectionRange(Math.min(pos, digits.length), Math.min(pos, digits.length));
+        var len = digits.length;
+        if (len === 0) {
+            profileSetErr('profilePhoneErr', '');
+        } else if (len < 11) {
+            profileSetErr('profilePhoneErr', 'Phone number is too short (minimum 11 digits).');
+        } else if (len > 11) {
+            profileSetErr('profilePhoneErr', 'Phone number must not exceed 11 digits.');
+        } else {
+            profileSetErr('profilePhoneErr', '');
+        }
+    }
+
+    function profileValidateEmail(input) {
+        var val = input.value.trim();
+        var ok  = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+        profileSetErr('profileEmailErr', val && !ok ? 'Enter a valid email address (e.g. admin@example.com).' : '');
+    }
+
+    function profileFormValid() {
+        var ok = true;
+        var phone = document.getElementById('profileForm').querySelector('[name="phone"]');
+        if (phone && phone.value) {
+            var digits = phone.value.replace(/[^0-9]/g, '');
+            if (digits.length !== 11) {
+                profileSetErr('profilePhoneErr', digits.length < 11
+                    ? 'Phone number is too short (must be 11 digits).'
+                    : 'Phone number must not exceed 11 digits.');
+                ok = false;
+            }
+        }
+        var email = document.getElementById('profileForm').querySelector('[name="email"]');
+        if (email && email.value.trim()) {
+            var validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim());
+            if (!validEmail) {
+                profileSetErr('profileEmailErr', 'Enter a valid email address (e.g. admin@example.com).');
+                ok = false;
+            }
+        }
+        if (!ok) {
+            var firstErr = document.querySelector('#profileForm .profile-field[style*="dc2626"]');
+            if (firstErr) firstErr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        return ok;
+    }
+
     function enableEdit() {
         document.querySelectorAll('#profileForm .profile-field').forEach(function (f) {
             originalValues[f.name] = f.value;
-            f.disabled = false;
+            f.removeAttribute('disabled');
         });
         document.getElementById('profileActions').style.display = 'none';
         document.getElementById('profileEditActions').style.display = 'flex';
@@ -704,8 +792,8 @@
 
     function cancelEdit() {
         document.querySelectorAll('#profileForm .profile-field').forEach(function (f) {
-            f.value = originalValues[f.name] ?? f.value;
-            f.disabled = true;
+            f.value = originalValues[f.name] !== undefined ? originalValues[f.name] : f.value;
+            f.setAttribute('disabled', '');
         });
         document.getElementById('profileActions').style.display = '';
         document.getElementById('profileEditActions').style.display = 'none';
@@ -744,6 +832,13 @@
     </script>
 
     <style>
+        .profile-field-err {
+            display: none;
+            color: #dc2626;
+            font-size: 11.5px;
+            margin-top: 4px;
+            line-height: 1.4;
+        }
         .profile-field:disabled {
             background: var(--surface-2);
             color: var(--text-secondary);
@@ -763,7 +858,7 @@
             border-radius: 50%; animation: psgcSpin 0.7s linear infinite; pointer-events: none;
         }
         @keyframes psgcSpin { to { transform: translateY(-50%) rotate(360deg); } }
-        #profileEditActions { display: none; gap: 8px; }
+        #profileEditActions { display: none; gap: 8px; flex-wrap: wrap; }
         .pw-req {
             font-size: 11.5px; padding: 3px 9px; border-radius: 99px;
             border: 1px solid #e5e7eb; color: #9ca3af; background: #f9fafb;

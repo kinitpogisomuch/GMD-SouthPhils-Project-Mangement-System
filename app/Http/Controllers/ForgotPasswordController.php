@@ -43,7 +43,7 @@ class ForgotPasswordController extends Controller
 
         // Enforce 60-second resend cooldown
         $recent = PasswordReset::where('email', $email)
-            ->where('is_used', false)
+            ->whereRaw('"is_used" = false')
             ->where('expires_at', '>', now())
             ->where('created_at', '>', now()->subSeconds(60))
             ->latest()
@@ -57,7 +57,7 @@ class ForgotPasswordController extends Controller
         }
 
         // Invalidate any previous codes for this email
-        PasswordReset::where('email', $email)->update(['is_used' => true]);
+        PasswordReset::where('email', $email)->update(['is_used' => DB::raw('true')]);
 
         $code = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
 
@@ -65,7 +65,7 @@ class ForgotPasswordController extends Controller
             'email'      => $email,
             'code_hash'  => Hash::make($code),
             'expires_at' => now()->addMinutes(10),
-            'is_used'    => false,
+            'is_used'    => DB::raw('false'),
         ]);
 
         try {
@@ -118,7 +118,7 @@ class ForgotPasswordController extends Controller
         $email = session('fp_email');
 
         $reset = PasswordReset::where('email', $email)
-            ->where('is_used', false)
+            ->whereRaw('"is_used" = false')
             ->where('expires_at', '>', now())
             ->latest()
             ->first();
@@ -132,7 +132,7 @@ class ForgotPasswordController extends Controller
         }
 
         // Mark code consumed and advance to reset step
-        $reset->update(['is_used' => true]);
+        $reset->update(['is_used' => DB::raw('true')]);
         session(['fp_verified' => true]);
 
         return redirect()->route('password.reset.form');
@@ -150,7 +150,7 @@ class ForgotPasswordController extends Controller
         $email = session('fp_email');
 
         $recent = PasswordReset::where('email', $email)
-            ->where('is_used', false)
+            ->whereRaw('"is_used" = false')
             ->where('expires_at', '>', now())
             ->where('created_at', '>', now()->subSeconds(60))
             ->latest()
@@ -161,7 +161,7 @@ class ForgotPasswordController extends Controller
             return back()->withErrors(['code' => "Please wait {$wait} second(s) before resending."]);
         }
 
-        PasswordReset::where('email', $email)->update(['is_used' => true]);
+        PasswordReset::where('email', $email)->update(['is_used' => DB::raw('true')]);
 
         $code = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
 
@@ -169,7 +169,7 @@ class ForgotPasswordController extends Controller
             'email'      => $email,
             'code_hash'  => Hash::make($code),
             'expires_at' => now()->addMinutes(10),
-            'is_used'    => false,
+            'is_used'    => DB::raw('false'),
         ]);
 
         try {
@@ -254,7 +254,7 @@ class ForgotPasswordController extends Controller
         ]);
 
         // Invalidate all reset codes for this email
-        PasswordReset::where('email', session('fp_email'))->update(['is_used' => true]);
+        PasswordReset::where('email', session('fp_email'))->update(['is_used' => DB::raw('true')]);
 
         // Wipe forgot-password session keys, then build the login session
         $email = session('fp_email');

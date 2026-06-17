@@ -311,50 +311,62 @@
                 <div class="form-grid">
                     <div class="form-group">
                         <label>First Name *</label>
-                        <input type="text" name="first_name" required
+                        <input type="text" name="first_name" required minlength="2" maxlength="50"
                                placeholder="e.g. Kenneth"
-                               value="{{ old('first_name') }}">
+                               value="{{ old('first_name') }}"
+                               oninput="empCapName(this); empFieldError(this,'addEmpFirstNameErr')">
+                        <span class="emp-field-err" id="addEmpFirstNameErr"></span>
                     </div>
                     <div class="form-group">
                         <label>Last Name *</label>
-                        <input type="text" name="last_name" required
+                        <input type="text" name="last_name" required minlength="2" maxlength="50"
                                placeholder="e.g. Nadera"
-                               value="{{ old('last_name') }}">
+                               value="{{ old('last_name') }}"
+                               oninput="empCapName(this); empFieldError(this,'addEmpLastNameErr')">
+                        <span class="emp-field-err" id="addEmpLastNameErr"></span>
                     </div>
                     <div class="form-group">
                         <label>Contact Number *</label>
-                        <input type="text" name="contact" required
-                               placeholder="e.g. 09XX XXX XXXX"
-                               value="{{ old('contact') }}">
+                        <input type="text" name="contact" required maxlength="13"
+                               placeholder="e.g. 09171234567"
+                               value="{{ old('contact') }}"
+                               oninput="empFieldError(this,'addEmpContactErr')">
+                        <span class="emp-field-err" id="addEmpContactErr"></span>
                     </div>
                     <div class="form-group">
-                        <label>Email Address <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
-                        <input type="email" name="email"
-                               placeholder="Optional"
-                               value="{{ old('email') }}">
+                        <label>Email Address *</label>
+                        <input type="email" name="email" required maxlength="255"
+                               placeholder="e.g. juan@gmail.com"
+                               value="{{ old('email') }}"
+                               oninput="empFieldError(this,'addEmpEmailErr')">
+                        <span class="emp-field-err" id="addEmpEmailErr"></span>
                     </div>
                     <div class="form-group">
                         <label>Role *</label>
-                        <select name="role" required>
+                        <select name="role" required onchange="empFieldError(this,'addEmpRoleErr')">
                             <option value="">Select role</option>
                             <option value="Fabricator" {{ old('role') === 'Fabricator' ? 'selected' : '' }}>Fabricator</option>
                             <option value="Welder" {{ old('role') === 'Welder' ? 'selected' : '' }}>Welder</option>
                             <option value="Helper/Labor" {{ old('role') === 'Helper/Labor' ? 'selected' : '' }}>Helper/Labor</option>
                             <option value="Outsourced" {{ old('role') === 'Outsourced' ? 'selected' : '' }}>Outsourced</option>
                         </select>
+                        <span class="emp-field-err" id="addEmpRoleErr"></span>
                     </div>
                     <div class="form-group">
                         <label>Employee Type *</label>
-                        <select name="employee_type" required>
+                        <select name="employee_type" required onchange="empFieldError(this,'addEmpTypeErr')">
                             <option value="Regular" {{ old('employee_type', 'Regular') === 'Regular' ? 'selected' : '' }}>Regular</option>
                             <option value="Outsourced" {{ old('employee_type') === 'Outsourced' ? 'selected' : '' }}>Outsourced</option>
                         </select>
+                        <span class="emp-field-err" id="addEmpTypeErr"></span>
                     </div>
                     <div class="form-group">
                         <label>Daily Rate (₱) *</label>
-                        <input type="number" name="daily_rate" required min="0" step="0.01"
+                        <input type="number" name="daily_rate" required min="1" step="0.01"
                                placeholder="e.g. 500"
-                               value="{{ old('daily_rate') }}">
+                               value="{{ old('daily_rate') }}"
+                               oninput="empFieldError(this,'addEmpRateErr')">
+                        <span class="emp-field-err" id="addEmpRateErr"></span>
                     </div>
                 </div>
 
@@ -470,55 +482,86 @@
                 <div class="form-grid">
                     <div class="form-group">
                         <label>First Name *</label>
-                        <input type="text" name="first_name" id="editEmpFirstName" required placeholder="e.g. Kenneth">
+                        <input type="text" name="first_name" id="editEmpFirstName" required maxlength="100"
+                               placeholder="e.g. Kenneth"
+                               oninput="empCapName(this); empFieldError(this,'editEmpFirstNameErr')">
+                        <span class="emp-field-err" id="editEmpFirstNameErr"></span>
                     </div>
                     <div class="form-group">
                         <label>Last Name *</label>
-                        <input type="text" name="last_name" id="editEmpLastName" required placeholder="e.g. Nadera">
+                        <input type="text" name="last_name" id="editEmpLastName" required maxlength="100"
+                               placeholder="e.g. Nadera"
+                               oninput="empCapName(this); empFieldError(this,'editEmpLastNameErr')">
+                        <span class="emp-field-err" id="editEmpLastNameErr"></span>
                     </div>
                     <div class="form-group">
                         <label>Contact Number *</label>
-                        <input type="text" name="contact" id="editEmpContact" required placeholder="Contact number">
+                        <input type="text" name="contact" id="editEmpContact" required maxlength="13"
+                               placeholder="e.g. 09171234567"
+                               oninput="empFieldError(this,'editEmpContactErr')">
+                        <span class="emp-field-err" id="editEmpContactErr"></span>
                     </div>
                     <div class="form-group">
                         <label>Email Address <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
-                        <input type="email" name="email" id="editEmpEmail" placeholder="Email (optional)">
+                        <input type="email" name="email" id="editEmpEmail"
+                               placeholder="Email (optional)"
+                               oninput="empFieldError(this,'editEmpEmailErr')">
+                        <span class="emp-field-err" id="editEmpEmailErr"></span>
                     </div>
                     <div class="form-group">
                         <label>Role *</label>
-                        <select name="role" id="editEmpRole" required>
+                        <select name="role" id="editEmpRole" required
+                                onchange="empFieldError(this,'editEmpRoleErr')">
                             <option value="Fabricator">Fabricator</option>
                             <option value="Welder">Welder</option>
                             <option value="Helper/Labor">Helper/Labor</option>
                             <option value="Outsourced">Outsourced</option>
                         </select>
+                        <span class="emp-field-err" id="editEmpRoleErr"></span>
                     </div>
                     <div class="form-group">
                         <label>Employee Type *</label>
-                        <select name="employee_type" id="editEmpType" required>
+                        <select name="employee_type" id="editEmpType" required
+                                onchange="empFieldError(this,'editEmpTypeErr')">
                             <option value="Regular">Regular</option>
                             <option value="Outsourced">Outsourced</option>
                         </select>
+                        <span class="emp-field-err" id="editEmpTypeErr"></span>
                     </div>
                     <div class="form-group">
                         <label>Daily Rate (₱) *</label>
-                        <input type="number" name="daily_rate" id="editEmpDailyRate" required min="0" step="0.01" placeholder="e.g. 500">
+                        <input type="number" name="daily_rate" id="editEmpDailyRate" required min="1" step="0.01"
+                               placeholder="e.g. 500"
+                               oninput="empFieldError(this,'editEmpRateErr')">
+                        <span class="emp-field-err" id="editEmpRateErr"></span>
                     </div>
                     <div class="form-group">
                         <label>Province *</label>
-                        <input type="text" name="province" id="editEmpProvince" required placeholder="e.g. Laguna">
+                        <input type="text" name="province" id="editEmpProvince" required maxlength="255"
+                               placeholder="e.g. Laguna"
+                               oninput="empCapName(this); empFieldError(this,'editEmpProvinceErr')">
+                        <span class="emp-field-err" id="editEmpProvinceErr"></span>
                     </div>
                     <div class="form-group">
                         <label>City / Municipality *</label>
-                        <input type="text" name="city" id="editEmpCity" required placeholder="e.g. Santa Cruz">
+                        <input type="text" name="city" id="editEmpCity" required maxlength="255"
+                               placeholder="e.g. Santa Cruz"
+                               oninput="empCapName(this); empFieldError(this,'editEmpCityErr')">
+                        <span class="emp-field-err" id="editEmpCityErr"></span>
                     </div>
                     <div class="form-group">
                         <label>Region *</label>
-                        <input type="text" name="region" id="editEmpRegion" required placeholder="e.g. Region IV-A">
+                        <input type="text" name="region" id="editEmpRegion" required maxlength="255"
+                               placeholder="e.g. Region IV-A"
+                               oninput="empCapName(this); empFieldError(this,'editEmpRegionErr')">
+                        <span class="emp-field-err" id="editEmpRegionErr"></span>
                     </div>
                     <div class="form-group form-group-full">
                         <label>Street Address *</label>
-                        <input type="text" name="street_address" id="editEmpStreetAddress" required placeholder="e.g. Poblacion Street">
+                        <input type="text" name="street_address" id="editEmpStreetAddress" required maxlength="500"
+                               placeholder="e.g. Poblacion Street"
+                               oninput="empCapName(this); empFieldError(this,'editEmpStreetErr')">
+                        <span class="emp-field-err" id="editEmpStreetErr"></span>
                     </div>
                 </div>
 
@@ -645,21 +688,33 @@
                     </div>
                     <div class="form-group">
                         <label>Days Worked This Week *</label>
-                        <input type="number" id="rpDays" required placeholder="e.g. 6" min="0" max="7" step="0.5">
+                        <input type="number" id="rpDays" required placeholder="e.g. 5" min="0" max="7" step="0.5"
+                               oninput="updatePayPreview()">
+                        <span style="font-size:11px;color:var(--muted);margin-top:3px;display:block;">Use <strong>0.5</strong> for a half day (e.g. 4.5 = 4 full days + 1 half day)</span>
+                    </div>
+                    <div class="form-group" style="grid-column:1/-1;">
+                        <label>Overtime Hours <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
+                        <input type="number" id="rpOvertimeHours" placeholder="e.g. 2" min="0" max="24" step="0.5"
+                               oninput="updatePayPreview()">
+                        <span style="font-size:11px;color:var(--muted);margin-top:3px;display:block;">Overtime is computed at <strong>1.25×</strong> the hourly rate (daily rate ÷ 8)</span>
                     </div>
                 </div>
 
                 <!-- Live pay preview -->
                 <div id="rpPreview" style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-top:4px;display:none;">
                     <div style="font-size:11px;font-weight:800;color:var(--primary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">Pay Preview</div>
-                    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;font-size:13px;">
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;font-size:13px;">
                         <div>
-                            <div style="color:var(--muted);font-size:11px;font-weight:700;margin-bottom:2px;">Salary / Week</div>
-                            <div style="font-weight:700;color:#16a34a;" id="previewGross">₱0.00</div>
+                            <div style="color:var(--muted);font-size:11px;font-weight:700;margin-bottom:2px;">Regular Pay</div>
+                            <div style="font-weight:700;color:var(--dark);" id="previewRegular">₱0.00</div>
+                        </div>
+                        <div id="previewOvertimeWrap" style="display:none;">
+                            <div style="color:var(--muted);font-size:11px;font-weight:700;margin-bottom:2px;">Overtime Pay</div>
+                            <div style="font-weight:700;color:#2563eb;" id="previewOvertime">₱0.00</div>
                         </div>
                         <div>
-                            <div style="color:var(--muted);font-size:11px;font-weight:700;margin-bottom:2px;">Total</div>
-                            <div style="font-size:18px;font-weight:900;color:var(--dark);" id="previewNet">₱0.00</div>
+                            <div style="color:var(--muted);font-size:11px;font-weight:700;margin-bottom:2px;">Total Pay</div>
+                            <div style="font-size:18px;font-weight:900;color:#16a34a;" id="previewNet">₱0.00</div>
                         </div>
                     </div>
                 </div>
@@ -1189,8 +1244,9 @@
         document.getElementById('recordPaymentSubtitle').textContent = 'Update the weekly salary for ' + rec.employee_name + '.';
 
         setSalarySelectedEmployee(rec.employee_name, rec.role);
-        document.getElementById('rpDailyRate').value = rec.daily_rate;
-        document.getElementById('rpDays').value      = rec.days_worked;
+        document.getElementById('rpDailyRate').value     = rec.daily_rate;
+        document.getElementById('rpDays').value           = rec.days_worked;
+        document.getElementById('rpOvertimeHours').value  = rec.overtime_hours || '';
 
         document.getElementById('backSalaryStep2').style.display = 'none';
         showSalaryStep(2);
@@ -1210,8 +1266,9 @@
         document.getElementById('recordPaymentTitle').textContent    = 'Add Outsourced Worker';
         document.getElementById('recordPaymentSubtitle').textContent = 'Select an outsourced worker to record their weekly salary.';
 
-        document.getElementById('rpDailyRate').value = '';
-        document.getElementById('rpDays').value      = '';
+        document.getElementById('rpDailyRate').value    = '';
+        document.getElementById('rpDays').value          = '';
+        document.getElementById('rpOvertimeHours').value = '';
 
         pickedSalaryEmployee = null;
         document.getElementById('salaryEmpPickerSearch').value = '';
@@ -1222,18 +1279,31 @@
     }
 
     function updatePayPreview() {
-        var rate = parseFloat(document.getElementById('rpDailyRate').value) || 0;
-        var days = parseFloat(document.getElementById('rpDays').value)      || 0;
+        var rate          = parseFloat(document.getElementById('rpDailyRate').value)      || 0;
+        var days          = parseFloat(document.getElementById('rpDays').value)           || 0;
+        var overtimeHours = parseFloat(document.getElementById('rpOvertimeHours').value)  || 0;
 
-        var gross = rate * days;
+        var regularPay   = rate * days;
+        var hourlyRate   = rate / 8;
+        var overtimePay  = overtimeHours * (hourlyRate * 1.25);
+        var total        = regularPay + overtimePay;
 
-        document.getElementById('previewGross').textContent = '₱' + fmt(gross);
-        document.getElementById('previewNet').textContent   = '₱' + fmt(gross);
-        document.getElementById('rpPreview').style.display  = 'block';
+        document.getElementById('previewRegular').textContent = '₱' + fmt(regularPay);
+        document.getElementById('previewNet').textContent     = '₱' + fmt(total);
+
+        var otWrap = document.getElementById('previewOvertimeWrap');
+        if (overtimeHours > 0) {
+            document.getElementById('previewOvertime').textContent = '₱' + fmt(overtimePay);
+            otWrap.style.display = '';
+        } else {
+            otWrap.style.display = 'none';
+        }
+
+        document.getElementById('rpPreview').style.display = 'block';
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-        ['rpDailyRate', 'rpDays'].forEach(function (id) {
+        ['rpDailyRate', 'rpDays', 'rpOvertimeHours'].forEach(function (id) {
             var el = document.getElementById(id);
             if (el) el.addEventListener('input', updatePayPreview);
         });
@@ -1271,9 +1341,10 @@
             submitBtn.disabled  = true;
 
             var payload = {
-                employee_id: document.getElementById('rpEmployee').value,
-                pay_period:  document.getElementById('rpPeriod').value,
-                days_worked: document.getElementById('rpDays').value,
+                employee_id:    document.getElementById('rpEmployee').value,
+                pay_period:     document.getElementById('rpPeriod').value,
+                days_worked:    document.getElementById('rpDays').value,
+                overtime_hours: document.getElementById('rpOvertimeHours').value || 0,
             };
 
             var url    = isEdit ? '/admin/salary-records/' + recordId : SALARY_STORE_URL;
@@ -1360,6 +1431,109 @@
         toast.classList.add('show');
         setTimeout(function () { toast.classList.remove('show'); }, 3000);
     }
+
+    // ---- Employee form validation ----
+    function empCapName(input) {
+        var pos = input.selectionStart;
+        input.value = input.value.replace(/(^|[\s'\-])([a-zà-öø-ÿñ])/g, function(_, sep, ch) {
+            return sep + ch.toUpperCase();
+        });
+        input.setSelectionRange(pos, pos);
+    }
+
+    var NAME_RE    = /^[A-Za-zÀ-ÖØ-öø-ÿÑñ\s'\-]+$/;
+    var CONTACT_RE = /^(09|\+639)\d{9}$/;
+    var EMAIL_RE   = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    function empValidateField(el) {
+        var name     = el.name;
+        var val      = el.value.trim();
+        var required = el.required;
+
+        if (name === 'first_name' || name === 'last_name') {
+            var label = name === 'first_name' ? 'First name' : 'Last name';
+            if (!val)              return label + ' is required.';
+            if (val.length < 2)   return label + ' must be at least 2 characters.';
+            if (val.length > 50)  return label + ' must not exceed 50 characters.';
+            if (!NAME_RE.test(val)) return label + ' must contain letters only (hyphens and apostrophes allowed).';
+        }
+        if (name === 'contact') {
+            if (!val) return 'Contact number is required.';
+            var stripped = val.replace(/\s/g, '');
+            if (/[^0-9+]/.test(stripped)) return 'Contact number must contain digits only.';
+            if (!CONTACT_RE.test(stripped)) return 'Must be a valid PH mobile number (e.g. 09171234567).';
+        }
+        if (name === 'email') {
+            if (required && !val) return 'Email address is required.';
+            if (val && val.length > 255) return 'Email must not exceed 255 characters.';
+            if (val && !EMAIL_RE.test(val)) return 'Enter a valid email address.';
+        }
+        if (name === 'role' && !val) return 'Please select a role.';
+        if (name === 'employee_type' && !val) return 'Please select an employee type.';
+        if (name === 'daily_rate') {
+            if (!val) return 'Daily rate is required.';
+            if (parseFloat(val) <= 0) return 'Daily rate must be greater than zero.';
+        }
+        if (['province','city','region'].includes(name) && !val) return 'This field is required.';
+        if (name === 'street_address' && !val) return 'Street address is required.';
+        return '';
+    }
+
+    function empFieldError(el, errId) {
+        var msg  = empValidateField(el);
+        var span = document.getElementById(errId);
+        if (!span) return;
+        span.textContent = msg;
+        span.style.display = msg ? 'block' : 'none';
+        el.style.borderColor = msg ? '#dc2626' : '';
+    }
+
+    function empValidateForm(formEl) {
+        var valid = true;
+        formEl.querySelectorAll('input[name], select[name]').forEach(function (el) {
+            var errId = el.nextElementSibling && el.nextElementSibling.classList.contains('emp-field-err')
+                ? el.nextElementSibling.id : null;
+            if (!errId) return;
+            var msg = empValidateField(el);
+            var span = document.getElementById(errId);
+            if (span) {
+                span.textContent = msg;
+                span.style.display = msg ? 'block' : 'none';
+            }
+            el.style.borderColor = msg ? '#dc2626' : '';
+            if (msg) valid = false;
+        });
+        if (!valid) {
+            var firstErr = formEl.querySelector('input[style*="dc2626"], select[style*="dc2626"]');
+            if (firstErr) firstErr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        return valid;
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        var editForm = document.getElementById('editEmpForm');
+        if (editForm) {
+            editForm.addEventListener('submit', function (e) {
+                if (!empValidateForm(editForm)) e.preventDefault();
+            });
+        }
+        var addForm = document.getElementById('addEmpAccountForm');
+        if (addForm) {
+            addForm.addEventListener('submit', function (e) {
+                if (!empValidateForm(addForm)) e.preventDefault();
+            });
+        }
+    });
     </script>
+
+<style>
+.emp-field-err {
+    display: none;
+    color: #dc2626;
+    font-size: 11.5px;
+    margin-top: 4px;
+    line-height: 1.4;
+}
+</style>
 </body>
 </html>

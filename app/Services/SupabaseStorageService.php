@@ -9,8 +9,8 @@ use Illuminate\Support\Str;
 
 class SupabaseStorageService
 {
-    protected string $url;
-    protected string $serviceKey;
+    protected ?string $url;
+    protected ?string $serviceKey;
     protected string $bucket;
 
     public function __construct()
@@ -22,6 +22,10 @@ class SupabaseStorageService
 
     public function upload(UploadedFile $file, string $folder = 'updates'): string|null
     {
+        if (!$this->url || !$this->serviceKey) {
+            return $this->uploadLocal($file, $folder);
+        }
+
         $extension = $file->getClientOriginalExtension();
         $filename  = $folder . '/' . Str::uuid() . '.' . $extension;
         $contents  = file_get_contents($file->getRealPath());

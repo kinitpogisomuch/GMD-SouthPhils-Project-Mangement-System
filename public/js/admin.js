@@ -563,14 +563,12 @@ document.querySelectorAll(".toggle-pw").forEach(function (btn) {
     btn.addEventListener("click", function () {
         var target = document.getElementById(btn.dataset.target);
         if (!target) return;
-        if (target.type === "password") {
-            target.type = "text";
-            btn.innerHTML = '<i data-lucide="eye-off"></i>';
-        } else {
-            target.type = "password";
-            btn.innerHTML = '<i data-lucide="eye"></i>';
-        }
-        if (typeof lucide !== "undefined") lucide.createIcons();
+        var show = target.type === "password";
+        target.type = show ? "text" : "password";
+        var off = btn.querySelector(".pw-icon-off");
+        var on  = btn.querySelector(".pw-icon-on");
+        if (off) off.style.display = show ? "none" : "";
+        if (on)  on.style.display  = show ? ""     : "none";
     });
 });
 

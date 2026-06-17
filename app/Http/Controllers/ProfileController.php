@@ -20,14 +20,20 @@ class ProfileController extends Controller
         $admin = User::findOrFail(session('user_id'));
 
         $validator = Validator::make($request->all(), [
-            'first_name'     => 'required|string|max:100',
-            'last_name'      => 'nullable|string|max:100',
-            'email'          => 'required|email|unique:users,email,' . $admin->id,
-            'phone'          => 'nullable|string|max:20',
+            'first_name'     => ['required', 'string', 'max:100', 'regex:/^[^0-9]+$/u'],
+            'last_name'      => ['nullable', 'string', 'max:100', 'regex:/^[^0-9]*$/u'],
+            'email'          => 'required|email|max:255|unique:users,email,' . $admin->id,
+            'phone'          => ['nullable', 'string', 'digits:11'],
             'region'         => 'nullable|string|max:255',
             'province'       => 'nullable|string|max:255',
             'city'           => 'nullable|string|max:255',
             'street_address' => 'nullable|string|max:500',
+        ], [
+            'first_name.regex'  => 'First name must not contain numbers.',
+            'last_name.regex'   => 'Last name must not contain numbers.',
+            'email.email'       => 'Enter a valid email address.',
+            'email.unique'      => 'This email is already in use.',
+            'phone.digits'      => 'Phone number must be exactly 11 digits.',
         ]);
 
         if ($validator->fails()) {
@@ -41,17 +47,10 @@ class ProfileController extends Controller
             ? trim($request->last_name . ', ' . $request->first_name)
             : trim($request->first_name);
 
-        $fullAddress = $this->buildAddress($request);
-
         $admin->update([
-            'full_name'      => $fullName,
-            'email'          => $request->email,
-            'phone'          => $request->phone,
-            'region'         => $request->region,
-            'province'       => $request->province,
-            'city'           => $request->city,
-            'street_address' => $request->street_address,
-            'address'        => $fullAddress,
+            'full_name' => $fullName,
+            'email'     => $request->email,
+            'phone'     => $request->phone,
         ]);
 
         session(['full_name' => $fullName, 'name' => $fullName, 'email' => $request->email]);

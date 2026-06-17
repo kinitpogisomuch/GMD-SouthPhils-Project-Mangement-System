@@ -114,17 +114,15 @@ class ClientSettingsController extends Controller
     public function update(Request $request, $id)
     {
         $request->validate([
-            'first_name'     => 'required|string|max:255',
-            'last_name'      => 'required|string|max:255',
+            'first_name'     => ['required', 'string', 'max:255', 'regex:/^[^0-9]+$/u'],
+            'last_name'      => ['required', 'string', 'max:255', 'regex:/^[^0-9]+$/u'],
             'contact'        => 'required|string',
             'email'          => 'nullable|email',
-            'province'       => 'nullable|string|max:255',
-            'city'           => 'nullable|string|max:255',
+            'province'       => ['nullable', 'string', 'max:255', 'regex:/^[^0-9]*$/u'],
+            'city'           => ['nullable', 'string', 'max:255', 'regex:/^[^0-9]*$/u'],
             'region'         => 'nullable|string|max:255',
             'street_address' => 'nullable|string|max:500',
         ]);
-
-        $combinedName = trim($request->last_name . ', ' . $request->first_name);
 
         $fullAddress = null;
         if ($request->filled('street_address') && $request->filled('city') && $request->filled('province')) {
@@ -137,16 +135,20 @@ class ClientSettingsController extends Controller
             ]));
         }
 
+        $firstName     = ucwords(strtolower(trim($request->first_name)));
+        $lastName      = ucwords(strtolower(trim($request->last_name)));
+        $combinedName  = trim($lastName . ', ' . $firstName);
+
         Client::findOrFail($id)->update([
             'name'           => $combinedName,
-            'first_name'     => $request->first_name,
-            'last_name'      => $request->last_name,
+            'first_name'     => $firstName,
+            'last_name'      => $lastName,
             'address'        => $fullAddress,
-            'region'         => $request->region,
-            'province'       => $request->province,
-            'city'           => $request->city,
+            'region'         => ucwords(strtolower(trim($request->region ?? ''))),
+            'province'       => ucwords(strtolower(trim($request->province ?? ''))),
+            'city'           => ucwords(strtolower(trim($request->city ?? ''))),
             'barangay'       => $request->barangay,
-            'street_address' => $request->street_address,
+            'street_address' => ucfirst(strtolower(trim($request->street_address ?? ''))),
             'contact'        => $request->contact,
             'email'          => $request->email,
         ]);

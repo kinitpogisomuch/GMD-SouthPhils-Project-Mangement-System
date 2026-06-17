@@ -34,15 +34,31 @@ class EmployeeAccountController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'first_name'     => 'required|string|max:100',
-            'last_name'      => 'required|string|max:100',
-            'contact'        => 'required|string|max:20',
-            'email'          => 'nullable|email|unique:employees,email',
-            'role'           => 'required|string',
-            'employee_type'  => 'required|in:Regular,Outsourced',
-            'daily_rate'     => 'required|numeric|min:0',
+            'first_name'    => ['required', 'string', 'min:2', 'max:50', 'regex:/^[A-Za-zÀ-ÖØ-öø-ÿÑñ\s\'\-]+$/u'],
+            'last_name'     => ['required', 'string', 'min:2', 'max:50', 'regex:/^[A-Za-zÀ-ÖØ-öø-ÿÑñ\s\'\-]+$/u'],
+            'contact'       => ['required', 'string', 'regex:/^(09|\+639)\d{9}$/'],
+            'email'         => 'required|email|max:255|unique:employees,email',
+            'role'          => 'required|string|in:Fabricator,Welder,Helper/Labor,Outsourced',
+            'employee_type' => 'required|in:Regular,Outsourced',
+            'daily_rate'    => 'required|numeric|min:1',
         ], [
-            'email.unique' => 'An account with this email already exists.',
+            'first_name.required' => 'First name is required.',
+            'first_name.min'      => 'First name must be at least 2 characters.',
+            'first_name.max'      => 'First name must not exceed 50 characters.',
+            'first_name.regex'    => 'First name must contain letters only (hyphens and apostrophes allowed).',
+            'last_name.required'  => 'Last name is required.',
+            'last_name.min'       => 'Last name must be at least 2 characters.',
+            'last_name.max'       => 'Last name must not exceed 50 characters.',
+            'last_name.regex'     => 'Last name must contain letters only (hyphens and apostrophes allowed).',
+            'contact.required'    => 'Contact number is required.',
+            'contact.regex'       => 'Must be a valid Philippine mobile number (e.g. 09171234567 or +639171234567).',
+            'email.required'      => 'Email address is required.',
+            'email.email'         => 'Enter a valid email address.',
+            'email.max'           => 'Email must not exceed 255 characters.',
+            'email.unique'        => 'An account with this email already exists.',
+            'role.in'             => 'Please select a valid role.',
+            'employee_type.in'    => 'Employee type must be Regular or Outsourced.',
+            'daily_rate.min'      => 'Daily rate must be greater than zero.',
         ]);
 
         if ($validator->fails()) {
@@ -57,10 +73,10 @@ class EmployeeAccountController extends Controller
 
         try {
             Employee::create([
-                'first_name'       => $request->first_name,
-                'last_name'        => $request->last_name,
+                'first_name'       => ucwords(strtolower(trim($request->first_name))),
+                'last_name'        => ucwords(strtolower(trim($request->last_name))),
                 'contact'          => $request->contact,
-                'email'            => $request->filled('email') ? $request->email : null,
+                'email'            => $request->email,
                 'role'             => $request->role,
                 'employee_type'    => $request->employee_type,
                 'daily_rate'       => $request->daily_rate,
@@ -94,17 +110,29 @@ class EmployeeAccountController extends Controller
         $employee = Employee::findOrFail($id);
 
         $validator = Validator::make($request->all(), [
-            'first_name'     => 'required|string|max:100',
-            'last_name'      => 'required|string|max:100',
-            'contact'        => 'required|string|max:20',
-            'email'          => 'nullable|email',
-            'role'           => 'required|string',
+            'first_name'     => ['required', 'string', 'max:100', 'regex:/^[A-Za-zÀ-ÖØ-öø-ÿÑñ\s\'\-\.]+$/u'],
+            'last_name'      => ['required', 'string', 'max:100', 'regex:/^[A-Za-zÀ-ÖØ-öø-ÿÑñ\s\'\-\.]+$/u'],
+            'contact'        => ['required', 'string', 'regex:/^(09|\+639)\d{9}$/'],
+            'email'          => 'nullable|email|unique:employees,email,' . $employee->id,
+            'role'           => 'required|string|in:Fabricator,Welder,Helper/Labor,Outsourced',
             'employee_type'  => 'required|in:Regular,Outsourced',
-            'daily_rate'     => 'required|numeric|min:0',
+            'daily_rate'     => 'required|numeric|min:1',
             'province'       => 'required|string|max:255',
             'city'           => 'required|string|max:255',
             'region'         => 'required|string|max:255',
             'street_address' => 'required|string|max:500',
+        ], [
+            'first_name.regex'    => 'First name must contain letters only (hyphens and apostrophes allowed).',
+            'last_name.regex'     => 'Last name must contain letters only (hyphens and apostrophes allowed).',
+            'contact.regex'       => 'Contact number must be a valid Philippine mobile number (e.g. 09171234567).',
+            'email.unique'        => 'An account with this email is already used by another employee.',
+            'role.in'             => 'Please select a valid role.',
+            'employee_type.in'    => 'Employee type must be Regular or Outsourced.',
+            'daily_rate.min'      => 'Daily rate must be greater than zero.',
+            'province.required'   => 'Province is required.',
+            'city.required'       => 'City / Municipality is required.',
+            'region.required'     => 'Region is required.',
+            'street_address.required' => 'Street address is required.',
         ]);
 
         if ($validator->fails()) {
@@ -122,15 +150,15 @@ class EmployeeAccountController extends Controller
         ]));
 
         $employee->update([
-            'first_name'     => $request->first_name,
-            'last_name'      => $request->last_name,
+            'first_name'     => ucwords(strtolower(trim($request->first_name))),
+            'last_name'      => ucwords(strtolower(trim($request->last_name))),
             'contact'        => $request->contact,
             'email'          => $request->filled('email') ? $request->email : null,
             'address'        => $fullAddress,
-            'region'         => $request->region,
-            'province'       => $request->province,
-            'city'           => $request->city,
-            'street_address' => $request->street_address,
+            'region'         => ucwords(strtolower(trim($request->region))),
+            'province'       => ucwords(strtolower(trim($request->province))),
+            'city'           => ucwords(strtolower(trim($request->city))),
+            'street_address' => ucfirst(strtolower(trim($request->street_address))),
             'role'           => $request->role,
             'employee_type'  => $request->employee_type,
             'daily_rate'     => $request->daily_rate,
