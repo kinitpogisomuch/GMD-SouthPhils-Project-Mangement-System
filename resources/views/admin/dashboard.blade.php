@@ -43,7 +43,7 @@
             </div>
 
             <!-- ── KPI + Three-panel side by side ── -->
-            <div class="db-outer-grid">
+            <div style="display:grid;grid-template-columns:260px 1fr;gap:20px;margin-bottom:20px;align-items:start;">
 
             <!-- Left: KPI stack -->
             <div class="db-kpi-row">
@@ -108,7 +108,7 @@
 
                 <!-- ── System Stats card ── -->
                 @php $estimatedProfit = max(0, $totalContractValue - $totalMaterialCost); @endphp
-                <div class="db-kpi-card db-kpi-stats" style="flex-direction:column;align-items:stretch;gap:0;padding:18px;cursor:default;transform:none !important;box-shadow:none !important;">
+                <div class="db-kpi-card" style="flex-direction:column;align-items:stretch;gap:0;padding:18px;cursor:default;transform:none !important;box-shadow:none !important;">
                     <div style="font-size:10px;font-weight:700;color:var(--muted-light);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;display:flex;align-items:center;gap:5px;">
                         <i data-lucide="bar-chart-2" style="width:12px;height:12px;"></i>
                         System Stats
@@ -142,7 +142,7 @@
             <div>
 
             <!-- ── Three-card horizontal row moved here ── -->
-            <div class="db-chart-panels-grid">
+            <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;margin-bottom:20px;">
 
             <div class="db-chart-card" style="margin-bottom:0;">
                 <div class="db-chart-head">
@@ -1150,73 +1150,19 @@
             position: relative;
         }
 
-        /* Prevent any horizontal bleed on the dashboard */
-        .admin-content { overflow-x: hidden; }
-
-        /* ── Layout: outer wrapper (KPI col + right content) ── */
-        .db-outer-grid {
-            display: grid;
-            grid-template-columns: 260px 1fr;
-            gap: 20px;
-            margin-bottom: 20px;
-            align-items: start;
-        }
-        /* Grid children must be able to shrink */
-        .db-outer-grid > *,
-        .db-chart-panels-grid > *,
-        .db-three-panel-row > *,
-        .db-kpi-row > * { min-width: 0; }
-
-        /* ── Layout: chart + donut side by side ── */
-        .db-chart-panels-grid {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-
         /* ── Responsive ── */
-
         @media (max-width: 1100px) {
-            .db-outer-grid         { grid-template-columns: 1fr; }
-            .db-kpi-row            { grid-template-columns: repeat(2, 1fr); }
-            .db-kpi-stats          { grid-column: 1 / -1; }
-            .db-chart-panels-grid  { grid-template-columns: 1fr; }
-            .db-three-panel-row    { grid-template-columns: repeat(2, 1fr); }
-            .db-chart-head         { flex-wrap: wrap; gap: 10px; }
-            .db-chart-total        { align-items: flex-start; }
-            .db-chart-filters      { order: 3; flex: 1 1 100%; }
+            .db-kpi-row { grid-template-columns: repeat(2, 1fr); }
+            .db-three-panel-row { grid-template-columns: repeat(2, 1fr); }
         }
-
-        @media (max-width: 768px) {
-            .db-hero               { flex-direction: column; align-items: flex-start; padding: 18px 20px; gap: 12px; }
-            .db-greeting           { font-size: 20px; }
-            .db-three-panel-row    { grid-template-columns: 1fr; }
-            .db-proj-table-head    { display: none; }
-            .db-project-row        { flex-wrap: wrap; }
-            .db-project-row > div[style*="width:110px"] { display: none !important; }
-            .db-project-row > div[style*="width:150px"] { display: none !important; }
-            .db-chart-filters      { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; width: 100%; }
-            .db-chart-wrap         { height: 190px; }
+        @media (max-width: 700px) {
+            .db-three-panel-row { grid-template-columns: 1fr; }
         }
-
-        @media (max-width: 540px) {
-            .db-kpi-row            { grid-template-columns: 1fr 1fr; }
-            .db-kpi-stats          { grid-column: 1 / -1; }
-            .db-hero               { padding: 16px; border-radius: 14px; }
-            .db-hero-date          { font-size: 11px; padding: 5px 10px; }
-            .db-greeting           { font-size: 18px; }
-            .db-subgreeting        { font-size: 12px; }
-            .db-kpi-value          { font-size: 22px; }
-            .db-chart-card         { padding: 14px 14px 18px; }
-            .db-chart-wrap         { height: 170px; }
-            .db-panel-card         { padding: 16px; }
-            .db-mat-stat-val       { font-size: 20px; }
-            .db-pay-big            { font-size: 22px; }
-        }
-
-        @media (max-width: 380px) {
-            .db-kpi-row            { grid-template-columns: 1fr; }
+        @media (max-width: 640px) {
+            .db-hero { flex-direction: column; align-items: flex-start; }
+            .db-kpi-row { grid-template-columns: 1fr 1fr; }
+            .db-right-panel { grid-template-columns: 1fr; }
+            .db-project-right { display: none; }
         }
     </style>
 

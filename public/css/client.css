@@ -2178,6 +2178,31 @@ tbody tr:last-child td { border-bottom: none; }
     margin-top: 24px;
 }
 
+.delete-confirm-body {
+    text-align: center;
+    padding: 20px 0;
+}
+
+.delete-confirm-icon {
+    width: 60px;
+    height: 60px;
+    background-color: #FEE4E2;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+    color: #B42318;
+}
+
+.delete-confirm-icon svg { width: 26px; height: 26px; }
+
+.delete-confirm-body p {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--dark);
+}
+
 /* ================= FORM GRID ================= */
 .form-grid {
     display: grid;

@@ -65,7 +65,7 @@
 
             <div class="admin-dropdown-menu" id="adminDropdownMenu">
                 <a href="{{ route('logout') }}"
-                   onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+                   onclick="event.preventDefault(); document.getElementById('adminLogoutModal').classList.add('show');">
                     <i data-lucide="log-out"></i>
                     <span>Logout</span>
                 </a>
@@ -267,3 +267,36 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 })();
 </script>
+
+<!-- Logout Confirmation Modal -->
+<div class="modal-overlay" id="adminLogoutModal">
+    <div class="modal-card" style="max-width:420px;">
+        <div class="modal-header">
+            <div>
+                <h2>Log out</h2>
+                <p>You are about to end your session.</p>
+            </div>
+            <button class="modal-close" type="button"
+                    onclick="document.getElementById('adminLogoutModal').classList.remove('show');">
+                <i data-lucide="x"></i>
+            </button>
+        </div>
+        <div class="delete-confirm-body">
+            <div class="delete-confirm-icon"><i data-lucide="log-out"></i></div>
+            <p>Are you sure you want to log out?</p>
+            <p style="font-size:13px;color:var(--text-secondary);margin-top:8px;line-height:1.5;">
+                You will need to sign in again to access your account.
+            </p>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="cancel-btn"
+                    onclick="document.getElementById('adminLogoutModal').classList.remove('show');">
+                Cancel
+            </button>
+            <button type="button" class="save-btn"
+                    onclick="document.getElementById('logout-form').submit();">
+                <i data-lucide="log-out"></i> Log out
+            </button>
+        </div>
+    </div>
+</div>
