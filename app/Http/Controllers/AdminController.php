@@ -246,6 +246,226 @@ class AdminController extends Controller
             ->with('active_tab', 'landing');
     }
 
+    public function reports()
+    {
+        // ── Revenue (monthly, last 12 months) ──
+        $monthlyRevenue = [];
+        for ($i = 11; $i >= 0; $i--) {
+            $m = now()->subMonths($i);
+            $monthlyRevenue[] = [
+                'label'  => $m->format('M Y'),
+                'amount' => (float) PaymentTransaction::whereYear('payment_date', $m->year)
+                    ->whereMonth('payment_date', $m->month)->sum('amount_paid'),
+            ];
+        }
+
+        // ── Revenue (this calendar year) ──
+        $yearlyRevenue = [];
+        for ($m = 1; $m <= 12; $m++) {
+            $yearlyRevenue[] = [
+                'label'  => \Carbon\Carbon::create(now()->year, $m)->format('M'),
+                'amount' => (float) PaymentTransaction::whereYear('payment_date', now()->year)
+                    ->whereMonth('payment_date', $m)->sum('amount_paid'),
+            ];
+        }
+
+        // ── Project KPIs ──
+        $totalProjects     = Project::count();
+        $activeProjects    = Project::whereNotIn('status', ['completed', 'archived'])->count();
+        $completedProjects = Project::where('status', 'completed')->count();
+        $archivedProjects  = Project::where('status', 'archived')->count();
+        $completionRate    = $totalProjects > 0 ? round(($completedProjects / $totalProjects) * 100) : 0;
+        $overdueProjects   = Project::whereNotIn('status', ['completed', 'archived'])
+            ->where('end_date', '<', now()->toDateString())
+            ->where('progress', '<', 100)->count();
+        $avgProgress       = round(Project::whereNotIn('status', ['completed', 'archived'])->avg('progress') ?? 0);
+
+        $projectsByStatus = [
+            ['label' => 'Active',    'count' => $activeProjects,    'color' => '#2A4EAA'],
+            ['label' => 'Completed', 'count' => $completedProjects, 'color' => '#16a34a'],
+            ['label' => 'Archived',  'count' => $archivedProjects,  'color' => '#94a3b8'],
+            ['label' => 'Overdue',   'count' => $overdueProjects,   'color' => '#ef4444'],
+        ];
+
+        // ── Payment KPIs ──
+        $allPayments       = Payment::all();
+        $totalContractValue = $allPayments->sum('contract_amount');
+        $totalReceived     = PaymentTransaction::sum('amount_paid');
+        $outstanding       = max(0, $totalContractValue - $totalReceived);
+        $collectionRate    = $totalContractValue > 0 ? min(100, round(($totalReceived / $totalContractValue) * 100)) : 0;
+        $fullyPaid         = $allPayments->filter(fn($p) => $p->computeStatus() === 'Fully Paid')->count();
+        $partialPaid       = $allPayments->filter(fn($p) => $p->computeStatus() === 'Partially Paid')->count();
+        $pendingPayment    = $allPayments->filter(fn($p) => $p->computeStatus() === 'Pending Down Payment')->count();
+
+        // ── Material KPIs ──
+        $totalMaterials    = ProjectMaterial::where('status', 'active')->count();
+        $totalMatCost      = (float) ProjectMaterial::where('status', 'active')->sum('total_cost');
+        $projectsWithMats  = ProjectMaterial::where('status', 'active')->distinct('project_id')->count('project_id');
+
+        // ── Top 5 clients by project count ──
+        $topClients = Project::select('client')
+            ->selectRaw('COUNT(*) as project_count')
+            ->selectRaw('SUM(CASE WHEN status = \'completed\' THEN 1 ELSE 0 END) as completed_count')
+            ->whereNotNull('client')->where('client', '!=', '')
+            ->groupBy('client')
+            ->orderByRaw('COUNT(*) DESC')
+            ->limit(5)
+            ->get()
+            ->map(function ($row) {
+                $projects = Project::where('client', $row->client)->pluck('id');
+                $payments = Payment::whereIn('project_id', $projects)->get();
+                $received = PaymentTransaction::whereIn('payment_id', $payments->pluck('id'))->sum('amount_paid');
+                return [
+                    'name'          => $row->client,
+                    'project_count' => $row->project_count,
+                    'completed'     => $row->completed_count,
+                    'contract'      => (float) $payments->sum('contract_amount'),
+                    'received'      => (float) $received,
+                ];
+            });
+
+        // ── People ──
+        $totalEmployees = Employee::where('status', 'Active')->count();
+        $totalClients   = Client::count();
+
+        // ── Projects list for the project KPI selector ──
+        $allProjects = Project::orderBy('name')->get(['id', 'name', 'status', 'client']);
+
+        // ── Project Profit Margin ──
+        // (Total contract value - total material cost) / total contract value
+        $profitMargin = $totalContractValue > 0
+            ? round((($totalContractValue - $totalMatCost) / $totalContractValue) * 100, 1)
+            : 0;
+        $estimatedProfit = max(0, $totalContractValue - $totalMatCost);
+
+        // ── Budget Adherence Rate ──
+        // Per project: adherent if its material cost ≤ its contract amount.
+        // We use Payment->contract_amount as the budget reference.
+        $paymentsForAdherence = Payment::select('project_id', 'contract_amount')->get();
+        $adherentCount  = 0;
+        $adherenceTotal = 0;
+        foreach ($paymentsForAdherence as $pay) {
+            if (!$pay->project_id) continue;
+            $matCost = (float) ProjectMaterial::where('project_id', $pay->project_id)
+                ->where('status', 'active')->sum('total_cost');
+            $adherenceTotal++;
+            if ($matCost <= (float) $pay->contract_amount) {
+                $adherentCount++;
+            }
+        }
+        $budgetAdherenceRate = $adherenceTotal > 0
+            ? round(($adherentCount / $adherenceTotal) * 100)
+            : 0;
+
+        // ── On-Time Delivery Rate ──
+        // Completed projects where updated_at (proxy for completion date) ≤ end_date.
+        $completedProjectsList = Project::where('status', 'completed')
+            ->whereNotNull('end_date')->get();
+        $onTimeCount = $completedProjectsList->filter(function ($p) {
+            return $p->updated_at->startOfDay()->lte($p->end_date);
+        })->count();
+        $onTimeDeliveryRate = $completedProjectsList->count() > 0
+            ? round(($onTimeCount / $completedProjectsList->count()) * 100)
+            : 0;
+        $lateCount = $completedProjectsList->count() - $onTimeCount;
+
+        return view('admin.reports', compact(
+            'monthlyRevenue', 'yearlyRevenue',
+            'totalProjects', 'activeProjects', 'completedProjects', 'archivedProjects',
+            'completionRate', 'overdueProjects', 'avgProgress', 'projectsByStatus',
+            'totalContractValue', 'totalReceived', 'outstanding', 'collectionRate',
+            'fullyPaid', 'partialPaid', 'pendingPayment',
+            'totalMaterials', 'totalMatCost', 'projectsWithMats',
+            'topClients', 'totalEmployees', 'totalClients',
+            'profitMargin', 'estimatedProfit',
+            'budgetAdherenceRate', 'adherentCount', 'adherenceTotal',
+            'onTimeDeliveryRate', 'onTimeCount', 'lateCount',
+            'allProjects'
+        ));
+    }
+
+    public function projectKpi($id)
+    {
+        $project  = Project::findOrFail($id);
+        $payment  = Payment::where('project_id', $id)->first();
+        $received = $payment
+            ? (float) PaymentTransaction::where('payment_id', $payment->id)->sum('amount_paid')
+            : 0;
+
+        $matCost  = (float) ProjectMaterial::where('project_id', $id)->where('status', 'active')->sum('total_cost');
+        $matCount = ProjectMaterial::where('project_id', $id)->where('status', 'active')->count();
+
+        $contractValue  = $payment ? (float) $payment->contract_amount : 0;
+        $outstanding    = max(0, $contractValue - $received);
+        $collectionRate = $contractValue > 0 ? min(100, round(($received / $contractValue) * 100)) : 0;
+        $profitMargin   = $contractValue > 0
+            ? round((($contractValue - $matCost) / $contractValue) * 100, 1)
+            : 0;
+        $estProfit      = max(0, $contractValue - $matCost);
+        $budgetAdherent = $matCost <= $contractValue;
+
+        $daysTotal     = ($project->start_date && $project->end_date)
+            ? (int) $project->start_date->diffInDays($project->end_date)
+            : 0;
+        $daysElapsed   = $project->start_date
+            ? (int) min($daysTotal, $project->start_date->diffInDays(now()))
+            : 0;
+        $daysRemaining = $project->end_date
+            ? (int) now()->diffInDays($project->end_date, false)
+            : null;
+        $isOverdue     = $project->end_date
+            && now()->gt($project->end_date)
+            && !in_array($project->status, ['completed', 'archived']);
+        $timeProgress  = $daysTotal > 0 ? min(100, round(($daysElapsed / $daysTotal) * 100)) : 0;
+
+        $paymentStages = $payment
+            ? PaymentTransaction::where('payment_id', $payment->id)
+                ->orderBy('payment_date')
+                ->get(['payment_stage', 'amount_paid', 'payment_date'])
+                ->map(fn($t) => [
+                    'stage'  => PaymentTransaction::stageLabel($t->payment_stage),
+                    'amount' => (float) $t->amount_paid,
+                    'date'   => $t->payment_date?->format('M j, Y'),
+                ])
+            : [];
+
+        return response()->json([
+            'project' => [
+                'name'       => $project->name,
+                'client'     => $project->client,
+                'status'     => ucfirst($project->status ?? 'Planning'),
+                'tank_type'  => $project->tank_type,
+                'progress'   => $project->progress ?? 0,
+                'start_date' => $project->start_date?->format('M j, Y'),
+                'end_date'   => $project->end_date?->format('M j, Y'),
+            ],
+            'payment' => [
+                'contract_value'  => $contractValue,
+                'received'        => $received,
+                'outstanding'     => $outstanding,
+                'collection_rate' => $collectionRate,
+                'status'          => $payment ? $payment->computeStatus() : 'No Payment Set',
+                'stages'          => $paymentStages,
+            ],
+            'materials' => [
+                'count' => $matCount,
+                'cost'  => $matCost,
+            ],
+            'financial' => [
+                'profit_margin'    => $profitMargin,
+                'estimated_profit' => $estProfit,
+                'budget_adherent'  => $budgetAdherent,
+            ],
+            'timeline' => [
+                'days_total'     => $daysTotal,
+                'days_elapsed'   => $daysElapsed,
+                'days_remaining' => $daysRemaining,
+                'time_progress'  => $timeProgress,
+                'is_overdue'     => $isOverdue,
+            ],
+        ]);
+    }
+
     public function clients()
     {
         $clients = Client::orderBy('created_at', 'desc')->get();

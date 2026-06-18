@@ -9,6 +9,13 @@
             <span>Dashboard</span>
         </a>
 
+        <a href="{{ route('admin.reports') }}"
+           class="{{ request()->routeIs('admin.reports') ? 'active' : '' }}"
+           title="KPI Reports">
+            <div class="sidebar-icon"><i data-lucide="bar-chart-2"></i></div>
+            <span>KPI Reports</span>
+        </a>
+
         <div class="sidebar-section-label">Project Management</div>
         <a href="{{ route('admin.projects') }}"
            class="{{ request()->routeIs(['admin.projects', 'admin.project_view']) ? 'active' : '' }}"
