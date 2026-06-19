@@ -49,6 +49,12 @@ class Project extends Model
         'estimated_working_days' => 'float'
     ];
 
+    // Human-readable project code: P1, P2, P3 …
+    public function getCodeAttribute(): string
+    {
+        return 'P' . $this->id;
+    }
+
     // Define the phase order
     const PHASES = [
         'planning',

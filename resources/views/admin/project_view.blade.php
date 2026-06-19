@@ -28,7 +28,9 @@
             <!-- Page Header -->
             <div class="page-header">
                 <div>
-                    <h1>{{ $project->name }}</h1>
+                    <h1>
+                        <span class="project-code-badge" style="font-size:18px;vertical-align:middle;margin-right:8px;">{{ $project->code }}</span>{{ $project->name }}
+                    </h1>
                     <p>{{ $project->client }} &nbsp;·&nbsp; {{ $project->tank_type }} &nbsp;·&nbsp; {{ $project->capacity }}</p>
                 </div>
             </div>
@@ -48,7 +50,7 @@
             @endif
 
             <!-- Cost Summary -->
-            <div class="page-grid" style="grid-template-columns: repeat(4, minmax(200px, 1fr));margin-bottom:28px;">
+            <div class="pv-cost-grid" style="margin-bottom:28px;">
                 <div class="info-card" style="--accent:#2A4EAA;--accent-soft:#EAF0FF;">
                     <div class="info-card-icon"><i data-lucide="wallet"></i></div>
                     <h3>Budget</h3>
@@ -89,7 +91,9 @@
                     </div>
                     <span class="tracker-progress-badge" id="progressBadge">{{ $project->progress }}%</span>
                 </div>
-                <div class="phase-steps" id="phaseSteps"></div>
+                <div class="phase-steps-scroll">
+                    <div class="phase-steps" id="phaseSteps"></div>
+                </div>
 
                 @if($project->current_phase === 'planning')
                 @php
@@ -104,6 +108,7 @@
                 <div style="margin-top:14px;margin-bottom:6px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);">
                     {{ ucfirst(str_replace('_', ' ', $project->current_phase)) }} Phase &nbsp;·&nbsp; Sub-Phases
                 </div>
+                <div class="phase-steps-scroll">
                 <div class="phase-steps sub-phase-steps" style="margin-top:0;">
                     @foreach($subPhaseLabels as $key => $label)
                         @php
@@ -127,11 +132,12 @@
                         </div>
                     @endforeach
                 </div>
+                </div>{{-- end phase-steps-scroll --}}
                 @endif
             </div>
 
             <!-- Side by Side: Add Update + Progress History -->
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px;">
+            <div class="pv-update-grid">
 
                 <!-- LEFT: Add Progress Update -->
                 <div class="pv-card" style="margin-top:0;display:flex;flex-direction:column;">
@@ -662,7 +668,7 @@
                     <div class="project-detail-box"><span>Current Phase</span><strong>{{ ucfirst(str_replace('_', ' ', $project->current_phase)) }}</strong></div>
                     <div class="project-detail-box"><span>Duration</span><strong>{{ $project->duration ?? 'N/A' }}</strong></div>
                     @if($project->notes)
-                    <div class="project-detail-box" style="grid-column:span 3;"><span>Notes</span><strong>{{ $project->notes }}</strong></div>
+                    <div class="project-detail-box pv-notes-full"><span>Notes</span><strong>{{ $project->notes }}</strong></div>
                     @endif
                 </div>
             </div>

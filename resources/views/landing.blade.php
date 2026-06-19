@@ -35,8 +35,22 @@
 
         <div class="nav-actions">
             <a href="{{ route('login') }}" class="nav-login">Login</a>
+            <button class="nav-hamburger" id="navHamburger" aria-label="Open menu">
+                <span></span><span></span><span></span>
+            </button>
         </div>
     </nav>
+
+    <!-- Mobile menu drawer -->
+    <div class="mobile-menu" id="mobileMenu">
+        <a href="#about"     class="mm-link">About</a>
+        <a href="#services"  class="mm-link">Services</a>
+        <a href="#process"   class="mm-link">Our Process</a>
+        <a href="#tanks"     class="mm-link">Tank Types</a>
+        <a href="#portfolio" class="mm-link">Our Work</a>
+        <a href="#contact"   class="mm-link">Contact</a>
+        <a href="{{ route('login') }}" class="mm-login">Login to Portal</a>
+    </div>
 
 
     <!-- ============================================================
@@ -626,6 +640,7 @@
          FOOTER
     ============================================================ -->
     <footer class="lp-footer">
+
         <div class="footer-top">
             <div class="footer-brand-col">
                 <div class="footer-brand">
@@ -676,6 +691,30 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>
         lucide.createIcons();
+
+        // Mobile hamburger menu
+        (function() {
+            var btn  = document.getElementById('navHamburger');
+            var menu = document.getElementById('mobileMenu');
+            if (!btn || !menu) return;
+            btn.addEventListener('click', function() {
+                var open = menu.classList.toggle('open');
+                btn.classList.toggle('open', open);
+            });
+            menu.querySelectorAll('.mm-link').forEach(function(a) {
+                a.addEventListener('click', function() {
+                    menu.classList.remove('open');
+                    btn.classList.remove('open');
+                });
+            });
+            // Close on outside click
+            document.addEventListener('click', function(e) {
+                if (!menu.contains(e.target) && !btn.contains(e.target)) {
+                    menu.classList.remove('open');
+                    btn.classList.remove('open');
+                }
+            });
+        })();
 
         // Sticky nav shadow on scroll
         window.addEventListener('scroll', function () {

@@ -43,7 +43,7 @@
             </div>
 
             <!-- ── KPI + Three-panel side by side ── -->
-            <div style="display:grid;grid-template-columns:260px 1fr;gap:20px;margin-bottom:20px;align-items:start;">
+            <div class="db-outer-grid">
 
             <!-- Left: KPI stack -->
             <div class="db-kpi-row">
@@ -108,7 +108,7 @@
 
                 <!-- ── System Stats card ── -->
                 @php $estimatedProfit = max(0, $totalContractValue - $totalMaterialCost); @endphp
-                <div class="db-kpi-card" style="flex-direction:column;align-items:stretch;gap:0;padding:18px;cursor:default;transform:none !important;box-shadow:none !important;">
+                <div class="db-kpi-card db-kpi-stats" style="flex-direction:column;align-items:stretch;gap:0;padding:18px;cursor:default;transform:none !important;box-shadow:none !important;">
                     <div style="font-size:10px;font-weight:700;color:var(--muted-light);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;display:flex;align-items:center;gap:5px;">
                         <i data-lucide="bar-chart-2" style="width:12px;height:12px;"></i>
                         System Stats
@@ -142,7 +142,7 @@
             <div>
 
             <!-- ── Three-card horizontal row moved here ── -->
-            <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;margin-bottom:20px;">
+            <div class="db-chart-panels-grid">
 
             <div class="db-chart-card" style="margin-bottom:0;">
                 <div class="db-chart-head">
@@ -344,9 +344,9 @@
 
                     <!-- Table header -->
                     <div class="db-proj-table-head">
-                        <span style="flex:1;">Project</span>
-                        <span style="width:110px;text-align:center;">Status</span>
-                        <span style="width:150px;text-align:right;">Progress</span>
+                        <span style="flex:1;padding-left:17px;">Project</span>
+                        <span style="margin-right:auto;">Status</span>
+                        <span style="padding-right:20px;">Progress</span>
                     </div>
 
                     <!-- Rows -->
@@ -356,32 +356,39 @@
                             $progress = $project->progress ?? 0;
                             $status   = strtolower($project->status ?? 'planning');
                             $badgeMap = [
-                                'completed' => ['label' => 'Completed', 'css' => 'completed'],
-                                'ongoing'   => ['label' => 'Ongoing',   'css' => 'ongoing'],
-                                'archived'  => ['label' => 'Archived',  'css' => 'archived'],
+                                'completed' => ['label' => 'Completed', 'css' => 'completed',  'color' => '#16a34a'],
+                                'ongoing'   => ['label' => 'Ongoing',   'css' => 'ongoing',    'color' => '#2A4EAA'],
+                                'archived'  => ['label' => 'Archived',  'css' => 'archived',   'color' => '#94a3b8'],
                             ];
-                            $badge = $badgeMap[$status] ?? ['label' => ucfirst($status), 'css' => 'pending'];
-                            $progressColor = $progress >= 100 ? '#16a34a' : ($progress >= 50 ? '#2A4EAA' : 'var(--dark)');
+                            $badge = $badgeMap[$status] ?? ['label' => ucfirst($status), 'css' => 'pending', 'color' => '#e8900a'];
+                            $progressColor = $progress >= 100 ? '#16a34a' : ($progress >= 50 ? '#2A4EAA' : '#e8900a');
                         @endphp
-                        <div class="db-project-row">
-                            <div class="db-project-info" style="flex:1;">
-                                <div class="db-project-name">{{ $project->name }}</div>
+                        <a href="{{ route('admin.project_view', $project->id) }}" class="db-project-row" style="text-decoration:none;color:inherit;">
+                            <!-- Status accent strip -->
+                            <div class="db-row-accent" style="background:{{ $badge['color'] }};"></div>
+
+                            <div class="db-project-info" style="flex:1;min-width:0;">
+                                <div class="db-project-name-row">
+                                    <span class="project-code-badge db-code-sm">{{ $project->code }}</span>
+                                    <span class="db-project-name">{{ $project->name }}</span>
+                                </div>
                                 <div class="db-project-meta">
-                                    <i data-lucide="building-2"></i> {{ $project->client }}
-                                    &nbsp;·&nbsp;
-                                    <i data-lucide="calendar"></i> {{ $project->start_date->format('M j, Y') }}
+                                    {{ $project->client }}
+                                    <span class="db-meta-sep">·</span>
+                                    {{ $project->start_date->format('M j, Y') }}
                                 </div>
                             </div>
-                            <div style="width:110px;display:flex;justify-content:center;">
+
+                            <div class="db-row-right">
                                 <span class="status-badge {{ $badge['css'] }}">{{ $badge['label'] }}</span>
-                            </div>
-                            <div class="db-progress-wrap" style="width:150px;justify-content:flex-end;">
-                                <div class="db-progress-bar">
-                                    <div class="db-progress-fill" data-width="{{ $progress }}" data-color="{{ $progressColor }}"></div>
+                                <div class="db-progress-wrap">
+                                    <div class="db-progress-bar">
+                                        <div class="db-progress-fill" data-width="{{ $progress }}" data-color="{{ $progressColor }}"></div>
+                                    </div>
+                                    <span class="db-progress-label">{{ $progress }}%</span>
                                 </div>
-                                <span class="db-progress-label">{{ $progress }}%</span>
                             </div>
-                        </div>
+                        </a>
                         @empty
                         <div style="text-align:center;padding:40px 20px;color:var(--muted);font-size:14px;">
                             No projects yet.
@@ -801,28 +808,68 @@
         .db-project-row {
             display: flex;
             align-items: center;
-            gap: 16px;
-            padding: 14px 20px;
+            gap: 0;
             border-bottom: 1px solid var(--border);
             transition: background 0.15s;
+            overflow: hidden;
+            cursor: pointer;
         }
         .db-project-row:last-child { border-bottom: none; }
         .db-project-row:hover { background: var(--cream-soft); }
+
+        /* Colored left accent strip */
+        .db-row-accent {
+            width: 3px;
+            align-self: stretch;
+            flex-shrink: 0;
+            border-radius: 0;
+            opacity: 0.7;
+        }
+
+        /* Info section */
+        .db-project-info { padding: 14px 16px 14px 14px; }
+
+        .db-project-name-row {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            margin-bottom: 4px;
+        }
+        .db-code-sm {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
         .db-project-name {
             font-size: 13px;
             font-weight: 700;
             color: var(--dark);
-            margin-bottom: 3px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
         .db-project-meta {
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 6px;
             font-size: 11.5px;
             color: var(--muted-light);
             font-weight: 500;
         }
-        .db-project-meta i { width: 11px; height: 11px; }
+        .db-meta-sep {
+            color: var(--border);
+            font-size: 13px;
+        }
+
+        /* Right section: status + progress */
+        .db-row-right {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 20px 14px 0;
+            flex-shrink: 0;
+        }
         .db-progress-wrap {
             display: flex;
             align-items: center;
@@ -830,7 +877,7 @@
         }
         .db-progress-bar {
             width: 90px;
-            height: 5px;
+            height: 6px;
             background: var(--cream-deep);
             border-radius: 999px;
             overflow: hidden;
@@ -1150,19 +1197,74 @@
             position: relative;
         }
 
+        /* ── Outer layout grids (must be classes — inline styles block @media) ── */
+        .db-outer-grid {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+            align-items: start;
+        }
+        .db-chart-panels-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        /* Grid children must shrink, not overflow */
+        .db-outer-grid > *,
+        .db-chart-panels-grid > *,
+        .db-three-panel-row > *,
+        .db-kpi-row > * { min-width: 0; }
+
+        /* Prevent page-level horizontal bleed */
+        .admin-content { overflow-x: hidden; }
+
         /* ── Responsive ── */
+
+        /* Tablet (≤1100px): collapse KPI sidebar, stack chart+donut, 3-panel → 2-col */
         @media (max-width: 1100px) {
-            .db-kpi-row { grid-template-columns: repeat(2, 1fr); }
-            .db-three-panel-row { grid-template-columns: repeat(2, 1fr); }
+            .db-outer-grid         { grid-template-columns: 1fr; }
+            .db-kpi-row            { grid-template-columns: repeat(2, 1fr); }
+            .db-kpi-stats          { grid-column: 1 / -1; }
+            .db-chart-panels-grid  { grid-template-columns: 1fr; }
+            .db-three-panel-row    { grid-template-columns: repeat(2, 1fr); }
+            .db-chart-head         { flex-wrap: wrap; gap: 10px; }
+            .db-chart-total        { align-items: flex-start; }
+            .db-chart-filters      { order: 3; flex: 1 1 100%; }
         }
-        @media (max-width: 700px) {
-            .db-three-panel-row { grid-template-columns: 1fr; }
+
+        /* Small tablet (≤768px): hero stacks, 3-panel → 1-col, hide table columns */
+        @media (max-width: 768px) {
+            .db-hero               { flex-direction: column; align-items: flex-start; padding: 18px 20px; gap: 12px; }
+            .db-greeting           { font-size: 20px; }
+            .db-three-panel-row    { grid-template-columns: 1fr; }
+            .db-proj-table-head    { display: none; }
+            .db-chart-filters      { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+            .db-chart-wrap         { height: 190px; }
+            .db-row-right          { flex-direction: column; align-items: flex-end; gap: 6px; }
+            .db-progress-bar       { width: 70px; }
         }
-        @media (max-width: 640px) {
-            .db-hero { flex-direction: column; align-items: flex-start; }
-            .db-kpi-row { grid-template-columns: 1fr 1fr; }
-            .db-right-panel { grid-template-columns: 1fr; }
-            .db-project-right { display: none; }
+
+        /* Mobile (≤540px): KPIs 2-col, System Stats full-width, tighter everything */
+        @media (max-width: 540px) {
+            .db-kpi-row            { grid-template-columns: 1fr 1fr; }
+            .db-kpi-stats          { grid-column: 1 / -1; }
+            .db-hero               { padding: 16px; border-radius: 14px; }
+            .db-hero-date          { font-size: 11px; padding: 5px 10px; }
+            .db-greeting           { font-size: 18px; }
+            .db-subgreeting        { font-size: 12px; }
+            .db-kpi-value          { font-size: 22px; }
+            .db-chart-card         { padding: 14px 14px 18px; }
+            .db-chart-wrap         { height: 170px; }
+            .db-panel-card         { padding: 16px; }
+            .db-mat-stat-val       { font-size: 20px; }
+            .db-pay-big            { font-size: 24px; }
+        }
+
+        /* Very small (≤380px): KPIs → 1-col */
+        @media (max-width: 380px) {
+            .db-kpi-row            { grid-template-columns: 1fr; }
         }
     </style>
 

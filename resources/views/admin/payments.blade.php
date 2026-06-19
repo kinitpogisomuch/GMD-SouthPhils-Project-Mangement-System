@@ -89,6 +89,7 @@
                     <table class="data-table" id="paymentsTable">
                         <thead>
                             <tr>
+                                <th>ID</th>
                                 <th>Project Name</th>
                                 <th>Client</th>
                                 <th>Contract Amount</th>
@@ -109,6 +110,7 @@
                             @endphp
                             <tr data-status="{{ $status }}"
                                 data-search="{{ strtolower(($payment->project->name ?? '') . ' ' . $payment->client) }}">
+                                <td>@if($payment->project)<span class="project-code-badge">{{ $payment->project->code }}</span>@endif</td>
                                 <td><strong>{{ $payment->project->name ?? '—' }}</strong></td>
                                 <td>{{ $payment->client }}</td>
                                 <td>₱{{ number_format($payment->contract_amount, 2) }}</td>

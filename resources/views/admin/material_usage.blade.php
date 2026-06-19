@@ -142,6 +142,7 @@
                         <table class="data-table" id="usageTable">
                             <thead>
                                 <tr>
+                                    <th>ID</th>
                                     <th>Project Name</th>
                                     <th>Client</th>
                                     <th>Current Phase</th>
@@ -155,6 +156,7 @@
                             <tbody>
                                 @forelse($projects as $project)
                                 <tr data-status="{{ $project->status }}">
+                                    <td><span class="project-code-badge">{{ $project->code }}</span></td>
                                     <td><strong>{{ $project->name }}</strong></td>
                                     <td>{{ $project->client }}</td>
                                     <td>
