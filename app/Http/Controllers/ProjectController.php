@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use App\Models\Project;
+use App\Models\ProjectTankItem;
 use App\Models\ProjectUpdate;
 use App\Models\ProgressRequest;
 use App\Models\Client;
@@ -46,7 +47,7 @@ class ProjectController extends Controller
     */
     public function adminView($id)
     {
-        $project = Project::find($id);
+        $project = Project::with('tankItems')->find($id);
         if (!$project) {
             return redirect()->route('admin.projects')
                 ->with('error', 'That project no longer exists.');
@@ -279,8 +280,10 @@ class ProjectController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'tank_type'  => 'required|string',
-            'capacity'   => 'required|string',
+            'tank_items'           => 'required|array|min:1',
+            'tank_items.*.tank_type' => 'required|string',
+            'tank_items.*.capacity'  => 'nullable|string',
+            'tank_items.*.quantity'  => 'nullable|integer|min:1',
             'start_date' => 'required|date',
             'end_date'   => 'required|date|after_or_equal:start_date',
             'client'     => 'required|string',
@@ -298,26 +301,42 @@ class ProjectController extends Controller
             return redirect()->back()->with('error', 'Please provide a project name.')->withInput();
         }
 
+        // Use first tank item as the project-level summary fields
+        $firstTank = $request->tank_items[0];
+
         $project = Project::create([
-            'name'           => $name,
-            'client'         => $request->client,
-            'contact_number' => $request->contact_number,
-            'email'          => $request->email,
-            'address'        => $request->address,
-            'client_type'    => $request->client_type ?? 'Corporate',
-            'tank_type'      => $request->tank_type,
-            'capacity'       => $request->capacity,
-            'dimensions'     => $request->dimensions,
-            'start_date'     => $request->start_date,
-            'end_date'       => $request->end_date,
-            'payment_status' => $request->payment_status ?? 'Pending',
+            'name'              => $name,
+            'client'            => $request->client,
+            'contact_number'    => $request->contact_number,
+            'email'             => $request->email,
+            'address'           => $request->address,
+            'client_type'       => $request->client_type ?? 'Corporate',
+            'tank_type'         => $firstTank['tank_type'],
+            'capacity'          => $firstTank['capacity'] ?? '',
+            'dimensions'        => $firstTank['dimensions'] ?? null,
+            'start_date'        => $request->start_date,
+            'end_date'          => $request->end_date,
+            'payment_status'    => $request->payment_status ?? 'Pending',
             'status'            => 'planning',
             'progress'          => 0,
             'current_phase'     => 'planning',
             'current_sub_phase' => 'shop_drawing',
             'duration'          => $duration,
-            'notes'          => $request->notes,
+            'notes'             => $request->notes,
         ]);
+
+        // Save all tank items
+        foreach ($request->tank_items as $i => $item) {
+            ProjectTankItem::create([
+                'project_id'  => $project->id,
+                'tank_type'   => $item['tank_type'],
+                'capacity'    => $item['capacity'] ?? null,
+                'dimensions'  => $item['dimensions'] ?? null,
+                'quantity'    => $item['quantity'] ?? 1,
+                'notes'       => $item['notes'] ?? null,
+                'sort_order'  => $i,
+            ]);
+        }
 
         NotificationService::projectCreated($project);
 
@@ -333,10 +352,13 @@ class ProjectController extends Controller
     {
         $request->validate([
             'name'       => 'required|string|max:255',
-            'tank_type'  => 'required|string',
             'start_date' => 'required|date',
             'end_date'   => 'required|date|after_or_equal:start_date',
             'notes'      => 'nullable|string',
+            'tank_items'             => 'required|array|min:1',
+            'tank_items.*.tank_type' => 'required|string',
+            'tank_items.*.capacity'  => 'nullable|string',
+            'tank_items.*.quantity'  => 'nullable|integer|min:1',
         ]);
 
         $project  = Project::findOrFail($id);
@@ -344,14 +366,32 @@ class ProjectController extends Controller
         $end      = \Carbon\Carbon::parse($request->end_date);
         $duration = $start->diffInDays($end) . ' days';
 
+        $firstTank = $request->tank_items[0];
+
         $project->update([
             'name'       => $request->name,
-            'tank_type'  => $request->tank_type,
+            'tank_type'  => $firstTank['tank_type'],
+            'capacity'   => $firstTank['capacity'] ?? $project->capacity,
+            'dimensions' => $firstTank['dimensions'] ?? $project->dimensions,
             'start_date' => $request->start_date,
             'end_date'   => $request->end_date,
             'duration'   => $duration,
             'notes'      => $request->notes,
         ]);
+
+        // Replace all tank items
+        $project->tankItems()->delete();
+        foreach ($request->tank_items as $i => $item) {
+            ProjectTankItem::create([
+                'project_id'  => $project->id,
+                'tank_type'   => $item['tank_type'],
+                'capacity'    => $item['capacity'] ?? null,
+                'dimensions'  => $item['dimensions'] ?? null,
+                'quantity'    => $item['quantity'] ?? 1,
+                'notes'       => $item['notes'] ?? null,
+                'sort_order'  => $i,
+            ]);
+        }
 
         return redirect()->route('admin.projects')->with('success', 'Project updated successfully!');
     }

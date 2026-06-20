@@ -27,9 +27,11 @@
             <li class="nav-pill" id="navPill" aria-hidden="true"></li>
             <li><a href="#about">About</a></li>
             <li><a href="#services">Services</a></li>
-            <li><a href="#process">Our Process</a></li>
             <li><a href="#tanks">Tank Types</a></li>
             <li><a href="#portfolio">Our Work</a></li>
+            @if($reviews->isNotEmpty())
+            <li><a href="#reviews">Client Feedback</a></li>
+            @endif
             <li><a href="#contact">Contact</a></li>
         </ul>
 
@@ -45,9 +47,11 @@
     <div class="mobile-menu" id="mobileMenu">
         <a href="#about"     class="mm-link">About</a>
         <a href="#services"  class="mm-link">Services</a>
-        <a href="#process"   class="mm-link">Our Process</a>
         <a href="#tanks"     class="mm-link">Tank Types</a>
         <a href="#portfolio" class="mm-link">Our Work</a>
+        @if($reviews->isNotEmpty())
+        <a href="#reviews"   class="mm-link">Client Feedback</a>
+        @endif
         <a href="#contact"   class="mm-link">Contact</a>
         <a href="{{ route('login') }}" class="mm-login">Login to Portal</a>
     </div>
@@ -100,8 +104,8 @@
     ============================================================ -->
     <div class="stats-bar">
         <div class="stat-box reveal">
-            <div class="stat-num">8</div>
-            <div class="stat-label">Fabrication Phases</div>
+            <div class="stat-num">10<sup>+</sup></div>
+            <div class="stat-label">Years of Experience</div>
         </div>
         <div class="stat-box reveal">
             <div class="stat-num">4<sup>+</sup></div>
@@ -109,7 +113,7 @@
         </div>
         <div class="stat-box reveal">
             <div class="stat-num">100%</div>
-            <div class="stat-label">Quality Inspection</div>
+            <div class="stat-label">Quality Inspected</div>
         </div>
         <div class="stat-box reveal">
             <div class="stat-num">24<span class="stat-slash">/</span>7</div>
@@ -157,25 +161,25 @@
             </div>
 
             <div class="about-visual reveal-right">
-                <div class="about-visual-title">Fabrication Process Overview</div>
+                <div class="about-visual-title">Our Commitment to Quality</div>
                 <div class="about-phase-list">
                     @php
-                    $phases = [
-                        ['Planning',              'Engineering design and client requirements'],
-                        ['Procurement',           'Material and component sourcing'],
-                        ['Material Preparation',  'Steel cutting and component preparation'],
-                        ['Fabrication',           'Expert welding and structural assembly'],
-                        ['Inspection',            'Quality control and pressure testing'],
-                        ['Painting',              'Surface preparation and protective coating'],
-                        ['Completion',            'Final checks and client sign-off'],
-                        ['Delivery',              'Tank transport and installation support'],
+                    $strengths = [
+                        ['Precision Engineering',   'Every tank is designed to exact client specifications.'],
+                        ['Certified Welding',       'Skilled welders trained in structural steel fabrication.'],
+                        ['Pressure Tested',         'All tanks undergo rigorous pressure and leak testing.'],
+                        ['Anti-Corrosion Coating',  'Industrial-grade paint systems for lasting protection.'],
+                        ['On-Site Delivery',        'Safe transport and installation support at your location.'],
+                        ['Post-Delivery Support',   'Our team remains available after handover.'],
                     ];
                     @endphp
-                    @foreach($phases as $i => $phase)
+                    @foreach($strengths as $strength)
                     <div class="about-phase-item">
-                        <span class="about-phase-num">{{ str_pad($i+1, 2, '0', STR_PAD_LEFT) }}</span>
                         <span class="about-phase-dot"></span>
-                        <span>{{ $phase[0] }}</span>
+                        <div>
+                            <span style="font-weight:800;color:var(--white);">{{ $strength[0] }}</span>
+                            <span style="color:rgba(255,255,255,0.5);font-size:12px;display:block;margin-top:1px;">{{ $strength[1] }}</span>
+                        </div>
                     </div>
                     @endforeach
                 </div>
@@ -237,76 +241,6 @@
     </section>
 
 
-    <!-- ============================================================
-         PROCESS
-    ============================================================ -->
-    <section class="process-wrap" id="process">
-        <div class="process-inner">
-            <div class="section-tag reveal">How We Work</div>
-            <h2 class="section-title reveal">Our 8-Phase Fabrication Process</h2>
-            <p class="section-sub reveal">Every project follows a structured workflow — tracked live through our project management system.</p>
-
-            <div class="process-grid">
-
-                <div class="process-step reveal">
-                    <div class="ps-num">Phase 01</div>
-                    <div class="ps-icon"><i data-lucide="clipboard-list"></i></div>
-                    <div class="ps-name">Planning</div>
-                    <p class="ps-desc">Requirements gathering, engineering design, and project timeline development.</p>
-                </div>
-
-                <div class="process-step reveal">
-                    <div class="ps-num">Phase 02</div>
-                    <div class="ps-icon"><i data-lucide="shopping-cart"></i></div>
-                    <div class="ps-name">Procurement</div>
-                    <p class="ps-desc">Material ordering and component sourcing from quality-verified suppliers.</p>
-                </div>
-
-                <div class="process-step reveal">
-                    <div class="ps-num">Phase 03</div>
-                    <div class="ps-icon"><i data-lucide="scissors"></i></div>
-                    <div class="ps-name">Material Preparation</div>
-                    <p class="ps-desc">Steel cutting, forming, and preparation of all structural components.</p>
-                </div>
-
-                <div class="process-step reveal">
-                    <div class="ps-num">Phase 04</div>
-                    <div class="ps-icon"><i data-lucide="hammer"></i></div>
-                    <div class="ps-name">Fabrication</div>
-                    <p class="ps-desc">Expert welding and structural assembly by our skilled fabrication team.</p>
-                </div>
-
-                <div class="process-step reveal">
-                    <div class="ps-num">Phase 05</div>
-                    <div class="ps-icon"><i data-lucide="search-check"></i></div>
-                    <div class="ps-name">Inspection</div>
-                    <p class="ps-desc">Comprehensive quality control, weld inspection, and pressure testing.</p>
-                </div>
-
-                <div class="process-step reveal">
-                    <div class="ps-num">Phase 06</div>
-                    <div class="ps-icon"><i data-lucide="paintbrush-2"></i></div>
-                    <div class="ps-name">Painting</div>
-                    <p class="ps-desc">Surface blasting and application of protective anti-corrosion coatings.</p>
-                </div>
-
-                <div class="process-step reveal">
-                    <div class="ps-num">Phase 07</div>
-                    <div class="ps-icon"><i data-lucide="check-circle-2"></i></div>
-                    <div class="ps-name">Completion</div>
-                    <p class="ps-desc">Final walkthrough, documentation, and client sign-off before dispatch.</p>
-                </div>
-
-                <div class="process-step reveal">
-                    <div class="ps-num">Phase 08</div>
-                    <div class="ps-icon"><i data-lucide="truck"></i></div>
-                    <div class="ps-name">Delivery</div>
-                    <p class="ps-desc">Safe transport to site with installation coordination and handover support.</p>
-                </div>
-
-            </div>
-        </div>
-    </section>
 
 
     <!-- ============================================================
@@ -388,7 +322,7 @@
             </div>
 
             <div class="portfolio-foot">
-                <p>Every project follows our structured 8-phase workflow — from planning and procurement to final inspection and delivery, with photo documentation captured at each stage.</p>
+                <p>Each project is engineered to the client's exact specifications — pressure tested, quality inspected, and delivered ready for operation.</p>
             </div>
         </div>
     </section>
@@ -419,8 +353,8 @@
 
                 <div class="why-card reveal">
                     <div class="wc-icon"><i data-lucide="badge-check"></i></div>
-                    <div class="wc-title">Quality at Every Phase</div>
-                    <p class="wc-desc">Inspection checkpoints throughout fabrication ensure structural integrity, weld quality, and finish standards are met.</p>
+                    <div class="wc-title">Uncompromising Quality</div>
+                    <p class="wc-desc">Multiple inspection checkpoints throughout fabrication ensure structural integrity, weld quality, and finish standards are fully met.</p>
                 </div>
 
                 <div class="why-card reveal">
@@ -432,7 +366,7 @@
                 <div class="why-card reveal">
                     <div class="wc-icon"><i data-lucide="clock-3"></i></div>
                     <div class="wc-title">On-Time Delivery</div>
-                    <p class="wc-desc">Our structured 8-phase workflow keeps projects on track and delivers tanks on the agreed schedule.</p>
+                    <p class="wc-desc">We commit to agreed timelines and manage every project milestone to ensure your tank arrives when you need it.</p>
                 </div>
 
                 <div class="why-card reveal">
@@ -496,8 +430,8 @@
 
                 <div class="portal-features">
                     <div class="pf-item">
-                        <div class="pf-icon"><i data-lucide="layers"></i></div>
-                        <span class="pf-text">Phase-by-phase progress tracker</span>
+                        <div class="pf-icon"><i data-lucide="activity"></i></div>
+                        <span class="pf-text">Live project progress tracking</span>
                     </div>
                     <div class="pf-item">
                         <div class="pf-icon"><i data-lucide="camera"></i></div>
@@ -657,9 +591,11 @@
                 <ul class="footer-links">
                     <li><a href="#about">About</a></li>
                     <li><a href="#services">Services</a></li>
-                    <li><a href="#process">Our Process</a></li>
                     <li><a href="#tanks">Tank Types</a></li>
                     <li><a href="#portfolio">Our Work</a></li>
+                    @if($reviews->isNotEmpty())
+                    <li><a href="#reviews">Client Feedback</a></li>
+                    @endif
                     <li><a href="#contact">Contact</a></li>
                 </ul>
             </div>

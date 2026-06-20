@@ -150,7 +150,7 @@ class AdminController extends Controller
 
     public function projects()
     {
-        $projects = Project::with('assignedEmployees')->orderBy('created_at', 'desc')->get();
+        $projects = Project::with('assignedEmployees', 'tankItems')->orderBy('created_at', 'desc')->get();
         return view('admin.projects', compact('projects'));
     }
 

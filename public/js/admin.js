@@ -430,6 +430,19 @@ function buildPhaseSteps(statuses) {
 
 function updateProgressBadge(progress) {
     const badge = document.getElementById("progressBadge");
+    const fill  = document.getElementById("progressFill");
+
+    if (fill) {
+        fill.style.width = progress + '%';
+        if (progress >= 100) {
+            fill.style.background = 'linear-gradient(90deg, #207A3A, #16a34a)';
+        } else if (progress > 0) {
+            fill.style.background = 'linear-gradient(90deg, #1e3a8a, #2A4EAA)';
+        } else {
+            fill.style.background = '#8A6100';
+        }
+    }
+
     if (!badge) return;
     if (progress >= 100) {
         badge.style.backgroundColor = "#E7F6EC";

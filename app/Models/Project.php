@@ -55,6 +55,17 @@ class Project extends Model
         return 'P' . $this->id;
     }
 
+    public function tankItems()
+    {
+        return $this->hasMany(ProjectTankItem::class)->orderBy('sort_order');
+    }
+
+    // Convenience: first tank item summary for list/header display
+    public function getPrimaryTankAttribute(): ?ProjectTankItem
+    {
+        return $this->tankItems->first();
+    }
+
     // Define the phase order
     const PHASES = [
         'planning',

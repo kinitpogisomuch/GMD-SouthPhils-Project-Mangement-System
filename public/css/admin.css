@@ -3320,13 +3320,36 @@ body {
     color: var(--accent);
 }
 
+.tracker-progress-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.tracker-progress-bar {
+    width: 160px;
+    height: 8px;
+    background: var(--cream-deep);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.tracker-progress-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #207A3A, #16a34a);
+    transition: width 0.5s ease;
+}
+
 .tracker-progress-badge {
     background-color: #E7F6EC;
     color: #207A3A;
     font-size: 13px;
     font-weight: 900;
-    padding: 8px 16px;
+    padding: 6px 14px;
     border-radius: 999px;
+    white-space: nowrap;
 }
 
 /* ================= PHASE STEPS ================= */

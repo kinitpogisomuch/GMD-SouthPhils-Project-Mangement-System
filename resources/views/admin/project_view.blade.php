@@ -31,7 +31,17 @@
                     <h1>
                         <span class="project-code-badge" style="font-size:18px;vertical-align:middle;margin-right:8px;">{{ $project->code }}</span>{{ $project->name }}
                     </h1>
-                    <p>{{ $project->client }} &nbsp;·&nbsp; {{ $project->tank_type }} &nbsp;·&nbsp; {{ $project->capacity }}</p>
+                    <p>
+                        {{ $project->client }}
+                        @if($project->tankItems->isNotEmpty())
+                            @foreach($project->tankItems as $ti)
+                            &nbsp;·&nbsp;
+                            @if($ti->quantity > 1)<strong>{{ $ti->quantity }}×</strong> @endif{{ $ti->tank_type }}@if($ti->capacity) ({{ $ti->capacity }})@endif
+                            @endforeach
+                        @else
+                            &nbsp;·&nbsp; {{ $project->tank_type }} &nbsp;·&nbsp; {{ $project->capacity }}
+                        @endif
+                    </p>
                 </div>
             </div>
 
@@ -87,9 +97,21 @@
                 <div class="tracker-card-header">
                     <div class="tracker-title">
                         <i data-lucide="layers"></i>
-                        Fabrication Phase Tracker &nbsp;·&nbsp; {{ $project->capacity }} {{ $project->tank_type }}
+                        Fabrication Phase Tracker
+                        @if($project->tankItems->isNotEmpty())
+                            @foreach($project->tankItems as $ti)
+                            &nbsp;·&nbsp; @if($ti->quantity > 1){{ $ti->quantity }}× @endif{{ $ti->tank_type }}@if($ti->capacity) ({{ $ti->capacity }})@endif
+                            @endforeach
+                        @else
+                            &nbsp;·&nbsp; {{ $project->capacity }} {{ $project->tank_type }}
+                        @endif
                     </div>
-                    <span class="tracker-progress-badge" id="progressBadge">{{ $project->progress }}%</span>
+                    <div class="tracker-progress-wrap">
+                        <div class="tracker-progress-bar">
+                            <div class="tracker-progress-fill" id="progressFill" style="width:{{ $project->progress }}%"></div>
+                        </div>
+                        <span class="tracker-progress-badge" id="progressBadge">{{ $project->progress }}%</span>
+                    </div>
                 </div>
                 <div class="phase-steps-scroll">
                     <div class="phase-steps" id="phaseSteps"></div>

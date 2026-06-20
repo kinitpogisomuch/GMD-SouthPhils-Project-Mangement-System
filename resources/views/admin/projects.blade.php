@@ -69,7 +69,7 @@
                                 <th>ID</th>
                                 <th>Project Name</th>
                                 <th>Client</th>
-                                <th>Tank Type</th>
+                                <th>Tank Specs</th>
                                 <th>Start Date</th>
                                 <th>End Date</th>
                                 <th>Status</th>
@@ -83,7 +83,19 @@
                                 <td><span class="project-code-badge">{{ $project->code }}</span></td>
                                 <td><strong>{{ $project->name }}</strong></td>
                                 <td>{{ $project->client }}</td>
-                                <td>{{ $project->tank_type }}</td>
+                                <td>
+                                    @if($project->tankItems->isNotEmpty())
+                                        @foreach($project->tankItems as $ti)
+                                        <div style="font-size:12.5px;white-space:nowrap;">
+                                            @if($ti->quantity > 1)<span style="font-weight:800;color:var(--muted);">{{ $ti->quantity }}×</span> @endif
+                                            {{ $ti->tank_type }}
+                                            @if($ti->capacity)<span style="color:var(--muted-light);"> — {{ $ti->capacity }}</span>@endif
+                                        </div>
+                                        @endforeach
+                                    @else
+                                        {{ $project->tank_type }}
+                                    @endif
+                                </td>
                                 <td>{{ $project->start_date->format('M d, Y') }}</td>
                                 <td>{{ $project->end_date->format('M d, Y') }}</td>
                                 <td>
@@ -92,12 +104,10 @@
                                     </span>
                                 </td>
                                 <td>
-                                    <div style="display:flex;align-items:center;gap:8px;min-width:110px;">
-                                        <div class="progress-bar-wrap" style="flex:1;max-width:80px;">
-                                            <div class="progress-bar" style="width:{{ $project->progress ?? 0 }}%"></div>
-                                        </div>
-                                        <span class="progress-label">{{ $project->progress ?? 0 }}%</span>
-                                    </div>
+                                    @php $prog = $project->progress ?? 0; @endphp
+                                    <span class="status-badge {{ $prog >= 100 ? 'completed' : ($prog > 0 ? 'ongoing' : 'pending') }}">
+                                        {{ $prog }}%
+                                    </span>
                                 </td>
                                 <td class="action-cell">
                                     <button class="action-btn view project-view-btn" type="button" title="View Project"
@@ -113,10 +123,10 @@
                                     <button class="action-btn view edit-project-btn" type="button" title="Edit Project"
                                         data-id="{{ $project->id }}"
                                         data-name="{{ $project->name }}"
-                                        data-tank-type="{{ $project->tank_type }}"
                                         data-start-date="{{ $project->start_date->format('Y-m-d') }}"
                                         data-end-date="{{ $project->end_date->format('Y-m-d') }}"
-                                        data-notes="{{ $project->notes }}">
+                                        data-notes="{{ $project->notes }}"
+                                        data-tank-items="{{ $project->tankItems->map(fn($t) => ['tank_type'=>$t->tank_type,'capacity'=>$t->capacity,'dimensions'=>$t->dimensions,'quantity'=>$t->quantity,'notes'=>$t->notes])->toJson() }}">
                                         <i data-lucide="pencil"></i>
                                     </button>
                                     <button class="action-btn view archive-project-btn" type="button"
@@ -259,56 +269,18 @@
                 </div>
 
                 <!-- Tank Specifications -->
-                <div class="form-section-label" style="margin-top:18px;">Tank Specifications</div>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>Tank Type</label>
-                        <select name="tank_type" required>
-                            <option value="">Select tank type</option>
-                            <option value="Fuel Day Tank">Fuel Day Tank</option>
-                            <option value="Cooking Oil Storage Tank">Cooking Oil Storage Tank</option>
-                            <option value="Underground Fuel Tank">Underground Fuel Tank</option>
-                            <option value="Aboveground Fuel Tank">Aboveground Fuel Tank</option>
-                            <option value="Polymer Tank">Polymer Tank</option>
-                            <option value="Aboveground Water Tank">Aboveground Water Tank</option>
-                            <option value="Chemical Tank">Chemical Tank</option>
-                            <option value="Others">Others</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Tank Shape</label>
-                        <select id="tankShape" onchange="updateDimensionFields()">
-                            <option value="cylindrical">Cylindrical</option>
-                            <option value="rectangular">Rectangular</option>
-                        </select>
-                    </div>
+                <div class="form-section-label" style="margin-top:18px;">
+                    Tank Specifications
+                    <span style="font-size:11px;font-weight:600;color:var(--muted);text-transform:none;letter-spacing:0;">&nbsp;— Add one or more tanks</span>
                 </div>
 
-                <!-- Dimensions -->
-                <div class="form-section-label" style="margin-top:18px;">Dimensions</div>
-                <div class="form-grid">
-                    <div class="form-group" id="dimDiameterGroup">
-                        <label id="dim1Label">Diameter (m)</label>
-                        <input type="number" id="dim1" min="0" step="0.01"
-                               placeholder="e.g. 2.00" oninput="computeCapacity()">
-                    </div>
-                    <div class="form-group" id="dimHeightGroup">
-                        <label id="dim2Label">Height (m)</label>
-                        <input type="number" id="dim2" min="0" step="0.01"
-                               placeholder="e.g. 3.00" oninput="computeCapacity()">
-                    </div>
-                    <div class="form-group" id="dim3Group" style="display:none;">
-                        <label>Height (m)</label>
-                        <input type="number" id="dim3" min="0" step="0.01"
-                               placeholder="e.g. 2.00" oninput="computeCapacity()">
-                    </div>
-                    <div class="form-group">
-                        <label>Capacity <span style="font-weight:700;color:var(--accent);">(Auto-computed)</span></label>
-                        <input type="text" id="projCapacityDisplay" readonly
-                               placeholder="Enter dimensions above"
-                               style="background-color:var(--cream-soft);cursor:default;font-weight:900;color:var(--dark);">
-                    </div>
+                <div id="tankItemsContainer">
+                    <!-- Tank rows injected by JS -->
                 </div>
+
+                <button type="button" onclick="addTankRow()" class="cancel-btn" style="margin-top:10px;font-size:12.5px;padding:8px 14px;width:100%;justify-content:center;">
+                    <i data-lucide="plus"></i> Add Another Tank
+                </button>
 
                 <!-- Schedule -->
                 <div class="form-section-label" style="margin-top:18px;">Schedule</div>
@@ -358,20 +330,6 @@
                         <label>Project Name *</label>
                         <input type="text" name="name" id="editProjectName" required placeholder="Project name">
                     </div>
-                    <div class="form-group form-group-full">
-                        <label>Tank Type *</label>
-                        <select name="tank_type" id="editProjectTankType" required>
-                            <option value="">Select tank type</option>
-                            <option value="Fuel Day Tank">Fuel Day Tank</option>
-                            <option value="Cooking Oil Storage Tank">Cooking Oil Storage Tank</option>
-                            <option value="Underground Fuel Tank">Underground Fuel Tank</option>
-                            <option value="Aboveground Fuel Tank">Aboveground Fuel Tank</option>
-                            <option value="Polymer Tank">Polymer Tank</option>
-                            <option value="Aboveground Water Tank">Aboveground Water Tank</option>
-                            <option value="Chemical Tank">Chemical Tank</option>
-                            <option value="Others">Others</option>
-                        </select>
-                    </div>
                     <div class="form-group">
                         <label>Start Date *</label>
                         <input type="date" name="start_date" id="editProjectStartDate" required>
@@ -385,6 +343,17 @@
                         <textarea name="notes" id="editProjectNotes" rows="3" placeholder="Additional project notes..."></textarea>
                     </div>
                 </div>
+
+                <!-- Tank items for edit -->
+                <div class="form-section-label" style="margin-top:18px;">
+                    Tank Specifications
+                    <span style="font-size:11px;font-weight:600;color:var(--muted);text-transform:none;letter-spacing:0;">&nbsp;— Add one or more tanks</span>
+                </div>
+                <div id="editTankItemsContainer"></div>
+                <button type="button" onclick="addEditTankRow()" class="cancel-btn" style="margin-top:10px;font-size:12.5px;padding:8px 14px;width:100%;justify-content:center;">
+                    <i data-lucide="plus"></i> Add Another Tank
+                </button>
+
                 <div class="modal-actions">
                     <button type="button" class="cancel-btn" id="cancelEditProject">Cancel</button>
                     <button type="submit" class="save-btn"><i data-lucide="save"></i> Save Changes</button>
@@ -645,18 +614,26 @@
         }
 
         function updateDimensionFields() {
-            var shape = document.getElementById('tankShape').value;
-            var isCyl = (shape === 'cylindrical');
-            document.getElementById('dim1Label').textContent      = isCyl ? 'Diameter (m)' : 'Length (m)';
-            document.getElementById('dim2Label').textContent      = isCyl ? 'Height (m)'   : 'Width (m)';
-            document.getElementById('dim3Group').style.display    = isCyl ? 'none' : '';
+            // Guard: elements were removed in favour of per-tank dynamic rows
+            var shape = document.getElementById('tankShape');
+            if (!shape) return;
+            var isCyl = (shape.value === 'cylindrical');
+            var dim1Label = document.getElementById('dim1Label');
+            var dim2Label = document.getElementById('dim2Label');
+            var dim3Group = document.getElementById('dim3Group');
+            if (dim1Label) dim1Label.textContent = isCyl ? 'Diameter (m)' : 'Length (m)';
+            if (dim2Label) dim2Label.textContent = isCyl ? 'Height (m)'   : 'Width (m)';
+            if (dim3Group) dim3Group.style.display = isCyl ? 'none' : '';
             ['dim1','dim2','dim3'].forEach(function(id) {
                 var el = document.getElementById(id);
                 if (el) el.value = '';
             });
-            document.getElementById('projCapacityDisplay').value  = '';
-            document.getElementById('projCapacityHidden').value   = '';
-            document.getElementById('projDimensionsHidden').value = '';
+            var cap = document.getElementById('projCapacityDisplay');
+            var capH = document.getElementById('projCapacityHidden');
+            var dimH = document.getElementById('projDimensionsHidden');
+            if (cap)  cap.value  = '';
+            if (capH) capH.value = '';
+            if (dimH) dimH.value = '';
         }
 
         function computeCapacity() {
@@ -725,6 +702,177 @@
             }
         }
 
+        /* ── Tank type options shared by both modals ── */
+        var TANK_TYPES = [
+            'Fuel Day Tank', 'Cooking Oil Storage Tank', 'Underground Fuel Tank',
+            'Aboveground Fuel Tank', 'Polymer Tank', 'Aboveground Water Tank',
+            'Chemical Tank', 'Others'
+        ];
+
+        function tankTypeOptions(selected) {
+            return '<option value="">Select tank type</option>' +
+                TANK_TYPES.map(function(t) {
+                    return '<option value="' + t + '"' + (t === selected ? ' selected' : '') + '>' + t + '</option>';
+                }).join('');
+        }
+
+        function computeRowCapacity(row) {
+            var shape      = row.querySelector('.ti-shape').value;
+            var capDisplay = row.querySelector('.ti-cap-display');
+            var capHidden  = row.querySelector('.ti-cap-hidden');
+            var dimHidden  = row.querySelector('.ti-dim-hidden');
+            var capacity = 0, dimsStr = '';
+
+            if (shape === 'cylindrical') {
+                var d = parseFloat(row.querySelector('[data-dim="d"]').value) || 0;
+                var h = parseFloat(row.querySelector('[data-dim="h"]').value) || 0;
+                if (d > 0 && h > 0) {
+                    capacity = Math.PI * Math.pow(d / 2, 2) * h * 1000;
+                    dimsStr  = 'Cylindrical: Ø' + d + 'm × H' + h + 'm';
+                }
+            } else {
+                var l  = parseFloat(row.querySelector('[data-dim="l"]').value)  || 0;
+                var w  = parseFloat(row.querySelector('[data-dim="w"]').value)  || 0;
+                var rh = parseFloat(row.querySelector('[data-dim="rh"]').value) || 0;
+                if (l > 0 && w > 0 && rh > 0) {
+                    capacity = l * w * rh * 1000;
+                    dimsStr  = 'L' + l + 'm × W' + w + 'm × H' + rh + 'm';
+                }
+            }
+
+            if (capacity > 0) {
+                var formatted = Math.round(capacity).toLocaleString() + ' L';
+                capDisplay.value = formatted;
+                capHidden.value  = formatted;
+                dimHidden.value  = dimsStr;
+            } else {
+                capDisplay.value = '';
+                capHidden.value  = '';
+                dimHidden.value  = '';
+            }
+        }
+
+        function toggleRowShape(shapeSelect) {
+            var row   = shapeSelect.closest('.tank-item-row');
+            var isCyl = shapeSelect.value === 'cylindrical';
+            row.querySelectorAll('.ti-cyl').forEach(function(el) { el.style.display = isCyl ? '' : 'none'; });
+            row.querySelectorAll('.ti-rect').forEach(function(el) { el.style.display = isCyl ? 'none' : ''; });
+            row.querySelectorAll('.ti-dim-input').forEach(function(el) { el.value = ''; });
+            computeRowCapacity(row);
+        }
+
+        function buildTankRow(prefix, item, removable) {
+            item = item || {};
+            var isCyl = !item.dimensions || item.dimensions.indexOf('Cylindrical') !== -1 || !item.dimensions;
+            // Parse existing dims back if editing
+            var dVal = '', hVal = '', lVal = '', wVal = '', rhVal = '';
+            if (item.dimensions) {
+                var cylMatch  = item.dimensions.match(/Ø([\d.]+)m × H([\d.]+)m/);
+                var rectMatch = item.dimensions.match(/L([\d.]+)m × W([\d.]+)m × H([\d.]+)m/);
+                if (cylMatch)  { dVal = cylMatch[1];  hVal  = cylMatch[2]; isCyl = true; }
+                if (rectMatch) { lVal = rectMatch[1]; wVal  = rectMatch[2]; rhVal = rectMatch[3]; isCyl = false; }
+            }
+            var shape = isCyl ? 'cylindrical' : 'rectangular';
+
+            var row = document.createElement('div');
+            row.className = 'tank-item-row';
+            row.style.cssText = 'background:var(--cream-soft);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;position:relative;';
+
+            row.innerHTML =
+                // Remove button
+                (removable ? '<button type="button" onclick="this.closest(\'.tank-item-row\').remove()" title="Remove tank" style="position:absolute;top:12px;right:12px;background:none;border:none;cursor:pointer;color:var(--muted);line-height:1;"><i data-lucide="x" style="width:15px;height:15px;"></i></button>' : '') +
+
+                // Row 1: Type + Shape + Quantity
+                '<div class="form-grid">' +
+                    '<div class="form-group">' +
+                        '<label>Tank Type <span style="color:var(--danger);">*</span></label>' +
+                        '<select name="' + prefix + '[tank_type]" required>' + tankTypeOptions(item.tank_type || '') + '</select>' +
+                    '</div>' +
+                    '<div class="form-group">' +
+                        '<label>Tank Shape</label>' +
+                        '<select class="ti-shape" onchange="toggleRowShape(this)">' +
+                            '<option value="cylindrical"' + (isCyl ? ' selected' : '') + '>Cylindrical</option>' +
+                            '<option value="rectangular"' + (!isCyl ? ' selected' : '') + '>Rectangular</option>' +
+                        '</select>' +
+                    '</div>' +
+                    '<div class="form-group">' +
+                        '<label>Quantity</label>' +
+                        '<input type="number" name="' + prefix + '[quantity]" value="' + (item.quantity || 1) + '" min="1" onwheel="this.blur()">' +
+                    '</div>' +
+                '</div>' +
+
+                // Row 2: Dimensions
+                '<div class="form-section-label" style="margin-top:10px;margin-bottom:8px;font-size:11px;">Dimensions</div>' +
+                '<div class="form-grid">' +
+                    // Cylindrical
+                    '<div class="form-group ti-cyl"' + (!isCyl ? ' style="display:none;"' : '') + '>' +
+                        '<label>Diameter (m)</label>' +
+                        '<input type="number" class="ti-dim-input" data-dim="d" min="0" step="0.01" value="' + dVal + '" placeholder="e.g. 2.00" oninput="computeRowCapacity(this.closest(\'.tank-item-row\'))">' +
+                    '</div>' +
+                    '<div class="form-group ti-cyl"' + (!isCyl ? ' style="display:none;"' : '') + '>' +
+                        '<label>Height (m)</label>' +
+                        '<input type="number" class="ti-dim-input" data-dim="h" min="0" step="0.01" value="' + hVal + '" placeholder="e.g. 3.00" oninput="computeRowCapacity(this.closest(\'.tank-item-row\'))">' +
+                    '</div>' +
+                    // Rectangular
+                    '<div class="form-group ti-rect"' + (isCyl ? ' style="display:none;"' : '') + '>' +
+                        '<label>Length (m)</label>' +
+                        '<input type="number" class="ti-dim-input" data-dim="l" min="0" step="0.01" value="' + lVal + '" placeholder="e.g. 4.00" oninput="computeRowCapacity(this.closest(\'.tank-item-row\'))">' +
+                    '</div>' +
+                    '<div class="form-group ti-rect"' + (isCyl ? ' style="display:none;"' : '') + '>' +
+                        '<label>Width (m)</label>' +
+                        '<input type="number" class="ti-dim-input" data-dim="w" min="0" step="0.01" value="' + wVal + '" placeholder="e.g. 2.00" oninput="computeRowCapacity(this.closest(\'.tank-item-row\'))">' +
+                    '</div>' +
+                    '<div class="form-group ti-rect"' + (isCyl ? ' style="display:none;"' : '') + '>' +
+                        '<label>Height (m)</label>' +
+                        '<input type="number" class="ti-dim-input" data-dim="rh" min="0" step="0.01" value="' + rhVal + '" placeholder="e.g. 2.00" oninput="computeRowCapacity(this.closest(\'.tank-item-row\'))">' +
+                    '</div>' +
+                    // Auto-computed capacity
+                    '<div class="form-group">' +
+                        '<label>Capacity <span style="font-size:11px;color:var(--accent);font-weight:600;">(Auto-computed)</span></label>' +
+                        '<input type="text" class="ti-cap-display" readonly placeholder="Enter dimensions above" style="background:var(--cream-soft);cursor:default;font-weight:900;color:var(--dark);" value="' + (item.capacity || '') + '">' +
+                        '<input type="hidden" name="' + prefix + '[capacity]"   class="ti-cap-hidden" value="' + (item.capacity || '') + '">' +
+                        '<input type="hidden" name="' + prefix + '[dimensions]" class="ti-dim-hidden" value="' + (item.dimensions || '') + '">' +
+                    '</div>' +
+                '</div>';
+
+            return row;
+        }
+
+        var addTankIndex = 0;
+        function addTankRow(item) {
+            var container = document.getElementById('tankItemsContainer');
+            var prefix = 'tank_items[' + addTankIndex + ']';
+            var removable = container.children.length > 0;
+            container.appendChild(buildTankRow(prefix, item, removable));
+            addTankIndex++;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        var editTankIndex = 0;
+        function addEditTankRow(item) {
+            var container = document.getElementById('editTankItemsContainer');
+            var prefix = 'tank_items[' + editTankIndex + ']';
+            var removable = container.children.length > 0;
+            container.appendChild(buildTankRow(prefix, item, removable));
+            editTankIndex++;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        // Init add modal with one empty row
+        document.addEventListener('DOMContentLoaded', function() {
+            addTankRow();
+        });
+
+        // Reset add modal tank rows when opened
+        var origOpenAddProject = document.getElementById('openAddProjectModal');
+        if (origOpenAddProject) {
+            origOpenAddProject.addEventListener('click', function() {
+                document.getElementById('tankItemsContainer').innerHTML = '';
+                addTankIndex = 0;
+                addTankRow();
+            });
+        }
+
         function initializeFormValidation() {
             var form = document.getElementById('addProjectForm');
             if (!form) return;
@@ -747,10 +895,21 @@
                     }
                     return;
                 }
-                if (!document.getElementById('projCapacityHidden').value) {
+                // Validate that at least one tank row has a tank type selected
+                var tankRows = document.querySelectorAll('#tankItemsContainer .tank-item-row');
+                if (!tankRows.length) {
                     e.preventDefault();
-                    alert('Please enter the tank dimensions to auto-compute capacity before saving.');
-                    document.getElementById('dim1').focus();
+                    alert('Please add at least one tank specification.');
+                    return;
+                }
+                var allTankTyped = true;
+                tankRows.forEach(function(row) {
+                    var sel = row.querySelector('select[name$="[tank_type]"]');
+                    if (!sel || !sel.value) allTankTyped = false;
+                });
+                if (!allTankTyped) {
+                    e.preventDefault();
+                    alert('Please select a tank type for each tank row.');
                     return;
                 }
             });
@@ -811,8 +970,12 @@
                     if (!selectedClient) { alert('Please select a client to continue.'); return; }
                     closeModal('selectClientModal');
                     populateClientFields(selectedClient);
-                    updateDimensionFields();
+                    // Reset tank rows for fresh add
+                    document.getElementById('tankItemsContainer').innerHTML = '';
+                    addTankIndex = 0;
+                    addTankRow();
                     openModal('addProjectModal');
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
                 });
             }
 
@@ -851,16 +1014,17 @@
                     document.getElementById('editProjectEndDate').min     = this.dataset.startDate;
                     document.getElementById('editProjectSubtitle').textContent = 'Editing: ' + this.dataset.name;
                     document.getElementById('editProjectForm').action = '/admin/projects/' + this.dataset.id;
-                    var sel = document.getElementById('editProjectTankType');
-                    sel.value = this.dataset.tankType;
-                    if (!sel.value) {
-                        var opt = document.createElement('option');
-                        opt.value = this.dataset.tankType;
-                        opt.textContent = this.dataset.tankType;
-                        sel.appendChild(opt);
-                        sel.value = this.dataset.tankType;
-                    }
+
+                    // Load tank items
+                    var container = document.getElementById('editTankItemsContainer');
+                    container.innerHTML = '';
+                    var items = [];
+                    try { items = JSON.parse(this.dataset.tankItems || '[]'); } catch(e) {}
+                    if (!items.length) items = [{ tank_type: '', capacity: '', dimensions: '', quantity: 1 }];
+                    items.forEach(function(item) { addEditTankRow(item); });
+
                     openModal('editProjectModal');
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
                 });
             });
             ['closeEditProjectModal', 'cancelEditProject'].forEach(function(id) {
