@@ -66,6 +66,14 @@ return [
             'transport' => 'resend',
         ],
 
+        'resend-http' => [
+            'transport' => 'resend-http',
+        ],
+
+        'sendgrid-http' => [
+            'transport' => 'sendgrid-http',
+        ],
+
         'sendmail' => [
             'transport' => 'sendmail',
             'path' => env('MAIL_SENDMAIL_PATH', '/usr/sbin/sendmail -bs -i'),
