@@ -762,7 +762,6 @@ if (editUserForm) {
 });
 
 var editUserModal = document.getElementById("editUserModal");
-if (editUserModal) editUserModal.addEventListener("click", function (e) { if (e.target === this) this.classList.remove("show"); });
 
 var confirmDeleteUser = document.getElementById("confirmDeleteUser");
 if (confirmDeleteUser) {
@@ -786,9 +785,15 @@ if (confirmDeleteUser) {
 });
 
 var deleteUserModal = document.getElementById("deleteUserModal");
-if (deleteUserModal) deleteUserModal.addEventListener("click", function (e) {
-    if (e.target === this) { this.classList.remove("show"); rowBeingDeleted = null; }
-});
+
+/* ================= GLOBAL: block modal backdrop clicks ================= */
+// Intercepts clicks on .modal-overlay BEFORE any per-modal handler fires.
+// Modals can only be closed by their X button or Cancel button.
+document.addEventListener('click', function (e) {
+    if (e.target && e.target.classList.contains('modal-overlay')) {
+        e.stopImmediatePropagation();
+    }
+}, true); // capture phase — fires before bubble-phase handlers on overlay
 
 /* ================= DOMContentLoaded ================= */
 

@@ -228,6 +228,22 @@ class NotificationService
         );
     }
 
+    /** Material stock is low (≤5 remaining) → alert admins */
+    public static function lowStockAlert(\App\Models\Project $project, \App\Models\ProjectMaterial $material): void
+    {
+        $message = "Low stock alert: \"{$material->material_name}\" has only {$material->quantity} unit(s) remaining in Project: {$project->name}.";
+
+        self::notifyAdmins(
+            'Low Material Stock',
+            $message,
+            self::TYPE_MATERIAL_REQUESTED,
+            'warning',
+            $project->id,
+            null,
+            "/admin/project-materials/{$project->id}"
+        );
+    }
+
     /** Employee flags a material as short and requests more → activity log for admins */
     public static function materialRequested(Project $project, string $employeeName, string $materialName, $quantity, ?string $notes): void
     {

@@ -161,7 +161,7 @@
 
     <!-- ===================== SELECT CLIENT MODAL ===================== -->
     <div class="modal-overlay" id="selectClientModal">
-        <div class="modal-card" style="max-width:660px;">
+        <div class="modal-card" style="max-width:560px;">
             <div class="modal-header">
                 <div>
                     <h2>Select Client</h2>
@@ -172,21 +172,19 @@
                 </button>
             </div>
 
-            <div class="search-box" style="margin-bottom:16px;">
+            <div class="search-box" style="margin-bottom:14px;">
                 <i data-lucide="search"></i>
-                <input type="text" id="clientSelectSearch" placeholder="Search client by name or address...">
+                <input type="text" id="clientSelectSearch" placeholder="Search by name, contact, or location...">
             </div>
 
-            <div id="clientSelectList"
-                 style="display:flex;flex-direction:column;gap:8px;max-height:360px;overflow-y:auto;padding-right:4px;">
-                <p style="text-align:center;color:var(--muted);padding:20px 0;">Loading clients...</p>
+            <div id="clientSelectList" class="cs-list">
+                <p style="text-align:center;color:var(--muted);padding:32px 0;font-size:14px;">Loading clients...</p>
             </div>
 
-            <div class="modal-actions" style="margin-top:20px;">
+            <div class="modal-actions" style="margin-top:16px;">
                 <button type="button" class="cancel-btn" id="cancelSelectClient">Cancel</button>
                 <button type="button" class="save-btn" id="continueSelectClient">
-                    <i data-lucide="arrow-right"></i>
-                    Continue
+                    Continue <i data-lucide="arrow-right"></i>
                 </button>
             </div>
         </div>
@@ -493,30 +491,36 @@
 
             filtered.forEach(function(client) {
                 var isSelected = selectedClient && selectedClient.id === client.id;
-                var item       = document.createElement('div');
+                var item = document.createElement('div');
                 item.className = 'client-select-item' + (isSelected ? ' selected' : '');
-                var init       = client.name.charAt(0).toUpperCase();
+
+                // Circle avatar: photo or initial
+                var avatarHtml = client.profile_photo
+                    ? '<img src="' + client.profile_photo + '" class="cs-avatar-img" alt="' + client.name + '">'
+                    : '<span class="cs-avatar-init">' + client.name.charAt(0).toUpperCase() + '</span>';
+
                 item.innerHTML =
-                    '<div class="client-select-avatar">' + init + '</div>' +
-                    '<div class="client-select-info">' +
-                        '<div class="client-select-name">' + client.name + '</div>' +
-                        '<div class="client-select-meta">' +
-                            '<span>' + (client.contact || '—') + '</span>' +
-                            '<span>' + (client.address || '—') + '</span>' +
+                    '<div class="cs-avatar">' + avatarHtml + '</div>' +
+                    '<div class="cs-info">' +
+                        '<div class="cs-name">' + client.name + '</div>' +
+                        '<div class="cs-meta">' +
+                            (client.contact ? '<span><i data-lucide="phone" style="width:11px;height:11px;flex-shrink:0;"></i>' + client.contact + '</span>' : '') +
+                            (client.email   ? '<span><i data-lucide="mail"  style="width:11px;height:11px;flex-shrink:0;"></i>' + client.email   + '</span>' : '') +
+                            (client.address ? '<span><i data-lucide="map-pin" style="width:11px;height:11px;flex-shrink:0;"></i>' + client.address + '</span>' : '') +
                         '</div>' +
                     '</div>' +
-                    '<div class="client-select-check" style="display:' + (isSelected ? 'flex' : 'none') + ';align-items:center;">' +
-                        '<i data-lucide="check-circle"></i>' +
+                    '<div class="cs-check" style="display:' + (isSelected ? 'flex' : 'none') + ';">' +
+                        '<i data-lucide="check-circle-2" style="width:20px;height:20px;color:var(--dark);"></i>' +
                     '</div>';
 
                 item.addEventListener('click', function() {
                     selectedClient = client;
                     document.querySelectorAll('.client-select-item').forEach(function(el) {
                         el.classList.remove('selected');
-                        el.querySelector('.client-select-check').style.display = 'none';
+                        el.querySelector('.cs-check').style.display = 'none';
                     });
                     item.classList.add('selected');
-                    item.querySelector('.client-select-check').style.display = 'flex';
+                    item.querySelector('.cs-check').style.display = 'flex';
                     if (typeof lucide !== 'undefined') lucide.createIcons();
                 });
                 list.appendChild(item);

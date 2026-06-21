@@ -71,7 +71,10 @@ class ForgotPasswordController extends Controller
         try {
             Mail::html(
                 $this->buildCodeEmail($code),
-                fn ($m) => $m->to($email)->subject('GMD Password Reset Verification Code')
+                fn ($m) => $m->to($email)
+                    ->from(config('mail.from.address'), config('mail.from.name'))
+                    ->replyTo(config('mail.from.address'), config('mail.from.name'))
+                    ->subject('GMD Password Reset Verification Code')
             );
         } catch (\Exception $e) {
             return back()
@@ -175,7 +178,10 @@ class ForgotPasswordController extends Controller
         try {
             Mail::html(
                 $this->buildCodeEmail($code),
-                fn ($m) => $m->to($email)->subject('GMD Password Reset Verification Code')
+                fn ($m) => $m->to($email)
+                    ->from(config('mail.from.address'), config('mail.from.name'))
+                    ->replyTo(config('mail.from.address'), config('mail.from.name'))
+                    ->subject('GMD Password Reset Verification Code')
             );
         } catch (\Exception $e) {
             return back()->withErrors(['code' => 'Failed to send email. Please try again.']);

@@ -343,6 +343,12 @@ class ProjectMaterialController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
+        // Notify admin if any material has 5 or fewer units remaining
+        $lowStockItems = $materials->filter(fn($m) => $m->quantity <= 5);
+        foreach ($lowStockItems as $item) {
+            NotificationService::lowStockAlert($project, $item);
+        }
+
         return view('employee.project_materials_detail', compact(
             'project', 'materials', 'totalMaterials', 'totalQuantity', 'estimatedCost', 'myRequests'
         ));

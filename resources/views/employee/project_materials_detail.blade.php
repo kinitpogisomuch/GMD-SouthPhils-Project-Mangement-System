@@ -98,68 +98,10 @@
                 </div>
             </div>
 
-            {{-- Materials Table --}}
+            {{-- Usage Log --}}
             <div class="table-card">
                 <div class="table-toolbar">
-                    <div class="search-box">
-                        <i data-lucide="search"></i>
-                        <input type="text" id="materialSearch" placeholder="Search material...">
-                    </div>
-                </div>
-
-                <div class="table-wrapper">
-                    <table class="data-table" id="materialsTable">
-                        <thead>
-                            <tr>
-                                <th>Material Name</th>
-                                <th>Category</th>
-                                <th>Quantity</th>
-                                <th>Price Per Unit</th>
-                                <th>Total Cost</th>
-                                <th>Date Added</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($materials as $material)
-                            <tr>
-                                <td>
-                                    <strong>{{ $material->material_name }}</strong>
-                                    @if($material->notes)
-                                    <div style="font-size:12px;color:var(--muted);margin-top:2px;">{{ Str::limit($material->notes, 60) }}</div>
-                                    @endif
-                                </td>
-                                <td>{{ $material->category ?: '—' }}</td>
-                                <td>{{ number_format($material->quantity, 0) }}</td>
-                                <td>₱{{ number_format($material->price_per_unit, 2) }}</td>
-                                <td><strong>₱{{ number_format($material->total_cost, 2) }}</strong></td>
-                                <td>{{ $material->created_at->format('M d, Y') }}</td>
-                                <td>
-                                    <button type="button" class="btn btn-outline btn-sm request-material-btn"
-                                        data-id="{{ $material->id }}"
-                                        data-name="{{ $material->material_name }}"
-                                        data-unit="{{ $material->unit }}">
-                                        <i data-lucide="alert-triangle"></i>
-                                        Request
-                                    </button>
-                                </td>
-                            </tr>
-                            @empty
-                            <tr>
-                                <td colspan="7" style="text-align:center;padding:40px;color:var(--muted);">
-                                    No materials have been added to this project yet.
-                                </td>
-                            </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            {{-- My Material Requests --}}
-            <div class="table-card" style="margin-top:24px;">
-                <div class="table-toolbar">
-                    <span class="card-title">My Material Requests</span>
+                    <span class="card-title" style="font-size:15px;font-weight:800;color:var(--dark);">Usage Log</span>
                 </div>
 
                 <div class="table-wrapper">

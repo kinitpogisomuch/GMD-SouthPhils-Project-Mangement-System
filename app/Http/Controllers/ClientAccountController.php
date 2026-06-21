@@ -112,6 +112,8 @@ class ClientAccountController extends Controller
                 $this->buildEmailHtml($request->full_name, $username, $pin),
                 function ($message) use ($request) {
                     $message->to($request->email, $request->full_name)
+                            ->from(config('mail.from.address'), config('mail.from.name'))
+                            ->replyTo(config('mail.from.address'), config('mail.from.name'))
                             ->subject('Your GMD Client Portal Account Credentials');
                 }
             );

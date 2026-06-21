@@ -3195,71 +3195,103 @@ body {
 
 /* ================= CLIENT SELECT ITEMS ================= */
 
+/* ── Client select list container ── */
+.cs-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 380px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+/* ── Client card ── */
 .client-select-item {
     display: flex;
     align-items: center;
     gap: 14px;
-    padding: 14px 16px;
-    border: 2px solid var(--border);
-    border-radius: 16px;
+    padding: 12px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
     cursor: pointer;
-    transition: 0.22s ease;
-    background-color: var(--white);
+    transition: border-color 0.18s, background 0.18s, box-shadow 0.18s;
+    background: var(--white);
 }
 
 .client-select-item:hover {
-    border-color: var(--accent);
-    background-color: var(--accent-soft);
+    border-color: var(--dark);
+    background: var(--cream-soft);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
 }
 
 .client-select-item.selected {
     border-color: var(--dark);
-    background-color: var(--cream-soft);
+    background: var(--cream-soft);
+    box-shadow: 0 0 0 3px rgba(51,51,51,0.08);
 }
 
-.client-select-avatar {
-    width: 46px;
-    height: 46px;
-    min-width: 46px;
-    border-radius: 14px;
-    background: linear-gradient(135deg, var(--dark) 0%, var(--dark-soft) 100%);
-    color: var(--white);
+/* ── Circle avatar ── */
+.cs-avatar {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    border-radius: 50%;
+    overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 18px;
-    font-weight: 900;
-}
-
-.client-select-info {
-    flex: 1;
-    min-width: 0;
-}
-
-.client-select-name {
-    font-size: 14px;
-    font-weight: 900;
-    color: var(--dark);
-    margin-bottom: 3px;
-}
-
-.client-select-meta {
-    font-size: 12px;
-    color: var(--muted);
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-}
-
-.client-select-check {
-    color: var(--dark);
+    background: linear-gradient(135deg, var(--dark) 0%, var(--dark-soft) 100%);
     flex-shrink: 0;
 }
-
-.client-select-check svg {
-    width: 22px;
-    height: 22px;
+.cs-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
+.cs-avatar-init {
+    font-size: 18px;
+    font-weight: 900;
+    color: var(--white);
+    line-height: 1;
+}
+
+/* ── Info ── */
+.cs-info { flex: 1; min-width: 0; }
+
+.cs-name {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--dark);
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cs-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 500;
+}
+.cs-meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* ── Check icon ── */
+.cs-check {
+    color: var(--dark);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.cs-check svg { width: 20px; height: 20px; }
 
 /* ================= RESPONSIVE SETTINGS ================= */
 
