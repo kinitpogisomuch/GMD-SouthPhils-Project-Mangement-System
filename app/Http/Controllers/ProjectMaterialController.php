@@ -8,6 +8,7 @@ use App\Models\ProjectMaterial;
 use App\Models\ProjectLabor;
 use App\Models\Employee;
 use App\Models\MaterialRequest;
+use App\Models\MaterialPurchase;
 use App\Services\NotificationService;
 
 class ProjectMaterialController extends Controller
@@ -18,11 +19,11 @@ class ProjectMaterialController extends Controller
 
     public function adminIndex()
     {
-        $projects = Project::with('activeMaterials')
+        $projects = Project::with('activeMaterials', 'activeLabor')
             ->orderBy('created_at', 'desc')
             ->get();
 
-        return view('admin.project_materials', compact('projects'));
+        return view('admin.project_quotation', compact('projects'));
     }
 
     public function adminDetail($projectId)
@@ -59,11 +60,62 @@ class ProjectMaterialController extends Controller
         $totalLaborEntries = $activeLabor->count();
         $totalLaborCost    = $activeLabor->sum('total_cost');
 
-        return view('admin.project_materials_detail', compact(
+        // Purchases
+        $purchases = MaterialPurchase::where('project_id', $projectId)
+            ->with('projectMaterial')
+            ->orderByDesc('purchase_date')
+            ->get();
+        $totalPurchased = $purchases->sum('total_paid');
+
+        return view('admin.project_quotation_detail', compact(
             'project', 'materials', 'totalMaterials', 'totalQuantity', 'estimatedCost', 'materialFactor',
             'laborEntries', 'totalLaborEntries', 'totalLaborCost',
-            'regularEmployees'
+            'regularEmployees', 'purchases', 'totalPurchased'
         ));
+    }
+
+    public function storePurchase(Request $request, $projectId)
+    {
+        $project = Project::findOrFail($projectId);
+
+        $validated = $request->validate([
+            'project_material_id' => 'nullable|exists:project_materials,id',
+            'material_name'       => 'required|string|max:255',
+            'unit'                => 'nullable|string|max:50',
+            'qty_bought'          => 'required|numeric|min:0.01',
+            'actual_unit_cost'    => 'required|numeric|min:0',
+            'supplier'            => 'nullable|string|max:255',
+            'purchase_date'       => 'required|date',
+            'notes'               => 'nullable|string|max:500',
+        ]);
+
+        $totalPaid = round($validated['qty_bought'] * $validated['actual_unit_cost'], 2);
+
+        MaterialPurchase::create([
+            'project_id'          => $project->id,
+            'project_material_id' => $validated['project_material_id'] ?? null,
+            'material_name'       => $validated['material_name'],
+            'unit'                => $validated['unit'] ?? null,
+            'qty_bought'          => $validated['qty_bought'],
+            'actual_unit_cost'    => $validated['actual_unit_cost'],
+            'total_paid'          => $totalPaid,
+            'supplier'            => $validated['supplier'] ?? null,
+            'purchase_date'       => $validated['purchase_date'],
+            'notes'               => $validated['notes'] ?? null,
+        ]);
+
+        return redirect()->route('admin.project_materials.detail', $projectId)
+            ->with('success', 'Purchase logged successfully.')
+            ->with('active_tab', 'purchased');
+    }
+
+    public function destroyPurchase(Request $request, $projectId, $purchaseId)
+    {
+        MaterialPurchase::where('project_id', $projectId)->findOrFail($purchaseId)->delete();
+
+        return redirect()->route('admin.project_materials.detail', $projectId)
+            ->with('success', 'Purchase record deleted.')
+            ->with('active_tab', 'purchased');
     }
 
     public function store(Request $request, $projectId)

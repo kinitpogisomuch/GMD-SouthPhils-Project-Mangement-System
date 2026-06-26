@@ -10,6 +10,7 @@ use App\Models\MaterialRequest;
 use App\Models\FundSetting;
 use App\Models\Employee;
 use App\Models\SupplierContact;
+use App\Models\MaterialPurchase;
 use App\Services\NotificationService;
 
 class MaterialUsageController extends Controller
@@ -24,33 +25,26 @@ class MaterialUsageController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        $requests = MaterialRequest::with(['project', 'projectMaterial', 'requestedBy'])
-            ->orderByDesc('requested_date')
-            ->orderByDesc('id')
-            ->get();
+        $suppliers = SupplierContact::orderBy('name')->get();
 
-        $pendingCount   = $requests->where('status', 'pending')->count();
-        $fulfilledCount = $requests->where('status', 'fulfilled')->count();
-        $shortageCount  = $requests->where('status', 'shortage')->count();
-
-        $fundBalance = FundSetting::getCurrentBalance();
-
-        $supplierContacts = SupplierContact::orderBy('name')->get();
-
-        return view('admin.material_usage', compact(
-            'projects',
-            'requests',
-            'pendingCount',
-            'fulfilledCount',
-            'shortageCount',
-            'fundBalance',
-            'supplierContacts'
-        ));
+        return view('admin.material_usage', compact('projects', 'suppliers'));
     }
 
     public function adminDetail($projectId)
     {
-        return view('admin.material_usage_detail', $this->buildDetailData($projectId));
+        $data = $this->buildDetailData($projectId);
+
+        $purchases = MaterialPurchase::where('project_id', $projectId)
+            ->with('projectMaterial')
+            ->orderByDesc('purchase_date')
+            ->get();
+
+        $data['purchases']      = $purchases;
+        $data['totalPurchased'] = $purchases->sum('total_paid');
+        $data['materialFactor'] = $data['project']->activeMaterials->first()?->factor ?? 7;
+        $data['suppliers']      = SupplierContact::orderBy('name')->get();
+
+        return view('admin.material_usage_detail', $data);
     }
 
     public function store(Request $request, $projectId)
@@ -62,6 +56,53 @@ class MaterialUsageController extends Controller
         return redirect()
             ->route('admin.material_usage.detail', $project->id)
             ->with('success', 'Material usage logged successfully.');
+    }
+
+    public function storePurchase(Request $request, $projectId)
+    {
+        $project = Project::findOrFail($projectId);
+
+        // strip the "__other__" sentinel before validation
+        if ($request->input('project_material_id') === '__other__') {
+            $request->merge(['project_material_id' => null]);
+        }
+
+        $validated = $request->validate([
+            'project_material_id' => 'nullable|exists:project_materials,id',
+            'material_name'       => 'required|string|max:255',
+            'unit'                => 'nullable|string|max:50',
+            'qty_bought'          => 'required|numeric|min:0.01',
+            'actual_unit_cost'    => 'required|numeric|min:0',
+            'supplier'            => 'nullable|string|max:255',
+            'purchase_date'       => 'required|date',
+            'notes'               => 'nullable|string|max:500',
+        ]);
+
+        MaterialPurchase::create([
+            'project_id'          => $project->id,
+            'project_material_id' => $validated['project_material_id'] ?? null,
+            'material_name'       => $validated['material_name'],
+            'unit'                => $validated['unit'] ?? null,
+            'qty_bought'          => $validated['qty_bought'],
+            'actual_unit_cost'    => $validated['actual_unit_cost'],
+            'total_paid'          => round($validated['qty_bought'] * $validated['actual_unit_cost'], 2),
+            'supplier'            => $validated['supplier'] ?? null,
+            'purchase_date'       => $validated['purchase_date'],
+            'notes'               => $validated['notes'] ?? null,
+        ]);
+
+        return redirect()->route('admin.material_usage.detail', $projectId)
+            ->with('success', 'Purchase logged successfully.')
+            ->with('active_tab', 'purchased');
+    }
+
+    public function destroyPurchase($projectId, $purchaseId)
+    {
+        MaterialPurchase::where('project_id', $projectId)->findOrFail($purchaseId)->delete();
+
+        return redirect()->route('admin.material_usage.detail', $projectId)
+            ->with('success', 'Purchase record deleted.')
+            ->with('active_tab', 'purchased');
     }
 
     public function archive($projectId, $usageId)
@@ -183,6 +224,34 @@ class MaterialUsageController extends Controller
             (float) $request->input('quantity_used'),
             $loggedBy
         );
+
+        // Low stock alert: if linked to a BOM material, check if total usage >= 80% of planned qty
+        $bomId = $request->input('project_material_id') ?: null;
+        if ($bomId) {
+            $bomMaterial = \App\Models\ProjectMaterial::find($bomId);
+            if ($bomMaterial && $bomMaterial->quantity > 0) {
+                $totalUsed = MaterialUsage::where('project_id', $project->id)
+                    ->where('project_material_id', $bomId)
+                    ->where('status', 'active')
+                    ->sum('quantity_used');
+
+                $usagePct = ($totalUsed / $bomMaterial->quantity) * 100;
+
+                if ($usagePct >= 80 && $usagePct < 100) {
+                    NotificationService::lowStockAlert($project, $bomMaterial);
+                } elseif ($usagePct >= 100) {
+                    NotificationService::notifyAdmins(
+                        'Material Stock Depleted',
+                        "\"{$bomMaterial->material_name}\" in {$project->name} has been fully consumed ({$bomMaterial->quantity} units planned, " . number_format($totalUsed, 2) . " used).",
+                        'warning',
+                        'red',
+                        $project->id,
+                        null,
+                        "/admin/material-usage/{$project->id}"
+                    );
+                }
+            }
+        }
 
         return $usage;
     }

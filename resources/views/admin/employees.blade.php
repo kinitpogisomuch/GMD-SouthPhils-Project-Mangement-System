@@ -310,7 +310,7 @@
                 @csrf
                 <div class="form-grid">
                     <div class="form-group">
-                        <label>First Name *</label>
+                        <label>First Name </label>
                         <input type="text" name="first_name" required minlength="2" maxlength="50"
                                placeholder="e.g. Kenneth"
                                value="{{ old('first_name') }}"
@@ -318,7 +318,7 @@
                         <span class="emp-field-err" id="addEmpFirstNameErr"></span>
                     </div>
                     <div class="form-group">
-                        <label>Last Name *</label>
+                        <label>Last Name </label>
                         <input type="text" name="last_name" required minlength="2" maxlength="50"
                                placeholder="e.g. Nadera"
                                value="{{ old('last_name') }}"
@@ -326,7 +326,7 @@
                         <span class="emp-field-err" id="addEmpLastNameErr"></span>
                     </div>
                     <div class="form-group">
-                        <label>Contact Number *</label>
+                        <label>Contact Number </label>
                         <input type="text" name="contact" required maxlength="13"
                                placeholder="e.g. 09171234567"
                                value="{{ old('contact') }}"
@@ -334,7 +334,7 @@
                         <span class="emp-field-err" id="addEmpContactErr"></span>
                     </div>
                     <div class="form-group">
-                        <label>Email Address *</label>
+                        <label>Email Address </label>
                         <input type="email" name="email" required maxlength="255"
                                placeholder="e.g. juan@gmail.com"
                                value="{{ old('email') }}"
@@ -342,7 +342,7 @@
                         <span class="emp-field-err" id="addEmpEmailErr"></span>
                     </div>
                     <div class="form-group">
-                        <label>Role *</label>
+                        <label>Role </label>
                         <select name="role" required onchange="empFieldError(this,'addEmpRoleErr')">
                             <option value="">Select role</option>
                             <option value="Fabricator" {{ old('role') === 'Fabricator' ? 'selected' : '' }}>Fabricator</option>
@@ -353,7 +353,7 @@
                         <span class="emp-field-err" id="addEmpRoleErr"></span>
                     </div>
                     <div class="form-group">
-                        <label>Employee Type *</label>
+                        <label>Employee Type </label>
                         <select name="employee_type" required onchange="empFieldError(this,'addEmpTypeErr')">
                             <option value="Regular" {{ old('employee_type', 'Regular') === 'Regular' ? 'selected' : '' }}>Regular</option>
                             <option value="Outsourced" {{ old('employee_type') === 'Outsourced' ? 'selected' : '' }}>Outsourced</option>
@@ -361,7 +361,7 @@
                         <span class="emp-field-err" id="addEmpTypeErr"></span>
                     </div>
                     <div class="form-group">
-                        <label>Daily Rate (₱) *</label>
+                        <label>Daily Rate (₱) </label>
                         <input type="number" name="daily_rate" required min="1" step="0.01"
                                placeholder="e.g. 500"
                                value="{{ old('daily_rate') }}"
@@ -481,21 +481,21 @@
                 @method('PUT')
                 <div class="form-grid">
                     <div class="form-group">
-                        <label>First Name *</label>
+                        <label>First Name </label>
                         <input type="text" name="first_name" id="editEmpFirstName" required maxlength="100"
                                placeholder="e.g. Kenneth"
                                oninput="empCapName(this); empFieldError(this,'editEmpFirstNameErr')">
                         <span class="emp-field-err" id="editEmpFirstNameErr"></span>
                     </div>
                     <div class="form-group">
-                        <label>Last Name *</label>
+                        <label>Last Name </label>
                         <input type="text" name="last_name" id="editEmpLastName" required maxlength="100"
                                placeholder="e.g. Nadera"
                                oninput="empCapName(this); empFieldError(this,'editEmpLastNameErr')">
                         <span class="emp-field-err" id="editEmpLastNameErr"></span>
                     </div>
                     <div class="form-group">
-                        <label>Contact Number *</label>
+                        <label>Contact Number </label>
                         <input type="text" name="contact" id="editEmpContact" required maxlength="13"
                                placeholder="e.g. 09171234567"
                                oninput="empFieldError(this,'editEmpContactErr')">
@@ -509,7 +509,7 @@
                         <span class="emp-field-err" id="editEmpEmailErr"></span>
                     </div>
                     <div class="form-group">
-                        <label>Role *</label>
+                        <label>Role </label>
                         <select name="role" id="editEmpRole" required
                                 onchange="empFieldError(this,'editEmpRoleErr')">
                             <option value="Fabricator">Fabricator</option>
@@ -520,7 +520,7 @@
                         <span class="emp-field-err" id="editEmpRoleErr"></span>
                     </div>
                     <div class="form-group">
-                        <label>Employee Type *</label>
+                        <label>Employee Type </label>
                         <select name="employee_type" id="editEmpType" required
                                 onchange="empFieldError(this,'editEmpTypeErr')">
                             <option value="Regular">Regular</option>
@@ -529,35 +529,35 @@
                         <span class="emp-field-err" id="editEmpTypeErr"></span>
                     </div>
                     <div class="form-group">
-                        <label>Daily Rate (₱) *</label>
+                        <label>Daily Rate (₱) </label>
                         <input type="number" name="daily_rate" id="editEmpDailyRate" required min="1" step="0.01"
                                placeholder="e.g. 500"
                                oninput="empFieldError(this,'editEmpRateErr')">
                         <span class="emp-field-err" id="editEmpRateErr"></span>
                     </div>
                     <div class="form-group">
-                        <label>Province *</label>
+                        <label>Province </label>
                         <input type="text" name="province" id="editEmpProvince" required maxlength="255"
                                placeholder="e.g. Laguna"
                                oninput="empCapName(this); empFieldError(this,'editEmpProvinceErr')">
                         <span class="emp-field-err" id="editEmpProvinceErr"></span>
                     </div>
                     <div class="form-group">
-                        <label>City / Municipality *</label>
+                        <label>City / Municipality </label>
                         <input type="text" name="city" id="editEmpCity" required maxlength="255"
                                placeholder="e.g. Santa Cruz"
                                oninput="empCapName(this); empFieldError(this,'editEmpCityErr')">
                         <span class="emp-field-err" id="editEmpCityErr"></span>
                     </div>
                     <div class="form-group">
-                        <label>Region *</label>
+                        <label>Region </label>
                         <input type="text" name="region" id="editEmpRegion" required maxlength="255"
                                placeholder="e.g. Region IV-A"
                                oninput="empCapName(this); empFieldError(this,'editEmpRegionErr')">
                         <span class="emp-field-err" id="editEmpRegionErr"></span>
                     </div>
                     <div class="form-group form-group-full">
-                        <label>Street Address *</label>
+                        <label>Street Address </label>
                         <input type="text" name="street_address" id="editEmpStreetAddress" required maxlength="500"
                                placeholder="e.g. Poblacion Street"
                                oninput="empCapName(this); empFieldError(this,'editEmpStreetErr')">
@@ -687,7 +687,7 @@
                                style="background:rgba(0,0,0,0.03);cursor:default;">
                     </div>
                     <div class="form-group">
-                        <label>Days Worked This Week *</label>
+                        <label>Days Worked This Week </label>
                         <input type="number" id="rpDays" required placeholder="e.g. 5" min="0" max="7" step="0.5"
                                oninput="updatePayPreview()">
                         <span style="font-size:11px;color:var(--muted);margin-top:3px;display:block;">Use <strong>0.5</strong> for a half day (e.g. 4.5 = 4 full days + 1 half day)</span>

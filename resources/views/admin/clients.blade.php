@@ -225,13 +225,13 @@
                 @csrf
                 <div class="form-grid">
                     <div class="form-group form-group-full">
-                        <label>Full Name / Company Name *</label>
+                        <label>Full Name / Company Name </label>
                         <input type="text" name="full_name" required
                                placeholder="e.g. Juan Dela Cruz or ABC Construction Co."
                                value="{{ old('full_name') }}">
                     </div>
                     <div class="form-group">
-                        <label>Contact Number *</label>
+                        <label>Contact Number </label>
                         <input type="text" name="contact" required
                                placeholder="e.g. 09XX XXX XXXX"
                                value="{{ old('contact') }}">
@@ -301,17 +301,17 @@
                 @method('PUT')
                 <div class="form-grid">
                     <div class="form-group">
-                        <label>First Name *</label>
+                        <label>First Name </label>
                         <input type="text" name="first_name" id="editClientFirstName" required placeholder="First name"
                                oninput="clientStripDigits(this); clientCapName(this)">
                     </div>
                     <div class="form-group">
-                        <label>Last Name *</label>
+                        <label>Last Name </label>
                         <input type="text" name="last_name" id="editClientLastName" required placeholder="Last name"
                                oninput="clientStripDigits(this); clientCapName(this)">
                     </div>
                     <div class="form-group">
-                        <label>Contact Number *</label>
+                        <label>Contact Number </label>
                         <input type="text" name="contact" id="editClientContact" required placeholder="Contact number">
                     </div>
                     <div class="form-group">

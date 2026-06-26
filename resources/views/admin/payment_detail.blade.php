@@ -29,7 +29,7 @@
             <div class="page-header">
                 <div>
                     <h1>{{ $payment->project->name ?? 'Payment Detail' }}</h1>
-                    <p>Client: <strong>{{ $payment->client }}</strong> &nbsp;·&nbsp; {{ $payment->payment_terms }}</p>
+                    <p><span class="client-pill">{{ $payment->client }}</span> &nbsp;·&nbsp; {{ $payment->payment_terms }}</p>
                 </div>
                 <button class="add-btn" type="button" id="openRecordModal">
                     <i data-lucide="plus"></i>
@@ -91,19 +91,22 @@
             </div>
 
             <!-- Payment Stages Breakdown -->
-            <div class="table-card" style="margin-bottom:24px;">
-                <div class="table-toolbar" style="padding-bottom:0;">
-                    <span style="font-weight:700;font-size:15px;">Payment Breakdown by Stage</span>
+            <div class="table-card" style="margin-bottom:24px;padding-bottom:0;">
+                <div class="table-toolbar" style="padding-bottom:14px;border-bottom:1px solid var(--border);">
+                    <div>
+                        <div style="font-weight:800;font-size:15px;color:var(--dark);">Payment Breakdown by Stage</div>
+                        <div style="font-size:12px;color:var(--muted);margin-top:2px;">Expected vs actual payments per stage</div>
+                    </div>
                 </div>
                 <div class="table-wrapper">
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th>Stage</th>
-                                <th>Expected Amount</th>
-                                <th>Total Paid</th>
-                                <th>Remaining</th>
-                                <th>Status</th>
+                                <th style="text-align:left;">Stage</th>
+                                <th style="text-align:center;">Expected Amount</th>
+                                <th style="text-align:center;">Total Paid</th>
+                                <th style="text-align:center;">Remaining</th>
+                                <th style="text-align:center;">Status</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -117,67 +120,81 @@
                             @endphp
                             <tr>
                                 <td><strong>{{ $stageLabel }}</strong></td>
-                                <td>₱{{ number_format($expected, 2) }}</td>
-                                <td>₱{{ number_format($stagePaid, 2) }}</td>
-                                <td>₱{{ number_format($stageLeft, 2) }}</td>
-                                <td>
+                                <td style="text-align:center;">₱{{ number_format($expected, 2) }}</td>
+                                <td style="text-align:center;color:#16a34a;font-weight:700;">₱{{ number_format($stagePaid, 2) }}</td>
+                                <td style="text-align:center;color:{{ $stageLeft > 0 ? '#b91c1c' : 'var(--muted)' }};font-weight:700;">₱{{ number_format($stageLeft, 2) }}</td>
+                                <td style="text-align:center;">
                                     @if($isPaid)
                                         <span class="status-badge completed">Paid</span>
                                     @elseif($stagePaid > 0)
-                                        <span class="status-badge ongoing">Partial</span>
+                                        <span class="status-badge partial">Partial</span>
                                     @else
                                         <span class="status-badge pending">Unpaid</span>
                                     @endif
                                 </td>
                             </tr>
                             @endforeach
-                            <!-- Grand Total Row -->
-                            <tr style="background:var(--dark);color:#fff;font-weight:700;">
-                                <td>TOTAL</td>
-                                <td>₱{{ number_format($payment->contract_amount, 2) }}</td>
-                                <td>₱{{ number_format($totalPaid, 2) }}</td>
-                                <td>₱{{ number_format($balance, 2) }}</td>
-                                <td>
-                                    <span class="status-badge {{ \App\Models\Payment::statusBadgeClass($status) }}">
-                                        {{ $status }}
-                                    </span>
+                        </tbody>
+                        <tfoot>
+                            <tr style="background:linear-gradient(180deg,#333333 0%,#2a2a2a 100%)">
+                                <td style="padding:14px 24px;font-weight:800;color:#fff;font-size:13px;">Total</td>
+                                <td style="padding:14px 14px;text-align:center;color:rgba(255,255,255,.7);font-weight:700;">₱{{ number_format($payment->contract_amount, 2) }}</td>
+                                <td style="padding:14px 14px;text-align:center;color:#4ade80;font-weight:800;">₱{{ number_format($totalPaid, 2) }}</td>
+                                <td style="padding:14px 14px;text-align:center;color:{{ $balance > 0 ? '#f87171' : '#4ade80' }};font-weight:800;">₱{{ number_format($balance, 2) }}</td>
+                                <td style="padding:14px 24px;text-align:center;">
+                                    <span class="status-badge {{ \App\Models\Payment::statusBadgeClass($status) }}">{{ $status }}</span>
                                 </td>
                             </tr>
-                        </tbody>
+                        </tfoot>
                     </table>
                 </div>
             </div>
 
             <!-- Payment History -->
             <div class="table-card">
-                <div class="table-toolbar" style="padding-bottom:0;">
-                    <span style="font-weight:700;font-size:15px;">Payment History</span>
+                <div class="table-toolbar" style="padding-bottom:14px;border-bottom:1px solid var(--border);">
+                    <div>
+                        <div style="font-weight:800;font-size:15px;color:var(--dark);">Payment History</div>
+                        <div style="font-size:12px;color:var(--muted);margin-top:2px;">All recorded transactions for this project</div>
+                    </div>
+                    <span style="font-size:13px;font-weight:700;color:var(--muted);">{{ $payment->transactions->count() }} transaction{{ $payment->transactions->count() !== 1 ? 's' : '' }}</span>
                 </div>
                 <div class="table-wrapper">
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th>Date</th>
-                                <th>Stage</th>
-                                <th>Amount Paid</th>
-                                <th>Reference #</th>
-                                <th>Notes</th>
-                                <th>Recorded By</th>
+                                <th style="text-align:left;">Date</th>
+                                <th style="text-align:left;">Stage</th>
+                                <th style="text-align:center;">Amount Paid</th>
+                                <th style="text-align:center;">Mode</th>
                             </tr>
                         </thead>
                         <tbody>
                             @forelse($payment->transactions->sortByDesc('payment_date') as $tx)
                             <tr>
-                                <td>{{ \Carbon\Carbon::parse($tx->payment_date)->format('M d, Y') }}</td>
-                                <td>{{ \App\Models\PaymentTransaction::stageLabel($tx->payment_stage) }}</td>
-                                <td><strong>₱{{ number_format($tx->amount_paid, 2) }}</strong></td>
-                                <td>{{ $tx->reference_number ?? '—' }}</td>
-                                <td>{{ $tx->notes ?? '—' }}</td>
-                                <td>{{ $tx->recorded_by ?? '—' }}</td>
+                                <td style="white-space:nowrap;color:var(--muted);">{{ \Carbon\Carbon::parse($tx->payment_date)->format('M d, Y') }}</td>
+                                <td><strong>{{ \App\Models\PaymentTransaction::stageLabel($tx->payment_stage) }}</strong></td>
+                                <td style="text-align:center;"><strong style="color:#16a34a;">₱{{ number_format($tx->amount_paid, 2) }}</strong></td>
+                                <td style="text-align:center;">
+                                    @if($tx->mode_of_payment)
+                                    @php
+                                        $mopStyle = match($tx->mode_of_payment) {
+                                            'bank_transfer' => 'background:#dbeafe;color:#1d4ed8;',
+                                            'cheque'        => 'background:#fef3c7;color:#92400e;',
+                                            default         => 'background:#dcfce7;color:#15803d;',
+                                        };
+                                        $mopLabel = $tx->mode_of_payment === 'bank_transfer' ? 'Bank Transfer' : ucfirst($tx->mode_of_payment);
+                                    @endphp
+                                    <span class="status-badge" style="{{ $mopStyle }}box-shadow:none;font-size:12px;">{{ $mopLabel }}</span>
+                                    @else
+                                    <span style="color:var(--muted);">—</span>
+                                    @endif
+                                </td>
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="6" style="text-align:center;padding:32px;color:var(--muted);">
+                                <td colspan="4" style="text-align:center;padding:40px;color:var(--muted);">
+                                    <i data-lucide="receipt" style="width:32px;height:32px;opacity:.3;display:block;margin:0 auto 10px;"></i>
                                     No payment transactions recorded yet.
                                 </td>
                             </tr>
@@ -207,9 +224,9 @@
                 @csrf
                 <div class="form-grid">
                     <div class="form-group form-group-full">
-                        <label>Payment Stage *</label>
+                        <label>Payment Stage</label>
                         <select name="payment_stage" required id="stageSelect">
-                            <option value="">Select stage</option>
+                            <option value="" disabled selected>Select stage</option>
                             @foreach($payment->stages() as $stage)
                             <option value="{{ $stage }}"
                                 data-expected="{{ $stageAmounts[$stage] ?? 0 }}"
@@ -222,21 +239,36 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>Amount Paid (₱) *</label>
+                        <label>Amount Paid (₱)</label>
                         <input type="number" name="amount_paid" id="amountPaidInput"
                                required min="0.01" step="0.01"
                                placeholder="e.g. 425000">
                     </div>
                     <div class="form-group">
-                        <label>Payment Date *</label>
+                        <label>Payment Date</label>
                         <input type="date" name="payment_date" required
                                value="{{ now()->format('Y-m-d') }}">
                     </div>
 
                     <div class="form-group form-group-full">
-                        <label>Notes</label>
-                        <textarea name="notes" rows="2"
-                                  placeholder="Optional payment notes..."></textarea>
+                        <label>Mode of Payment</label>
+                        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;" id="mopGroup">
+                            <label class="mop-option" for="mop_bank">
+                                <input type="radio" name="mode_of_payment" id="mop_bank" value="bank_transfer" required style="display:none;" onchange="highlightMop()">
+                                <i data-lucide="building-2" style="width:16px;height:16px;"></i>
+                                Bank Transfer
+                            </label>
+                            <label class="mop-option" for="mop_cheque">
+                                <input type="radio" name="mode_of_payment" id="mop_cheque" value="cheque" style="display:none;" onchange="highlightMop()">
+                                <i data-lucide="file-text" style="width:16px;height:16px;"></i>
+                                Cheque
+                            </label>
+                            <label class="mop-option" for="mop_cash">
+                                <input type="radio" name="mode_of_payment" id="mop_cash" value="cash" style="display:none;" onchange="highlightMop()">
+                                <i data-lucide="banknote" style="width:16px;height:16px;"></i>
+                                Cash
+                            </label>
+                        </div>
                     </div>
                 </div>
 
@@ -269,10 +301,13 @@
     const amountInput = document.getElementById('amountPaidInput');
     const expectedEl  = document.getElementById('expectedAmount');
 
-    openBtn.addEventListener('click', () => modal.classList.add('show'));
-    closeBtn.addEventListener('click', () => modal.classList.remove('show'));
-    cancelBtn.addEventListener('click', () => modal.classList.remove('show'));
-    modal.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('show'); });
+    function openModal()  { modal.classList.add('show');    document.body.style.overflow = 'hidden'; }
+    function closeModal() { modal.classList.remove('show'); document.body.style.overflow = ''; }
+
+    openBtn.addEventListener('click', openModal);
+    closeBtn.addEventListener('click', closeModal);
+    cancelBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
 
     stageSelect.addEventListener('change', function () {
         const opt = this.options[this.selectedIndex];
@@ -289,6 +324,41 @@
     @if(session('success'))
     modal.classList.remove('show');
     @endif
+
+    function highlightMop() {
+        document.querySelectorAll('.mop-option').forEach(function(lbl) {
+            var inp = lbl.querySelector('input[type=radio]');
+            lbl.classList.toggle('mop-selected', inp && inp.checked);
+        });
+    }
     </script>
+
+    <style>
+        .mop-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 14px;
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--muted);
+            background: var(--white);
+            transition: all .18s ease;
+            user-select: none;
+        }
+        .mop-option:hover {
+            border-color: var(--dark);
+            color: var(--dark);
+        }
+        .mop-option.mop-selected {
+            background: var(--dark);
+            border-color: var(--dark);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(14,20,40,.25);
+        }
+    </style>
 </body>
 </html>

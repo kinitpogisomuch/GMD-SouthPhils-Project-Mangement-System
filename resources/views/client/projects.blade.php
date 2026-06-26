@@ -192,7 +192,7 @@
                 @csrf
                 <div class="form-grid">
                     <div class="form-group form-group-full">
-                        <label>Your Rating <span style="color:var(--danger);">*</span></label>
+                        <label>Your Rating </label>
                         <div class="star-rating" id="reviewStarRating">
                             @for($i=1;$i<=5;$i++)
                             <button type="button" data-value="{{ $i }}" onclick="setReviewRating({{ $i }})">
@@ -203,7 +203,7 @@
                         <input type="hidden" name="rating" id="reviewRatingInput" required>
                     </div>
                     <div class="form-group form-group-full">
-                        <label>Your Review <span style="color:var(--danger);">*</span></label>
+                        <label>Your Review </label>
                         <textarea name="comment" id="reviewCommentInput" rows="4" maxlength="1000" placeholder="Tell us about your experience with this project..." required></textarea>
                     </div>
                 </div>

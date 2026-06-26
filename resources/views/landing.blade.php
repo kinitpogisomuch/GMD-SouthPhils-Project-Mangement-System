@@ -26,7 +26,6 @@
         <ul class="nav-links">
             <li class="nav-pill" id="navPill" aria-hidden="true"></li>
             <li><a href="#about">About</a></li>
-            <li><a href="#services">Services</a></li>
             <li><a href="#tanks">Tank Types</a></li>
             <li><a href="#portfolio">Our Work</a></li>
             @if($reviews->isNotEmpty())
@@ -46,7 +45,6 @@
     <!-- Mobile menu drawer -->
     <div class="mobile-menu" id="mobileMenu">
         <a href="#about"     class="mm-link">About</a>
-        <a href="#services"  class="mm-link">Services</a>
         <a href="#tanks"     class="mm-link">Tank Types</a>
         <a href="#portfolio" class="mm-link">Our Work</a>
         @if($reviews->isNotEmpty())
@@ -83,9 +81,9 @@
             </p>
 
             <div class="hero-btns">
-                <a href="#services" class="btn-gold">
+                <a href="#tanks" class="btn-gold">
                     <i data-lucide="layers"></i>
-                    Explore Our Services
+                    View Our Work
                 </a>
                 <a href="{{ route('login') }}" class="btn-ghost">Login</a>
             </div>
@@ -109,15 +107,15 @@
         </div>
         <div class="stat-box reveal">
             <div class="stat-num">4<sup>+</sup></div>
-            <div class="stat-label">Tank Types Handled</div>
+            <div class="stat-label">Tank Types</div>
         </div>
         <div class="stat-box reveal">
             <div class="stat-num">100%</div>
             <div class="stat-label">Quality Inspected</div>
         </div>
         <div class="stat-box reveal">
-            <div class="stat-num">24<span class="stat-slash">/</span>7</div>
-            <div class="stat-label">Project Monitoring</div>
+            <div class="stat-num">On<span class="stat-slash">-</span>Time</div>
+            <div class="stat-label">Delivery Commitment</div>
         </div>
     </div>
 
@@ -189,56 +187,6 @@
     </section>
 
 
-    <!-- ============================================================
-         SERVICES
-    ============================================================ -->
-    <section class="services-wrap" id="services">
-        <div class="services-inner">
-            <div class="section-tag reveal">What We Offer</div>
-            <h2 class="section-title reveal">End-to-End Tank Fabrication Services</h2>
-            <p class="section-sub reveal">From concept to completion, we provide everything your project needs — under one roof.</p>
-
-            <div class="services-grid">
-
-                <div class="service-card reveal">
-                    <div class="sc-icon"><i data-lucide="drafting-compass"></i></div>
-                    <div class="sc-name">Custom Tank Design</div>
-                    <p class="sc-desc">We design tanks to your exact specifications — capacity, dimensions, material grade, and industry-specific requirements.</p>
-                </div>
-
-                <div class="service-card reveal">
-                    <div class="sc-icon"><i data-lucide="wrench"></i></div>
-                    <div class="sc-name">Steel Fabrication</div>
-                    <p class="sc-desc">Our team of experienced welders and fabricators construct durable steel tanks using quality materials and proven techniques.</p>
-                </div>
-
-                <div class="service-card reveal">
-                    <div class="sc-icon"><i data-lucide="package-search"></i></div>
-                    <div class="sc-name">Material Procurement</div>
-                    <p class="sc-desc">We source and procure all structural steel, fittings, and components — ensuring material quality at every stage.</p>
-                </div>
-
-                <div class="service-card reveal">
-                    <div class="sc-icon"><i data-lucide="shield-check"></i></div>
-                    <div class="sc-name">Quality Inspection</div>
-                    <p class="sc-desc">Rigorous multi-point inspection and pressure testing ensures every tank meets safety and performance standards before leaving our facility.</p>
-                </div>
-
-                <div class="service-card reveal">
-                    <div class="sc-icon"><i data-lucide="paintbrush"></i></div>
-                    <div class="sc-name">Painting & Coating</div>
-                    <p class="sc-desc">Professional surface preparation and anti-corrosion coating systems extend tank lifespan and meet client or regulatory specifications.</p>
-                </div>
-
-                <div class="service-card reveal">
-                    <div class="sc-icon"><i data-lucide="truck"></i></div>
-                    <div class="sc-name">Delivery & Installation</div>
-                    <p class="sc-desc">Safe transport and on-site placement support ensures your tank arrives on schedule and in perfect condition — wherever you are.</p>
-                </div>
-
-            </div>
-        </div>
-    </section>
 
 
 
@@ -249,35 +197,37 @@
     <section class="tanks-wrap" id="tanks">
         <div class="tanks-inner">
             <div class="section-tag reveal">Our Specialties</div>
-            <h2 class="section-title reveal">Tank Types We Fabricate</h2>
+            <h2 class="section-title reveal">We Fabricate</h2>
             <p class="section-sub reveal">We build a wide range of industrial storage tanks engineered for different applications and industries.</p>
+        </div>
 
-            <div class="tanks-grid">
-
-                <div class="tank-card reveal">
-                    <div class="tank-icon"><i data-lucide="flame"></i></div>
-                    <div class="tank-name">Fuel Storage Tanks</div>
-                    <p class="tank-desc">Diesel, gasoline, and petroleum product tanks built to handle flammable storage safely and efficiently.</p>
+        {{-- Infinite scroll marquee --}}
+        <div class="tanks-marquee-wrap">
+            <div class="tanks-marquee-track">
+                @php
+                $tankItems = [
+                    ['icon'=>'droplets',        'name'=>'Water Storage',     'desc'=>'Industrial and commercial water tanks for construction, agriculture, and municipal supply.'],
+                    ['icon'=>'fuel',            'name'=>'Oil Storage',        'desc'=>'Heavy-duty tanks for crude oil, lubricants, and petroleum derivatives.'],
+                    ['icon'=>'pipe',            'name'=>'Pipe Line',          'desc'=>'Fabricated steel pipe systems designed for fluid transfer across industrial sites.'],
+                    ['icon'=>'triangle',        'name'=>'Tetrapod',           'desc'=>'Concrete and steel tetrapod structures for coastal protection and erosion control.'],
+                    ['icon'=>'flame',           'name'=>'Fuel Storage Tank',  'desc'=>'Safe and durable tanks for diesel, gasoline, and other flammable fuel storage.'],
+                    ['icon'=>'container',       'name'=>'Cistern Tank',       'desc'=>'Underground and above-ground cisterns for water collection and holding applications.'],
+                ];
+                @endphp
+                @foreach(array_merge($tankItems, $tankItems) as $t)
+                <div class="tanks-marquee-card">
+                    <div class="tmc-icon">
+                        @if($t['name'] === 'Pipe Line')
+                            <img src="https://cdn-icons-png.flaticon.com/512/3769/3769198.png"
+                                 alt="Pipeline" style="width:32px;height:32px;object-fit:contain;filter:opacity(.75);">
+                        @else
+                            <i data-lucide="{{ $t['icon'] }}"></i>
+                        @endif
+                    </div>
+                    <div class="tmc-name">{{ $t['name'] }}</div>
+                    <p class="tmc-desc">{{ $t['desc'] }}</p>
                 </div>
-
-                <div class="tank-card reveal">
-                    <div class="tank-icon"><i data-lucide="droplets"></i></div>
-                    <div class="tank-name">Water Storage Tanks</div>
-                    <p class="tank-desc">Industrial and commercial water tanks for construction sites, agriculture, and community water supply.</p>
-                </div>
-
-                <div class="tank-card reveal">
-                    <div class="tank-icon"><i data-lucide="wheat"></i></div>
-                    <div class="tank-name">Cooking Oil Tanks</div>
-                    <p class="tank-desc">Food-grade stainless or carbon steel tanks designed for edible oil storage with hygiene-compliant interiors.</p>
-                </div>
-
-                <div class="tank-card reveal">
-                    <div class="tank-icon"><i data-lucide="flask-conical"></i></div>
-                    <div class="tank-name">Chemical Storage Tanks</div>
-                    <p class="tank-desc">Corrosion-resistant tanks engineered for safe storage of industrial chemicals, acids, and solvents.</p>
-                </div>
-
+                @endforeach
             </div>
         </div>
     </section>
@@ -290,7 +240,7 @@
         <div class="portfolio-inner">
             <div class="section-tag reveal">Our Work</div>
             <h2 class="section-title reveal">Projects We've Built</h2>
-            <p class="section-sub reveal">A look at the kind of storage tanks and fabrication work we deliver — built to spec, tested, and ready for the field.</p>
+            <p class="section-sub reveal">A showcase of our completed storage tank projects — each fabricated to client specifications, pressure-tested, and delivered on schedule.</p>
 
             <div class="portfolio-grid">
                 @foreach($portfolioItems as $item)
@@ -416,72 +366,6 @@
     </section>
 
 
-    <!-- ============================================================
-         PORTAL CTA
-    ============================================================ -->
-    <section class="portal-cta">
-        <div class="portal-glow"></div>
-        <div class="portal-cta-inner">
-
-            <div class="portal-left reveal-left">
-                <div class="section-tag">Project Monitoring</div>
-                <h2 class="section-title">Track Your Project Live</h2>
-                <p class="section-sub">Our project management portal gives clients, employees, and administrators live visibility into every phase of fabrication — with photo updates, progress tracking, and instant notifications.</p>
-
-                <div class="portal-features">
-                    <div class="pf-item">
-                        <div class="pf-icon"><i data-lucide="activity"></i></div>
-                        <span class="pf-text">Live project progress tracking</span>
-                    </div>
-                    <div class="pf-item">
-                        <div class="pf-icon"><i data-lucide="camera"></i></div>
-                        <span class="pf-text">Photo documentation per update</span>
-                    </div>
-                    <div class="pf-item">
-                        <div class="pf-icon"><i data-lucide="bell"></i></div>
-                        <span class="pf-text">Instant notifications on project events</span>
-                    </div>
-                    <div class="pf-item">
-                        <div class="pf-icon"><i data-lucide="lock"></i></div>
-                        <span class="pf-text">Secure role-based access</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="portal-card reveal-right">
-                <div class="portal-card-header">
-                    <div class="portal-card-ico"><i data-lucide="layout-dashboard"></i></div>
-                    <div>
-                        <div class="portal-card-title">GMD Project Portal</div>
-                        <div class="portal-card-sub">Secure login for all stakeholders</div>
-                    </div>
-                </div>
-
-                <div class="portal-divider"></div>
-
-                <div class="portal-roles">
-                    <div class="role-chip">
-                        <i data-lucide="shield"></i>
-                        Admin — Full project control
-                        <div class="role-dot"></div>
-                    </div>
-                    <div class="role-chip">
-                        <i data-lucide="user"></i>
-                        Client — View project progress
-                        <div class="role-dot"></div>
-                    </div>
-                    <div class="role-chip">
-                        <i data-lucide="hard-hat"></i>
-                        Employee — Submit field updates
-                        <div class="role-dot"></div>
-                    </div>
-                </div>
-
-                <a href="{{ route('login') }}" class="btn-portal">Login to Portal</a>
-            </div>
-
-        </div>
-    </section>
 
 
     <!-- ============================================================
@@ -590,8 +474,7 @@
                 <div class="footer-col-title">Quick Links</div>
                 <ul class="footer-links">
                     <li><a href="#about">About</a></li>
-                    <li><a href="#services">Services</a></li>
-                    <li><a href="#tanks">Tank Types</a></li>
+                            <li><a href="#tanks">Tank Types</a></li>
                     <li><a href="#portfolio">Our Work</a></li>
                     @if($reviews->isNotEmpty())
                     <li><a href="#reviews">Client Feedback</a></li>
@@ -719,7 +602,7 @@
         // Scroll reveal animations
         (function () {
             var revealEls = document.querySelectorAll('.reveal, .reveal-left, .reveal-right, .reveal-scale');
-            var staggerGroups = ['services-grid', 'tanks-grid', 'process-grid', 'portfolio-grid', 'why-grid', 'reviews-grid', 'stats-bar', 'about-highlights'];
+            var staggerGroups = ['process-grid', 'portfolio-grid', 'why-grid', 'reviews-grid', 'stats-bar', 'about-highlights'];
 
             revealEls.forEach(function (el) {
                 var parent = el.parentElement;

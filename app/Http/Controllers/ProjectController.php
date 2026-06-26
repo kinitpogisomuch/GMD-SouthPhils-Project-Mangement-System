@@ -11,6 +11,7 @@ use App\Models\ProgressRequest;
 use App\Models\Client;
 use App\Models\Employee;
 use App\Models\FundTransaction;
+use App\Models\PaymentTransaction;
 use App\Services\SupabaseStorageService;
 use App\Services\NotificationService;
 
@@ -77,32 +78,70 @@ class ProjectController extends Controller
         $clientAddress = $project->address
                          ?? ($clientRecord ? $clientRecord->address : null);
 
-        // Cost summary: materials + labor vs. the contract amount on file.
-        $materialCost   = (float) $project->activeMaterials()->sum('total_cost');
-        $laborCost      = (float) $project->activeLabor()->sum('total_cost');
+        // ── Financial data ──────────────────────────────────────────────
         $payment        = $project->getPaymentRecord();
-        $contractAmount = $payment ? (float) $payment->contract_amount : null;
-        $profit         = $contractAmount !== null ? $contractAmount - ($materialCost + $laborCost) : null;
 
-        // Budget: the Project Grand Total from the Generate Project Quotations modal
-        // (materials with their factor markup applied, plus labor cost).
+        // Estimated costs from BOM
+        $estMaterialCost = (float) $project->activeMaterials()->sum('total_cost');
+        $estLaborCost    = (float) $project->activeLabor()->sum('total_cost');
+        $estTotalCost    = $estMaterialCost + $estLaborCost;
+
+        // Contract Value = Total Project Quotation (BOM with markup + labor)
         $projectGrandTotal = $project->activeMaterials()->get()->sum(function ($material) {
             $factor = $material->factor ?? 7;
             return round((float) $material->total_cost * (1 + $factor / 100), 2);
-        }) + $laborCost;
+        }) + $estLaborCost;
+        $contractAmount = $projectGrandTotal; // Contract Value = quotation total
+
+        // Budget = first payment (down payment) received
+        $budgetReceived = $payment
+            ? (float) PaymentTransaction::where('payment_id', $payment->id)
+                ->where('payment_stage', 'down_payment')
+                ->sum('amount_paid')
+            : 0;
+
+        // Total received across all payment stages
+        $totalReceived = $payment
+            ? (float) PaymentTransaction::where('payment_id', $payment->id)->sum('amount_paid')
+            : 0;
+
+        // Actual material cost = sum of all material purchases for this project
+        $actMaterialCost = (float) \App\Models\MaterialPurchase::where('project_id', $project->id)->sum('total_paid');
+
+        // Actual labor = total gross pay from salary management (company-wide)
+        $actLaborCost = (float) \App\Models\SalaryRecord::sum('gross_pay');
+
+        // Remaining budget = budget received - actual spending
+        $remainingBudget = $budgetReceived - ($actMaterialCost + $actLaborCost);
+
+        // Variance
+        $matVariance   = $estMaterialCost - $actMaterialCost;
+        $laborVariance = $estLaborCost    - $actLaborCost;
+
+        // Est. Profit = Contract Value - Actual Material Cost - Actual Labor Cost
+        $profit = $contractAmount > 0 ? $contractAmount - $actMaterialCost - $actLaborCost : null;
+
+        // Legacy aliases
+        $materialCost = $estMaterialCost;
+        $laborCost    = $estLaborCost;
 
         // Revolving Fund Summary for this project
         $fundReleased    = FundTransaction::totalReleased($project->id);
         $fundReplenished = FundTransaction::totalReplenished($project->id);
         $fundOutstanding = $fundReleased - $fundReplenished;
         $fundHistory     = FundTransaction::where('project_id', $project->id)
-            ->orderByDesc('date')
-            ->orderByDesc('id')
-            ->get();
+            ->orderByDesc('date')->orderByDesc('id')->get();
 
         return view('admin.project_view', compact(
             'project', 'updates', 'openRequest', 'pendingUpdates', 'nextPhase', 'clientAddress',
-            'materialCost', 'laborCost', 'contractAmount', 'profit', 'projectGrandTotal',
+            // financial
+            'contractAmount', 'budgetReceived', 'totalReceived', 'remainingBudget',
+            'estMaterialCost', 'actMaterialCost', 'matVariance',
+            'estLaborCost', 'actLaborCost', 'laborVariance',
+            'estTotalCost', 'projectGrandTotal',
+            // legacy
+            'materialCost', 'laborCost', 'profit',
+            // fund
             'fundReleased', 'fundReplenished', 'fundOutstanding', 'fundHistory'
         ));
     }
@@ -529,6 +568,7 @@ class ProjectController extends Controller
             'update_label' => 'shop_drawing',
             'work_done'    => 'Shop drawing and tank design documents submitted to the client for review.',
             'photos'       => array_merge($shopDrawingUrls, $tankDesignUrls),
+            'status'       => 'pending_approval',
         ]);
 
         NotificationService::shopDrawingSubmitted($project);

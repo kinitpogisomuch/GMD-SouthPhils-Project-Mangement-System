@@ -29,14 +29,14 @@
             <div class="page-header">
                 <div>
                     <h1>
-                        <span class="project-code-badge" style="font-size:18px;vertical-align:middle;margin-right:8px;">{{ $project->code }}</span>{{ $project->name }}
+                        {{ $project->name }}
                     </h1>
                     <p>
-                        {{ $project->client }}
+                        <span class="client-pill">{{ $project->client }}</span>
                         @if($project->tankItems->isNotEmpty())
                             @foreach($project->tankItems as $ti)
                             &nbsp;·&nbsp;
-                            @if($ti->quantity > 1)<strong>{{ $ti->quantity }}×</strong> @endif{{ $ti->tank_type }}@if($ti->capacity) ({{ $ti->capacity }})@endif
+                            <strong>{{ $ti->quantity }}×</strong> {{ $ti->tank_type }}@if($ti->capacity) ({{ $ti->capacity }})@endif
                             @endforeach
                         @else
                             &nbsp;·&nbsp; {{ $project->tank_type }} &nbsp;·&nbsp; {{ $project->capacity }}
@@ -59,52 +59,83 @@
             </div>
             @endif
 
-            <!-- Cost Summary -->
-            <div class="pv-cost-grid" style="margin-bottom:28px;">
-                <div class="info-card" style="--accent:#2A4EAA;--accent-soft:#EAF0FF;">
-                    <div class="info-card-icon"><i data-lucide="wallet"></i></div>
-                    <h3>Budget</h3>
-                    <div class="value">₱{{ number_format($projectGrandTotal, 2) }}</div>
-                    <div class="info-card-sub">Project Grand Total (from quotation)</div>
+            <!-- Financial Overview Card -->
+            @php
+                $collPct = $contractAmount > 0 ? min(100,round(($budgetReceived/$contractAmount)*100)) : 0;
+            @endphp
+            <div class="fd-overview" style="margin-bottom:28px;">
+                <div class="fd-overview-title">
+                    <i data-lucide="bar-chart-2"></i>
+                    Project Financial Overview
                 </div>
-                <div class="info-card" style="--accent:#8A6100;--accent-soft:#FFF3D6;">
-                    <div class="info-card-icon"><i data-lucide="box"></i></div>
-                    <h3>Material Cost</h3>
-                    <div class="value">₱{{ number_format($materialCost, 2) }}</div>
-                    <div class="info-card-sub">Total of active material entries</div>
+                <div class="fd-overview-grid">
+                    <div class="fd-ov-item">
+                        <span class="fd-ov-label">Contract Value</span>
+                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Total Project Quotation</span>
+                        <span class="fd-ov-val">{{ $contractAmount > 0 ? '₱'.number_format($contractAmount,2) : '—' }}</span>
+                    </div>
+                    <div class="fd-ov-item">
+                        <span class="fd-ov-label">Budget</span>
+                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">First payment received</span>
+                        <span class="fd-ov-val" style="color:#4ade80;">
+                            {{ $budgetReceived > 0 ? '₱'.number_format($budgetReceived,2) : '—' }}
+                        </span>
+                    </div>
+                    <div class="fd-ov-item">
+                        <span class="fd-ov-label">Est. Materials</span>
+                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Total BOM cost</span>
+                        <span class="fd-ov-val">₱{{ number_format($estMaterialCost, 2) }}</span>
+                    </div>
+                    <div class="fd-ov-item">
+                        <span class="fd-ov-label">Actual Materials</span>
+                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Material purchases</span>
+                        <span class="fd-ov-val">{{ $actMaterialCost > 0 ? '₱'.number_format($actMaterialCost,2) : '—' }}</span>
+                    </div>
+                    <div class="fd-ov-item">
+                        <span class="fd-ov-label">Est. Labor</span>
+                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">From project quotation</span>
+                        <span class="fd-ov-val">₱{{ number_format($estLaborCost, 2) }}</span>
+                    </div>
+                    <div class="fd-ov-item">
+                        <span class="fd-ov-label">Actual Labor</span>
+                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Total gross &middot; salary module</span>
+                        <span class="fd-ov-val">{{ $actLaborCost > 0 ? '₱'.number_format($actLaborCost,2) : '—' }}</span>
+                    </div>
+                    <div class="fd-ov-item fd-ov-highlight">
+                        <span class="fd-ov-label">Remaining Budget</span>
+                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Budget - actual spending</span>
+                        <span class="fd-ov-val" style="color:{{ $remainingBudget >= 0 ? '#4ade80' : '#f87171' }};font-size:17px;">
+                            {{ $budgetReceived > 0 ? (($remainingBudget >= 0 ? '+' : '-').'₱'.number_format(abs($remainingBudget),2)) : '—' }}
+                        </span>
+                    </div>
+                    <div class="fd-ov-item fd-ov-highlight">
+                        <span class="fd-ov-label">Est. Profit</span>
+                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Quotation - est. costs</span>
+                        @if($profit !== null && $profit != 0)
+                        <span class="fd-ov-val" style="color:{{ $profit >= 0 ? '#4ade80' : '#f87171' }};font-size:17px;">
+                            {{ $profit >= 0 ? '+' : '' }}₱{{ number_format($profit, 2) }}
+                        </span>
+                        @else
+                        <span class="fd-ov-val" style="color:rgba(255,255,255,0.35);">—</span>
+                        @endif
+                    </div>
                 </div>
-                <div class="info-card" style="--accent:#B42318;--accent-soft:#FEE4E2;">
-                    <div class="info-card-icon"><i data-lucide="hard-hat"></i></div>
-                    <h3>Labor Cost</h3>
-                    <div class="value">₱{{ number_format($laborCost, 2) }}</div>
-                    <div class="info-card-sub">Total of active labor entries</div>
-                </div>
-                <div class="info-card" style="--accent:#207A3A;--accent-soft:#E7F6EC;">
-                    <div class="info-card-icon"><i data-lucide="trending-up"></i></div>
-                    <h3>Profit</h3>
-                    @if($profit === null)
-                        <div class="value">—</div>
-                        <div class="info-card-sub">Set up payment to calculate profit</div>
-                    @else
-                        <div class="value" style="color:{{ $profit >= 0 ? 'var(--success)' : 'var(--danger)' }};">₱{{ number_format($profit, 2) }}</div>
-                        <div class="info-card-sub">Contract amount minus material &amp; labor cost</div>
-                    @endif
+                <div style="margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.1);">
+                    <div style="display:flex;justify-content:space-between;font-size:11.5px;color:rgba(255,255,255,0.5);margin-bottom:6px;">
+                        <span>Down payment progress</span>
+                        <span>{{ $collPct }}% &middot; {{ $budgetReceived > 0 ? '₱'.number_format($budgetReceived,2) : '—' }} of ₱{{ number_format($contractAmount,2) }}</span>
+                    </div>
+                    <div style="height:8px;background:rgba(255,255,255,0.12);border-radius:999px;overflow:hidden;">
+                        <div style="height:100%;width:{{ $collPct }}%;background:#4ade80;border-radius:999px;transition:width 0.5s;"></div>
+                    </div>
                 </div>
             </div>
-
             <!-- Phase Tracker Card -->
             <div class="tracker-card">
                 <div class="tracker-card-header">
                     <div class="tracker-title">
                         <i data-lucide="layers"></i>
                         Fabrication Phase Tracker
-                        @if($project->tankItems->isNotEmpty())
-                            @foreach($project->tankItems as $ti)
-                            &nbsp;·&nbsp; @if($ti->quantity > 1){{ $ti->quantity }}× @endif{{ $ti->tank_type }}@if($ti->capacity) ({{ $ti->capacity }})@endif
-                            @endforeach
-                        @else
-                            &nbsp;·&nbsp; {{ $project->capacity }} {{ $project->tank_type }}
-                        @endif
                     </div>
                     <div class="tracker-progress-wrap">
                         <div class="tracker-progress-bar">
@@ -284,7 +315,7 @@
                             @endif
 
                             <div class="form-group">
-                                <label class="log-label">SHOP DRAWING FILES *</label>
+                                <label class="log-label">SHOP DRAWING FILES</label>
                                 <label class="pv-upload-dropzone" id="shopDrawingDropzone">
                                     <i data-lucide="upload-cloud" style="width:32px;height:32px;color:var(--accent);"></i>
                                     <span style="font-size:14px;font-weight:700;color:var(--text-primary);">Click to upload shop drawings</span>
@@ -297,7 +328,7 @@
                             </div>
 
                             <div class="form-group" style="margin-top:12px;">
-                                <label class="log-label">TANK DESIGN FILES *</label>
+                                <label class="log-label">TANK DESIGN FILES</label>
                                 <label class="pv-upload-dropzone" id="tankDesignDropzone">
                                     <i data-lucide="upload-cloud" style="width:32px;height:32px;color:var(--accent);"></i>
                                     <span style="font-size:14px;font-weight:700;color:var(--text-primary);">Click to upload tank design documents</span>
@@ -355,6 +386,19 @@
                                 <span>Materials Delivered</span>
                             </label>
 
+                            <div class="form-group" style="margin-top:14px;">
+                                <label class="log-label">ATTACH FILES <span style="font-weight:500;color:var(--muted);text-transform:none;letter-spacing:0;">(optional — delivery receipts, photos, documents)</span></label>
+                                <label class="pv-upload-dropzone" id="procurementDropzone">
+                                    <i data-lucide="upload-cloud" style="width:28px;height:28px;color:var(--accent);"></i>
+                                    <span style="font-size:13.5px;font-weight:700;color:var(--text-primary);">Click to upload files</span>
+                                    <span style="font-size:12px;color:var(--muted);">PDF, images — up to 5 files, max 10MB each</span>
+                                    <input type="file" name="progress_photos[]" multiple accept=".pdf,image/*"
+                                           data-preview-id="procurementPreview" data-dropzone-id="procurementDropzone" data-max="5"
+                                           style="display:none;" onchange="previewAdminFiles(this)">
+                                </label>
+                                <div id="procurementPreview" class="pv-file-grid"></div>
+                            </div>
+
                             @php $submitLabel = 'Save Progress Update'; @endphp
 
                         @elseif($project->current_phase === 'matl_prep')
@@ -369,6 +413,19 @@
                                 <i data-lucide="pencil-ruler" class="pv-checklist-icon"></i>
                                 <span>Marking Completed</span>
                             </label>
+
+                            <div class="form-group" style="margin-top:14px;">
+                                <label class="log-label">ATTACH FILES <span style="font-weight:500;color:var(--muted);text-transform:none;letter-spacing:0;">(optional — photos, documents)</span></label>
+                                <label class="pv-upload-dropzone" id="matlPrepDropzone">
+                                    <i data-lucide="upload-cloud" style="width:28px;height:28px;color:var(--accent);"></i>
+                                    <span style="font-size:13.5px;font-weight:700;color:var(--text-primary);">Click to upload files</span>
+                                    <span style="font-size:12px;color:var(--muted);">PDF, images — up to 5 files, max 10MB each</span>
+                                    <input type="file" name="progress_photos[]" multiple accept=".pdf,image/*"
+                                           data-preview-id="matlPrepPreview" data-dropzone-id="matlPrepDropzone" data-max="5"
+                                           style="display:none;" onchange="previewAdminFiles(this)">
+                                </label>
+                                <div id="matlPrepPreview" class="pv-file-grid"></div>
+                            </div>
 
                             @php $submitLabel = 'Save Progress Update'; @endphp
 
@@ -417,6 +474,19 @@
                                 <i data-lucide="droplets" class="pv-checklist-icon"></i>
                                 <span>Soap Testing Passed</span>
                             </label>
+
+                            <div class="form-group" style="margin-top:14px;">
+                                <label class="log-label">ATTACH FILES <span style="font-weight:500;color:var(--muted);text-transform:none;letter-spacing:0;">(optional — test results, photos)</span></label>
+                                <label class="pv-upload-dropzone" id="inspectionDropzone">
+                                    <i data-lucide="upload-cloud" style="width:28px;height:28px;color:var(--accent);"></i>
+                                    <span style="font-size:13.5px;font-weight:700;color:var(--text-primary);">Click to upload files</span>
+                                    <span style="font-size:12px;color:var(--muted);">PDF, images — up to 5 files, max 10MB each</span>
+                                    <input type="file" name="progress_photos[]" multiple accept=".pdf,image/*"
+                                           data-preview-id="inspectionPreview" data-dropzone-id="inspectionDropzone" data-max="5"
+                                           style="display:none;" onchange="previewAdminFiles(this)">
+                                </label>
+                                <div id="inspectionPreview" class="pv-file-grid"></div>
+                            </div>
 
                             @php $submitLabel = 'Save Progress Update'; @endphp
 
@@ -550,9 +620,10 @@
 
                         @forelse($allUpdates as $update)
                         @php
-                            $isPending    = $update->status === 'pending_review';
-                            $isRevision   = $update->status === 'needs_revision';
-                            $isSuperseded = $update->status === 'superseded';
+                            $isPending         = $update->status === 'pending_review';
+                            $isPendingApproval = $update->status === 'pending_approval';
+                            $isRevision        = $update->status === 'needs_revision';
+                            $isSuperseded      = $update->status === 'superseded';
                             $isEmployee   = $update->type === 'employee_submission';
 
                             if ($isPending) {
@@ -623,6 +694,10 @@
                                     <span style="display:inline-flex;align-items:center;gap:4px;">
                                         <i data-lucide="copy" style="width:11px;height:11px;"></i> Superseded
                                     </span>
+                                    @elseif($isPendingApproval)
+                                    <span style="display:inline-flex;align-items:center;gap:4px;color:#b45309;background:#fff3cd;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;box-shadow:0 0 0 1px rgba(180,83,9,.18),0 2px 8px rgba(180,83,9,.12);">
+                                        <i data-lucide="clock" style="width:11px;height:11px;"></i> Pending Client Approval
+                                    </span>
                                     @else
                                     <span style="display:inline-flex;align-items:center;gap:4px;color:#16a34a;">
                                         <i data-lucide="check" style="width:11px;height:11px;"></i> Approved
@@ -676,26 +751,44 @@
             <!-- Project Info Card -->
             <div class="pv-card" style="margin-top:20px;">
                 <h3 class="pv-card-title">Project Information</h3>
-                <div class="project-detail-grid">
+
+                <div class="pi-section-label"><i data-lucide="user" style="width:13px;height:13px;"></i> Client Details</div>
+                <div class="project-detail-grid" style="margin-top:10px;margin-bottom:20px;">
                     <div class="project-detail-box"><span>Client</span><strong>{{ $project->client }}</strong></div>
                     <div class="project-detail-box"><span>Contact Number</span><strong>{{ $project->contact_number ?? '—' }}</strong></div>
                     <div class="project-detail-box"><span>Email</span><strong>{{ $project->email ?? '—' }}</strong></div>
-                    <div class="project-detail-box"><span>Address</span><strong>{{ $clientAddress ?? '—' }}</strong></div>
+                    <div class="project-detail-box" style="grid-column:span 3;"><span>Address</span><strong>{{ $clientAddress ?? '—' }}</strong></div>
+                </div>
+
+                <div class="pi-section-label">
+                    <i data-lucide="package" style="width:13px;height:13px;"></i> Tank Specifications
+                    <span style="font-size:11px;font-weight:600;color:var(--muted-light);">({{ $project->tankItems->isNotEmpty() ? $project->tankItems->count() : 1 }} tank{{ $project->tankItems->count() !== 1 ? 's' : '' }})</span>
+                </div>
+                @if($project->tankItems->isNotEmpty())
+                <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px;margin-bottom:20px;">
+                    @foreach($project->tankItems as $i => $ti)
+                    <div class="pi-tank-row">
+                        <div class="pi-tank-grid">
+                            <div class="project-detail-box"><span>Tank Type</span><strong>{{ $ti->tank_type }}</strong></div>
+                            <div class="project-detail-box"><span>Capacity</span><strong>{{ $ti->capacity ?? '—' }}</strong></div>
+                            <div class="project-detail-box"><span>Dimensions</span><strong>{{ $ti->dimensions ?? '—' }}</strong></div>
+                            <div class="project-detail-box"><span>Quantity</span><strong>{{ $ti->quantity }}</strong></div>
+                        </div>
+                    </div>
+                    @endforeach
+                </div>
+                @else
+                <div class="project-detail-grid" style="margin-top:10px;margin-bottom:20px;">
                     <div class="project-detail-box"><span>Tank Type</span><strong>{{ $project->tank_type }}</strong></div>
                     <div class="project-detail-box"><span>Capacity</span><strong>{{ $project->capacity }}</strong></div>
                     <div class="project-detail-box"><span>Dimensions</span><strong>{{ $project->dimensions ?? '—' }}</strong></div>
-                    <div class="project-detail-box"><span>Start Date</span><strong>{{ $project->start_date->format('M d, Y') }}</strong></div>
-                    <div class="project-detail-box"><span>End Date</span><strong>{{ $project->end_date->format('M d, Y') }}</strong></div>
-                    <div class="project-detail-box"><span>Payment Status</span><strong>{{ $project->payment_status }}</strong></div>
-                    <div class="project-detail-box"><span>Current Phase</span><strong>{{ ucfirst(str_replace('_', ' ', $project->current_phase)) }}</strong></div>
-                    <div class="project-detail-box"><span>Duration</span><strong>{{ $project->duration ?? 'N/A' }}</strong></div>
-                    @if($project->notes)
-                    <div class="project-detail-box pv-notes-full"><span>Notes</span><strong>{{ $project->notes }}</strong></div>
-                    @endif
                 </div>
+                @endif
+
             </div>
 
-            <!-- Revolving Fund Summary -->
+            <!-- Revolving Fund Summary — only shown when fund has been used -->
+            @if($fundReleased > 0 || $fundReplenished > 0)
             <div class="pv-card" style="margin-top:20px;">
                 <h3 class="pv-card-title">Revolving Fund Summary</h3>
                 <div class="project-detail-grid" style="margin-bottom:16px;">
@@ -745,6 +838,7 @@
                 </div>
                 @endif
             </div>
+            @endif
 
         </main>
     </div>

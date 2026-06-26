@@ -201,7 +201,7 @@
                 <div class="setup-body-pad">
 
                     <div class="form-group" style="margin-bottom:16px;">
-                        <label>Email Address *</label>
+                        <label>Email Address </label>
                         <input type="email" name="email" required
                                value="{{ old('email', $user->email) }}"
                                placeholder="your@email.com"
@@ -211,14 +211,14 @@
 
                     <div class="form-row" style="margin-bottom:16px;">
                         <div class="form-group" id="regionGroup">
-                            <label>Region *</label>
+                            <label>Region </label>
                             <select name="region" id="regionSelect" required class="{{ $errors->has('region') ? 'input-error' : '' }}">
                                 <option value="" disabled hidden selected>Select Region</option>
                             </select>
                             @error('region')<span class="field-error">{{ $message }}</span>@enderror
                         </div>
                         <div class="form-group" id="provinceGroup">
-                            <label>Province *</label>
+                            <label>Province </label>
                             <select name="province" id="provinceSelect" required disabled class="{{ $errors->has('province') ? 'input-error' : '' }}">
                                 <option value="" disabled hidden selected>Select Province</option>
                             </select>
@@ -228,14 +228,14 @@
 
                     <div class="form-row" style="margin-bottom:16px;">
                         <div class="form-group" id="cityGroup">
-                            <label>City / Municipality *</label>
+                            <label>City / Municipality </label>
                             <select name="city" id="citySelect" required disabled class="{{ $errors->has('city') ? 'input-error' : '' }}">
                                 <option value="" disabled hidden selected>Select City / Municipality</option>
                             </select>
                             @error('city')<span class="field-error">{{ $message }}</span>@enderror
                         </div>
                         <div class="form-group" id="barangayGroup">
-                            <label>Barangay *</label>
+                            <label>Barangay </label>
                             <select name="barangay" id="barangaySelect" required disabled class="{{ $errors->has('barangay') ? 'input-error' : '' }}">
                                 <option value="" disabled hidden selected>Select Barangay</option>
                             </select>
@@ -244,7 +244,7 @@
                     </div>
 
                     <div class="form-group">
-                        <label>Street / House No. / Building *</label>
+                        <label>Street / House No. / Building </label>
                         <input type="text" name="street_address"
                                value="{{ old('street_address', $user->street_address) }}"
                                placeholder="e.g. 123 East Service Road"
@@ -296,7 +296,7 @@
 
                     <div class="form-row">
                         <div class="form-group">
-                            <label>New PIN / Password *</label>
+                            <label>New PIN / Password </label>
                             <div class="pw-wrap">
                                 <input type="password" name="new_password" id="newPassword"
                                        placeholder="Min 6 chars"
@@ -311,7 +311,7 @@
                             @enderror
                         </div>
                         <div class="form-group">
-                            <label>Confirm PIN / Password *</label>
+                            <label>Confirm PIN / Password </label>
                             <div class="pw-wrap">
                                 <input type="password" name="new_password_confirmation" id="confirmPassword"
                                        placeholder="Repeat password"

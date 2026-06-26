@@ -63,6 +63,8 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::get('/project-materials', [ProjectMaterialController::class, 'adminIndex'])->name('project_materials');
     Route::get('/project-materials/{projectId}', [ProjectMaterialController::class, 'adminDetail'])->name('project_materials.detail');
     Route::post('/project-materials/{projectId}/materials', [ProjectMaterialController::class, 'store'])->name('project_materials.store');
+    Route::post('/project-materials/{projectId}/purchases', [ProjectMaterialController::class, 'storePurchase'])->name('project_materials.store_purchase');
+    Route::delete('/project-materials/{projectId}/purchases/{purchaseId}', [ProjectMaterialController::class, 'destroyPurchase'])->name('project_materials.destroy_purchase');
     Route::post('/project-materials/{projectId}/send-bom', [ProjectMaterialController::class, 'sendBOM'])->name('project_materials.send_bom');
     Route::post('/project-materials/{projectId}/labor', [ProjectMaterialController::class, 'storeLabor'])->name('project_materials.store_labor');
     Route::put('/project-materials/{projectId}/labor/{laborId}', [ProjectMaterialController::class, 'updateLabor'])->name('project_materials.update_labor');
@@ -75,6 +77,8 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::get('/material-usage', [MaterialUsageController::class, 'adminIndex'])->name('material_usage');
     Route::get('/material-usage/{projectId}', [MaterialUsageController::class, 'adminDetail'])->name('material_usage.detail');
     Route::post('/material-usage/{projectId}', [MaterialUsageController::class, 'store'])->name('material_usage.store');
+    Route::post('/material-usage/{projectId}/purchases', [MaterialUsageController::class, 'storePurchase'])->name('material_usage.store_purchase');
+    Route::delete('/material-usage/{projectId}/purchases/{purchaseId}', [MaterialUsageController::class, 'destroyPurchase'])->name('material_usage.destroy_purchase');
     Route::patch('/material-usage/{projectId}/{usageId}/archive', [MaterialUsageController::class, 'archive'])->name('material_usage.archive');
 
     Route::post('/supplier-contacts', [SupplierContactController::class, 'store'])->name('supplier_contacts.store');

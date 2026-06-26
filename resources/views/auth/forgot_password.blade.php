@@ -155,7 +155,7 @@
         <form method="POST" action="{{ route('password.email') }}" id="emailForm">
             @csrf
             <div>
-                <label class="fp-label" for="email">Email Address *</label>
+                <label class="fp-label" for="email">Email Address </label>
                 <input
                     type="email"
                     name="email"

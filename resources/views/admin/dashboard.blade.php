@@ -42,8 +42,97 @@
                 </div>
             </div>
 
-            <!-- ── KPI + Three-panel side by side ── -->
-            <div class="db-outer-grid">
+            {{-- ── Year filter ── --}}
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
+                <span style="font-size:13px;font-weight:700;color:var(--muted);">Filter by year:</span>
+                @php $currentYear = now()->year; @endphp
+                @foreach([$currentYear-1, $currentYear] as $yr)
+                <button type="button" class="db-year-btn {{ $yr == $currentYear ? 'active' : '' }}" data-year="{{ $yr }}">
+                    {{ $yr }}
+                </button>
+                @endforeach
+            </div>
+
+            {{-- ── Top Client + Top Supplier ── --}}
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+
+                {{-- Top Client --}}
+                <div style="background:linear-gradient(135deg,#0E1428 0%,#1a2340 100%);border-radius:18px;padding:24px;box-shadow:0 8px 24px rgba(14,20,40,.25);">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:14px;">
+                        <div style="width:36px;height:36px;background:rgba(255,255,255,.1);border-radius:10px;display:flex;align-items:center;justify-content:center;">
+                            <i data-lucide="crown" style="width:18px;height:18px;color:#FDE74C;"></i>
+                        </div>
+                        <div>
+                            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:rgba(255,255,255,.4);">Top Client</div>
+                            <div style="font-size:13px;font-weight:800;color:#fff;">By number of projects</div>
+                        </div>
+                    </div>
+                    @if($topClient)
+                    <div style="font-size:22px;font-weight:900;color:#fff;margin-bottom:12px;">{{ $topClient['name'] }}</div>
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+                        <div style="background:rgba(255,255,255,.06);border-radius:10px;padding:10px 12px;text-align:center;">
+                            <div style="font-size:18px;font-weight:900;color:#FDE74C;">{{ $topClient['project_count'] }}</div>
+                            <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;margin-top:2px;">Projects</div>
+                        </div>
+                        <div style="background:rgba(255,255,255,.06);border-radius:10px;padding:10px 12px;text-align:center;">
+                            <div style="font-size:18px;font-weight:900;color:#4ade80;">{{ $topClient['completed'] }}</div>
+                            <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;margin-top:2px;">Completed</div>
+                        </div>
+                        <div style="background:rgba(255,255,255,.06);border-radius:10px;padding:10px 12px;text-align:center;">
+                            <div style="font-size:14px;font-weight:900;color:#60a5fa;">₱{{ number_format($topClient['received'] / 1000, 0) }}k</div>
+                            <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;margin-top:2px;">Received</div>
+                        </div>
+                    </div>
+                    @else
+                    <div style="color:rgba(255,255,255,.3);font-size:13px;text-align:center;padding:20px 0;">No client data yet.</div>
+                    @endif
+                </div>
+
+                {{-- Top Supplier --}}
+                <div style="background:linear-gradient(135deg,#333333 0%,#2a2a2a 100%);border-radius:18px;padding:24px;box-shadow:0 8px 24px rgba(0,0,0,.2);">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:14px;">
+                        <div style="width:36px;height:36px;background:rgba(255,255,255,.1);border-radius:10px;display:flex;align-items:center;justify-content:center;">
+                            <i data-lucide="truck" style="width:18px;height:18px;color:#10B981;"></i>
+                        </div>
+                        <div>
+                            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:rgba(255,255,255,.4);">Top Supplier</div>
+                            <div style="font-size:13px;font-weight:800;color:#fff;">By total materials purchased</div>
+                        </div>
+                    </div>
+                    @if($topSupplier)
+                    <div style="font-size:22px;font-weight:900;color:#fff;margin-bottom:12px;">{{ $topSupplier['name'] }}</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                        <div style="background:rgba(255,255,255,.06);border-radius:10px;padding:10px 12px;text-align:center;">
+                            <div style="font-size:18px;font-weight:900;color:#10B981;">{{ $topSupplier['purchase_count'] }}</div>
+                            <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;margin-top:2px;">Purchases</div>
+                        </div>
+                        <div style="background:rgba(255,255,255,.06);border-radius:10px;padding:10px 12px;text-align:center;">
+                            <div style="font-size:14px;font-weight:900;color:#4ade80;">₱{{ number_format($topSupplier['total_spent'], 2) }}</div>
+                            <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;margin-top:2px;">Total Spent</div>
+                        </div>
+                    </div>
+                    @else
+                    <div style="color:rgba(255,255,255,.3);font-size:13px;text-align:center;padding:20px 0;">No supplier data yet.</div>
+                    @endif
+                </div>
+            </div>
+
+            {{-- ── Peak Months Line Chart ── --}}
+            <div class="table-card" style="margin-bottom:24px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 24px 16px;border-bottom:1px solid var(--border);">
+                    <div>
+                        <div style="font-size:15px;font-weight:800;color:var(--dark);">Peak Months</div>
+                        <div style="font-size:12px;color:var(--muted);margin-top:2px;">Monthly revenue trend — payments received</div>
+                    </div>
+                    <span id="peakYearLabel" style="font-size:13px;font-weight:700;color:var(--muted);"></span>
+                </div>
+                <div style="padding:20px 24px;">
+                    <canvas id="peakMonthsChart" height="90"></canvas>
+                </div>
+            </div>
+
+            {{-- sections removed per user request --}}
+            <div class="db-outer-grid" style="display:none;">
 
             <!-- Left: KPI stack -->
             <div class="db-kpi-row">
@@ -329,7 +418,7 @@
             </div><!-- end kpi + three-panel wrapper -->
 
             <!-- ── Main content: projects (full width) ── -->
-            <div class="db-main-grid">
+            <div class="db-main-grid" style="display:none;">
 
                 <!-- Recent Projects -->
                 <div class="db-project-card">
@@ -638,9 +727,95 @@
                 }
             });
         })();
+
+        // ── Peak Months Line Chart ────────────────────────────────────────
+        var peakData = @json($peakMonthsData);
+        var currentYear = {{ now()->year }};
+        var peakChart;
+
+        function buildPeakChart(year) {
+            var data = peakData[year] || [];
+            var labels  = data.map(function(d) { return d.label; });
+            var amounts = data.map(function(d) { return d.amount; });
+
+            document.getElementById('peakYearLabel').textContent = year;
+
+            var ctx = document.getElementById('peakMonthsChart').getContext('2d');
+            if (peakChart) peakChart.destroy();
+
+            peakChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Revenue',
+                        data: amounts,
+                        fill: true,
+                        backgroundColor: 'rgba(16,185,129,.08)',
+                        borderColor: '#10B981',
+                        borderWidth: 2.5,
+                        pointBackgroundColor: '#10B981',
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        tension: 0.4,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(ctx) { return '₱' + ctx.parsed.y.toLocaleString('en-PH', {minimumFractionDigits:2}); }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { font: { size: 12, weight: '700' } } },
+                        y: {
+                            grid: { color: 'rgba(0,0,0,.05)' },
+                            ticks: {
+                                callback: function(v) { return v >= 1000 ? '₱' + (v/1000).toFixed(0) + 'k' : '₱' + v; },
+                                font: { size: 11 }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        buildPeakChart(currentYear);
+
+        // Year filter buttons
+        document.querySelectorAll('.db-year-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.db-year-btn').forEach(function(b) { b.classList.remove('active'); });
+                this.classList.add('active');
+                buildPeakChart(parseInt(this.dataset.year));
+            });
+        });
+        // ─────────────────────────────────────────────────────────────────
     </script>
 
     <style>
+        .db-year-btn {
+            padding: 6px 16px;
+            border-radius: 999px;
+            border: 1.5px solid var(--border);
+            background: var(--white);
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all .18s;
+        }
+        .db-year-btn:hover { border-color: var(--dark); color: var(--dark); }
+        .db-year-btn.active {
+            background: var(--dark);
+            border-color: var(--dark);
+            color: #fff;
+        }
+
         /* ── Hero ── */
         .db-hero {
             display: flex;

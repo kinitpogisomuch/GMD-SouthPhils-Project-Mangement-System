@@ -117,6 +117,7 @@ class PaymentController extends Controller
             'payment_stage'    => "required|string|in:{$stageIn}",
             'amount_paid'      => 'required|numeric|min:0.01',
             'payment_date'     => 'required|date',
+            'mode_of_payment'  => 'nullable|string|in:cheque,bank_transfer,cash',
             'reference_number' => 'nullable|string|max:100',
             'notes'            => 'nullable|string|max:1000',
         ]);
@@ -126,6 +127,7 @@ class PaymentController extends Controller
             'payment_stage'    => $validated['payment_stage'],
             'amount_paid'      => $validated['amount_paid'],
             'payment_date'     => $validated['payment_date'],
+            'mode_of_payment'  => $validated['mode_of_payment'] ?? null,
             'reference_number' => $validated['reference_number'] ?? null,
             'notes'            => $validated['notes'] ?? null,
             'recorded_by'      => auth()->user()->name ?? 'Admin',

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <link rel="icon" type="image/svg+xml" href="{{ asset('images/gmdlogo-circle.svg') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ $project->name }} — Material Usage | GMD South Phils</title>
+    <title>{{ $project->name }} — Materials | GMD South Phils</title>
     <link href="{{ asset('css/admin.css') }}" rel="stylesheet">
 </head>
 <body class="page-enter">
@@ -16,272 +16,791 @@
 
         <main class="admin-content">
 
-            {{-- Breadcrumb --}}
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;font-size:13px;color:var(--muted);">
-                <a href="{{ route('admin.material_usage') }}" style="color:var(--muted);text-decoration:none;font-weight:600;">
-                    Material Usage
-                </a>
+                <a href="{{ route('admin.material_usage') }}" style="color:var(--muted);text-decoration:none;font-weight:600;">Materials</a>
                 <i data-lucide="chevron-right" style="width:14px;height:14px;"></i>
-                <span style="color:var(--dark);font-weight:700;">{{ $project->name }}</span>
+                <span style="font-weight:700;color:var(--dark);">{{ $project->name }}</span>
             </div>
 
             <div class="page-header">
                 <div>
-                    <h1>{{ $project->name }}</h1>
-                    <p>Log materials actually consumed during fabrication and track usage against the planned BOM.</p>
+                    <h1>
+                        {{ $project->name }}
+                    </h1>
+                    <p><span class="client-pill">{{ $project->client }}</span> &nbsp;&middot;&nbsp; {{ ucfirst(str_replace('_',' ',$project->current_phase ?? 'Planning')) }} phase</p>
                 </div>
             </div>
 
             @if(session('success'))
-            <div class="alert-banner success">
-                <i data-lucide="check-circle"></i>
-                {{ session('success') }}
-            </div>
+            <div class="alert-banner success"><i data-lucide="check-circle"></i> {{ session('success') }}</div>
             @endif
-
             @if(session('error'))
-            <div class="alert-banner error">
-                <i data-lucide="alert-circle"></i>
-                {{ session('error') }}
-            </div>
+            <div class="alert-banner error"><i data-lucide="alert-circle"></i> {{ session('error') }}</div>
             @endif
 
-            {{-- Project Info --}}
-            <div class="table-card" style="margin-bottom:24px;">
-                <div style="padding:20px 24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px 24px;">
-                    <div>
-                        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px;">Project</div>
-                        <div style="font-weight:800;color:var(--dark);">{{ $project->name }}</div>
+            {{-- Tabs --}}
+            <div class="pm-tabs">
+                <button class="pm-tab active" data-tab="bom">
+                    <i data-lucide="clipboard-list" style="width:14px;height:14px;"></i>
+                    BOM &mdash; planned materials
+                </button>
+                <button class="pm-tab" data-tab="purchased">
+                    <i data-lucide="shopping-cart" style="width:14px;height:14px;"></i>
+                    Purchased materials
+                </button>
+                <button class="pm-tab" data-tab="usage">
+                    <i data-lucide="activity" style="width:14px;height:14px;"></i>
+                    Material usage
+                </button>
+                <button class="pm-tab" data-tab="variance">
+                    <i data-lucide="git-compare" style="width:14px;height:14px;"></i>
+                    Variance summary
+                </button>
+            </div>
+
+            @php
+                $activeMats       = $plannedMaterials ?? $project->activeMaterials;
+                $materialFactor   = $materialFactor ?? ($activeMats->first()?->factor ?? 7);
+            @endphp
+
+            {{-- TAB 1: BOM --}}
+            <div class="pm-tab-content active" id="tab-bom">
+                <div class="pm-card">
+                    <div class="pm-card-header">
+                        <div>
+                            <div class="pm-card-title">Bill of Materials &mdash; planned estimate</div>
+                            <div class="pm-card-sub">
+                                Set during Planning phase &middot; basis for budget adherence KPI
+                                &nbsp;&nbsp;
+                                <span style="background:#EAF0FF;color:#2A4EAA;font-weight:800;font-size:11.5px;padding:3px 10px;border-radius:999px;">
+                                    Factor: +{{ number_format($materialFactor, 0) }}% applied to all materials
+                                </span>
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px;">Client</div>
-                        <div style="font-weight:700;">{{ $project->client }}</div>
-                    </div>
-                    <div>
-                        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px;">Current Phase</div>
-                        <span class="status-badge {{ $project->status === 'completed' ? 'completed' : 'ongoing' }}">
-                            {{ ucfirst(str_replace('_', ' ', $project->current_phase ?? 'Planning')) }}
-                        </span>
-                    </div>
-                    <div>
-                        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px;">Status</div>
-                        <span class="status-badge {{ strtolower($project->status ?? 'planning') }}">
-                            {{ ucfirst($project->status ?? 'Planning') }}
-                        </span>
-                    </div>
-                    <div>
-                        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px;">Date Created</div>
-                        <div style="font-weight:600;">{{ $project->created_at->format('M d, Y') }}</div>
+                    <div class="table-wrapper">
+                        <table class="pm-table">
+                            <thead>
+                                <tr>
+                                    <th style="text-align:left;">Material</th>
+                                    <th class="ctr">Unit</th>
+                                    <th class="ctr">BOM Qty</th>
+                                    <th class="ctr">Unit Cost (&#x20B1;)</th>
+                                    <th class="ctr">Base Total (&#x20B1;)</th>
+                                    <th class="ctr">Budgeted Cost (&#x20B1;)</th>
+                                    <th class="ctr">Purchase Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @php $baseSubtotal = 0; $budgetedSubtotal = 0; @endphp
+                                @forelse($activeMats as $mat)
+                                @php
+                                    $base     = (float)$mat->total_cost;
+                                    $budgeted = round($base * (1 + $materialFactor / 100), 2);
+                                    $baseSubtotal     += $base;
+                                    $budgetedSubtotal += $budgeted;
+                                    $hasPurchase = isset($purchases) && $purchases->where('project_material_id', $mat->id)->isNotEmpty();
+                                @endphp
+                                <tr>
+                                    <td><strong>{{ $mat->material_name }}</strong></td>
+                                    <td class="ctr">{{ $mat->unit ?? '—' }}</td>
+                                    <td class="ctr">{{ number_format($mat->quantity, 0) }}</td>
+                                    <td class="ctr">&#x20B1;{{ number_format($mat->price_per_unit, 2) }}</td>
+                                    <td class="ctr">&#x20B1;{{ number_format($base, 2) }}</td>
+                                    <td class="ctr" style="color:#2A4EAA;font-weight:800;">&#x20B1;{{ number_format($budgeted, 2) }}</td>
+                                    <td class="ctr">
+                                        @if($hasPurchase)
+                                        <span class="pm-status purchased">Purchased &#10003;</span>
+                                        @else
+                                        <span class="pm-status pending">Pending</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                                @empty
+                                <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--muted);">No materials in BOM yet. Add via <strong>Project Quotations</strong>.</td></tr>
+                                @endforelse
+                            </tbody>
+                            @if($activeMats->isNotEmpty())
+                            <tfoot>
+                                <tr class="pm-subtotal">
+                                    <td style="text-align:left;">Subtotal</td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td style="text-align:center;">&#x20B1;{{ number_format($baseSubtotal, 2) }}</td>
+                                    <td style="text-align:center;color:#2A4EAA;font-weight:900;">&#x20B1;{{ number_format($budgetedSubtotal, 2) }}</td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                            @endif
+                        </table>
                     </div>
                 </div>
             </div>
 
-            {{-- Summary Cards --}}
-            <div class="page-grid" style="margin-bottom:24px;">
-                <div class="info-card blue">
-                    <div class="info-card-icon blue"><i data-lucide="package"></i></div>
-                    <h3>Planned Materials</h3>
-                    <div class="value">{{ $totalPlanned }}</div>
-                    <div class="info-card-sub">From the project BOM</div>
+            {{-- TAB 2: PURCHASED --}}
+            <div class="pm-tab-content" id="tab-purchased">
+                @php $grouped = $purchases->groupBy('material_name'); @endphp
+
+                {{-- Summary + Form side by side --}}
+                <div style="display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:stretch;margin-bottom:16px;">
+
+                {{-- Left: Summary table --}}
+                <div class="pm-card" style="margin-bottom:0;display:flex;flex-direction:column;min-width:0;">
+                    <div class="pm-card-header">
+                        <div>
+                            <div class="pm-card-title">Purchased materials &mdash; summary</div>
+                            <div class="pm-card-sub">Aggregated totals per material &middot; updates KPI automatically</div>
+                        </div>
+                        @if($purchases->isNotEmpty())
+                        <span style="font-size:12px;font-weight:700;color:var(--muted);">{{ $grouped->count() }} material{{ $grouped->count() !== 1 ? 's' : '' }} &nbsp;·&nbsp; Total: <strong style="color:#16a34a;">&#x20B1;{{ number_format($totalPurchased,2) }}</strong></span>
+                        @endif
+                    </div>
+
+                    <div class="table-wrapper" style="flex:1;">
+                        <table class="pm-table" style="border-collapse:collapse;width:100%;min-width:0;">
+                            <thead>
+                                <tr style="background:var(--cream-soft);position:relative;z-index:1;">
+                                    <th style="text-align:left;">Material</th>
+                                    <th class="ctr" style="">Planned Qty</th>
+                                    <th class="ctr" style="">Total Qty Bought</th>
+                                    <th class="ctr" style="">Total Paid (&#x20B1;)</th>
+                                    <th class="ctr">VS BOM Budget</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($grouped as $matName => $group)
+                                @php
+                                    $totalQty  = $group->sum('qty_bought');
+                                    $totalPaid = $group->sum('total_paid');
+                                    $bomMat    = $group->first()->projectMaterial;
+                                    $planned   = $bomMat?->quantity ?? null;
+                                    $budgeted  = $bomMat ? round((float)$bomMat->total_cost * (1 + $materialFactor / 100), 2) : 0;
+                                    $vsPct     = $budgeted > 0 ? min(150, round(($totalPaid / $budgeted) * 100)) : null;
+                                    $vsColor   = $vsPct !== null ? ($vsPct <= 100 ? '#16a34a' : '#ef4444') : 'var(--muted)';
+                                    $unit      = $group->first()->unit;
+                                    $rowBg     = $loop->even ? 'background:var(--cream-soft);' : '';
+                                @endphp
+                                <tr style="background:#fff;position:relative;z-index:1;">
+                                    <td style="">
+                                        <div style="font-weight:700;">{{ $matName }}</div>
+                                        @if($unit)<div style="font-size:11.5px;color:var(--muted-light);margin-top:2px;">{{ $unit }}</div>@endif
+                                    </td>
+                                    <td class="ctr" style="font-weight:700;color:#2A4EAA;">{{ $planned !== null ? number_format($planned, 0) : '—' }}</td>
+                                    <td class="ctr" style="font-weight:700;">{{ number_format($totalQty, 0) }}</td>
+                                    <td class="ctr" style=""><strong style="color:var(--dark);">&#x20B1;{{ number_format($totalPaid, 2) }}</strong></td>
+                                    <td class="ctr">
+                                        @if($vsPct !== null)
+                                        <div style="display:flex;align-items:center;gap:6px;justify-content:center;">
+                                            <div style="width:80px;height:6px;background:var(--cream-deep);border-radius:999px;overflow:hidden;flex-shrink:0;">
+                                                <div style="height:100%;width:{{ min(100,$vsPct) }}%;background:{{ $vsColor }};border-radius:999px;"></div>
+                                            </div>
+                                            <span style="font-weight:800;font-size:12.5px;color:{{ $vsColor }};min-width:36px;">{{ $vsPct }}%</span>
+                                        </div>
+                                        @else
+                                        <span style="color:var(--muted-light);">—</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                                @empty
+                                <tr>
+                                    <td colspan="5" style="text-align:center;padding:48px 20px;color:var(--muted);">
+                                        <i data-lucide="shopping-cart" style="width:32px;height:32px;color:var(--border);display:block;margin:0 auto 10px;"></i>
+                                        No purchases logged yet.
+                                    </td>
+                                </tr>
+                                @endforelse
+                                {{-- Empty placeholder rows to fill space --}}
+                                @php $fillerCount = max(0, 6 - $grouped->count()); @endphp
+                                @for($f = 0; $f < $fillerCount; $f++)
+                                <tr style="background:#fff;">
+                                    <td style="border-bottom:1px solid var(--border);">&nbsp;</td>
+                                    <td style="border-bottom:1px solid var(--border);"></td>
+                                    <td style="border-bottom:1px solid var(--border);"></td>
+                                    <td style="border-bottom:1px solid var(--border);"></td>
+                                    <td style="border-bottom:1px solid var(--border);"></td>
+                                </tr>
+                                @endfor
+                            </tbody>
+                        </table>
+                    </div>
+                    @if($purchases->isNotEmpty())
+                    <div style="margin-top:auto;background:#0E1428;display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;border-top:2px solid rgba(255,255,255,.1);border-radius:0 0 14px 14px;overflow:hidden;">
+                        <div style="padding:12px 14px;color:#fff;font-weight:800;font-size:13px;">Total</div>
+                        <div style="padding:12px 14px;text-align:center;color:rgba(255,255,255,.4);">—</div>
+                        <div style="padding:12px 14px;text-align:center;color:rgba(255,255,255,.7);font-weight:700;">{{ number_format($purchases->sum('qty_bought'), 0) }}</div>
+                        <div style="padding:12px 14px;text-align:center;color:#4ade80;font-weight:900;font-size:14px;">&#x20B1;{{ number_format($totalPurchased, 2) }}</div>
+                        <div style="padding:12px 14px;"></div>
+                    </div>
+                    @endif
+
+                </div>{{-- end summary card --}}
+
+                {{-- Right: Log New Purchase form as sidebar card --}}
+                <div class="pm-card" style="margin-bottom:0;background:linear-gradient(180deg,#333333 0%,#2a2a2a 100%);border-color:transparent;">
+                    <div class="pm-card-header" style="padding-bottom:12px;border-bottom-color:rgba(255,255,255,.1);">
+                        <div>
+                            <div class="pm-card-title" style="font-size:13px;color:#fff;">Log New Purchase</div>
+                            <div class="pm-card-sub" style="color:rgba(255,255,255,.45);">Record a material purchase</div>
+                        </div>
+                    </div>
+                    <form method="POST" action="{{ route('admin.material_usage.store_purchase', $project->id) }}" style="padding:10px 16px 16px;" class="dark-form">
+                        @csrf
+                        <input type="hidden" name="material_name" id="purchaseNameHidden">
+                        <div style="display:flex;flex-direction:column;gap:12px;">
+                            <div class="pm-add-field">
+                                <label>Material</label>
+                                <select name="project_material_id" id="purchaseBomSelect" onchange="prefillPurchase(this)">
+                                    <option value="" disabled selected>Select material...</option>
+                                    @foreach($activeMats as $mat)
+                                    <option value="{{ $mat->id }}"
+                                            data-name="{{ $mat->material_name }}"
+                                            data-unit="{{ $mat->unit }}"
+                                            data-cost="{{ $mat->price_per_unit }}">
+                                        {{ Str::limit($mat->material_name, 32) }}
+                                    </option>
+                                    @endforeach
+                                    <option value="__other__">Other (type manually)</option>
+                                </select>
+                                <input type="text" id="purchaseNameCustom"
+                                       placeholder="Type material name" maxlength="255"
+                                       style="display:none;margin-top:6px;"
+                                       oninput="document.getElementById('purchaseNameHidden').value=this.value">
+                            </div>
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                                <div class="pm-add-field">
+                                    <label>Qty</label>
+                                    <input type="number" name="qty_bought" id="purchaseQty" min="0.01" step="0.01" value="1" required oninput="calcPurchaseTotal()">
+                                </div>
+                                <div class="pm-add-field">
+                                    <label>Unit Cost (&#x20B1;)</label>
+                                    <input type="number" name="actual_unit_cost" id="purchaseUnitCost" min="0" step="0.01" value="0" required oninput="calcPurchaseTotal()">
+                                </div>
+                            </div>
+                            <div class="pm-add-field">
+                                <label>Total (Auto)</label>
+                                <input type="text" id="purchaseTotalDisplay" readonly
+                                       style="background:var(--cream-soft);cursor:default;color:#16a34a;font-weight:800;"
+                                       value="&#x20B1;0.00">
+                            </div>
+                            <div class="pm-add-field">
+                                <label>Supplier</label>
+                                @if(isset($suppliers) && $suppliers->isNotEmpty())
+                                <select id="supplierDropdown" onchange="onSupplierChange(this)">
+                                    <option value="" disabled selected>Select supplier...</option>
+                                    @foreach($suppliers as $sup)
+                                    <option value="{{ $sup->name }}">{{ $sup->name }}{{ $sup->company ? ' — '.$sup->company : '' }}</option>
+                                    @endforeach
+                                    <option value="__other__">Other (type manually)</option>
+                                </select>
+                                <input type="text" name="supplier" id="supplierCustom"
+                                       placeholder="Type supplier name" maxlength="255"
+                                       style="display:none;margin-top:6px;">
+                                @else
+                                <input type="text" name="supplier" placeholder="Supplier name" maxlength="255">
+                                @endif
+                            </div>
+                            <div class="pm-add-field">
+                                <label>Date</label>
+                                <input type="date" name="purchase_date" required value="{{ now()->format('Y-m-d') }}">
+                            </div>
+                            <button type="submit" class="save-btn" style="width:100%;justify-content:center;height:44px;">
+                                <i data-lucide="check"></i> Save Purchase
+                            </button>
+                        </div>
+                    </form>
                 </div>
-                <div class="info-card purple">
-                    <div class="info-card-icon purple"><i data-lucide="clipboard-list"></i></div>
-                    <h3>Usage Entries Logged</h3>
-                    <div class="value">{{ $totalLogged }}</div>
-                    <div class="info-card-sub">Active log entries</div>
+
+                </div>{{-- end side-by-side grid --}}
+
+                {{-- Purchase History — separate card --}}
+                @if($purchases->isNotEmpty())
+                <div class="pm-card" style="margin-bottom:16px;">
+                    <div class="pm-card-header">
+                        <div>
+                            <div class="pm-card-title" style="display:flex;align-items:center;gap:8px;">
+                                <i data-lucide="receipt" style="width:15px;height:15px;color:var(--muted);"></i>
+                                Purchase History
+                            </div>
+                            <div class="pm-card-sub">All individual purchase transactions logged</div>
+                        </div>
+                        <span style="font-size:12px;font-weight:700;color:var(--muted);">{{ $purchases->count() }} transaction{{ $purchases->count() !== 1 ? 's' : '' }}</span>
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="pm-table">
+                            <thead>
+                                <tr>
+                                    <th style="text-align:left;">Material</th>
+                                    <th class="ctr">Qty</th>
+                                    <th class="ctr">Unit Cost (&#x20B1;)</th>
+                                    <th class="ctr">Total Paid (&#x20B1;)</th>
+                                    <th class="ctr">Supplier</th>
+                                    <th class="ctr">Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($purchases as $pur)
+                                <tr>
+                                    <td style="font-weight:700;">{{ $pur->material_name }}</td>
+                                    <td class="ctr" style="font-weight:700;color:var(--dark);">{{ number_format($pur->qty_bought, 0) }}</td>
+                                    <td class="ctr" style="color:var(--muted);">&#x20B1;{{ number_format($pur->actual_unit_cost, 2) }}</td>
+                                    <td class="ctr"><strong style="color:#16a34a;">&#x20B1;{{ number_format($pur->total_paid, 2) }}</strong></td>
+                                    <td class="ctr">
+                                        @if($pur->supplier)
+                                        <span class="client-pill" style="font-size:11px;padding:2px 9px;">{{ $pur->supplier }}</span>
+                                        @else
+                                        <span style="color:var(--muted-light);">—</span>
+                                        @endif
+                                    </td>
+                                    <td class="ctr" style="white-space:nowrap;color:var(--muted);font-size:12.5px;">{{ $pur->purchase_date->format('M d, Y') }}</td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-                <div class="info-card green">
-                    <div class="info-card-icon green"><i data-lucide="layers"></i></div>
-                    <h3>Total Quantity Used</h3>
-                    <div class="value">{{ number_format($totalQtyUsed, 0) }}</div>
-                    <div class="info-card-sub">Combined units consumed</div>
+                @endif
+
+            </div>
+
+            {{-- TAB 3: VARIANCE --}}
+            <div class="pm-tab-content" id="tab-variance">
+                <div class="pm-card">
+                    <div class="pm-card-header">
+                        <div>
+                            <div class="pm-card-title">Variance summary</div>
+                            <div class="pm-card-sub">BOM budgeted cost vs actual purchases &middot; auto-updates KPI</div>
+                        </div>
+                        @if($activeMats->isNotEmpty())
+                        <span style="font-size:12px;font-weight:700;color:var(--muted);">{{ $activeMats->count() }} material{{ $activeMats->count() !== 1 ? 's' : '' }}</span>
+                        @endif
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="pm-table">
+                            <thead>
+                                <tr>
+                                    <th style="text-align:left;">Material</th>
+                                    <th class="ctr">BOM Budget (&#x20B1;)</th>
+                                    <th class="ctr">Actual Spent (&#x20B1;)</th>
+                                    <th class="ctr">Variance (&#x20B1;)</th>
+                                    <th class="ctr">Status</th>
+                                    <th class="ctr">Budget Used</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @php $totalBudget = 0; $totalSpent = 0; @endphp
+                                @forelse($activeMats as $mat)
+                                @php
+                                    $budgeted    = round((float)$mat->total_cost * (1 + ((float)($mat->factor ?? 0)) / 100), 2);
+                                    $spent       = isset($purchases) ? $purchases->where('project_material_id', $mat->id)->sum('total_paid') : 0;
+                                    $variance    = $budgeted - $spent;
+                                    $usedPct     = $budgeted > 0 ? min(100, round(($spent / $budgeted) * 100)) : 0;
+                                    $totalBudget += $budgeted;
+                                    $totalSpent  += $spent;
+                                @endphp
+                                <tr>
+                                    <td><strong>{{ $mat->material_name }}</strong></td>
+                                    <td class="ctr">&#x20B1;{{ number_format($budgeted, 2) }}</td>
+                                    <td class="ctr">@if($spent > 0)&#x20B1;{{ number_format($spent, 2) }}@else&mdash;@endif</td>
+                                    <td class="ctr" style="color:{{ $variance >= 0 ? '#16a34a' : '#ef4444' }};font-weight:800;">
+                                        @if($spent > 0){{ $variance >= 0 ? '+' : '-' }}&#x20B1;{{ number_format(abs($variance), 2) }}@else&mdash;@endif
+                                    </td>
+                                    <td class="ctr">
+                                        @if($spent == 0)
+                                        <span class="pm-status pending">Not purchased</span>
+                                        @elseif($variance >= 0)
+                                        <span class="pm-status purchased">Under budget</span>
+                                        @else
+                                        <span class="pm-status over">Over budget</span>
+                                        @endif
+                                    </td>
+                                    <td class="ctr">
+                                        <div style="display:flex;align-items:center;gap:6px;justify-content:center;">
+                                            <div style="width:60px;height:5px;background:var(--cream-deep);border-radius:999px;overflow:hidden;">
+                                                <div style="height:100%;width:{{ $usedPct }}%;background:{{ $usedPct <= 100 ? '#16a34a' : '#ef4444' }};border-radius:999px;"></div>
+                                            </div>
+                                            <span style="font-size:12px;font-weight:700;min-width:28px;">{{ $usedPct }}%</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                @empty
+                                <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--muted);">No BOM materials yet.</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                    @if($activeMats->isNotEmpty())
+                    @php $totalVariance = $totalBudget - $totalSpent; @endphp
+                    <div style="background:#0E1428;display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr;border-top:2px solid rgba(255,255,255,.1);border-radius:0 0 14px 14px;overflow:hidden;">
+                        <div style="padding:12px 14px;color:#fff;font-weight:800;font-size:13px;">Total</div>
+                        <div style="padding:12px 14px;text-align:center;color:rgba(255,255,255,.6);font-weight:700;">&#x20B1;{{ number_format($totalBudget, 2) }}</div>
+                        <div style="padding:12px 14px;text-align:center;color:#4ade80;font-weight:700;">&#x20B1;{{ number_format($totalSpent, 2) }}</div>
+                        <div style="padding:12px 14px;text-align:center;color:{{ $totalVariance >= 0 ? '#4ade80' : '#f87171' }};font-weight:900;font-size:14px;">
+                            {{ ($totalVariance >= 0 ? '+' : '-') }}&#x20B1;{{ number_format(abs($totalVariance), 2) }}
+                        </div>
+                        <div style="padding:12px 14px;"></div>
+                        <div style="padding:12px 14px;"></div>
+                    </div>
+                    @endif
                 </div>
             </div>
 
-            {{-- Materials vs Usage --}}
-            <div class="table-card" style="margin-bottom:24px;">
-                <div class="table-toolbar" style="padding-bottom:0;">
-                    <span style="font-weight:700;font-size:15px;">Materials vs Usage</span>
-                </div>
-                <div class="table-wrapper">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Material Name</th>
-                                <th>Planned Qty</th>
-                                <th>Used Qty</th>
-                                <th>Remaining</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($materialComparison as $row)
+            {{-- TAB 4: MATERIAL USAGE --}}
+            <div class="pm-tab-content" id="tab-usage">
+                @php
+                    $activeUsageEntries = $usageEntries->where('status', 'active');
+                    $usageGrouped       = $activeUsageEntries->groupBy('material_name');
+                @endphp
+
+                {{-- Summary + Form side by side --}}
+                <div style="display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:stretch;margin-bottom:16px;">
+
+                {{-- Left: Summary table --}}
+                <div class="pm-card" style="margin-bottom:0;display:flex;flex-direction:column;min-width:0;">
+                    <div class="pm-card-header">
+                        <div>
+                            <div class="pm-card-title">Material usage &mdash; summary</div>
+                            <div class="pm-card-sub">Aggregated usage per material &middot; logged by employees</div>
+                        </div>
+                        @if($activeUsageEntries->isNotEmpty())
+                        <span style="font-size:12px;font-weight:700;color:var(--muted);">{{ $usageGrouped->count() }} material{{ $usageGrouped->count() !== 1 ? 's' : '' }} &nbsp;·&nbsp; Total: <strong style="color:var(--dark);">{{ number_format($activeUsageEntries->sum('quantity_used'), 0) }}</strong></span>
+                        @endif
+                    </div>
+                    <div class="table-wrapper" style="flex:1;">
+                        <table class="pm-table" style="border-collapse:collapse;width:100%;min-width:0;">
+                            <colgroup>
+                                <col style="width:28%;">
+                                <col style="width:24%;">
+                                <col style="width:24%;">
+                                <col style="width:24%;">
+                            </colgroup>
+                            <thead>
+                                <tr style="background:var(--cream-soft);position:relative;z-index:1;">
+                                    <th style="text-align:left;">Material</th>
+                                    <th class="ctr">Stock (Qty Bought)</th>
+                                    <th class="ctr">Total Qty Used</th>
+                                    <th class="ctr">Remaining</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($usageGrouped as $matName => $entries)
+                                @php
+                                    $totalUsed   = $entries->sum('quantity_used');
+                                    $unit        = $entries->first()->unit;
+                                    $bomId       = $entries->first()->project_material_id;
+                                    $stock       = isset($purchases) ? $purchases->where('project_material_id', $bomId)->sum('qty_bought') : 0;
+                                    $remaining   = $stock - $totalUsed;
+                                    $remainColor = $remaining < 0 ? '#b91c1c' : ($remaining == 0 ? '#92400e' : '#15803d');
+                                @endphp
+                                <tr style="background:#fff;position:relative;z-index:1;">
+                                    <td>
+                                        <div style="font-weight:700;">{{ $matName }}</div>
+                                        @if($unit)<div style="font-size:11.5px;color:var(--muted-light);margin-top:2px;">{{ $unit }}</div>@endif
+                                    </td>
+                                    <td class="ctr" style="font-weight:700;color:#2A4EAA;">{{ $stock > 0 ? number_format($stock, 0) : '—' }}</td>
+                                    <td class="ctr" style="font-weight:800;color:var(--dark);">{{ number_format($totalUsed, 0) }}</td>
+                                    <td class="ctr" style="font-weight:800;color:{{ $remainColor }};">
+                                        {{ $stock > 0 ? number_format($remaining, 0) : '—' }}
+                                    </td>
+                                </tr>
+                                @empty
+                                <tr>
+                                    <td colspan="4" style="text-align:center;padding:48px 20px;color:var(--muted);">
+                                        <i data-lucide="activity" style="width:32px;height:32px;color:var(--border);display:block;margin:0 auto 10px;"></i>
+                                        No usage entries logged yet.
+                                    </td>
+                                </tr>
+                                @endforelse
+                                {{-- Filler rows --}}
+                                @php $usageFillerCount = max(0, 6 - $usageGrouped->count()); @endphp
+                                @for($f = 0; $f < $usageFillerCount; $f++)
+                                <tr style="background:#fff;">
+                                    <td style="border-bottom:1px solid var(--border);">&nbsp;</td>
+                                    <td style="border-bottom:1px solid var(--border);"></td>
+                                    <td style="border-bottom:1px solid var(--border);"></td>
+                                    <td style="border-bottom:1px solid var(--border);"></td>
+                                </tr>
+                                @endfor
+                            </tbody>
+                        </table>
+                    </div>
+                    @if($activeUsageEntries->isNotEmpty())
+                    <div style="margin-top:auto;background:#0E1428;display:grid;grid-template-columns:1fr 1fr 1fr 1fr;border-top:2px solid rgba(255,255,255,.1);border-radius:0 0 14px 14px;overflow:hidden;">
+                        <div style="padding:12px 14px;color:#fff;font-weight:800;font-size:13px;">Total</div>
+                        <div style="padding:12px 14px;text-align:center;color:#60a5fa;font-weight:800;">{{ isset($purchases) && $purchases->isNotEmpty() ? number_format($purchases->sum('qty_bought'), 0) : '—' }}</div>
+                        <div style="padding:12px 14px;text-align:center;color:#FDE74C;font-weight:900;font-size:14px;">{{ number_format($activeUsageEntries->sum('quantity_used'), 0) }}</div>
+                        <div style="padding:12px 14px;"></div>
+                    </div>
+                    @endif
+                </div>{{-- end summary card --}}
+
+                {{-- Right: Log Usage form as sidebar card --}}
+                <div class="pm-card" style="margin-bottom:0;display:flex;flex-direction:column;background:linear-gradient(180deg,#333333 0%,#2a2a2a 100%);border-color:transparent;">
+                    <div class="pm-card-header" style="padding-bottom:12px;border-bottom-color:rgba(255,255,255,.1);">
+                        <div>
+                            <div class="pm-card-title" style="font-size:13px;color:#fff;">Log Material Usage</div>
+                            <div class="pm-card-sub" style="color:rgba(255,255,255,.45);">Record consumed material</div>
+                        </div>
+                    </div>
+                    <form method="POST" action="{{ route('admin.material_usage.store', $project->id) }}" style="padding:10px 16px 16px;display:flex;flex-direction:column;flex:1;" class="dark-form">
+                        @csrf
+                        <div style="display:flex;flex-direction:column;gap:12px;flex:1;">
                             @php
-                                $statusLabels = [
-                                    'pending'   => 'Not Started',
-                                    'ongoing'   => 'In Use',
-                                    'completed' => 'Fully Used',
-                                    'shortage'  => 'Over Used',
-                                ];
+                                // Only show materials that have purchases, with remaining stock
+                                $purchasedMatIds = isset($purchases) ? $purchases->pluck('project_material_id')->filter()->unique() : collect();
+                                $matsWithStock = $activeMats->filter(fn($m) => $purchasedMatIds->contains($m->id));
+                                $stockMap = [];
+                                foreach($matsWithStock as $m) {
+                                    $bought = isset($purchases) ? $purchases->where('project_material_id', $m->id)->sum('qty_bought') : 0;
+                                    $alreadyUsed = $usageEntries->where('status','active')->where('project_material_id', $m->id)->sum('quantity_used');
+                                    $stockMap[$m->id] = max(0, $bought - $alreadyUsed);
+                                }
                             @endphp
-                            <tr>
-                                <td><strong>{{ $row['material']->material_name }}</strong></td>
-                                <td>{{ number_format($row['material']->quantity, 0) }}</td>
-                                <td>{{ number_format($row['usedQty'], 0) }}</td>
-                                <td>{{ number_format($row['remaining'], 0) }}</td>
-                                <td>
-                                    <span class="status-badge {{ $row['statusKey'] }}">
-                                        {{ $statusLabels[$row['statusKey']] }}
-                                    </span>
-                                </td>
-                                <td class="action-cell">
-                                    <button class="action-btn view" type="button" onclick="openLogUsageModal({{ $row['material']->id }}, {{ \Illuminate\Support\Js::from($row['material']->material_name) }}, {{ \Illuminate\Support\Js::from($row['material']->unit) }})" title="Log usage for this material">
-                                        <i data-lucide="pencil"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                            @empty
-                            <tr>
-                                <td colspan="6" style="text-align:center;padding:32px;color:var(--muted);">
-                                    No planned materials found for this project. Add materials via <strong>Project Quotations</strong>.
-                                </td>
-                            </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
+                            <div class="pm-add-field">
+                                <label>Material</label>
+                                <select name="project_material_id" id="usageBomSelect" onchange="prefillUsage(this)">
+                                    <option value="" disabled selected>Select material...</option>
+                                    @foreach($matsWithStock as $mat)
+                                    <option value="{{ $mat->id }}"
+                                            data-name="{{ $mat->material_name }}"
+                                            data-unit="{{ $mat->unit }}"
+                                            data-max="{{ $stockMap[$mat->id] ?? 0 }}">
+                                        {{ Str::limit($mat->material_name, 28) }} ({{ $stockMap[$mat->id] ?? 0 }} remaining)
+                                    </option>
+                                    @endforeach
+                                </select>
+                                <input type="hidden" name="material_name" id="usageNameHidden">
+                                <span id="usageStockHint" style="font-size:11px;color:rgba(255,255,255,.4);margin-top:4px;display:none;"></span>
+                            </div>
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                                <div class="pm-add-field">
+                                    <label>Qty Used</label>
+                                    <input type="number" name="quantity_used" id="usageQtyInput" min="0.01" step="0.01" value="1" required>
+                                </div>
+                                <div class="pm-add-field">
+                                    <label>Unit</label>
+                                    <input type="text" name="unit" id="usageUnit" placeholder="pcs" maxlength="50">
+                                </div>
+                            </div>
+                            <div class="pm-add-field">
+                                <label>Date</label>
+                                <input type="date" name="used_date" required value="{{ now()->format('Y-m-d') }}">
+                            </div>
+                            <div style="flex:1;"></div>
+                            <button type="submit" class="save-btn" style="width:100%;justify-content:center;height:44px;margin-top:0;">
+                                <i data-lucide="check"></i> Log Usage
+                            </button>
+                        </div>
+                    </form>
                 </div>
-            </div>
 
-            {{-- Usage Log --}}
-            <div class="table-card">
-                <div class="table-toolbar" style="padding-bottom:0;">
-                    <span style="font-weight:700;font-size:15px;">Usage Log</span>
+                </div>{{-- end side-by-side grid --}}
+
+                {{-- Usage History — separate card --}}
+                @if($usageEntries->isNotEmpty())
+                <div class="pm-card" style="margin-bottom:16px;">
+                    <div class="pm-card-header">
+                        <div>
+                            <div class="pm-card-title" style="display:flex;align-items:center;gap:8px;">
+                                <i data-lucide="clock" style="width:15px;height:15px;color:var(--muted);"></i>
+                                Usage History
+                            </div>
+                            <div class="pm-card-sub">All individual material usage entries logged by employees</div>
+                        </div>
+                        <span style="font-size:12px;font-weight:700;color:var(--muted);">{{ $usageEntries->count() }} entr{{ $usageEntries->count() !== 1 ? 'ies' : 'y' }}</span>
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="pm-table">
+                            <thead>
+                                <tr>
+                                    <th style="text-align:left;">Material</th>
+                                    <th class="ctr">Qty Used</th>
+                                    <th class="ctr">Unit</th>
+                                    <th class="ctr">Date</th>
+                                    <th class="ctr">Logged By</th>
+                                    <th class="ctr">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($usageEntries as $entry)
+                                <tr style="{{ $entry->status === 'archived' ? 'opacity:.5;' : '' }}">
+                                    <td style="font-weight:700;">
+                                        {{ $entry->material_name }}
+                                        @if($entry->notes)
+                                        <div style="font-size:11.5px;color:var(--muted-light);margin-top:2px;">{{ Str::limit($entry->notes, 50) }}</div>
+                                        @endif
+                                    </td>
+                                    <td class="ctr" style="font-weight:800;color:var(--dark);">{{ number_format($entry->quantity_used, 0) }}</td>
+                                    <td class="ctr" style="color:var(--muted);">{{ $entry->unit ?? '—' }}</td>
+                                    <td class="ctr" style="white-space:nowrap;color:var(--muted);font-size:12.5px;">
+                                        {{ $entry->used_date ? \Carbon\Carbon::parse($entry->used_date)->format('M d, Y') : '—' }}
+                                    </td>
+                                    <td class="ctr" style="font-size:12.5px;color:var(--muted);">{{ $entry->recorded_by ?? '—' }}</td>
+                                    <td class="ctr">
+                                        <span class="pm-status {{ $entry->status === 'archived' ? 'pending' : 'purchased' }}">
+                                            {{ ucfirst($entry->status ?? 'active') }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-                <div class="table-wrapper">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Date Used</th>
-                                <th>Material</th>
-                                <th>Quantity</th>
-                                <th>Used For</th>
-                                <th>Notes</th>
-                                <th>Recorded By</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($usageEntries as $entry)
-                            <tr>
-                                <td>{{ $entry->used_date->format('M d, Y') }}</td>
-                                <td><strong>{{ $entry->material_name }}</strong></td>
-                                <td>{{ number_format($entry->quantity_used, 0) }}</td>
-                                <td>{{ $entry->used_for ? ucfirst(str_replace('_', ' ', $entry->used_for)) : '—' }}</td>
-                                <td>{{ $entry->notes ?? '—' }}</td>
-                                <td>{{ $entry->recorded_by ?? '—' }}</td>
-                                <td class="action-cell">
-                                    <form method="POST" action="{{ route('admin.material_usage.archive', [$project->id, $entry->id]) }}" style="display:inline;"
-                                          onsubmit="return confirm('{{ $entry->status === 'archived' ? 'Restore this usage entry?' : 'Archive this usage entry?' }}');">
-                                        @csrf
-                                        @method('PATCH')
-                                        <button class="action-btn view" type="submit" title="{{ $entry->status === 'archived' ? 'Restore' : 'Archive' }}">
-                                            <i data-lucide="{{ $entry->status === 'archived' ? 'archive-restore' : 'archive' }}"></i>
-                                        </button>
-                                    </form>
-                                </td>
-                            </tr>
-                            @empty
-                            <tr>
-                                <td colspan="7" style="text-align:center;padding:40px;color:var(--muted);">
-                                    No usage entries yet. Use the edit icon in <strong>Materials vs Usage</strong> to log usage.
-                                </td>
-                            </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
+                @endif
             </div>
 
         </main>
     </div>
 
-    {{-- ===================== LOG USAGE MODAL ===================== --}}
-    <div class="modal-overlay" id="logUsageModal">
-        <div class="modal-card" style="max-width:520px;">
-            <div class="modal-header">
-                <div>
-                    <h2>Log Material Usage</h2>
-                    <p>Record materials consumed for <strong>{{ $project->name }}</strong>.</p>
-                </div>
-                <button class="modal-close" type="button" onclick="closeModal('logUsageModal')">
-                    <i data-lucide="x"></i>
-                </button>
-            </div>
-
-            <form method="POST" action="{{ route('admin.material_usage.store', $project->id) }}">
-                @csrf
-                <div class="form-grid">
-                    <div class="form-group form-group-full">
-                        <label>Material</label>
-                        <div class="form-static" id="usageMaterialDisplay"></div>
-                        <input type="hidden" name="project_material_id" id="usageMaterialIdInput">
-                        <input type="hidden" name="material_name" id="usageMaterialNameInput">
-                        <input type="hidden" name="unit" id="usageUnitInput">
-                    </div>
-                    <div class="form-group">
-                        <label>Quantity Used <span style="color:var(--danger);">*</span></label>
-                        <input type="number" name="quantity_used" min="0.01" step="0.01" onwheel="this.blur()" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Date Used <span style="color:var(--danger);">*</span></label>
-                        <input type="date" name="used_date" value="{{ now()->format('Y-m-d') }}" required>
-                    </div>
-                    <div class="form-group form-group-full">
-                        <label>Notes</label>
-                        <textarea name="notes" rows="3" placeholder="Optional notes about this usage entry"></textarea>
-                    </div>
-                </div>
-                <div style="padding:14px 20px;border-top:1px solid rgba(0,0,0,0.06);display:flex;justify-content:flex-end;gap:10px;">
-                    <button type="button" class="cancel-btn" onclick="closeModal('logUsageModal')">Cancel</button>
-                    <button type="submit" class="save-btn">
-                        <i data-lucide="check-circle" style="width:15px;height:15px;"></i>
-                        Save
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="{{ asset('js/admin.js') }}"></script>
     <script>
-        function openModal(id) {
-            var m = document.getElementById(id);
-            if (m) { m.classList.add('show'); document.body.style.overflow = 'hidden'; }
-        }
-        function closeModal(id) {
-            var m = document.getElementById(id);
-            if (m) { m.classList.remove('show'); document.body.style.overflow = ''; }
-        }
+        const ACTIVE_TAB = "{{ session('active_tab', 'bom') }}";
+        if (typeof lucide !== 'undefined') lucide.createIcons();
 
-        function openLogUsageModal(materialId, materialName, unit) {
-            document.getElementById('usageMaterialIdInput').value = materialId;
-            document.getElementById('usageMaterialNameInput').value = materialName;
-            document.getElementById('usageUnitInput').value = unit;
-            document.getElementById('usageMaterialDisplay').textContent = unit ? (materialName + ' (' + unit + ')') : materialName;
-            openModal('logUsageModal');
-        }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            document.querySelectorAll('.modal-overlay').forEach(function(overlay) {
-                overlay.addEventListener('click', function(e) {
-                    if (e.target === this) closeModal(this.id);
-                });
+        document.querySelectorAll('.pm-tab').forEach(function(btn) {
+            btn.classList.toggle('active', btn.dataset.tab === ACTIVE_TAB);
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.pm-tab').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.pm-tab-content').forEach(p => p.classList.remove('active'));
+                this.classList.add('active');
+                document.getElementById('tab-' + this.dataset.tab).classList.add('active');
             });
+        });
+        document.querySelectorAll('.pm-tab-content').forEach(p => {
+            p.classList.toggle('active', p.id === 'tab-' + ACTIVE_TAB);
+        });
 
-            if (typeof lucide !== 'undefined') lucide.createIcons();
+        function prefillPurchase(sel) {
+            var opt      = sel.options[sel.selectedIndex];
+            var custom   = document.getElementById('purchaseNameCustom');
+            var hidden   = document.getElementById('purchaseNameHidden');
+            var isOther  = (sel.value === '__other__' || sel.value === '');
+
+            if (isOther) {
+                custom.style.display = '';
+                custom.value = '';
+                custom.required = true;
+                hidden.value = '';
+                custom.focus();
+                // clear BOM project_material_id
+                sel.value = '__other__';
+            } else {
+                custom.style.display = 'none';
+                custom.required = false;
+                custom.value = '';
+                hidden.value = opt.dataset.name || '';
+                if (opt.dataset.cost) {
+                    document.getElementById('purchaseUnitCost').value = opt.dataset.cost;
+                    calcPurchaseTotal();
+                }
+            }
+        }
+
+        // init on load: custom input hidden until "Other" is chosen
+        document.addEventListener('DOMContentLoaded', function() {
+            var custom = document.getElementById('purchaseNameCustom');
+            if (custom) custom.style.display = 'none';
+        });
+
+        function calcPurchaseTotal() {
+            var qty  = parseFloat(document.getElementById('purchaseQty').value) || 0;
+            var cost = parseFloat(document.getElementById('purchaseUnitCost').value) || 0;
+            var total = qty * cost;
+            document.getElementById('purchaseTotalDisplay').value = '₱' + total.toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2});
+        }
+
+        function prefillUsage(sel) {
+            var opt     = sel.options[sel.selectedIndex];
+            var hidden  = document.getElementById('usageNameHidden');
+            var unitInp = document.getElementById('usageUnit');
+            var qtyInp  = document.getElementById('usageQtyInput');
+            var hint    = document.getElementById('usageStockHint');
+
+            hidden.value = opt.dataset.name || '';
+            if (unitInp && opt.dataset.unit) unitInp.value = opt.dataset.unit;
+
+            var maxStock = parseFloat(opt.dataset.max) || 0;
+            if (qtyInp && maxStock > 0) {
+                qtyInp.max = maxStock;
+                qtyInp.value = Math.min(parseFloat(qtyInp.value) || 1, maxStock);
+                if (hint) {
+                    hint.textContent = 'Max: ' + maxStock + ' units remaining in stock';
+                    hint.style.display = 'block';
+                }
+            } else if (qtyInp) {
+                qtyInp.removeAttribute('max');
+                if (hint) hint.style.display = 'none';
+            }
+        }
+
+        function onSupplierChange(sel) {
+            var custom = document.getElementById('supplierCustom');
+            if (!custom) return;
+            if (sel.value === '__other__') {
+                custom.style.display = '';
+                custom.value = '';
+                custom.focus();
+            } else {
+                custom.style.display = 'none';
+                custom.value = sel.value;
+            }
+        }
+
+        // On page load, sync hidden supplier input if a dropdown exists
+        document.addEventListener('DOMContentLoaded', function() {
+            var dd = document.getElementById('supplierDropdown');
+            if (dd) onSupplierChange(dd);
         });
     </script>
+
+    <style>
+        .pm-tabs { display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:12px; }
+        .pm-tab  { display:inline-flex;align-items:center;gap:7px;background:none;border:none;padding:11px 18px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:color .15s,border-color .15s; }
+        .pm-tab:hover { color:var(--dark); }
+        .pm-tab.active { color:var(--dark);font-weight:800;border-bottom-color:var(--dark); }
+        .pm-tab-content { display:none; }
+        .pm-tab-content.active { display:block; }
+        .pm-card { background:var(--white);border:1px solid var(--border);border-radius:14px;overflow:visible; }
+        .pm-card .table-wrapper { border-radius:0 0 14px 14px;overflow:auto; }
+        .pm-card-header { display:flex;justify-content:space-between;align-items:flex-start;padding:16px 20px;border-bottom:1px solid var(--border); }
+        .pm-card-title { font-size:14px;font-weight:800;color:var(--dark); }
+        .pm-card-sub   { font-size:12px;color:var(--muted-light);margin-top:2px;font-weight:500; }
+        .pm-table { width:100%;border-collapse:collapse;min-width:700px; }
+        .pm-table thead th { padding:10px 14px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--muted-light);border-bottom:1px solid var(--border);background:var(--cream-soft);white-space:nowrap; }
+        .pm-table thead th.num { text-align:right; }
+        .pm-table thead th.ctr { text-align:center; }
+        .pm-table tbody td { padding:14px 14px;font-size:13px;color:var(--dark);border-bottom:1px solid var(--border);vertical-align:middle; }
+        .pm-table tbody td.num { text-align:right; }
+        .pm-table tbody td.ctr { text-align:center; }
+        .pm-table tbody tr:last-child td { border-bottom:none; }
+        .pm-table tbody tr:hover { background:var(--cream-soft); }
+        .pm-subtotal td { padding:12px 14px;font-size:13px;font-weight:800;color:var(--dark);background:var(--cream-soft);border-top:1px solid var(--border); }
+        .pm-subtotal td.num { text-align:right; }
+        .pm-status { display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:999px; }
+        .pm-status.purchased { background:#dcfce7;color:#15803d; }
+        .pm-status.pending   { background:var(--cream-deep);color:var(--muted); }
+        .pm-status.over      { background:#fee2e2;color:#b91c1c; }
+        .pm-add-row  { display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;padding:16px 20px;border-top:1px solid var(--border);background:var(--cream-soft); }
+        .pm-add-field { display:flex;flex-direction:column;gap:5px;flex:1;min-width:80px; }
+        .pm-add-field label { font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--muted-light); }
+        .pm-add-field input,.pm-add-field select { height:40px;border:1px solid var(--border);border-radius:8px;padding:0 10px;font-size:13px;font-weight:600;background:var(--white);color:var(--dark);font-family:inherit;width:100%; }
+        .pm-add-field input:focus,.pm-add-field select:focus { outline:none;border-color:var(--dark); }
+        .pm-log-header { padding:10px 20px 0;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--muted-light); }
+
+        /* Dark sidebar form inputs */
+        .dark-form .pm-add-field label { color:rgba(255,255,255,.45); }
+        .dark-form .pm-add-field input,
+        .dark-form .pm-add-field select {
+            background:rgba(255,255,255,.08);
+            border-color:rgba(255,255,255,.12);
+            color:#fff;
+        }
+        .dark-form .pm-add-field input:focus,
+        .dark-form .pm-add-field select:focus { border-color:rgba(255,255,255,.35);outline:none; }
+        .dark-form .pm-add-field input::placeholder { color:rgba(255,255,255,.3); }
+        .dark-form select option { background:#2a2a2a;color:#fff; }
+    </style>
 </body>
 </html>

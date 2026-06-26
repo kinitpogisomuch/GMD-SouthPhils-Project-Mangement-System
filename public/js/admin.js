@@ -795,6 +795,39 @@ document.addEventListener('click', function (e) {
     }
 }, true); // capture phase — fires before bubble-phase handlers on overlay
 
+/* ================= GLOBAL: lock body scroll when any modal is open ================= */
+(function () {
+    function syncBodyScroll() {
+        var anyOpen = document.querySelector('.modal-overlay.show');
+        document.body.style.overflow = anyOpen ? 'hidden' : '';
+    }
+
+    // Watch every existing .modal-overlay for class changes
+    function observeOverlay(el) {
+        new MutationObserver(syncBodyScroll).observe(el, {
+            attributes: true,
+            attributeFilter: ['class'],
+        });
+    }
+
+    // Observe overlays already in the DOM
+    document.querySelectorAll('.modal-overlay').forEach(observeOverlay);
+
+    // Also observe any overlays injected later (dynamic modals)
+    new MutationObserver(function (mutations) {
+        mutations.forEach(function (m) {
+            m.addedNodes.forEach(function (node) {
+                if (node.nodeType === 1) {
+                    if (node.classList && node.classList.contains('modal-overlay')) {
+                        observeOverlay(node);
+                    }
+                    node.querySelectorAll && node.querySelectorAll('.modal-overlay').forEach(observeOverlay);
+                }
+            });
+        });
+    }).observe(document.body, { childList: true, subtree: true });
+})();
+
 /* ================= DOMContentLoaded ================= */
 
 document.addEventListener("DOMContentLoaded", function () {

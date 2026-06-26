@@ -119,7 +119,7 @@
         <form method="POST" action="{{ route('password.verify.post') }}" id="verifyForm">
             @csrf
             <div>
-                <label class="fp-label" for="code">Verification Code *</label>
+                <label class="fp-label" for="code">Verification Code </label>
                 <input
                     type="text"
                     name="code"

@@ -74,14 +74,23 @@
                         <i data-lucide="search"></i>
                         <input type="text" id="paymentSearch" placeholder="Search project or client...">
                     </div>
-                    <div class="filter-group">
-                        <select id="paymentStatusFilter" class="filter-select">
-                            <option value="">All Status</option>
-                            <option value="Fully Paid">Fully Paid</option>
-                            <option value="Progress Payment Paid">Progress Payment Paid</option>
-                            <option value="Down Payment Paid">Down Payment Paid</option>
-                            <option value="Pending Down Payment">Pending Down Payment</option>
-                        </select>
+                    <div class="filter-tabs" id="paymentFilterTabs">
+                        <button type="button" class="filter-tab active" data-filter="">
+                            All
+                            <span class="filter-count">{{ $payments->count() }}</span>
+                        </button>
+                        <button type="button" class="filter-tab" data-filter="Pending Down Payment">
+                            Pending
+                            <span class="filter-count">{{ $payments->filter(fn($p) => $p->computeStatus() === 'Pending Down Payment')->count() }}</span>
+                        </button>
+                        <button type="button" class="filter-tab" data-filter="Progress Payment Paid">
+                            In Progress
+                            <span class="filter-count">{{ $payments->filter(fn($p) => $p->computeStatus() === 'Progress Payment Paid')->count() }}</span>
+                        </button>
+                        <button type="button" class="filter-tab" data-filter="Fully Paid">
+                            Fully Paid
+                            <span class="filter-count">{{ $payments->filter(fn($p) => $p->computeStatus() === 'Fully Paid')->count() }}</span>
+                        </button>
                     </div>
                 </div>
 
@@ -89,11 +98,9 @@
                     <table class="data-table" id="paymentsTable">
                         <thead>
                             <tr>
-                                <th>ID</th>
                                 <th>Project Name</th>
                                 <th>Client</th>
                                 <th>Contract Amount</th>
-                                <th>Down Payment</th>
                                 <th>Balance</th>
                                 <th>Payment Terms</th>
                                 <th>Status</th>
@@ -110,13 +117,11 @@
                             @endphp
                             <tr data-status="{{ $status }}"
                                 data-search="{{ strtolower(($payment->project->name ?? '') . ' ' . $payment->client) }}">
-                                <td>@if($payment->project)<span class="project-code-badge">{{ $payment->project->code }}</span>@endif</td>
                                 <td><strong>{{ $payment->project->name ?? '—' }}</strong></td>
                                 <td>{{ $payment->client }}</td>
                                 <td>₱{{ number_format($payment->contract_amount, 2) }}</td>
-                                <td>₱{{ number_format($downExpected, 2) }}</td>
                                 <td>₱{{ number_format($balance, 2) }}</td>
-                                <td>{{ $payment->payment_terms ?? '—' }}</td>
+                                <td>{{ preg_replace('/\s*\(.*?\)/', '', $payment->payment_terms ?? '—') }}</td>
                                 <td>
                                     <span class="status-badge {{ \App\Models\Payment::statusBadgeClass($status) }}">
                                         {{ $status }}
@@ -145,7 +150,7 @@
 
     <!-- ==================== STEP 1: SELECT PROJECT MODAL ==================== -->
     <div class="modal-overlay" id="selectProjectModal">
-        <div class="modal-card" style="max-width:660px;">
+        <div class="modal-card" style="max-width:560px;">
             <div class="modal-header">
                 <div>
                     <h2>Select Project</h2>
@@ -156,21 +161,19 @@
                 </button>
             </div>
 
-            <div class="search-box" style="margin-bottom:16px;">
+            <div class="search-box" style="margin-bottom:14px;">
                 <i data-lucide="search"></i>
-                <input type="text" id="projectSelectSearch" placeholder="Search project by name or client...">
+                <input type="text" id="projectSelectSearch" placeholder="Search by project name or client...">
             </div>
 
-            <div id="projectSelectList"
-                 style="display:flex;flex-direction:column;gap:8px;max-height:360px;overflow-y:auto;padding-right:4px;">
-                <p style="text-align:center;color:var(--muted);padding:20px 0;">Loading projects...</p>
+            <div id="projectSelectList" class="cs-list">
+                <p style="text-align:center;color:var(--muted);padding:32px 0;font-size:14px;">Loading projects...</p>
             </div>
 
-            <div class="modal-actions" style="margin-top:20px;">
+            <div class="modal-actions" style="margin-top:16px;">
                 <button type="button" class="cancel-btn" id="cancelSelectProject">Cancel</button>
                 <button type="button" class="save-btn" id="continueSelectProject">
-                    <i data-lucide="arrow-right"></i>
-                    Continue
+                    Continue <i data-lucide="arrow-right"></i>
                 </button>
             </div>
         </div>
@@ -217,7 +220,7 @@
                 <!-- Contract Amount -->
                 <div class="form-section-label">Contract Amount</div>
                 <div class="form-group" style="margin-bottom:20px;">
-                    <label>Contract Amount (₱) <span style="color:var(--danger);">*</span></label>
+                    <label>Contract Amount (₱) </label>
                     <input type="number" name="contract_amount" id="setupContractAmount"
                            required min="1" step="0.01" placeholder="e.g. 1000000"
                            style="font-size:16px;font-weight:700;">
@@ -227,7 +230,7 @@
                 <!-- Payment Terms -->
                 <div class="form-section-label">Payment Terms</div>
                 <div class="form-group" style="margin-bottom:20px;">
-                    <label>Project Type <span style="color:var(--danger);">*</span></label>
+                    <label>Project Type </label>
                     <select name="payment_term_type" id="setupTermType" required>
                         <option value="">Select payment terms</option>
                         <option value="big_project">Big Project — 3 Phases (50% / 30% / 20%)</option>
@@ -293,12 +296,22 @@
     lucide.createIcons();
 
     // ── Table search / filter ──────────────────────────────────────────────
+    var currentPaymentFilter = '';
+
     document.getElementById('paymentSearch').addEventListener('input', applyFilters);
-    document.getElementById('paymentStatusFilter').addEventListener('change', applyFilters);
+
+    document.querySelectorAll('#paymentFilterTabs .filter-tab').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('#paymentFilterTabs .filter-tab').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            currentPaymentFilter = this.dataset.filter;
+            applyFilters();
+        });
+    });
 
     function applyFilters() {
         var q      = document.getElementById('paymentSearch').value.toLowerCase();
-        var status = document.getElementById('paymentStatusFilter').value.toLowerCase();
+        var status = currentPaymentFilter.toLowerCase();
         document.querySelectorAll('#paymentsTable tbody tr[data-search]').forEach(function(row) {
             var matchSearch = !q || row.dataset.search.includes(q);
             var matchStatus = !status || row.dataset.status.toLowerCase() === status;
@@ -367,33 +380,32 @@
             var isSelected = selectedProject && selectedProject.id === proj.id;
             var item       = document.createElement('div');
             item.className = 'client-select-item' + (isSelected ? ' selected' : '');
-            var init       = proj.name.charAt(0).toUpperCase();
             var statusCls  = proj.status === 'completed' ? 'completed'
                            : proj.status === 'ongoing'   ? 'ongoing' : 'pending';
 
             item.innerHTML =
-                '<div class="client-select-avatar">' + init + '</div>' +
-                '<div class="client-select-info">' +
-                    '<div class="client-select-name">' + proj.name + '</div>' +
-                    '<div class="client-select-meta">' +
-                        '<span>' + proj.client + '</span>' +
-                        '<span><span class="status-badge ' + statusCls + '" style="font-size:11px;padding:2px 8px;">' +
+                '<div class="cs-avatar"><span class="cs-avatar-init">' + proj.name.charAt(0).toUpperCase() + '</span></div>' +
+                '<div class="cs-info">' +
+                    '<div class="cs-name">' + proj.name + '</div>' +
+                    '<div class="cs-meta">' +
+                        '<span><i data-lucide="building-2" style="width:11px;height:11px;flex-shrink:0;"></i>' + proj.client + '</span>' +
+                        '<span><span class="status-badge ' + statusCls + '" style="font-size:10.5px;padding:2px 8px;">' +
                             proj.status.charAt(0).toUpperCase() + proj.status.slice(1) +
                         '</span></span>' +
                     '</div>' +
                 '</div>' +
-                '<div class="client-select-check" style="display:' + (isSelected ? 'flex' : 'none') + ';align-items:center;">' +
-                    '<i data-lucide="check-circle"></i>' +
+                '<div class="cs-check" style="display:' + (isSelected ? 'flex' : 'none') + ';">' +
+                    '<i data-lucide="check-circle-2" style="width:20px;height:20px;color:var(--dark);"></i>' +
                 '</div>';
 
             item.addEventListener('click', function() {
                 selectedProject = proj;
-                document.querySelectorAll('.client-select-item').forEach(function(el) {
+                document.querySelectorAll('#projectSelectList .client-select-item').forEach(function(el) {
                     el.classList.remove('selected');
-                    el.querySelector('.client-select-check').style.display = 'none';
+                    el.querySelector('.cs-check').style.display = 'none';
                 });
                 item.classList.add('selected');
-                item.querySelector('.client-select-check').style.display = 'flex';
+                item.querySelector('.cs-check').style.display = 'flex';
                 if (typeof lucide !== 'undefined') lucide.createIcons();
             });
 

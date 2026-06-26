@@ -215,11 +215,11 @@
                         <input type="hidden" name="unit" id="usageUnitInput">
                     </div>
                     <div class="form-group">
-                        <label>Quantity Used <span style="color:var(--danger);">*</span></label>
+                        <label>Quantity Used </label>
                         <input type="number" name="quantity_used" min="0.01" step="0.01" onwheel="this.blur()" required>
                     </div>
                     <div class="form-group">
-                        <label>Date Used <span style="color:var(--danger);">*</span></label>
+                        <label>Date Used </label>
                         <input type="date" name="used_date" value="{{ now()->format('Y-m-d') }}" required>
                     </div>
                     <div class="form-group form-group-full">

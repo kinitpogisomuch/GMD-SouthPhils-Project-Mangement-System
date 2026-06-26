@@ -40,10 +40,6 @@
                     <i data-lucide="lock"></i>
                     Security
                 </button>
-                <button class="emp-tab" data-tab="users">
-                    <i data-lucide="users"></i>
-                    Manage Users
-                </button>
                 <button class="emp-tab" data-tab="landing">
                     <i data-lucide="image"></i>
                     Landing Page
@@ -252,65 +248,6 @@
                 </div>
             </div>
 
-            <!-- ===== TAB: USERS ===== -->
-            <div class="emp-tab-content" id="tab-users">
-                <div class="table-card">
-                    <div class="table-toolbar">
-                        <div class="search-box">
-                            <i data-lucide="search"></i>
-                            <input type="text" id="userSearch" placeholder="Search user...">
-                        </div>
-                    </div>
-                    <div class="table-wrapper">
-                        <table class="data-table" id="usersTable">
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Username</th>
-                                    <th>Email</th>
-                                    <th>Role</th>
-                                    <th>Status</th>
-                                    <th>Date Added</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse($users as $user)
-                                <tr>
-                                    <td>
-                                        <div class="user-cell">
-                                            <div class="user-avatar-sm" style="background:{{ $user->role === 'employee' ? '#6366f1' : '#e8900a' }}">
-                                                {{ strtoupper(substr($user->full_name, 0, 1)) }}
-                                            </div>
-                                            {{ $user->full_name }}
-                                        </div>
-                                    </td>
-                                    <td><span style="font-family:monospace;font-size:13px;font-weight:600;color:var(--text-secondary);">{{ $user->username }}</span></td>
-                                    <td>{{ $user->email ?? '—' }}</td>
-                                    <td>
-                                        <span class="role-badge" style="{{ $user->role === 'employee' ? 'background:#ede9fe;color:#6d28d9;' : 'background:#fff7ed;color:#c2410c;' }}">
-                                            {{ ucfirst($user->role) }}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <span class="status-badge {{ $user->status === 'Active' ? 'active' : 'archived' }}">
-                                            {{ $user->status }}
-                                        </span>
-                                    </td>
-                                    <td style="font-size:13px;color:var(--text-secondary);white-space:nowrap;">{{ $user->created_at->format('M j, Y') }}</td>
-                                </tr>
-                                @empty
-                                <tr>
-                                    <td colspan="6" style="text-align:center;padding:40px;color:var(--muted);">
-                                        No user accounts yet.
-                                    </td>
-                                </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
             <!-- ===== TAB: LANDING PAGE ===== -->
             <div class="emp-tab-content" id="tab-landing">
 
@@ -357,6 +294,11 @@
                                 <input type="text" name="facebook" value="{{ old('facebook', $contactInfo->facebook) }}"
                                        placeholder="e.g. https://facebook.com/gmdsouthphils" maxlength="255">
                             </div>
+                            <div class="form-group form-group-full">
+                                <label>Company Description</label>
+                                <textarea name="description" rows="4" maxlength="1000"
+                                          placeholder="Brief description about GMD South Phils displayed on the landing page...">{{ old('description', $contactInfo->description) }}</textarea>
+                            </div>
                         </div>
                         <div class="settings-form-actions">
                             <button type="submit" class="save-btn">
@@ -383,6 +325,7 @@
                                     <th>Spec</th>
                                     <th>Tag</th>
                                     <th>Title</th>
+                                    <th>Description</th>
                                     <th>Status</th>
                                     <th>Actions</th>
                                 </tr>
@@ -407,6 +350,7 @@
                                     <td>{{ $item->spec }}</td>
                                     <td>{{ $item->tag }}</td>
                                     <td><strong>{{ $item->title }}</strong></td>
+                                    <td style="max-width:200px;white-space:normal;font-size:12px;color:var(--muted);">{{ Str::limit($item->description, 60) }}</td>
                                     <td>
                                         <span class="status-badge {{ $item->status === 'active' ? 'active' : 'archived' }}">
                                             {{ $item->status === 'active' ? 'Visible' : 'Hidden' }}
@@ -548,19 +492,29 @@
                         <input type="text" name="icon" placeholder="e.g. flame">
                     </div>
                     <div class="form-group">
-                        <label>Spec / Badge <span style="color:var(--danger);">*</span></label>
+                        <label>Spec / Badge </label>
                         <input type="text" name="spec" required placeholder="e.g. 10,000 L">
                     </div>
                     <div class="form-group">
-                        <label>Category Tag <span style="color:var(--danger);">*</span></label>
-                        <input type="text" name="tag" required placeholder="e.g. Fuel Storage">
+                        <label>Category Tag</label>
+                        <select name="tag" id="addTagSelect" required onchange="toggleAddCustomTag(this)">
+                            <option value="" disabled selected>Select category...</option>
+                            <option value="Water Storage">Water Storage</option>
+                            <option value="Oil Storage">Oil Storage</option>
+                            <option value="Pipe Line">Pipe Line</option>
+                            <option value="Tetrapod">Tetrapod</option>
+                            <option value="Fuel Storage Tank">Fuel Storage Tank</option>
+                            <option value="Cistern Tank">Cistern Tank</option>
+                            <option value="__other__">Others (type manually)</option>
+                        </select>
+                        <input type="text" id="addTagCustom" name="tag_custom" placeholder="Enter custom category" maxlength="100" style="display:none;margin-top:8px;">
                     </div>
                     <div class="form-group form-group-full">
-                        <label>Title <span style="color:var(--danger);">*</span></label>
+                        <label>Title </label>
                         <input type="text" name="title" required placeholder="e.g. Diesel Storage Tank — Distribution Depot">
                     </div>
                     <div class="form-group form-group-full">
-                        <label>Description <span style="color:var(--danger);">*</span></label>
+                        <label>Description </label>
                         <textarea name="description" rows="3" required placeholder="Short description of the project"></textarea>
                     </div>
                     <div class="form-group">
@@ -581,7 +535,7 @@
 
     <!-- ===== EDIT PORTFOLIO ITEM MODAL ===== -->
     <div class="modal-overlay" id="editPortfolioModal">
-        <div class="modal-card" style="max-width:560px;">
+        <div class="modal-card" style="max-width:620px;">
             <div class="modal-header">
                 <div>
                     <h2>Edit Portfolio Item</h2>
@@ -594,48 +548,70 @@
             <form method="POST" id="editPortfolioForm" enctype="multipart/form-data">
                 @csrf
                 @method('PUT')
-                <div class="form-grid">
-                    <div class="form-group form-group-full" id="editPortfolioImagePreviewWrap" style="display:none;">
-                        <label>Current Image</label>
-                        <img id="editPortfolioImagePreview" src="" alt="" style="max-width:100%;max-height:140px;border-radius:10px;object-fit:cover;">
-                        <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-weight:400;">
-                            <input type="checkbox" name="remove_image" id="editPortfolioRemoveImage" value="1" style="width:auto;">
+
+                {{-- Image section --}}
+                <div id="editPortfolioImagePreviewWrap" style="display:none;margin-bottom:16px;">
+                    <label style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);display:block;margin-bottom:8px;">Current Image</label>
+                    <div style="display:flex;align-items:center;gap:16px;">
+                        <img id="editPortfolioImagePreview" src="" alt=""
+                             style="width:90px;height:70px;object-fit:cover;border-radius:10px;border:1px solid var(--border);">
+                        <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--danger);cursor:pointer;">
+                            <input type="checkbox" name="remove_image" id="editPortfolioRemoveImage" value="1" style="width:16px;height:16px;accent-color:var(--danger);">
                             Remove current image
                         </label>
                     </div>
-                    <div class="form-group form-group-full">
+                </div>
+
+                {{-- Two-column layout --}}
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+                    <div class="form-group">
                         <label>Replace Image <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
                         <input type="file" name="image" accept="image/*">
                     </div>
-                    <div class="form-group form-group-full">
-                        <label>Icon <span style="font-weight:400;color:var(--muted);">(used when no image is set, e.g. flame, droplets, container — see lucide.dev)</span></label>
+                    <div class="form-group">
+                        <label>Icon <span style="font-weight:400;color:var(--muted);">— lucide.dev name</span></label>
                         <input type="text" name="icon" id="editPortfolioIcon" placeholder="e.g. flame">
                     </div>
                     <div class="form-group">
-                        <label>Spec / Badge <span style="color:var(--danger);">*</span></label>
+                        <label>Spec / Badge</label>
                         <input type="text" name="spec" id="editPortfolioSpec" required placeholder="e.g. 10,000 L">
                     </div>
                     <div class="form-group">
-                        <label>Category Tag <span style="color:var(--danger);">*</span></label>
-                        <input type="text" name="tag" id="editPortfolioTag" required placeholder="e.g. Fuel Storage">
-                    </div>
-                    <div class="form-group form-group-full">
-                        <label>Title <span style="color:var(--danger);">*</span></label>
-                        <input type="text" name="title" id="editPortfolioTitle" required>
-                    </div>
-                    <div class="form-group form-group-full">
-                        <label>Description <span style="color:var(--danger);">*</span></label>
-                        <textarea name="description" id="editPortfolioDescription" rows="3" required></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label>Display Order <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
-                        <input type="number" name="sort_order" id="editPortfolioSortOrder" min="0" step="1" onwheel="this.blur()">
+                        <label>Category Tag</label>
+                        <select name="tag" id="editTagSelect" required onchange="toggleEditCustomTag(this)">
+                            <option value="" disabled>Select category...</option>
+                            <option value="Water Storage">Water Storage</option>
+                            <option value="Oil Storage">Oil Storage</option>
+                            <option value="Pipe Line">Pipe Line</option>
+                            <option value="Tetrapod">Tetrapod</option>
+                            <option value="Fuel Storage Tank">Fuel Storage Tank</option>
+                            <option value="Cistern Tank">Cistern Tank</option>
+                            <option value="__other__">Others (type manually)</option>
+                        </select>
+                        <input type="text" id="editTagCustom" name="tag_custom" placeholder="Enter custom category" maxlength="100" style="display:none;margin-top:8px;">
                     </div>
                 </div>
-                <div class="modal-actions">
+
+                <div class="form-group" style="margin-bottom:14px;">
+                    <label>Title</label>
+                    <input type="text" name="title" id="editPortfolioTitle" required placeholder="e.g. Diesel Storage Tank — Distribution Depot">
+                </div>
+
+                <div class="form-group" style="margin-bottom:14px;">
+                    <label>Description</label>
+                    <textarea name="description" id="editPortfolioDescription" rows="3" required
+                              placeholder="Short description of the project..."></textarea>
+                </div>
+
+                <div class="form-group" style="margin-bottom:0;width:160px;">
+                    <label>Display Order <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
+                    <input type="number" name="sort_order" id="editPortfolioSortOrder" min="0" step="1" onwheel="this.blur()" placeholder="0">
+                </div>
+
+                <div class="modal-actions" style="margin-top:20px;">
                     <button type="button" class="cancel-btn" id="cancelEditPortfolio">Cancel</button>
                     <button type="submit" class="save-btn">
-                        <i data-lucide="check-circle" style="width:15px;height:15px;"></i>
+                        <i data-lucide="save" style="width:15px;height:15px;"></i>
                         Save Changes
                     </button>
                 </div>
@@ -683,13 +659,16 @@
             document.getElementById('profileForm').submit();
         });
 
-        // User search
-        document.getElementById('userSearch').addEventListener('keyup', function () {
-            var q = this.value.toLowerCase();
-            document.querySelectorAll('#usersTable tbody tr').forEach(function (row) {
-                row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+        // User search (only if users tab exists)
+        var userSearchEl = document.getElementById('userSearch');
+        if (userSearchEl) {
+            userSearchEl.addEventListener('keyup', function () {
+                var q = this.value.toLowerCase();
+                document.querySelectorAll('#usersTable tbody tr').forEach(function (row) {
+                    row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+                });
             });
-        });
+        }
 
 
         // Password strength indicators
@@ -714,7 +693,20 @@
                 document.getElementById('editPortfolioForm').action = '/admin/portfolio-items/' + this.dataset.id;
                 document.getElementById('editPortfolioIcon').value = this.dataset.icon || '';
                 document.getElementById('editPortfolioSpec').value = this.dataset.spec || '';
-                document.getElementById('editPortfolioTag').value = this.dataset.tag || '';
+                // Set tag dropdown — if value not in list, select Others + show custom input
+                var tagVal = this.dataset.tag || '';
+                var tagSel = document.getElementById('editTagSelect');
+                var tagCustom = document.getElementById('editTagCustom');
+                var tagOpts = Array.from(tagSel.options).map(function(o){ return o.value; });
+                if (tagOpts.indexOf(tagVal) !== -1 && tagVal !== '__other__') {
+                    tagSel.value = tagVal;
+                    tagCustom.style.display = 'none';
+                    tagCustom.value = '';
+                } else {
+                    tagSel.value = '__other__';
+                    tagCustom.style.display = '';
+                    tagCustom.value = tagVal;
+                }
                 document.getElementById('editPortfolioTitle').value = this.dataset.title || '';
                 document.getElementById('editPortfolioDescription').value = this.dataset.description || '';
                 document.getElementById('editPortfolioSortOrder').value = this.dataset.sortOrder || '';
@@ -744,6 +736,40 @@
                 if (e.target === this) closeModal(this.id);
             });
         });
+    });
+
+    // Category tag dropdown helpers
+    var TAG_CATEGORIES = ['Water Storage','Oil Storage','Pipe Line','Tetrapod','Fuel Storage Tank','Cistern Tank'];
+
+    function toggleAddCustomTag(sel) {
+        var custom = document.getElementById('addTagCustom');
+        if (sel.value === '__other__') { custom.style.display=''; custom.required=true; custom.focus(); }
+        else { custom.style.display='none'; custom.required=false; custom.value=''; }
+    }
+
+    function toggleEditCustomTag(sel) {
+        var custom = document.getElementById('editTagCustom');
+        if (sel.value === '__other__') { custom.style.display=''; custom.required=true; custom.focus(); }
+        else { custom.style.display='none'; custom.required=false; custom.value=''; }
+    }
+
+    // Before submitting add/edit forms, merge custom tag into hidden tag field
+    document.getElementById('addPortfolioModal')?.querySelector('form')?.addEventListener('submit', function() {
+        var sel = document.getElementById('addTagSelect');
+        if (sel && sel.value === '__other__') {
+            var custom = document.getElementById('addTagCustom');
+            sel.removeAttribute('name');
+            custom.name = 'tag';
+        }
+    });
+
+    document.getElementById('editPortfolioForm')?.addEventListener('submit', function() {
+        var sel = document.getElementById('editTagSelect');
+        if (sel && sel.value === '__other__') {
+            var custom = document.getElementById('editTagCustom');
+            sel.removeAttribute('name');
+            custom.name = 'tag';
+        }
     });
 
     function openModal(id) {

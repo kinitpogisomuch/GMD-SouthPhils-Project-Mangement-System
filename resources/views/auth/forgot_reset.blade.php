@@ -104,7 +104,7 @@
 
             <!-- New Password -->
             <div class="fp-field">
-                <label class="fp-label" for="password">New Password *</label>
+                <label class="fp-label" for="password">New Password </label>
                 <div class="fp-input-wrap">
                     <input
                         type="password"
@@ -134,7 +134,7 @@
 
             <!-- Confirm Password -->
             <div class="fp-field">
-                <label class="fp-label" for="password_confirmation">Confirm Password *</label>
+                <label class="fp-label" for="password_confirmation">Confirm Password </label>
                 <div class="fp-input-wrap">
                     <input
                         type="password"

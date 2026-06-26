@@ -11,40 +11,47 @@
         .mat-combo-dropdown {
             display: none;
             position: fixed;
-            max-height: 320px;
+            max-height: 400px;
             overflow-y: auto;
             background: #fff;
             border: 1px solid rgba(0,0,0,0.12);
-            border-radius: 10px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.14);
+            border-radius: 14px;
+            box-shadow: 0 12px 32px rgba(0,0,0,.18);
             z-index: 1000;
-            padding: 10px;
+            padding: 12px;
             columns: 3 180px;
-            column-gap: 14px;
+            column-gap: 16px;
         }
         .mat-combo-dropdown.show { display: block; }
         .mat-combo-category {
             break-inside: avoid;
-            margin-bottom: 4px;
+            margin-bottom: 8px;
         }
         .mat-combo-group {
             font-size: 10px;
-            font-weight: 800;
+            font-weight: 900;
             text-transform: uppercase;
-            letter-spacing: .06em;
-            color: var(--muted);
-            padding: 8px 10px 4px;
+            letter-spacing: .08em;
+            color: #fff;
+            background: #0E1428;
+            padding: 5px 10px;
+            border-radius: 6px;
+            margin-bottom: 4px;
+            display: block;
         }
         .mat-combo-item {
-            padding: 8px 10px;
-            border-radius: 8px;
+            padding: 6px 10px;
+            border-radius: 7px;
             font-size: 13px;
-            font-weight: 600;
+            font-weight: 500;
             color: var(--dark);
             cursor: pointer;
+            display: block;
         }
         .mat-combo-item:hover {
-            background: var(--cream-soft, #f5f5f5);
+            background: #f0f4ff;
+            color: #2563EB;
+            font-weight: 600;
         }
         .mat-combo-item.disabled {
             color: var(--muted);
@@ -154,35 +161,6 @@
             </div>
             @endif
 
-            {{-- Project Info --}}
-            <div class="table-card" style="margin-bottom:24px;">
-                <div style="padding:20px 24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px 24px;">
-                    <div>
-                        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px;">Project</div>
-                        <div style="font-weight:800;color:var(--dark);">{{ $project->name }}</div>
-                    </div>
-                    <div>
-                        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px;">Client</div>
-                        <div style="font-weight:700;">{{ $project->client }}</div>
-                    </div>
-                    <div>
-                        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px;">Current Phase</div>
-                        <span class="status-badge {{ $project->status === 'completed' ? 'completed' : 'ongoing' }}">
-                            {{ ucfirst(str_replace('_', ' ', $project->current_phase ?? 'Planning')) }}
-                        </span>
-                    </div>
-                    <div>
-                        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px;">Status</div>
-                        <span class="status-badge {{ strtolower($project->status ?? 'planning') }}">
-                            {{ ucfirst($project->status ?? 'Planning') }}
-                        </span>
-                    </div>
-                    <div>
-                        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px;">Date Created</div>
-                        <div style="font-weight:600;">{{ $project->created_at->format('M d, Y') }}</div>
-                    </div>
-                </div>
-            </div>
 
             {{-- Summary Cards --}}
             <div class="page-grid" style="margin-bottom:16px;">
@@ -846,13 +824,29 @@
 
         // ---- multi-row add ----
         var MATERIAL_CATALOG = {
-            'Steel & Metal Stock':  ['Steel Plate','Angle Bar','Channel Bar','Flat Bar','Round Bar','Square Bar','Square Tube','Rectangular Tube','I-Beam / H-Beam','Steel Pipe'],
-            'Welding Supplies':     ['Welding Electrode','Welding Wire'],
-            'Gas & Fuel':           ['Oxygen Gas','Acetylene Gas','LPG'],
-            'Cutting & Grinding':   ['Cutting Disc','Grinding Disc'],
-            'Paint & Coating':      ['Primer Paint','Topcoat Paint','Paint Thinner'],
-            'Fasteners & Fittings': ['Bolts & Nuts','Flanges','Valves','Gaskets'],
-            'Aggregates':           ['Sand','Cement','Gravel']
+            'Steel & Metal Stock':  ['MS Plates','Angular Bar'],
+            'Welding Supplies':     ['Electrode (6011)','Electrode (7018)','Welding Gloves'],
+            'Cutting & Grinding':   ['Grinding Disc #4','Grinding Disc #5','Grinding Disc #7','Cutting Disc #4','Cutting Disc #5','Cutting Disc #7'],
+            'Gas & Fuel':           ['Industrial Oxygen','Acetylene'],
+            'Paint & Coating':      ['Epoxy Primer Gray','QDE Medium Gray','Lacquer Thinner','Paint Thinner','Polituff Putty'],
+            'Brushes & Tools':      ['Paint Brush','Roller Brush'],
+            'Safety & PPE':         ['Dark Glass #11','Clear Glass','Cotton Gloves'],
+            'Abrasives':            ['Sanding Paper #60','Sanding Paper #100'],
+            'Inspection & Testing': ['Penetrant Dye Spray','Pressure Test Kits','Pressure Gauge 60PSI']
+        };
+
+        var MATERIAL_UNITS = {
+            'MS Plates': 'pcs', 'Angular Bar': 'pcs',
+            'Electrode (6011)': 'kilos', 'Electrode (7018)': 'kilos', 'Welding Gloves': 'pcs',
+            'Grinding Disc #4': 'pcs', 'Grinding Disc #5': 'pcs', 'Grinding Disc #7': 'pcs',
+            'Cutting Disc #4': 'pcs', 'Cutting Disc #5': 'pcs', 'Cutting Disc #7': 'pcs',
+            'Industrial Oxygen': 'cylinders', 'Acetylene': 'cylinders',
+            'Epoxy Primer Gray': 'galons', 'QDE Medium Gray': 'galons',
+            'Lacquer Thinner': 'galons', 'Paint Thinner': 'galons', 'Polituff Putty': 'galons',
+            'Paint Brush': 'pcs', 'Roller Brush': 'pcs',
+            'Dark Glass #11': 'pcs', 'Clear Glass': 'pcs', 'Cotton Gloves': 'pcs',
+            'Sanding Paper #60': 'pcs', 'Sanding Paper #100': 'pcs',
+            'Penetrant Dye Spray': 'pairs', 'Pressure Test Kits': 'set', 'Pressure Gauge 60PSI': 'pcs'
         };
 
         // ---- searchable, categorized material combo box ----
@@ -953,6 +947,14 @@
                 input.value = value;
                 panel.classList.remove('show');
                 checkMatDuplicate(input);
+                // Auto-fill unit field if present in the same row
+                var row = input.closest('tr');
+                if (row) {
+                    var unitInput = row.querySelector('input[name="unit[]"]');
+                    if (unitInput && MATERIAL_UNITS[value]) {
+                        unitInput.value = MATERIAL_UNITS[value];
+                    }
+                }
                 input.focus();
             }, getUsedMaterialNames(input));
             positionMatCombo(panel, input);

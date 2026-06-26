@@ -144,13 +144,13 @@
                         <input type="hidden" name="parent_update_id" value="{{ $revisionUpdate->id }}">
 
                         <div class="form-group">
-                            <label class="log-label">DATE OF WORK *</label>
+                            <label class="log-label">DATE OF WORK </label>
                             <input type="date" name="date_of_work" class="log-input"
                                    value="{{ old('date_of_work') }}" required>
                         </div>
 
                         <div class="form-group" style="margin-top:12px;">
-                            <label class="log-label">WORK DONE *</label>
+                            <label class="log-label">WORK DONE </label>
                             <textarea name="work_done" class="log-textarea" rows="4"
                                       placeholder="Describe the revised/corrected work..." required>{{ old('work_done') }}</textarea>
                         </div>
@@ -164,7 +164,7 @@
                         </div>
 
                         <div class="form-group" style="margin-top:12px;">
-                            <label class="log-label">SITE PHOTOS *</label>
+                            <label class="log-label">SITE PHOTOS </label>
                             <label style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:18px;border:2px dashed #fed7aa;border-radius:8px;cursor:pointer;background:#fff7ed;">
                                 <i data-lucide="upload-cloud" style="width:24px;height:24px;color:#ea580c;"></i>
                                 <span style="font-size:13px;font-weight:600;color:#9a3412;">Click to upload photos</span>
@@ -211,13 +211,13 @@
                     @csrf
 
                     <div class="form-group">
-                        <label class="log-label">DATE OF WORK *</label>
+                        <label class="log-label">DATE OF WORK </label>
                         <input type="date" name="date_of_work" class="log-input"
                                value="{{ old('date_of_work') }}" required>
                     </div>
 
                     <div class="form-group" style="margin-top:14px;">
-                        <label class="log-label">WORK DONE *</label>
+                        <label class="log-label">WORK DONE </label>
                         <textarea name="work_done" class="log-textarea" rows="4"
                                   placeholder="Describe what was accomplished..." required>{{ old('work_done') }}</textarea>
                     </div>
@@ -231,7 +231,7 @@
                     </div>
 
                     <div class="form-group" style="margin-top:14px;">
-                        <label class="log-label">SITE PHOTOS *</label>
+                        <label class="log-label">SITE PHOTOS </label>
                         <label class="log-upload-label">
                             <i data-lucide="upload-cloud"></i>
                             Click to upload photos — up to 5, max 5MB each

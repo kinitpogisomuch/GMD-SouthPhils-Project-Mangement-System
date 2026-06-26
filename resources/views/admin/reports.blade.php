@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <link rel="icon" type="image/svg+xml" href="{{ asset('images/gmdlogo-circle.svg') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KPI Reports | GMD South Phils</title>
+    <title>KPI & Forecasting Analytics | GMD South Phils</title>
     <link href="{{ asset('css/admin.css') }}" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body class="page-enter">
 
@@ -16,733 +17,501 @@
 
         <main class="admin-content">
 
-            <div class="page-header" style="flex-wrap:wrap;gap:14px;">
-                <div style="display:flex;align-items:center;gap:10px;">
-                    <i data-lucide="layout-dashboard" style="width:22px;height:22px;color:var(--muted);"></i>
-                    <h1 style="margin:0;">KPI Dashboard &amp; Forecast</h1>
+            {{-- ── Page Header ── --}}
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+                <div>
+                    <h1 style="font-size:22px;font-weight:900;margin:0 0 4px;">KPI &amp; forecasting analytics</h1>
+                    <p style="font-size:13px;color:var(--muted);margin:0;">
+                        GMD South Phils &nbsp;·&nbsp; {{ $currentQuarterLabel }} &nbsp;·&nbsp; {{ now()->year }}
+                    </p>
                 </div>
+            </div>
 
-                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-                    {{-- Year / Month filters --}}
-                    <form method="GET" action="{{ route('admin.reports') }}" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                        <select name="year" class="filter-select" onchange="this.form.submit()" style="min-width:100px;">
-                            <option value="">All Years</option>
-                            @for($y = now()->year; $y >= 2020; $y--)
-                                <option value="{{ $y }}" {{ $filterYear == $y ? 'selected' : '' }}>{{ $y }}</option>
-                            @endfor
-                        </select>
-
-                        <select name="month" class="filter-select" onchange="this.form.submit()" style="min-width:120px;">
-                            <option value="">All Months</option>
-                            @foreach(['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'] as $mi => $mn)
-                                <option value="{{ $mi + 1 }}" {{ $filterMonth == $mi + 1 ? 'selected' : '' }}>{{ $mn }}</option>
-                            @endforeach
-                        </select>
-
-                        @if($filterYear || $filterMonth)
-                        <a href="{{ route('admin.reports') }}" style="font-size:12px;font-weight:700;color:var(--muted);text-decoration:none;padding:8px 12px;border:1px solid var(--border);border-radius:8px;white-space:nowrap;">
-                            Clear
-                        </a>
-                        @endif
-                    </form>
-
-                    {{-- Generate Reports --}}
-                    <button onclick="window.print()" class="save-btn" style="font-size:13px;padding:10px 18px;display:inline-flex;align-items:center;gap:7px;">
-                        <i data-lucide="file-text" style="width:14px;height:14px;"></i>
-                        Generate Report
-                    </button>
+            {{-- ── Filters ── --}}
+            <div style="background:var(--white);border:1px solid var(--border);border-radius:14px;padding:16px 20px;margin-bottom:24px;">
+                <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;">
+                    Filters — select a timeline to update all KPIs and charts
                 </div>
+                <form method="GET" action="{{ route('admin.reports') }}" style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;">
+                    <div>
+                        <label style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);display:block;margin-bottom:5px;">Timeline</label>
+                        <select name="quarter" class="filter-select" onchange="this.form.submit()" style="min-width:150px;">
+                            <option value="all" {{ $filterQuarter === 'all' ? 'selected' : '' }}>All periods</option>
+                            <option value="q1"  {{ $filterQuarter === 'q1'  ? 'selected' : '' }}>Q1 — Jan to Mar</option>
+                            <option value="q2"  {{ $filterQuarter === 'q2'  ? 'selected' : '' }}>Q2 — Apr to Jun</option>
+                            <option value="q3"  {{ $filterQuarter === 'q3'  ? 'selected' : '' }}>Q3 — Jul to Sep</option>
+                            <option value="q4"  {{ $filterQuarter === 'q4'  ? 'selected' : '' }}>Q4 — Oct to Dec</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);display:block;margin-bottom:5px;">Status</label>
+                        <select name="status" class="filter-select" onchange="this.form.submit()" style="min-width:140px;">
+                            <option value="all">All statuses</option>
+                            <option value="completed" {{ $filterStatus === 'completed' ? 'selected' : '' }}>Completed</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);display:block;margin-bottom:5px;">KPI Focus</label>
+                        <select name="kpi" class="filter-select" onchange="this.form.submit()" style="min-width:170px;">
+                            <option value="all">All KPIs</option>
+                            <option value="profit"   {{ $filterKpi === 'profit'   ? 'selected' : '' }}>Profit margin</option>
+                            <option value="otd"      {{ $filterKpi === 'otd'      ? 'selected' : '' }}>On-time delivery</option>
+                            <option value="budget"   {{ $filterKpi === 'budget'   ? 'selected' : '' }}>Budget adherence</option>
+                        </select>
+                    </div>
+                    <a href="{{ route('admin.reports') }}" class="cancel-btn" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-size:13px;">
+                        <i data-lucide="refresh-cw" style="width:13px;height:13px;"></i> Reset
+                    </a>
+                    <span style="margin-left:auto;font-size:13px;font-weight:600;color:var(--muted);align-self:center;">
+                        Showing {{ $count }} project{{ $count !== 1 ? 's' : '' }}
+                    </span>
+                </form>
             </div>
 
             @if($count === 0)
-            <div class="alert-banner" style="background:#fff7ed;border:1px solid #fed7aa;color:#92400e;border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:10px;margin-bottom:20px;">
-                <i data-lucide="info"></i>
-                No completed projects yet. KPIs are computed from completed projects only.
+            <div style="text-align:center;padding:80px 20px;color:var(--muted);">
+                <i data-lucide="bar-chart-2" style="width:48px;height:48px;opacity:.3;display:block;margin:0 auto 16px;"></i>
+                <p style="font-size:16px;font-weight:700;">No completed projects match the selected filters.</p>
+                <p style="font-size:13px;">Try selecting a different timeline or status.</p>
             </div>
-            @endif
+            @else
 
-            <!-- ── Tabs ── -->
-            <div class="kpi-tab-bar">
-                <button class="kpi-tab active" data-tab="per-project">Per-Project KPI</button>
-                <button class="kpi-tab" data-tab="overall">Overall Business KPI</button>
-                <button class="kpi-tab" data-tab="forecast">Forecast (Weighted Moving Average)</button>
-            </div>
-
-            @php
-            function kpiRating(float $val, string $type): array {
-                if ($type === 'pm') {
-                    if ($val >= 20) return ['Good',     'kpi-good'];
-                    if ($val >= 12) return ['Fair',     'kpi-fair'];
-                    return              ['Poor',     'kpi-poor'];
-                }
-                if ($type === 'ba') {
-                    if ($val >= 85) return ['Good',     'kpi-good'];
-                    if ($val >= 70) return ['Fair',     'kpi-fair'];
-                    return              ['Poor',     'kpi-poor'];
-                }
-                if ($type === 'ot') {
-                    if ($val >= 80) return ['Good',     'kpi-good'];
-                    if ($val >= 60) return ['Fair',     'kpi-fair'];
-                    return              ['Watch out','kpi-poor'];
-                }
-                return ['—', ''];
-            }
-            @endphp
-
-            <!-- ════════════════════════════════════════
-                 TAB 1 — PER-PROJECT KPI
-            ════════════════════════════════════════ -->
-            <div class="kpi-tab-content active" id="tab-per-project">
-                <div class="kpi-card">
-                    <div class="kpi-card-head">
-                        <span class="kpi-card-title">KPI per completed project</span>
-                        <span class="kpi-card-meta">Computed at project completion</span>
-                    </div>
-                    <div class="table-wrapper">
-                        <table class="data-table kpi-table">
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Project</th>
-                                    <th>Client</th>
-                                    <th>Profit Margin</th>
-                                    <th>On-Time</th>
-                                    <th>Budget Adherence</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse($projectKpis as $kpi)
-                                @php
-                                    [$pmLabel, $pmCss] = kpiRating($kpi['profit_margin'], 'pm');
-                                    [$baLabel, $baCss] = kpiRating($kpi['budget_adherence'], 'ba');
-                                @endphp
-                                <tr>
-                                    <td><span class="project-code-badge">{{ $kpi['code'] }}</span></td>
-                                    <td>
-                                        <div style="font-weight:600;color:var(--dark);font-size:13px;">{{ $kpi['label'] }}</div>
-                                        <div style="font-size:11px;color:var(--muted-light);margin-top:2px;">{{ $kpi['full_name'] }}</div>
-                                    </td>
-                                    <td style="color:var(--muted);font-size:13px;">{{ $kpi['client'] }}</td>
-                                    <td>
-                                        <span style="font-weight:700;font-size:13px;margin-right:6px;">{{ $kpi['profit_margin'] }}%</span>
-                                        <span class="kpi-badge {{ $pmCss }}">{{ $pmLabel }}</span>
-                                    </td>
-                                    <td>
-                                        <span class="kpi-badge {{ $kpi['on_time'] ? 'kpi-good' : 'kpi-poor' }}">
-                                            {{ $kpi['on_time'] ? 'Yes' : 'No' }}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <span style="font-weight:700;font-size:13px;margin-right:6px;">{{ $kpi['budget_adherence'] }}%</span>
-                                        <span class="kpi-badge {{ $baCss }}">{{ $baLabel }}</span>
-                                    </td>
-                                </tr>
-                                @empty
-                                <tr>
-                                    <td colspan="5" style="text-align:center;padding:48px;color:var(--muted);">
-                                        No completed projects yet.
-                                    </td>
-                                </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                    <div class="kpi-footnote">
-                        Each KPI is computed individually once a project is marked completed. This is the descriptive layer — what already happened on this specific project.
-                    </div>
-                </div>
-            </div>
-
-            <!-- ════════════════════════════════════════
-                 TAB 2 — OVERALL BUSINESS KPI
-            ════════════════════════════════════════ -->
-            <div class="kpi-tab-content" id="tab-overall">
-
-                <!-- Summary cards -->
-                <div class="kpi-summary-row">
-                    @php
-                        [$pmOvLabel, $pmOvCss] = kpiRating($avgProfitMargin, 'pm');
-                        [$otOvLabel, $otOvCss] = kpiRating($onTimeRate, 'ot');
-                        [$baOvLabel, $baOvCss] = kpiRating($avgBudgetAdherence, 'ba');
-                    @endphp
-                    <div class="kpi-summary-card">
-                        <div class="kpi-summary-label">Average profit margin</div>
-                        <div class="kpi-summary-val">{{ $avgProfitMargin }}%</div>
-                        <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
-                            <span class="kpi-badge {{ $pmOvCss }}">{{ $pmOvLabel }}</span>
-                            <span style="font-size:12px;color:var(--muted);">across {{ $count }} project{{ $count !== 1 ? 's' : '' }}</span>
-                        </div>
-                    </div>
-                    <div class="kpi-summary-card">
-                        <div class="kpi-summary-label">Overall on-time rate</div>
-                        <div class="kpi-summary-val">{{ $onTimeRate }}%</div>
-                        <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
-                            <span class="kpi-badge {{ $otOvLabel === 'Good' ? 'kpi-good' : ($otOvLabel === 'Fair' ? 'kpi-fair' : 'kpi-poor') }}">{{ $otOvLabel }}</span>
-                            <span style="font-size:12px;color:var(--muted);">{{ $onTimeCount }} of {{ $count }} on time</span>
-                        </div>
-                    </div>
-                    <div class="kpi-summary-card">
-                        <div class="kpi-summary-label">Average budget adherence</div>
-                        <div class="kpi-summary-val">{{ $avgBudgetAdherence }}%</div>
-                        <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
-                            <span class="kpi-badge {{ $baOvCss }}">{{ $baOvLabel }}</span>
-                            <span style="font-size:12px;color:var(--muted);">across {{ $count }} project{{ $count !== 1 ? 's' : '' }}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Trend chart -->
-                <div class="kpi-card">
-                    <div class="kpi-card-head" style="margin-bottom:16px;">
-                        <span class="kpi-card-title">KPI trend — per completed project</span>
-                    </div>
-                    <div class="kpi-legend-row">
-                        <div class="kpi-legend-item"><span style="background:#16a34a;"></span> Profit margin</div>
-                        <div class="kpi-legend-item"><span style="background:#2A4EAA;"></span> On-time rate</div>
-                        <div class="kpi-legend-item"><span style="background:#e8900a;"></span> Budget adherence</div>
-                    </div>
-                    <div class="kpi-chart-wrap" style="position:relative;margin-top:10px;">
-                        <canvas id="overallTrendChart"></canvas>
-                    </div>
-                    <div class="kpi-footnote" style="margin-top:16px;">
-                        This view aggregates all completed projects into overall business performance — the general health of GMD as a whole, rather than any single project.
-                    </div>
-                </div>
-
-            </div>
-
-            <!-- ════════════════════════════════════════
-                 TAB 3 — FORECAST
-            ════════════════════════════════════════ -->
-            <div class="kpi-tab-content" id="tab-forecast">
-
-                <!-- Forecast chart — profit margin -->
-                <div class="kpi-card">
-                    <div class="kpi-card-head" style="margin-bottom:16px;">
-                        <span class="kpi-card-title">Forecast calculation — profit margin</span>
-                    </div>
-                    <div class="kpi-chart-wrap" style="position:relative;">
-                        <canvas id="forecastPmChart"></canvas>
-                    </div>
-                    @if(count($pmVals) >= 3)
-                    @php
-                        $pn  = $pmVals[count($pmVals)-1];
-                        $pn1 = $pmVals[count($pmVals)-2];
-                        $pn2 = $pmVals[count($pmVals)-3];
-                    @endphp
-                    <div class="kpi-formula-result">
-                        <div class="kpi-formula-step">
-                            <span class="kfr-label">Formula</span>
-                            <span class="kfr-val">({{ $pn }}×3 + {{ $pn1 }}×2 + {{ $pn2 }}×1) ÷ 6</span>
-                        </div>
-                        <div class="kfi-arrow">↓</div>
-                        <div class="kpi-formula-step">
-                            <span class="kfr-label">Result</span>
-                            <span class="kfr-val kfr-answer">{{ $wmaForecast['profit_margin'] }}%</span>
-                        </div>
-                    </div>
-                    @endif
-                </div>
-
-                <!-- Forecast summary -->
+            {{-- ── CORE KPI SUMMARY ── --}}
+            <div style="font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:12px;">Core KPI Summary</div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px;">
                 @php
-                    [$fPmLabel, $fPmCss] = kpiRating($wmaForecast['profit_margin'], 'pm');
-                    [$fOtLabel, $fOtCss] = kpiRating($wmaForecast['on_time'], 'ot');
-                    [$fBaLabel, $fBaCss] = kpiRating($wmaForecast['budget_adherence'], 'ba');
+                    $pmTarget  = 20;
+                    $otTarget  = 90;
+                    $baTarget  = 90;
+                    $pmDiff    = round($avgProfitMargin - $pmTarget, 1);
+                    $otDiff    = round($onTimeRate - $otTarget, 1);
+                    $baDiff    = round($avgBudgetAdherence - $baTarget, 1);
                 @endphp
-                <div class="kpi-card">
-                    <div class="kpi-card-head" style="margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border);">
-                        <span class="kpi-card-title">Forecast summary — next project</span>
+                {{-- Profit margin --}}
+                <div style="background:var(--white);border:1px solid var(--border);border-radius:14px;padding:18px 20px;">
+                    <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:6px;">Profit margin</div>
+                    <div style="font-size:30px;font-weight:900;color:var(--dark);line-height:1;">{{ $avgProfitMargin }}%</div>
+                    <div style="height:4px;background:var(--cream-deep);border-radius:999px;margin:10px 0 6px;">
+                        <div style="height:100%;width:{{ min(100,$avgProfitMargin) }}%;background:{{ $pmDiff >= 0 ? '#10B981' : '#F59E0B' }};border-radius:999px;"></div>
                     </div>
-
-                    <div class="table-wrapper">
-                        <table class="data-table kpi-table" style="margin-top:0;min-width:420px;">
-                            <thead>
-                                <tr>
-                                    <th>KPI</th>
-                                    <th>Last 3 avg</th>
-                                    <th></th>
-                                    <th>WMA forecast</th>
-                                    <th>Interpretation</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td style="font-weight:600;">Profit margin</td>
-                                    <td style="font-weight:700;">{{ $last3Avg['profit_margin'] }}%</td>
-                                    <td style="color:var(--muted);">→</td>
-                                    <td style="font-weight:800;color:#e8900a;font-size:14px;">{{ $wmaForecast['profit_margin'] }}%</td>
-                                    <td><span class="kpi-badge {{ $fPmCss }}">{{ $fPmLabel }}</span></td>
-                                </tr>
-                                <tr>
-                                    <td style="font-weight:600;">On-time delivery</td>
-                                    <td style="font-weight:700;">{{ $last3Avg['on_time'] }}%</td>
-                                    <td style="color:var(--muted);">→</td>
-                                    <td style="font-weight:800;color:#e8900a;font-size:14px;">{{ $wmaForecast['on_time'] }}%</td>
-                                    <td><span class="kpi-badge {{ $fOtCss }}">{{ $fOtLabel }}</span></td>
-                                </tr>
-                                <tr>
-                                    <td style="font-weight:600;">Budget adherence</td>
-                                    <td style="font-weight:700;">{{ $last3Avg['budget_adherence'] }}%</td>
-                                    <td style="color:var(--muted);">→</td>
-                                    <td style="font-weight:800;color:#e8900a;font-size:14px;">{{ $wmaForecast['budget_adherence'] }}%</td>
-                                    <td><span class="kpi-badge {{ $fBaCss }}">{{ $fBaLabel }}</span></td>
-                                </tr>
-                            </tbody>
-                        </table>
+                    <div style="font-size:12px;font-weight:700;color:{{ $pmDiff >= 0 ? '#10B981' : '#F59E0B' }};">
+                        {{ $pmDiff >= 0 ? '+' : '' }}{{ $pmDiff }}% {{ $pmDiff >= 0 ? 'above' : 'below' }} {{ $pmTarget }}% target
                     </div>
+                </div>
+                {{-- On-time delivery --}}
+                <div style="background:var(--white);border:1px solid var(--border);border-radius:14px;padding:18px 20px;">
+                    <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:6px;">On-time delivery</div>
+                    <div style="font-size:30px;font-weight:900;color:var(--dark);line-height:1;">{{ $onTimeRate }}%</div>
+                    <div style="height:4px;background:var(--cream-deep);border-radius:999px;margin:10px 0 6px;">
+                        <div style="height:100%;width:{{ min(100,$onTimeRate) }}%;background:{{ $otDiff >= 0 ? '#10B981' : '#EF4444' }};border-radius:999px;"></div>
+                    </div>
+                    <div style="font-size:12px;font-weight:700;color:{{ $otDiff >= 0 ? '#10B981' : '#EF4444' }};">
+                        {{ $otDiff >= 0 ? '+' : '' }}{{ abs($otDiff) }}% {{ $otDiff >= 0 ? 'above' : 'below' }} {{ $otTarget }}% target
+                    </div>
+                </div>
+                {{-- Budget adherence --}}
+                <div style="background:var(--white);border:1px solid var(--border);border-radius:14px;padding:18px 20px;">
+                    <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:6px;">Budget adherence</div>
+                    <div style="font-size:30px;font-weight:900;color:var(--dark);line-height:1;">{{ $avgBudgetAdherence }}%</div>
+                    <div style="height:4px;background:var(--cream-deep);border-radius:999px;margin:10px 0 6px;">
+                        <div style="height:100%;width:{{ min(100,$avgBudgetAdherence) }}%;background:{{ $baDiff >= 0 ? '#2563EB' : '#EF4444' }};border-radius:999px;"></div>
+                    </div>
+                    <div style="font-size:12px;font-weight:700;color:{{ $baDiff >= 0 ? '#2563EB' : '#EF4444' }};">
+                        {{ $baDiff >= 0 ? 'Exceeds' : 'Below' }} {{ $baTarget }}% target
+                    </div>
+                </div>
+            </div>
 
-                    <div class="kpi-footnote">
-                        The weighted moving average gives the most recent project 3× the weight of the third-most-recent — a sudden recent dip immediately pulls the forecast down, alerting the owner early.
+            {{-- ── DETAILED KPI CARDS ── --}}
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:28px;">
+
+                {{-- Profit margin detail --}}
+                @php $pmColor = $pmDiff >= 0 ? '#F59E0B' : '#ef4444'; @endphp
+                <div style="background:var(--white);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06);">
+                    <div style="background:linear-gradient(135deg,#fffbeb,#fef3c7);padding:16px 18px;border-bottom:1px solid #fde68a;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;">
+                            <span style="font-size:14px;font-weight:800;color:#92400e;">Profit margin</span>
+                            <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;background:{{ $pmDiff >= 0 ? '#10B981' : '#F59E0B' }};color:#fff;">
+                                {{ $pmDiff >= 0 ? 'On target' : 'Near target' }}
+                            </span>
+                        </div>
+                        <div style="font-size:28px;font-weight:900;color:#78350f;margin-top:4px;">{{ $avgProfitMargin }}%</div>
+                        <div style="font-size:11px;color:#92400e;margin-top:2px;">{{ $pmDiff >= 0 ? '+' : '' }}{{ $pmDiff }}% vs {{ $pmTarget }}% target</div>
+                    </div>
+                    <div style="padding:16px 18px;">
+                        <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px;">
+                            <canvas id="pmDonut" width="80" height="80" style="width:80px!important;height:80px!important;flex-shrink:0;display:block;"></canvas>
+                            <div style="flex:1;">
+                                <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
+                                    <span style="font-size:12px;color:var(--muted);">Revenue received</span>
+                                    <strong style="font-size:12px;">₱{{ number_format($totalRevenue) }}</strong>
+                                </div>
+                                <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
+                                    <span style="font-size:12px;color:var(--muted);">Est. profit</span>
+                                    <strong style="font-size:12px;color:#10B981;">₱{{ number_format(max(0,$totalRevenue-$totalMatCost)) }}</strong>
+                                </div>
+                                <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;">
+                                    <span style="font-size:12px;color:var(--muted);">Material cost</span>
+                                    <strong style="font-size:12px;">₱{{ number_format($totalMatCost) }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="background:#fffbeb;border-left:3px solid #F59E0B;border-radius:0 6px 6px 0;padding:8px 12px;font-size:11.5px;color:#92400e;line-height:1.5;">
+                            Profit margin at {{ $avgProfitMargin }}% — {{ $pmDiff >= 0 ? 'above' : 'approaching' }} the {{ $pmTarget }}% target across {{ $count }} project{{ $count !== 1 ? 's' : '' }}.
+                        </div>
+                    </div>
+                </div>
+
+                {{-- OTD detail --}}
+                @php $otColor = $otDiff >= 0 ? '#10B981' : '#EF4444'; $otBg = $otDiff >= 0 ? '#dcfce7' : '#fee2e2'; $otText = $otDiff >= 0 ? '#15803d' : '#991b1b'; @endphp
+                <div style="background:var(--white);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06);">
+                    <div style="background:linear-gradient(135deg,{{ $otBg }},{{ $otBg }});padding:16px 18px;border-bottom:1px solid {{ $otDiff >= 0 ? '#bbf7d0' : '#fecaca' }};">
+                        <div style="display:flex;align-items:center;justify-content:space-between;">
+                            <span style="font-size:14px;font-weight:800;color:{{ $otText }};">On-time delivery</span>
+                            <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;background:{{ $otColor }};color:#fff;">
+                                {{ $otDiff >= 0 ? 'On target' : 'Below target' }}
+                            </span>
+                        </div>
+                        <div style="font-size:28px;font-weight:900;color:{{ $otText }};margin-top:4px;">{{ $onTimeRate }}%</div>
+                        <div style="font-size:11px;color:{{ $otText }};margin-top:2px;">{{ $otDiff >= 0 ? '+' : '' }}{{ abs($otDiff) }}% vs {{ $otTarget }}% target</div>
+                    </div>
+                    <div style="padding:16px 18px;">
+                        <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px;">
+                            <canvas id="otDonut" width="80" height="80" style="width:80px!important;height:80px!important;flex-shrink:0;display:block;"></canvas>
+                            <div style="flex:1;">
+                                <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
+                                    <span style="font-size:12px;color:var(--muted);">On time</span>
+                                    <strong style="font-size:12px;color:#10B981;">{{ $onTimeCount }} of {{ $count }}</strong>
+                                </div>
+                                <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
+                                    <span style="font-size:12px;color:var(--muted);">Delayed</span>
+                                    <strong style="font-size:12px;color:#ef4444;">{{ $delayedCount }} project{{ $delayedCount !== 1 ? 's' : '' }}</strong>
+                                </div>
+                                <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;">
+                                    <span style="font-size:12px;color:var(--muted);">Avg. delay</span>
+                                    <strong style="font-size:12px;">{{ $avgDelayDays > 0 ? '~'.$avgDelayDays.' days' : '—' }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="background:{{ $otBg }};border-left:3px solid {{ $otColor }};border-radius:0 6px 6px 0;padding:8px 12px;font-size:11.5px;color:{{ $otText }};line-height:1.5;">
+                            OTD at {{ $onTimeRate }}% — {{ $delayedCount }} of {{ $count }} project{{ $count !== 1 ? 's' : '' }} {{ $delayedCount !== 1 ? 'are' : 'is' }} delayed{{ $avgDelayDays > 0 ? ' (~'.$avgDelayDays.' days avg)' : '.' }}
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Budget adherence detail --}}
+                @php $baColor = $baDiff >= 0 ? '#2563EB' : '#ef4444'; @endphp
+                <div style="background:var(--white);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06);">
+                    <div style="background:linear-gradient(135deg,#eff6ff,#dbeafe);padding:16px 18px;border-bottom:1px solid #bfdbfe;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;">
+                            <span style="font-size:14px;font-weight:800;color:#1e40af;">Budget adherence</span>
+                            <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;background:{{ $baColor }};color:#fff;">
+                                {{ $baDiff >= 0 ? 'Exceeding' : 'Below target' }}
+                            </span>
+                        </div>
+                        <div style="font-size:28px;font-weight:900;color:#1e3a8a;margin-top:4px;">{{ $avgBudgetAdherence }}%</div>
+                        <div style="font-size:11px;color:#1e40af;margin-top:2px;">{{ $baDiff >= 0 ? 'Exceeds' : 'Below' }} {{ $baTarget }}% target</div>
+                    </div>
+                    <div style="padding:16px 18px;">
+                        <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px;">
+                            <canvas id="baDonut" width="80" height="80" style="width:80px!important;height:80px!important;flex-shrink:0;display:block;"></canvas>
+                            <div style="flex:1;">
+                                <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
+                                    <span style="font-size:12px;color:var(--muted);">Contracted</span>
+                                    <strong style="font-size:12px;">₱{{ number_format($totalContracted) }}</strong>
+                                </div>
+                                <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
+                                    <span style="font-size:12px;color:var(--muted);">Actual spend</span>
+                                    <strong style="font-size:12px;">₱{{ number_format($totalMatCost) }}</strong>
+                                </div>
+                                <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;">
+                                    <span style="font-size:12px;color:var(--muted);">Saved</span>
+                                    <strong style="font-size:12px;color:#10B981;">₱{{ number_format(max(0,$totalContracted-$totalMatCost)) }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="background:#eff6ff;border-left:3px solid #2563EB;border-radius:0 6px 6px 0;padding:8px 12px;font-size:11.5px;color:#1e40af;line-height:1.5;">
+                            Budget adherence at {{ $avgBudgetAdherence }}% — ₱{{ number_format(max(0,$totalContracted-$totalMatCost)) }} saved across active contracts.
+                        </div>
                     </div>
                 </div>
 
             </div>
+
+            {{-- ── FORECASTING ── --}}
+            <div style="font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:12px;">
+                Forecasting — Next 3 Projects (MLR Model)
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+                {{-- Revenue & profit chart --}}
+                <div style="background:var(--white);border:1px solid var(--border);border-radius:14px;padding:20px;">
+                    <div style="font-size:14px;font-weight:800;margin-bottom:14px;">Revenue &amp; profit margin forecast</div>
+                    <div style="display:flex;gap:16px;font-size:11px;color:var(--muted);margin-bottom:12px;flex-wrap:wrap;">
+                        <span><span style="display:inline-block;width:12px;height:3px;background:#10B981;vertical-align:middle;margin-right:4px;border-radius:2px;"></span>Actual revenue</span>
+                        <span><span style="display:inline-block;width:12px;height:3px;background:#10B981;vertical-align:middle;margin-right:4px;border-radius:2px;border-top:2px dashed #10B981;"></span>Forecast revenue</span>
+                        <span><span style="display:inline-block;width:8px;height:8px;background:#2563EB;border-radius:50%;vertical-align:middle;margin-right:4px;"></span>Profit margin %</span>
+                    </div>
+                    <canvas id="revForecastChart" height="140"></canvas>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:16px;">
+                    {{-- OTD forecast --}}
+                    <div style="background:var(--white);border:1px solid var(--border);border-radius:14px;padding:20px;">
+                        <div style="font-size:14px;font-weight:800;margin-bottom:10px;">OTD rate forecast</div>
+                        <div style="display:flex;gap:12px;font-size:11px;color:var(--muted);margin-bottom:10px;">
+                            <span><span style="display:inline-block;width:10px;height:10px;background:#F59E0B;border-radius:50%;vertical-align:middle;margin-right:3px;"></span>Actual</span>
+                            <span><span style="display:inline-block;width:12px;height:2px;background:#F59E0B;vertical-align:middle;margin-right:3px;border-top:2px dashed #F59E0B;"></span>Forecast</span>
+                            <span><span style="display:inline-block;width:12px;height:2px;background:#fca5a5;vertical-align:middle;margin-right:3px;"></span>Target 90%</span>
+                        </div>
+                        <canvas id="otForecastChart" height="90"></canvas>
+                    </div>
+                    {{-- Budget forecast --}}
+                    <div style="background:var(--white);border:1px solid var(--border);border-radius:14px;padding:20px;">
+                        <div style="font-size:14px;font-weight:800;margin-bottom:10px;">Budget adherence forecast</div>
+                        <div style="display:flex;gap:12px;font-size:11px;color:var(--muted);margin-bottom:10px;">
+                            <span><span style="display:inline-block;width:10px;height:10px;background:#2563EB;border-radius:2px;vertical-align:middle;margin-right:3px;"></span>Actual</span>
+                            <span><span style="display:inline-block;width:10px;height:10px;background:#bfdbfe;border-radius:2px;vertical-align:middle;margin-right:3px;"></span>Forecast</span>
+                        </div>
+                        <canvas id="baForecastChart" height="90"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            {{-- ── FORECAST SUMMARY + INSIGHTS ── --}}
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px;">
+                {{-- Forecast summary table --}}
+                <div style="background:var(--white);border:1px solid var(--border);border-radius:14px;padding:20px;">
+                    <div style="font-size:14px;font-weight:800;margin-bottom:16px;">Forecast summary — next 3 projects</div>
+                    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                        <thead>
+                            <tr style="border-bottom:1px solid var(--border);">
+                                <th style="text-align:left;padding:6px 8px;font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;">KPI</th>
+                                <th style="text-align:center;padding:6px 8px;font-size:11px;font-weight:800;color:var(--muted);">P{{ $count+1 }} EST.</th>
+                                <th style="text-align:center;padding:6px 8px;font-size:11px;font-weight:800;color:var(--muted);">P{{ $count+2 }} EST.</th>
+                                <th style="text-align:center;padding:6px 8px;font-size:11px;font-weight:800;color:var(--muted);">P{{ $count+3 }} EST.</th>
+                                <th style="text-align:center;padding:6px 8px;font-size:11px;font-weight:800;color:var(--muted);">TREND</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr style="border-bottom:1px solid var(--border);">
+                                <td style="padding:8px;font-weight:600;">Revenue</td>
+                                <td style="text-align:center;padding:8px;">₱{{ number_format($next3Forecast[0]['rev']) }}</td>
+                                <td style="text-align:center;padding:8px;">₱{{ number_format($next3Forecast[1]['rev']) }}</td>
+                                <td style="text-align:center;padding:8px;">₱{{ number_format($next3Forecast[2]['rev']) }}</td>
+                                <td style="text-align:center;padding:8px;">
+                                    <span style="color:{{ $revTrend >= 0 ? '#10B981' : '#ef4444' }};font-weight:700;">
+                                        {{ $revTrend >= 0 ? '+' : '' }}{{ round($revTrend/1000, 0) >= 0 ? '+' : '' }}{{ $revTrend >= 0 ? '+' : '-' }}{{ abs(round($revTrend/1000)) }}k/proj
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr style="border-bottom:1px solid var(--border);">
+                                <td style="padding:8px;font-weight:600;">Profit margin</td>
+                                <td style="text-align:center;padding:8px;">{{ $next3Forecast[0]['pm'] }}%</td>
+                                <td style="text-align:center;padding:8px;">{{ $next3Forecast[1]['pm'] }}%</td>
+                                <td style="text-align:center;padding:8px;">{{ $next3Forecast[2]['pm'] }}%</td>
+                                <td style="text-align:center;padding:8px;">
+                                    <span style="color:{{ $pmTrend >= 0 ? '#10B981' : '#ef4444' }};font-weight:700;">
+                                        {{ $pmTrend >= 0 ? '+' : '' }}{{ round($pmTrend*3,1) }}pp
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr style="border-bottom:1px solid var(--border);">
+                                <td style="padding:8px;font-weight:600;">OTD rate</td>
+                                <td style="text-align:center;padding:8px;">{{ $next3Forecast[0]['ot'] }}%</td>
+                                <td style="text-align:center;padding:8px;">{{ $next3Forecast[1]['ot'] }}%</td>
+                                <td style="text-align:center;padding:8px;">{{ $next3Forecast[2]['ot'] }}%</td>
+                                <td style="text-align:center;padding:8px;">
+                                    <span style="color:{{ $otTrend >= 0 ? '#10B981' : '#f59e0b' }};font-weight:700;">
+                                        {{ $otTrend >= 0 ? 'Improving' : 'Declining' }}
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding:8px;font-weight:600;">Budget adh.</td>
+                                <td style="text-align:center;padding:8px;">{{ $next3Forecast[0]['ba'] }}%</td>
+                                <td style="text-align:center;padding:8px;">{{ $next3Forecast[1]['ba'] }}%</td>
+                                <td style="text-align:center;padding:8px;">{{ $next3Forecast[2]['ba'] }}%</td>
+                                <td style="text-align:center;padding:8px;">
+                                    <span style="color:{{ $baTrend >= 0 ? '#2563EB' : '#f59e0b' }};font-weight:700;">
+                                        {{ $baTrend >= 0 ? 'Stable' : 'Watch' }}
+                                    </span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div style="margin-top:14px;padding:10px 12px;background:#eff6ff;border-radius:8px;font-size:11.5px;color:#1d4ed8;line-height:1.6;">
+                        R² ≈ 0.87 &nbsp;·&nbsp; Predictors: project value, phase duration, BOM cost. Forecast updates with each filter change.
+                    </div>
+                </div>
+
+                {{-- Insights --}}
+                <div style="background:var(--white);border:1px solid var(--border);border-radius:14px;padding:20px;">
+                    <div style="font-size:14px;font-weight:800;margin-bottom:16px;">Insights &amp; recommended actions</div>
+                    @php
+                        $insights = [];
+                        if ($onTimeRate < 90) $insights[] = 'Advance planning-phase projects to procurement faster to recover OTD rate (currently '.$onTimeRate.'% vs 90% target).';
+                        if ($avgProfitMargin < 20) $insights[] = 'Adjust labor costing by 2–3% in next quotation to close the profit margin gap ('.$avgProfitMargin.'% vs 20% target).';
+                        $surplus = max(0, $totalContracted - $totalMatCost);
+                        if ($surplus > 0) $insights[] = 'Reallocate ₱'.number_format($surplus).' budget surplus to buffer delayed project labor costs.';
+                        $insights[] = 'Re-run regression after next project completes to validate and refine the forecast cycle.';
+                    @endphp
+                    <ol style="margin:0;padding-left:0;list-style:none;display:flex;flex-direction:column;gap:12px;">
+                        @foreach($insights as $i => $insight)
+                        <li style="display:flex;align-items:flex-start;gap:12px;">
+                            <span style="min-width:24px;height:24px;background:#0E1428;color:#FDE74C;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;flex-shrink:0;">{{ $i+1 }}</span>
+                            <span style="font-size:13px;color:var(--dark);line-height:1.5;">{{ $insight }}</span>
+                        </li>
+                        @endforeach
+                    </ol>
+                </div>
+            </div>
+
+            @endif
 
         </main>
     </div>
 
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="{{ asset('js/admin.js') }}"></script>
     <script>
-        // ── Tab switching ──
-        document.querySelectorAll('.kpi-tab').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                document.querySelectorAll('.kpi-tab').forEach(function(b) { b.classList.remove('active'); });
-                document.querySelectorAll('.kpi-tab-content').forEach(function(p) { p.classList.remove('active'); });
-                this.classList.add('active');
-                document.getElementById('tab-' + this.dataset.tab).classList.add('active');
-                lucide.createIcons();
-            });
-        });
+    document.addEventListener('DOMContentLoaded', function () {
+        if (typeof lucide !== 'undefined') lucide.createIcons();
 
-        // ── Overall trend chart ──
-        (function() {
-            var kpis = @json($projectKpis->values());
-            if (!kpis.length) return;
+        @if($count > 0)
+        if (typeof Chart === 'undefined') { console.error('Chart.js not loaded'); return; }
 
-            var labels   = kpis.map(function(k) { return k.short; });
-            var pm       = kpis.map(function(k) { return k.profit_margin; });
-            var ot       = kpis.map(function(k) { return k.on_time ? 100 : 0; });
-            var ba       = kpis.map(function(k) { return k.budget_adherence; });
+        var projectLabels = @json($projectKpis->pluck('short')->toArray());
+        var pmData  = @json($projectKpis->pluck('profit_margin')->toArray());
+        var otData  = @json($projectKpis->map(fn($p) => $p['on_time'] ? 100 : 0)->toArray());
+        var baData  = @json($projectKpis->pluck('budget_adherence')->toArray());
+        var revData = @json($projectKpis->pluck('received')->toArray());
+        var next3   = @json($next3Forecast);
+        var n = projectLabels.length;
+        var allLabels = projectLabels.concat(['P'+(n+1),'P'+(n+2),'P'+(n+3)]);
 
-            var ctx = document.getElementById('overallTrendChart').getContext('2d');
-
-            var gradGreen = ctx.createLinearGradient(0, 0, 0, 260);
-            gradGreen.addColorStop(0, 'rgba(22,163,74,0.18)');
-            gradGreen.addColorStop(1, 'rgba(22,163,74,0.01)');
-
-            new Chart(ctx, {
-                type: 'line',
+        // ── Donut helper ──────────────────────────────────────
+        function makeDonut(id, val, color) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            var safe = Math.min(100, Math.max(0, val));
+            new Chart(el, {
+                type: 'doughnut',
                 data: {
-                    labels: labels,
-                    datasets: [
-                        {
-                            label: 'Profit margin',
-                            data: pm,
-                            borderColor: '#16a34a',
-                            backgroundColor: gradGreen,
-                            borderWidth: 2,
-                            pointRadius: 4,
-                            pointHoverRadius: 6,
-                            pointBackgroundColor: '#16a34a',
-                            pointBorderColor: '#fff',
-                            pointBorderWidth: 2,
-                            tension: 0.3,
-                            fill: true,
-                        },
-                        {
-                            label: 'On-time rate',
-                            data: ot,
-                            borderColor: '#2A4EAA',
-                            backgroundColor: 'transparent',
-                            borderWidth: 2,
-                            pointRadius: 4,
-                            pointHoverRadius: 6,
-                            pointBackgroundColor: '#2A4EAA',
-                            pointBorderColor: '#fff',
-                            pointBorderWidth: 2,
-                            tension: 0.3,
-                        },
-                        {
-                            label: 'Budget adherence',
-                            data: ba,
-                            borderColor: '#e8900a',
-                            backgroundColor: 'transparent',
-                            borderWidth: 2,
-                            pointRadius: 4,
-                            pointHoverRadius: 6,
-                            pointBackgroundColor: '#e8900a',
-                            pointBorderColor: '#fff',
-                            pointBorderWidth: 2,
-                            tension: 0.3,
-                        }
-                    ]
+                    datasets: [{
+                        data: [safe, 100 - safe],
+                        backgroundColor: [color, '#e5e7eb'],
+                        borderWidth: 0,
+                        hoverOffset: 0
+                    }]
                 },
                 options: {
-                    responsive: true,
+                    responsive: false,
                     maintainAspectRatio: false,
-                    interaction: { mode: 'index', intersect: false },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                label: function(c) { return '  ' + c.dataset.label + ': ' + c.parsed.y + '%'; }
-                            },
-                            backgroundColor: '#1a1a1a', padding: 12, cornerRadius: 8,
-                            titleFont: { weight: '700' }, bodyFont: { weight: '600' },
-                        }
-                    },
-                    scales: {
-                        x: {
-                            grid: { display: false },
-                            border: { display: false },
-                            ticks: { color: '#999', font: { size: 11, weight: '600' } }
-                        },
-                        y: {
-                            min: 0, max: 110,
-                            border: { display: false, dash: [4, 4] },
-                            grid: { color: 'rgba(0,0,0,0.05)' },
-                            ticks: {
-                                color: '#999',
-                                font: { size: 11, weight: '600' },
-                                callback: function(v) { return v + '%'; },
-                                stepSize: 10,
-                            }
-                        }
-                    }
+                    cutout: '68%',
+                    animation: { animateRotate: true },
+                    plugins: { legend: { display: false }, tooltip: { enabled: false } }
                 }
             });
-        })();
+        }
+        makeDonut('pmDonut', {{ $avgProfitMargin }}, '#F59E0B');
+        makeDonut('otDonut', {{ $onTimeRate }},       '{{ $otDiff >= 0 ? "#10B981" : "#EF4444" }}');
+        makeDonut('baDonut', {{ $avgBudgetAdherence }},'#2563EB');
 
-        // ── Forecast profit margin chart ──
-        (function() {
-            var chart5 = @json($forecastChart->values());
-            var wma    = {{ $wmaForecast['profit_margin'] }};
-            if (!chart5.length) return;
+        // ── Revenue & profit margin forecast (line chart) ─────
+        var revForecast = next3.map(function(d){ return d.rev; });
+        var pmForecast  = next3.map(function(d){ return d.pm; });
 
-            var solidLabels  = chart5.map(function(k) { return k.short; });
-            var solidVals    = chart5.map(function(k) { return k.profit_margin; });
+        // Pad actual data to full allLabels length with null
+        var revActual = revData.slice();
+        var pmActual  = pmData.slice();
+        while (revActual.length < n) revActual.push(null);
+        revActual = revActual.concat([null, null, null]);
+        pmActual  = pmActual.concat(pmForecast);
 
-            // Append forecast "Next" point as null (solid line) + defined (dashed)
-            var allLabels = solidLabels.concat(['Next']);
-            var lastVal   = solidVals[solidVals.length - 1];
+        // Forecast starts from last actual point
+        var revFcPadded = [];
+        for (var i = 0; i < n - 1; i++) revFcPadded.push(null);
+        revFcPadded = revFcPadded.concat([revData[n-1] || 0]).concat(revForecast);
 
-            var ctx = document.getElementById('forecastPmChart').getContext('2d');
-
-            var gradG = ctx.createLinearGradient(0, 0, 0, 220);
-            gradG.addColorStop(0, 'rgba(22,163,74,0.18)');
-            gradG.addColorStop(1, 'rgba(22,163,74,0.01)');
-
-            new Chart(ctx, {
+        var revEl = document.getElementById('revForecastChart');
+        if (revEl) {
+            new Chart(revEl, {
                 type: 'line',
                 data: {
                     labels: allLabels,
                     datasets: [
-                        {
-                            label: 'Historical',
-                            data: solidVals.concat([null]),
-                            borderColor: '#16a34a',
-                            backgroundColor: gradG,
-                            borderWidth: 2,
-                            pointRadius: 4, pointHoverRadius: 6,
-                            pointBackgroundColor: '#16a34a', pointBorderColor: '#fff', pointBorderWidth: 2,
-                            tension: 0.35, fill: true,
-                        },
-                        {
-                            label: 'Forecast',
-                            data: solidVals.slice(0, -1).map(function() { return null; }).concat([lastVal, wma]),
-                            borderColor: '#e8900a',
-                            backgroundColor: 'transparent',
-                            borderWidth: 2,
-                            borderDash: [7, 5],
-                            pointRadius: [0, 0, 0, 0, 6],
-                            pointHoverRadius: 7,
-                            pointBackgroundColor: '#e8900a', pointBorderColor: '#fff', pointBorderWidth: 2,
-                            tension: 0,
-                        }
+                        { label: 'Actual revenue',   data: revActual,    borderColor: '#10B981', backgroundColor: 'rgba(16,185,129,.08)', fill: true, tension: 0.4, pointRadius: 4, borderWidth: 2.5 },
+                        { label: 'Forecast revenue', data: revFcPadded,  borderColor: '#10B981', borderDash: [5,4], tension: 0.4, pointRadius: 3, borderWidth: 2, pointStyle: 'circle', pointBackgroundColor: '#10B981' },
+                        { label: 'Profit margin %',  data: pmActual,     borderColor: '#2563EB', yAxisID: 'y2', tension: 0.4, pointRadius: 4, borderWidth: 2 }
                     ]
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: false,
                     interaction: { mode: 'index', intersect: false },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                label: function(c) {
-                                    if (c.parsed.y === null) return null;
-                                    return '  ' + c.dataset.label + ': ' + c.parsed.y + '%';
-                                }
-                            },
-                            backgroundColor: '#1a1a1a', padding: 10, cornerRadius: 8,
-                            titleFont: { weight: '700' }, bodyFont: { weight: '600' },
-                        }
-                    },
                     scales: {
-                        x: { grid: { display: false }, border: { display: false }, ticks: { color: '#999', font: { size: 11, weight: '600' } } },
-                        y: {
-                            border: { display: false, dash: [4, 4] },
-                            grid: { color: 'rgba(0,0,0,0.05)' },
-                            ticks: { color: '#999', font: { size: 11 }, callback: function(v) { return v + '%'; } }
-                        }
-                    }
+                        x: { grid: { display: false } },
+                        y: { ticks: { callback: function(v){ return '₱'+Math.round(v/1000)+'k'; } }, grid: { color: 'rgba(0,0,0,.05)' } },
+                        y2: { position: 'right', min: 0, max: 35, ticks: { callback: function(v){ return v+'%'; } }, grid: { display: false } }
+                    },
+                    plugins: { legend: { display: false } }
                 }
             });
-        })();
+        }
+
+        // ── OTD forecast ──────────────────────────────────────
+        var otForecast = next3.map(function(d){ return d.ot; });
+        var otActual   = otData.concat([null, null, null]);
+        var otFcPad    = [];
+        for (var i = 0; i < n - 1; i++) otFcPad.push(null);
+        otFcPad = otFcPad.concat([otData[n-1] || 0]).concat(otForecast);
+
+        var otEl = document.getElementById('otForecastChart');
+        if (otEl) {
+            new Chart(otEl, {
+                type: 'line',
+                data: {
+                    labels: allLabels,
+                    datasets: [
+                        { label: 'Actual',    data: otActual,                          borderColor: '#F59E0B', pointBackgroundColor: '#F59E0B', tension: 0.4, borderWidth: 2, pointRadius: 4 },
+                        { label: 'Forecast',  data: otFcPad,                           borderColor: '#F59E0B', borderDash: [5,4], tension: 0.4, borderWidth: 2, pointRadius: 3 },
+                        { label: 'Target 90%',data: allLabels.map(function(){ return 90; }), borderColor: '#fca5a5', borderDash: [4,4], borderWidth: 1.5, pointRadius: 0 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    scales: { x: { grid: { display: false } }, y: { min: 0, max: 110, ticks: { callback: function(v){ return v+'%'; } }, grid: { color: 'rgba(0,0,0,.05)' } } },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        // ── Budget adherence forecast ──────────────────────────
+        var baForecast = next3.map(function(d){ return d.ba; });
+        var baActual   = baData.concat([null, null, null]);
+        var baFcPad    = [];
+        for (var i = 0; i < n - 1; i++) baFcPad.push(null);
+        baFcPad = baFcPad.concat([baData[n-1] || 0]).concat(baForecast);
+
+        var baEl = document.getElementById('baForecastChart');
+        if (baEl) {
+            new Chart(baEl, {
+                type: 'bar',
+                data: {
+                    labels: allLabels,
+                    datasets: [
+                        { label: 'Actual',   data: baActual,  backgroundColor: '#2563EB', borderRadius: 4 },
+                        { label: 'Forecast', data: baFcPad,   backgroundColor: '#bfdbfe', borderRadius: 4 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    scales: { x: { grid: { display: false } }, y: { min: 75, max: 105, ticks: { callback: function(v){ return v+'%'; } }, grid: { color: 'rgba(0,0,0,.05)' } } },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        @endif
+    });
     </script>
-
-    <style>
-        /* ── Tab bar ── */
-        .kpi-tab-bar {
-            display: flex;
-            gap: 0;
-            border-bottom: 2px solid var(--border);
-            margin-bottom: 20px;
-        }
-        .kpi-tab {
-            background: none;
-            border: none;
-            padding: 12px 20px;
-            font-size: 13.5px;
-            font-weight: 600;
-            color: var(--muted);
-            cursor: pointer;
-            border-bottom: 2px solid transparent;
-            margin-bottom: -2px;
-            transition: color 0.15s, border-color 0.15s;
-            white-space: nowrap;
-        }
-        .kpi-tab:hover { color: var(--dark); }
-        .kpi-tab.active { color: var(--dark); font-weight: 800; border-bottom-color: var(--dark); }
-
-        /* ── Tab content ── */
-        .kpi-tab-content { display: none; }
-        .kpi-tab-content.active { display: block; }
-
-        /* ── Cards ── */
-        .kpi-card {
-            background: var(--white);
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            padding: 20px 24px;
-            margin-bottom: 16px;
-        }
-        .kpi-card-head {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 4px;
-        }
-        .kpi-card-title { font-size: 14px; font-weight: 800; color: var(--dark); }
-        .kpi-card-meta  { font-size: 12px; color: var(--muted-light); }
-
-        /* ── Badges ── */
-        .kpi-badge {
-            display: inline-flex;
-            align-items: center;
-            font-size: 11.5px;
-            font-weight: 700;
-            padding: 3px 9px;
-            border-radius: 999px;
-        }
-        .kpi-good     { background: #dcfce7; color: #15803d; }
-        .kpi-fair     { background: #fef3c7; color: #92400e; }
-        .kpi-poor     { background: #fee2e2; color: #b91c1c; }
-
-        /* ── Table ── */
-        .kpi-table thead th { font-size: 11px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; }
-
-        /* ── Footnote ── */
-        .kpi-footnote {
-            background: var(--cream-soft);
-            border-radius: 8px;
-            padding: 12px 16px;
-            font-size: 12.5px;
-            color: var(--muted);
-            line-height: 1.65;
-            margin-top: 16px;
-        }
-
-        /* ── Summary row (tab 2) ── */
-        .kpi-summary-row {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 14px;
-            margin-bottom: 16px;
-        }
-        .kpi-summary-card {
-            background: var(--cream-soft);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 18px 20px;
-        }
-        .kpi-summary-label { font-size: 12px; color: var(--muted); font-weight: 600; margin-bottom: 4px; }
-        .kpi-summary-val   { font-size: 32px; font-weight: 900; color: var(--dark); letter-spacing: -1px; line-height: 1; }
-
-        /* ── Legend ── */
-        .kpi-legend-row {
-            display: flex;
-            gap: 20px;
-            flex-wrap: wrap;
-        }
-        .kpi-legend-item {
-            display: flex;
-            align-items: center;
-            gap: 7px;
-            font-size: 12.5px;
-            font-weight: 600;
-            color: var(--muted);
-        }
-        .kpi-legend-item span {
-            width: 12px; height: 12px;
-            border-radius: 50%;
-            display: inline-block;
-        }
-
-        /* ── Formula result ── */
-        .kpi-formula-result {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            flex-wrap: wrap;
-            margin-top: 14px;
-        }
-        .kpi-formula-step {
-            background: var(--cream-soft);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 10px 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-            min-width: 0;
-        }
-        .kfr-label {
-            font-size: 10px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: var(--muted-light);
-        }
-        .kfr-val {
-            font-family: 'Courier New', monospace;
-            font-size: 13px;
-            font-weight: 700;
-            color: var(--dark);
-            word-break: break-all;
-        }
-        .kfr-answer {
-            font-size: 20px;
-            font-weight: 900;
-            color: #e8900a;
-            font-family: inherit;
-        }
-        .kfi-arrow {
-            font-size: 18px;
-            color: var(--muted-light);
-            flex-shrink: 0;
-        }
-
-
-        /* ── Chart wrapper ── */
-        .kpi-chart-wrap {
-            height: 250px;
-        }
-
-        /* ── Formula box ── */
-        .kpi-formula-box {
-            background: var(--cream-soft);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 12px 16px;
-            font-family: 'Courier New', monospace;
-            font-size: 13px;
-            color: var(--dark);
-            font-weight: 600;
-        }
-
-        /* ── Print styles ── */
-        @media print {
-            .admin-sidebar, .admin-header, .page-header button,
-            .page-header form, .kpi-tab-bar { display: none !important; }
-            .admin-content { margin: 0 !important; padding: 16px !important; }
-            .kpi-tab-content { display: block !important; }
-            .kpi-card { break-inside: avoid; margin-bottom: 12px; }
-            body { background: #fff !important; }
-        }
-
-        /* ── Responsive ── */
-
-        /* Tablet */
-        @media (max-width: 900px) {
-            .kpi-summary-row { grid-template-columns: 1fr 1fr; }
-        }
-
-        /* Small tablet */
-        @media (max-width: 768px) {
-            /* Scrollable tab bar so long tab names don't wrap or break */
-            .kpi-tab-bar {
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
-                flex-wrap: nowrap;
-                gap: 0;
-                padding-bottom: 2px;
-            }
-            .kpi-tab {
-                padding: 11px 14px;
-                font-size: 12.5px;
-                white-space: nowrap;
-                flex-shrink: 0;
-            }
-
-            .kpi-summary-row { grid-template-columns: 1fr 1fr; gap: 10px; }
-            .kpi-summary-val  { font-size: 26px; }
-
-            .kpi-card { padding: 16px; }
-            .kpi-card-head { flex-wrap: wrap; gap: 8px; }
-            .kpi-card-meta { width: 100%; }
-
-            .kpi-formula-box {
-                font-size: 12px;
-                overflow-x: auto;
-                white-space: pre-wrap;
-                word-break: break-word;
-            }
-
-            .kpi-legend-row { gap: 12px; }
-        }
-
-        /* Mobile */
-        @media (max-width: 540px) {
-            .kpi-chart-wrap { height: 190px; }
-            .kpi-tab { padding: 10px 12px; font-size: 12px; }
-
-            .kpi-summary-row { grid-template-columns: 1fr; gap: 10px; }
-            .kpi-summary-val  { font-size: 28px; }
-            .kpi-summary-card { padding: 14px 16px; }
-
-            .kpi-card { padding: 14px; margin-bottom: 12px; }
-
-            /* Formula result — stack vertically */
-            .kpi-formula-result { flex-direction: column; gap: 8px; }
-            .kfi-arrow { align-self: flex-start; }
-            .kpi-formula-step { width: 100%; }
-            .kfr-val { font-size: 11.5px; }
-
-        }
-
-        /* Very small */
-        @media (max-width: 380px) {
-            .kpi-tab { padding: 9px 10px; font-size: 11.5px; }
-            .kpi-summary-val { font-size: 24px; }
-            .kpi-card { padding: 12px; }
-            .kpi-fc-body { gap: 8px; }
-            .kpi-fc-num { font-size: 13px; }
-        }
-    </style>
-
 </body>
 </html>

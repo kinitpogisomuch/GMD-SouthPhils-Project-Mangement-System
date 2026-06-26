@@ -64,12 +64,13 @@
 
                 <div class="table-wrapper">
                     <table class="data-table" id="projectsTable">
+                        <colgroup>
+                            <col><col><col><col><col><col><col>
+                        </colgroup>
                         <thead>
                             <tr>
-                                <th>ID</th>
                                 <th>Project Name</th>
                                 <th>Client</th>
-                                <th>Tank Specs</th>
                                 <th>Start Date</th>
                                 <th>End Date</th>
                                 <th>Status</th>
@@ -80,32 +81,48 @@
                         <tbody>
                             @forelse($projects as $project)
                             <tr data-status="{{ $project->status }}">
-                                <td><span class="project-code-badge">{{ $project->code }}</span></td>
-                                <td><strong>{{ $project->name }}</strong></td>
-                                <td>{{ $project->client }}</td>
+                                <td><strong style="font-size:13px;line-height:1.4;">{{ $project->name }}</strong></td>
+                                <td><span class="client-pill">{{ $project->client }}</span></td>
+                                <td style="white-space:nowrap;">{{ $project->start_date->format('M d, Y') }}</td>
+                                <td style="white-space:nowrap;">{{ $project->end_date->format('M d, Y') }}</td>
+                                @php
+                                    $phase = strtolower($project->current_phase ?? 'planning');
+                                    $phaseColors = [
+                                        'planning'    => ['bg'=>'#FEF3C7','color'=>'#92400E','shadow'=>'rgba(245,158,11,.2)'],
+                                        'procurement' => ['bg'=>'#EDE9FE','color'=>'#5B21B6','shadow'=>'rgba(139,92,246,.2)'],
+                                        'matl_prep'   => ['bg'=>'#CFFAFE','color'=>'#0E7490','shadow'=>'rgba(6,182,212,.2)'],
+                                        'fabrication' => ['bg'=>'#2563EB','color'=>'#fff','shadow'=>'rgba(37,99,235,.3)'],
+                                        'inspection'  => ['bg'=>'#EC4899','color'=>'#fff','shadow'=>'rgba(236,72,153,.3)'],
+                                        'painting'    => ['bg'=>'#14B8A6','color'=>'#fff','shadow'=>'rgba(20,184,166,.3)'],
+                                        'completion'  => ['bg'=>'#10B981','color'=>'#fff','shadow'=>'rgba(16,185,129,.3)'],
+                                        'delivery'    => ['bg'=>'#059669','color'=>'#fff','shadow'=>'rgba(5,150,105,.3)'],
+                                        'delayed'     => ['bg'=>'#EF4444','color'=>'#fff','shadow'=>'rgba(239,68,68,.3)'],
+                                    ];
+                                    $pc = $phaseColors[$phase] ?? ['bg'=>'#F3F4F6','color'=>'#6B7280','shadow'=>'rgba(0,0,0,.1)'];
+                                    $phaseLabel = ucwords(str_replace('_', ' ', $phase));
+                                @endphp
                                 <td>
-                                    @if($project->tankItems->isNotEmpty())
-                                        @foreach($project->tankItems as $ti)
-                                        <div style="font-size:12.5px;white-space:nowrap;">
-                                            @if($ti->quantity > 1)<span style="font-weight:800;color:var(--muted);">{{ $ti->quantity }}×</span> @endif
-                                            {{ $ti->tank_type }}
-                                            @if($ti->capacity)<span style="color:var(--muted-light);"> — {{ $ti->capacity }}</span>@endif
-                                        </div>
-                                        @endforeach
-                                    @else
-                                        {{ $project->tank_type }}
-                                    @endif
-                                </td>
-                                <td>{{ $project->start_date->format('M d, Y') }}</td>
-                                <td>{{ $project->end_date->format('M d, Y') }}</td>
-                                <td>
-                                    <span class="status-badge {{ strtolower($project->status ?? 'planning') }}">
-                                        {{ ucfirst($project->status ?? 'Planning') }}
+                                    <span class="status-badge" style="background:{{ $pc['bg'] }};color:{{ $pc['color'] }};box-shadow:0 0 0 1px {{ $pc['shadow'] }},0 2px 8px {{ $pc['shadow'] }};">
+                                        {{ $phaseLabel }}
                                     </span>
                                 </td>
                                 <td>
-                                    @php $prog = $project->progress ?? 0; @endphp
-                                    <span class="status-badge {{ $prog >= 100 ? 'completed' : ($prog > 0 ? 'ongoing' : 'pending') }}">
+                                    @php
+                                        $prog = $project->progress ?? 0;
+                                        $progColor = $prog == 0 ? '#9CA3AF'
+                                            : ($prog <= 25  ? '#F59E0B'
+                                            : ($prog <= 50  ? '#3B82F6'
+                                            : ($prog <= 75  ? '#6366F1'
+                                            : ($prog < 100  ? '#10B981'
+                                            :                 '#059669'))));
+                                        $progBg = $prog == 0 ? '#F3F4F6'
+                                            : ($prog <= 25  ? '#FEF3C7'
+                                            : ($prog <= 50  ? '#DBEAFE'
+                                            : ($prog <= 75  ? '#E0E7FF'
+                                            : ($prog < 100  ? '#D1FAE5'
+                                            :                 '#D1FAE5'))));
+                                    @endphp
+                                    <span class="status-badge" style="background:{{ $progBg }};color:{{ $progColor }};box-shadow:0 0 0 1px {{ $progColor }}22,0 2px 8px {{ $progColor }}33;font-weight:800;">
                                         {{ $prog }}%
                                     </span>
                                 </td>
@@ -114,6 +131,7 @@
                                         data-id="{{ $project->id }}">
                                         <i data-lucide="eye"></i>
                                     </button>
+                                    @if($project->status !== 'completed')
                                     <button class="action-btn view assign-employee-btn" type="button" title="Assign Employees"
                                         data-id="{{ $project->id }}"
                                         data-name="{{ $project->name }}"
@@ -136,18 +154,19 @@
                                         data-archived="{{ $project->status === 'archived' ? '1' : '0' }}">
                                         <i data-lucide="{{ $project->status === 'archived' ? 'archive-restore' : 'archive' }}"></i>
                                     </button>
+                                    @endif
                                 </td>
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="8" style="text-align:center; padding:40px; color:var(--muted);">
+                                <td colspan="7" style="text-align:center; padding:40px; color:var(--muted);">
                                     No projects found. Click <strong>Add Project</strong> to get started.
                                 </td>
                             </tr>
                             @endforelse
                             @if($projects->isNotEmpty())
                             <tr id="noProjectsRow" style="display:none;">
-                                <td colspan="8" style="text-align:center; padding:40px; color:var(--muted);">
+                                <td colspan="7" style="text-align:center; padding:40px; color:var(--muted);">
                                     No projects match this filter.
                                 </td>
                             </tr>
@@ -172,7 +191,7 @@
                 </button>
             </div>
 
-            <div class="search-box" style="margin-bottom:14px;">
+            <div class="search-box" style="margin:0 auto 14px;max-width:100%;">
                 <i data-lucide="search"></i>
                 <input type="text" id="clientSelectSearch" placeholder="Search by name, contact, or location...">
             </div>
@@ -192,18 +211,18 @@
 
     <!-- ===================== ADD PROJECT MODAL ===================== -->
     <div class="modal-overlay" id="addProjectModal">
-        <div class="modal-card modal-large">
+        <div class="modal-card modal-large" style="display:flex;flex-direction:column;overflow:hidden;">
             <div class="modal-header">
                 <div>
                     <h2>Add Project</h2>
-                    <p>Client information has been auto-filled. Complete the project details below.</p>
+                    <p>Fill in the project details below.</p>
                 </div>
                 <button class="modal-close" type="button" id="closeAddProjectModal">
                     <i data-lucide="x"></i>
                 </button>
             </div>
 
-            <form id="addProjectForm" method="POST" action="{{ route('admin.project.store') }}">
+            <form id="addProjectForm" method="POST" action="{{ route('admin.project.store') }}" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
                 @csrf
 
                 <input type="hidden" name="status"         value="planning">
@@ -216,88 +235,55 @@
                 <input type="hidden" name="capacity"       id="projCapacityHidden">
                 <input type="hidden" name="dimensions"     id="projDimensionsHidden">
 
-                <!-- Project Details -->
-                <div class="form-section-label">Project Details</div>
-                <div class="form-grid">
-                    <div class="form-group form-group-full">
-                        <label>Project Name</label>
-                        <select id="projectNameSelect" required>
-                            <option value="">Select project name</option>
-                            <option value="Fabrication of Fuel Day Tank">Fabrication of Fuel Day Tank</option>
-                            <option value="Fabrication of Cooking Oil Storage Tank">Fabrication of Cooking Oil Storage Tank</option>
-                            <option value="Fabrication of Underground Fuel Storage Tanks">Fabrication of Underground Fuel Storage Tanks</option>
-                            <option value="Fabrication of Aboveground Fuel Storage Tanks">Fabrication of Aboveground Fuel Storage Tanks</option>
-                            <option value="Fabrication of Polymer Tanks">Fabrication of Polymer Tanks</option>
-                            <option value="Fabrication of Aboveground Water Storage Tanks">Fabrication of Aboveground Water Storage Tanks</option>
-                            <option value="others">Others</option>
-                        </select>
-                        <input type="hidden" name="name" id="projectNameHidden">
-                        <input type="text" id="projectNameOther"
-                               placeholder="Enter custom project name"
-                               style="display:none;margin-top:8px;">
+                {{-- Scrollable body --}}
+                <div style="overflow-y:auto;flex:1;padding:0 28px 8px;">
+
+                    <!-- Project Details -->
+                    <div class="form-section-label">Project Details</div>
+                    <div class="form-grid">
+                        <div class="form-group form-group-full">
+                            <label>Project Name</label>
+                            <select id="projectNameSelect" required>
+                                <option value="">Select project name</option>
+                                <option value="Fabrication of Fuel Day Tank">Fabrication of Fuel Day Tank</option>
+                                <option value="Fabrication of Cooking Oil Storage Tank">Fabrication of Cooking Oil Storage Tank</option>
+                                <option value="Fabrication of Underground Fuel Storage Tanks">Fabrication of Underground Fuel Storage Tanks</option>
+                                <option value="Fabrication of Aboveground Fuel Storage Tanks">Fabrication of Aboveground Fuel Storage Tanks</option>
+                                <option value="Fabrication of Polymer Tanks">Fabrication of Polymer Tanks</option>
+                                <option value="Fabrication of Aboveground Water Storage Tanks">Fabrication of Aboveground Water Storage Tanks</option>
+                                <option value="others">Others</option>
+                            </select>
+                            <input type="hidden" name="name" id="projectNameHidden">
+                            <input type="text" id="projectNameOther"
+                                   placeholder="Enter custom project name"
+                                   style="display:none;margin-top:8px;">
+                        </div>
                     </div>
+
+                    <!-- Tank Specifications -->
+                    <div class="form-section-label" style="margin-top:18px;">Tank Specifications</div>
+
+                    <div id="tankItemsContainer">
+                        <!-- Tank rows injected by JS -->
+                    </div>
+
+                    <!-- Schedule -->
+                    <div class="form-section-label" style="margin-top:18px;">Schedule</div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Start Date</label>
+                            <input type="date" name="start_date" id="addProjectStartDate" required>
+                        </div>
+                        <div class="form-group">
+                            <label>End Date</label>
+                            <input type="date" name="end_date" id="addProjectEndDate" required>
+                        </div>
+                    </div>
+
                 </div>
 
-                <!-- Client Information -->
-                <div class="form-section-label" style="margin-top:18px;">
-                    Client Information
-                    <span style="font-size:12px;font-weight:700;color:var(--accent);text-transform:none;letter-spacing:0;">&nbsp;— Auto-filled from selection</span>
-                </div>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>Client Name</label>
-                        <input type="text" id="projClientName" readonly
-                               style="background-color:var(--cream-soft);cursor:default;font-weight:800;">
-                    </div>
-                    <div class="form-group">
-                        <label>Contact Number</label>
-                        <input type="text" id="projClientContact" readonly
-                               style="background-color:var(--cream-soft);cursor:default;">
-                    </div>
-                    <div class="form-group">
-                        <label>Email</label>
-                        <input type="text" id="projClientEmail" readonly
-                               style="background-color:var(--cream-soft);cursor:default;">
-                    </div>
-                    <div class="form-group">
-                        <label>Address</label>
-                        <input type="text" id="projClientAddress" readonly
-                               style="background-color:var(--cream-soft);cursor:default;">
-                    </div>
-                </div>
-
-                <!-- Tank Specifications -->
-                <div class="form-section-label" style="margin-top:18px;">
-                    Tank Specifications
-                    <span style="font-size:11px;font-weight:600;color:var(--muted);text-transform:none;letter-spacing:0;">&nbsp;— Add one or more tanks</span>
-                </div>
-
-                <div id="tankItemsContainer">
-                    <!-- Tank rows injected by JS -->
-                </div>
-
-                <button type="button" onclick="addTankRow()" class="cancel-btn" style="margin-top:10px;font-size:12.5px;padding:8px 14px;width:100%;justify-content:center;">
-                    <i data-lucide="plus"></i> Add Another Tank
-                </button>
-
-                <!-- Schedule -->
-                <div class="form-section-label" style="margin-top:18px;">Schedule</div>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>Start Date</label>
-                        <input type="date" name="start_date" id="addProjectStartDate" required>
-                    </div>
-                    <div class="form-group">
-                        <label>End Date</label>
-                        <input type="date" name="end_date" id="addProjectEndDate" required>
-                    </div>
-                    <div class="form-group form-group-full">
-                        <label>Notes</label>
-                        <textarea name="notes" placeholder="Additional project notes..." rows="3"></textarea>
-                    </div>
-                </div>
-
-                <div class="modal-actions">
+                {{-- Fixed action buttons --}}
+                <div class="modal-actions" style="flex-shrink:0;border-top:1px solid var(--border);padding-top:16px;margin-top:0;">
                     <button type="button" class="cancel-btn" id="cancelAddProject">Cancel</button>
                     <button type="submit" class="save-btn" id="saveProjectBtn">
                         <i data-lucide="save"></i>
@@ -310,7 +296,7 @@
 
     <!-- ===================== EDIT PROJECT MODAL ===================== -->
     <div class="modal-overlay" id="editProjectModal">
-        <div class="modal-card" style="max-width:560px;">
+        <div class="modal-card modal-large" style="display:flex;flex-direction:column;overflow:hidden;">
             <div class="modal-header">
                 <div>
                     <h2>Edit Project</h2>
@@ -320,39 +306,38 @@
                     <i data-lucide="x"></i>
                 </button>
             </div>
-            <form method="POST" id="editProjectForm">
+            <form method="POST" id="editProjectForm" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
                 @csrf
                 @method('PUT')
-                <div class="form-grid">
-                    <div class="form-group form-group-full">
-                        <label>Project Name *</label>
-                        <input type="text" name="name" id="editProjectName" required placeholder="Project name">
+
+                {{-- Scrollable body --}}
+                <div style="overflow-y:auto;flex:1;padding:0 28px 8px;">
+                    <div class="form-section-label">Project Details</div>
+                    <div class="form-grid">
+                        <div class="form-group form-group-full">
+                            <label>Project Name</label>
+                            <input type="text" name="name" id="editProjectName" required placeholder="Project name">
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>Start Date *</label>
-                        <input type="date" name="start_date" id="editProjectStartDate" required>
-                    </div>
-                    <div class="form-group">
-                        <label>End Date *</label>
-                        <input type="date" name="end_date" id="editProjectEndDate" required>
-                    </div>
-                    <div class="form-group form-group-full">
-                        <label>Notes</label>
-                        <textarea name="notes" id="editProjectNotes" rows="3" placeholder="Additional project notes..."></textarea>
+
+                    <div class="form-section-label" style="margin-top:18px;">Tank Specifications</div>
+                    <div id="editTankItemsContainer"></div>
+
+                    <div class="form-section-label" style="margin-top:18px;">Schedule</div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Start Date</label>
+                            <input type="date" name="start_date" id="editProjectStartDate" required>
+                        </div>
+                        <div class="form-group">
+                            <label>End Date</label>
+                            <input type="date" name="end_date" id="editProjectEndDate" required>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Tank items for edit -->
-                <div class="form-section-label" style="margin-top:18px;">
-                    Tank Specifications
-                    <span style="font-size:11px;font-weight:600;color:var(--muted);text-transform:none;letter-spacing:0;">&nbsp;— Add one or more tanks</span>
-                </div>
-                <div id="editTankItemsContainer"></div>
-                <button type="button" onclick="addEditTankRow()" class="cancel-btn" style="margin-top:10px;font-size:12.5px;padding:8px 14px;width:100%;justify-content:center;">
-                    <i data-lucide="plus"></i> Add Another Tank
-                </button>
-
-                <div class="modal-actions">
+                {{-- Fixed action buttons --}}
+                <div class="modal-actions" style="flex-shrink:0;border-top:1px solid var(--border);padding-top:16px;margin-top:0;">
                     <button type="button" class="cancel-btn" id="cancelEditProject">Cancel</button>
                     <button type="submit" class="save-btn"><i data-lucide="save"></i> Save Changes</button>
                 </div>
@@ -391,7 +376,7 @@
 
     <!-- ===================== ASSIGN EMPLOYEES MODAL ===================== -->
     <div class="modal-overlay" id="assignEmployeesModal">
-        <div class="modal-card" style="max-width:660px;">
+        <div class="modal-card" style="max-width:560px;">
             <div class="modal-header">
                 <div>
                     <h2>Assign Employees</h2>
@@ -402,19 +387,18 @@
                 </button>
             </div>
 
-            <div class="search-box" style="margin-bottom:16px;">
+            <div class="search-box" style="margin:0 auto 14px;max-width:100%;">
                 <i data-lucide="search"></i>
                 <input type="text" id="employeeSelectSearch" placeholder="Search employee by name or role...">
             </div>
 
             <form id="assignEmployeesForm" method="POST" action="">
                 @csrf
-                <div id="employeeSelectList"
-                     style="display:flex;flex-direction:column;gap:8px;max-height:360px;overflow-y:auto;padding-right:4px;">
-                    <p style="text-align:center;color:var(--muted);padding:20px 0;">Loading employees...</p>
+                <div id="employeeSelectList" class="cs-list">
+                    <p style="text-align:center;color:var(--muted);padding:32px 0;font-size:14px;">Loading employees...</p>
                 </div>
 
-                <div class="modal-actions" style="margin-top:20px;">
+                <div class="modal-actions" style="margin-top:16px;">
                     <button type="button" class="cancel-btn" id="cancelAssignEmployees">Cancel</button>
                     <button type="submit" class="save-btn">
                         <i data-lucide="check"></i>
@@ -558,32 +542,30 @@
                 return;
             }
 
-            filtered.forEach(function(employee) {
+            filtered.forEach(function(employee, idx) {
                 var isSelected = selectedEmployeeIds.indexOf(employee.id) !== -1;
                 var item       = document.createElement('div');
                 item.className = 'client-select-item' + (isSelected ? ' selected' : '');
-                var init       = employee.name.charAt(0).toUpperCase();
+                var init    = employee.name.charAt(0).toUpperCase();
+                var roleStr = [employee.role, employee.type].filter(Boolean).join(' · ');
                 item.innerHTML =
-                    '<div class="client-select-avatar">' + init + '</div>' +
-                    '<div class="client-select-info">' +
-                        '<div class="client-select-name">' + employee.name + '</div>' +
-                        '<div class="client-select-meta">' +
-                            '<span>' + (employee.role || '—') + '</span>' +
-                            '<span>' + (employee.type || '—') + '</span>' +
-                        '</div>' +
+                    '<div class="cs-avatar"><span class="cs-avatar-init">' + init + '</span></div>' +
+                    '<div class="cs-info">' +
+                        '<div class="cs-name">' + employee.name + '</div>' +
+                        '<div class="cs-meta" style="display:block;">' + (roleStr || '—') + '</div>' +
                     '</div>' +
-                    '<div class="client-select-check" style="display:' + (isSelected ? 'flex' : 'none') + ';align-items:center;">' +
-                        '<i data-lucide="check-circle"></i>' +
+                    '<div class="client-select-check" style="display:' + (isSelected ? 'flex' : 'none') + ';align-items:center;margin-left:auto;">' +
+                        '<i data-lucide="check-circle" style="width:20px;height:20px;"></i>' +
                     '</div>';
 
                 item.addEventListener('click', function() {
-                    var idx = selectedEmployeeIds.indexOf(employee.id);
-                    if (idx === -1) {
+                    var i = selectedEmployeeIds.indexOf(employee.id);
+                    if (i === -1) {
                         selectedEmployeeIds.push(employee.id);
                         item.classList.add('selected');
                         item.querySelector('.client-select-check').style.display = 'flex';
                     } else {
-                        selectedEmployeeIds.splice(idx, 1);
+                        selectedEmployeeIds.splice(i, 1);
                         item.classList.remove('selected');
                         item.querySelector('.client-select-check').style.display = 'none';
                     }
@@ -598,7 +580,8 @@
             selectedEmployeeIds = assignedIds.slice();
             var si = document.getElementById('employeeSelectSearch');
             if (si) si.value = '';
-            document.getElementById('assignEmployeesSubtitle').textContent = 'Select employees to assign to "' + projectName + '".';
+            var shortName = projectName.length > 35 ? projectName.substring(0, 35) + '…' : projectName;
+            document.getElementById('assignEmployeesSubtitle').textContent = shortName;
             document.getElementById('assignEmployeesForm').action = '/admin/projects/' + projectId + '/assign-employees';
             var list = document.getElementById('employeeSelectList');
             list.innerHTML = '<p style="text-align:center;color:var(--muted);padding:20px 0;">Loading employees...</p>';
@@ -607,10 +590,6 @@
         }
 
         function populateClientFields(client) {
-            document.getElementById('projClientName').value       = client.name;
-            document.getElementById('projClientContact').value    = client.contact || '';
-            document.getElementById('projClientEmail').value      = client.email || '';
-            document.getElementById('projClientAddress').value    = client.address || '';
             document.getElementById('projClientNameHidden').value = client.name;
             document.getElementById('projContactHidden').value    = client.contact || '';
             document.getElementById('projEmailHidden').value      = client.email || '';
@@ -787,19 +766,19 @@
                 (removable ? '<button type="button" onclick="this.closest(\'.tank-item-row\').remove()" title="Remove tank" style="position:absolute;top:12px;right:12px;background:none;border:none;cursor:pointer;color:var(--muted);line-height:1;"><i data-lucide="x" style="width:15px;height:15px;"></i></button>' : '') +
 
                 // Row 1: Type + Shape + Quantity
-                '<div class="form-grid">' +
-                    '<div class="form-group">' +
-                        '<label>Tank Type <span style="color:var(--danger);">*</span></label>' +
+                '<div style="display:flex;gap:12px;align-items:flex-end;">' +
+                    '<div class="form-group" style="flex:2;">' +
+                        '<label>Tank Type</label>' +
                         '<select name="' + prefix + '[tank_type]" required>' + tankTypeOptions(item.tank_type || '') + '</select>' +
                     '</div>' +
-                    '<div class="form-group">' +
+                    '<div class="form-group" style="flex:1.5;">' +
                         '<label>Tank Shape</label>' +
                         '<select class="ti-shape" onchange="toggleRowShape(this)">' +
                             '<option value="cylindrical"' + (isCyl ? ' selected' : '') + '>Cylindrical</option>' +
                             '<option value="rectangular"' + (!isCyl ? ' selected' : '') + '>Rectangular</option>' +
                         '</select>' +
                     '</div>' +
-                    '<div class="form-group">' +
+                    '<div class="form-group" style="width:90px;flex-shrink:0;">' +
                         '<label>Quantity</label>' +
                         '<input type="number" name="' + prefix + '[quantity]" value="' + (item.quantity || 1) + '" min="1" onwheel="this.blur()">' +
                     '</div>' +
@@ -811,30 +790,29 @@
                     // Cylindrical
                     '<div class="form-group ti-cyl"' + (!isCyl ? ' style="display:none;"' : '') + '>' +
                         '<label>Diameter (m)</label>' +
-                        '<input type="number" class="ti-dim-input" data-dim="d" min="0" step="0.01" value="' + dVal + '" placeholder="e.g. 2.00" oninput="computeRowCapacity(this.closest(\'.tank-item-row\'))">' +
+                        '<input type="number" class="ti-dim-input" data-dim="d" min="0" step="0.01" value="' + dVal + '" placeholder="e.g. 2.00">' +
                     '</div>' +
                     '<div class="form-group ti-cyl"' + (!isCyl ? ' style="display:none;"' : '') + '>' +
                         '<label>Height (m)</label>' +
-                        '<input type="number" class="ti-dim-input" data-dim="h" min="0" step="0.01" value="' + hVal + '" placeholder="e.g. 3.00" oninput="computeRowCapacity(this.closest(\'.tank-item-row\'))">' +
+                        '<input type="number" class="ti-dim-input" data-dim="h" min="0" step="0.01" value="' + hVal + '" placeholder="e.g. 3.00">' +
                     '</div>' +
                     // Rectangular
                     '<div class="form-group ti-rect"' + (isCyl ? ' style="display:none;"' : '') + '>' +
                         '<label>Length (m)</label>' +
-                        '<input type="number" class="ti-dim-input" data-dim="l" min="0" step="0.01" value="' + lVal + '" placeholder="e.g. 4.00" oninput="computeRowCapacity(this.closest(\'.tank-item-row\'))">' +
+                        '<input type="number" class="ti-dim-input" data-dim="l" min="0" step="0.01" value="' + lVal + '" placeholder="e.g. 4.00">' +
                     '</div>' +
                     '<div class="form-group ti-rect"' + (isCyl ? ' style="display:none;"' : '') + '>' +
                         '<label>Width (m)</label>' +
-                        '<input type="number" class="ti-dim-input" data-dim="w" min="0" step="0.01" value="' + wVal + '" placeholder="e.g. 2.00" oninput="computeRowCapacity(this.closest(\'.tank-item-row\'))">' +
+                        '<input type="number" class="ti-dim-input" data-dim="w" min="0" step="0.01" value="' + wVal + '" placeholder="e.g. 2.00">' +
                     '</div>' +
                     '<div class="form-group ti-rect"' + (isCyl ? ' style="display:none;"' : '') + '>' +
                         '<label>Height (m)</label>' +
-                        '<input type="number" class="ti-dim-input" data-dim="rh" min="0" step="0.01" value="' + rhVal + '" placeholder="e.g. 2.00" oninput="computeRowCapacity(this.closest(\'.tank-item-row\'))">' +
+                        '<input type="number" class="ti-dim-input" data-dim="rh" min="0" step="0.01" value="' + rhVal + '" placeholder="e.g. 2.00">' +
                     '</div>' +
-                    // Auto-computed capacity
+                    // Manual capacity input
                     '<div class="form-group">' +
-                        '<label>Capacity <span style="font-size:11px;color:var(--accent);font-weight:600;">(Auto-computed)</span></label>' +
-                        '<input type="text" class="ti-cap-display" readonly placeholder="Enter dimensions above" style="background:var(--cream-soft);cursor:default;font-weight:900;color:var(--dark);" value="' + (item.capacity || '') + '">' +
-                        '<input type="hidden" name="' + prefix + '[capacity]"   class="ti-cap-hidden" value="' + (item.capacity || '') + '">' +
+                        '<label>Capacity</label>' +
+                        '<input type="text" name="' + prefix + '[capacity]" class="ti-cap-hidden" placeholder="e.g. 5000 L" value="' + (item.capacity || '') + '">' +
                         '<input type="hidden" name="' + prefix + '[dimensions]" class="ti-dim-hidden" value="' + (item.dimensions || '') + '">' +
                     '</div>' +
                 '</div>';
@@ -1012,7 +990,6 @@
             document.querySelectorAll('.edit-project-btn').forEach(function(btn) {
                 btn.addEventListener('click', function() {
                     document.getElementById('editProjectName').value      = this.dataset.name;
-                    document.getElementById('editProjectNotes').value     = this.dataset.notes || '';
                     document.getElementById('editProjectStartDate').value = this.dataset.startDate;
                     document.getElementById('editProjectEndDate').value   = this.dataset.endDate;
                     document.getElementById('editProjectEndDate').min     = this.dataset.startDate;

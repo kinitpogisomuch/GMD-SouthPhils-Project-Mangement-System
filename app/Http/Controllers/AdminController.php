@@ -7,6 +7,7 @@ use App\Models\Employee;
 use App\Models\Payment;
 use App\Models\PaymentTransaction;
 use App\Models\ProjectMaterial;
+use App\Models\MaterialPurchase;
 use App\Models\Client;
 use App\Models\SiteSetting;
 use Illuminate\Http\Request;
@@ -102,6 +103,39 @@ class AdminController extends Controller
             ];
         }
 
+        // Top supplier by total amount purchased
+        $topSupplierData = MaterialPurchase::select('supplier')
+            ->selectRaw('SUM(total_paid) as total_spent')
+            ->selectRaw('COUNT(*) as purchase_count')
+            ->whereNotNull('supplier')
+            ->where('supplier', '!=', '')
+            ->groupBy('supplier')
+            ->orderByRaw('SUM(total_paid) DESC')
+            ->first();
+
+        $topSupplier = null;
+        if ($topSupplierData) {
+            $topSupplier = [
+                'name'           => $topSupplierData->supplier,
+                'total_spent'    => (float) $topSupplierData->total_spent,
+                'purchase_count' => (int) $topSupplierData->purchase_count,
+            ];
+        }
+
+        // Peak months — full year monthly revenue for line chart (last 2 years for year filter)
+        $peakMonthsData = [];
+        for ($y = now()->year - 1; $y <= now()->year; $y++) {
+            $months = [];
+            for ($m = 1; $m <= 12; $m++) {
+                $months[] = [
+                    'label'  => \Carbon\Carbon::create($y, $m)->format('M'),
+                    'amount' => (float) PaymentTransaction::whereYear('payment_date', $y)
+                        ->whereMonth('payment_date', $m)->sum('amount_paid'),
+                ];
+            }
+            $peakMonthsData[$y] = $months;
+        }
+
         // Unread messages
         $unreadMessages = \App\Models\Message::where('recipient_type', 'admin')
             ->where('recipient_id', session('user_id'))
@@ -144,7 +178,9 @@ class AdminController extends Controller
             'monthlyRevenue',
             'yearlyRevenue',
             'weeklyRevenue',
-            'projectStatusChart'
+            'projectStatusChart',
+            'topSupplier',
+            'peakMonthsData'
         ));
     }
 
@@ -237,6 +273,7 @@ class AdminController extends Controller
             'address'        => 'nullable|string|max:500',
             'facebook'       => 'nullable|string|max:255',
             'business_hours' => 'nullable|string|max:255',
+            'description'    => 'nullable|string|max:1000',
         ]);
 
         SiteSetting::instance()->update($validated);
@@ -248,13 +285,25 @@ class AdminController extends Controller
 
     public function reports(Request $request)
     {
-        $filterYear  = $request->input('year');
-        $filterMonth = $request->input('month');
+        $filterQuarter = $request->input('quarter', 'all');
+        $filterStatus  = $request->input('status', 'all');
+        $filterKpi     = $request->input('kpi', 'all');
+
+        // Map quarter to months
+        $quarterMonths = [
+            'q1' => [1,2,3], 'q2' => [4,5,6],
+            'q3' => [7,8,9], 'q4' => [10,11,12],
+        ];
+        $filterYear  = now()->year;
+        $filterMonth = null;
 
         // ── Per-project KPIs (completed projects only, ordered by completion) ──
         $query = Project::where('status', 'completed')->orderBy('updated_at');
-        if ($filterYear)  $query->whereYear('updated_at', $filterYear);
-        if ($filterMonth) $query->whereMonth('updated_at', $filterMonth);
+        if ($filterQuarter !== 'all' && isset($quarterMonths[$filterQuarter])) {
+            $months = $quarterMonths[$filterQuarter];
+            $query->whereYear('updated_at', $filterYear)
+                  ->whereIn(\DB::raw('EXTRACT(MONTH FROM updated_at)'), $months);
+        }
         $completedList = $query->get();
 
         $projectKpis = $completedList->values()->map(function ($project, $index) {
@@ -262,20 +311,25 @@ class AdminController extends Controller
             $received = $payment
                 ? (float) PaymentTransaction::where('payment_id', $payment->id)->sum('amount_paid')
                 : 0;
-            $matCost      = (float) ProjectMaterial::where('project_id', $project->id)
+            $matCost       = (float) ProjectMaterial::where('project_id', $project->id)
                 ->where('status', 'active')->sum('total_cost');
             $contractValue = $payment ? (float) $payment->contract_amount : 0;
+            $estProfit     = max(0, $contractValue - $matCost);
+            $saved         = max(0, $received - $matCost);
 
-            $profitMargin   = $contractValue > 0
+            $profitMargin    = $contractValue > 0
                 ? round((($contractValue - $matCost) / $contractValue) * 100, 1) : 0;
             $budgetAdherence = $contractValue > 0
                 ? min(100, round(($received / $contractValue) * 100, 1)) : 0;
             $onTime = $project->end_date
                 && $project->updated_at->startOfDay()->lte($project->end_date);
 
-            // Shorten tank type for chart label
-            $tag = $project->tank_type ?? $project->name;
-            $tag = strlen($tag) > 22 ? substr($tag, 0, 20) . '…' : $tag;
+            $daysDelay = 0;
+            if (!$onTime && $project->end_date) {
+                $daysDelay = (int) $project->end_date->diffInDays($project->updated_at);
+            }
+
+            $tag = $project->code;
 
             return [
                 'code'             => $project->code,
@@ -286,6 +340,12 @@ class AdminController extends Controller
                 'profit_margin'    => $profitMargin,
                 'on_time'          => $onTime,
                 'budget_adherence' => $budgetAdherence,
+                'contract_value'   => $contractValue,
+                'received'         => $received,
+                'mat_cost'         => $matCost,
+                'est_profit'       => $estProfit,
+                'saved'            => $saved,
+                'days_delay'       => $daysDelay,
             ];
         });
 
@@ -327,11 +387,49 @@ class AdminController extends Controller
         // Last 5 for forecast chart
         $forecastChart = $projectKpis->take(-5)->values();
 
+        // Extra summary data
+        $totalRevenue   = $projectKpis->sum('received');
+        $totalMatCost   = $projectKpis->sum('mat_cost');
+        $totalSaved     = $projectKpis->sum('saved');
+        $totalContracted = $projectKpis->sum('contract_value');
+        $delayedCount   = $projectKpis->where('on_time', false)->count();
+        $avgDelayDays   = $delayedCount > 0
+            ? round($projectKpis->where('on_time', false)->avg('days_delay'))
+            : 0;
+        $activeProjects = Project::whereNotIn('status', ['completed','archived'])->count();
+
+        // Quarter label
+        $quarterLabels = [
+            'q1' => 'Q1 — Jan to Mar', 'q2' => 'Q2 — Apr to Jun',
+            'q3' => 'Q3 — Jul to Sep', 'q4' => 'Q4 — Oct to Dec',
+            'all' => 'All periods',
+        ];
+        $currentQuarterLabel = $quarterLabels[$filterQuarter] ?? 'All periods';
+
+        // Next 3 forecast (MLR-style projection using WMA trend)
+        $pmTrend  = count($pmVals) >= 2 ? ($pmVals[count($pmVals)-1] - $pmVals[0]) / max(1, count($pmVals)-1) : 0;
+        $baTrend  = count($baVals) >= 2 ? ($baVals[count($baVals)-1] - $baVals[0]) / max(1, count($baVals)-1) : 0;
+        $otTrend  = count($otVals) >= 2 ? ($otVals[count($otVals)-1] - $otVals[0]) / max(1, count($otVals)-1) : 0;
+        $lastPm   = count($pmVals) > 0 ? end($pmVals) : $avgProfitMargin;
+        $lastBa   = count($baVals) > 0 ? end($baVals) : $avgBudgetAdherence;
+        $lastOt   = count($otVals) > 0 ? end($otVals) : $onTimeRate;
+        $lastRev  = $count > 0 ? $projectKpis->last()['received'] : 0;
+        $revTrend = $count >= 2 ? ($projectKpis->last()['received'] - $projectKpis->first()['received']) / max(1, $count-1) : 0;
+
+        $next3Forecast = [
+            ['pm' => min(100, round($lastPm + $pmTrend, 1)),    'ba' => min(100, round($lastBa + $baTrend, 1)),    'ot' => min(100, round($lastOt + $otTrend)),    'rev' => max(0, round($lastRev + $revTrend))],
+            ['pm' => min(100, round($lastPm + $pmTrend*2, 1)),  'ba' => min(100, round($lastBa + $baTrend*2, 1)),  'ot' => min(100, round($lastOt + $otTrend*2)),  'rev' => max(0, round($lastRev + $revTrend*2))],
+            ['pm' => min(100, round($lastPm + $pmTrend*3, 1)),  'ba' => min(100, round($lastBa + $baTrend*3, 1)),  'ot' => min(100, round($lastOt + $otTrend*3)),  'rev' => max(0, round($lastRev + $revTrend*3))],
+        ];
+
         return view('admin.reports', compact(
             'projectKpis', 'count',
             'avgProfitMargin', 'onTimeCount', 'onTimeRate', 'avgBudgetAdherence',
             'wmaForecast', 'forecastChart', 'last3Avg', 'pmVals', 'last3',
-            'filterYear', 'filterMonth'
+            'filterYear', 'filterMonth', 'filterQuarter', 'filterStatus', 'filterKpi',
+            'totalRevenue', 'totalMatCost', 'totalSaved', 'totalContracted',
+            'delayedCount', 'avgDelayDays', 'activeProjects',
+            'currentQuarterLabel', 'next3Forecast', 'revTrend', 'pmTrend', 'baTrend', 'otTrend'
         ));
     }
 

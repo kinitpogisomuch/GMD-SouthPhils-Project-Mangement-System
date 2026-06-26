@@ -13,6 +13,7 @@ class SiteSetting extends Model
         'address',
         'facebook',
         'business_hours',
+        'description',
     ];
 
     public static function instance(): self
