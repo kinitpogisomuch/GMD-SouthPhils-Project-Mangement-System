@@ -72,56 +72,70 @@ class ProjectController extends Controller
                         ? $this->phases[$currentIndex + 1]
                         : null;
 
-        // Resolve client address: prefer the stored project address,
-        // fall back to the matching client record in the clients table.
-        $clientRecord  = Client::where('name', $project->client)->first();
-        $clientAddress = $project->address
-                         ?? ($clientRecord ? $clientRecord->address : null);
+        // Resolve client details: prefer fields stored on the project,
+        // fall back to the matching record in the clients table.
+        $clientRecord   = Client::where('name', $project->client)->first();
+        $clientAddress  = $project->address        ?? ($clientRecord?->address  ?? null);
+        $clientContact  = $project->contact_number ?? ($clientRecord?->contact  ?? null);
+        $clientEmail    = $project->email          ?? ($clientRecord?->email    ?? null);
 
         // ── Financial data ──────────────────────────────────────────────
         $payment        = $project->getPaymentRecord();
 
-        // Estimated costs from BOM
-        $estMaterialCost = (float) $project->activeMaterials()->sum('total_cost');
-        $estLaborCost    = (float) $project->activeLabor()->sum('total_cost');
-        $estTotalCost    = $estMaterialCost + $estLaborCost;
+        // Raw estimated costs from BOM and labor records
+        $rawMatCost   = (float) $project->activeMaterials()->sum('total_cost');
+        $rawLaborCost = (float) $project->activeLabor()->sum('total_cost');
+        $rawTotal     = $rawMatCost + $rawLaborCost;
 
-        // Contract Value = Total Project Quotation (BOM with markup + labor)
+        // Project Quotation total (BOM with markup + labor) — used for BOM/print view
         $projectGrandTotal = $project->activeMaterials()->get()->sum(function ($material) {
             $factor = $material->factor ?? 7;
             return round((float) $material->total_cost * (1 + $factor / 100), 2);
-        }) + $estLaborCost;
-        $contractAmount = $projectGrandTotal; // Contract Value = quotation total
+        }) + $rawLaborCost;
 
-        // Budget = first payment (down payment) received
-        $budgetReceived = $payment
-            ? (float) PaymentTransaction::where('payment_id', $payment->id)
-                ->where('payment_stage', 'down_payment')
-                ->sum('amount_paid')
-            : 0;
+        // Contract Value = the agreed total project cost from the payment record
+        $contractAmount = $payment ? (float) $payment->contract_amount : $projectGrandTotal;
+
+        // Scale Est. Materials and Est. Labor proportionally so they sum to the Contract Value
+        if ($rawTotal > 0 && $contractAmount > 0) {
+            $matRatio        = $rawMatCost / $rawTotal;
+            $estMaterialCost = round($contractAmount * $matRatio, 2);
+            $estLaborCost    = round($contractAmount - $estMaterialCost, 2);
+        } else {
+            $estMaterialCost = $rawMatCost;
+            $estLaborCost    = $rawLaborCost;
+        }
+
+        $estTotalCost = $estMaterialCost + $estLaborCost; // always equals $contractAmount
 
         // Total received across all payment stages
         $totalReceived = $payment
             ? (float) PaymentTransaction::where('payment_id', $payment->id)->sum('amount_paid')
             : 0;
 
+        // Budget = total amount received from client
+        $budgetReceived = $totalReceived;
+
         // Actual material cost = sum of all material purchases for this project
         $actMaterialCost = (float) \App\Models\MaterialPurchase::where('project_id', $project->id)->sum('total_paid');
 
-        // Actual labor = total gross pay from salary management (company-wide)
-        $actLaborCost = (float) \App\Models\SalaryRecord::sum('gross_pay');
+        // Actual labor cost = sum of allocated_pay from salary_record_project pivot
+        // (equal split across projects as set in the salary management module)
+        $actLaborCost = (float) \DB::table('salary_record_project')
+            ->where('project_id', $project->id)
+            ->sum('allocated_pay');
 
         // Remaining budget = budget received - actual spending
         $remainingBudget = $budgetReceived - ($actMaterialCost + $actLaborCost);
 
-        // Variance
+        // Variance vs actual spending
         $matVariance   = $estMaterialCost - $actMaterialCost;
         $laborVariance = $estLaborCost    - $actLaborCost;
 
         // Est. Profit = Contract Value - Actual Material Cost - Actual Labor Cost
         $profit = $contractAmount > 0 ? $contractAmount - $actMaterialCost - $actLaborCost : null;
 
-        // Legacy aliases
+        // Legacy aliases (scaled values)
         $materialCost = $estMaterialCost;
         $laborCost    = $estLaborCost;
 
@@ -133,9 +147,10 @@ class ProjectController extends Controller
             ->orderByDesc('date')->orderByDesc('id')->get();
 
         return view('admin.project_view', compact(
-            'project', 'updates', 'openRequest', 'pendingUpdates', 'nextPhase', 'clientAddress',
+            'project', 'updates', 'openRequest', 'pendingUpdates', 'nextPhase',
+            'clientAddress', 'clientContact', 'clientEmail',
             // financial
-            'contractAmount', 'budgetReceived', 'totalReceived', 'remainingBudget',
+            'payment', 'contractAmount', 'budgetReceived', 'totalReceived', 'remainingBudget',
             'estMaterialCost', 'actMaterialCost', 'matVariance',
             'estLaborCost', 'actLaborCost', 'laborVariance',
             'estTotalCost', 'projectGrandTotal',
@@ -369,6 +384,7 @@ class ProjectController extends Controller
             ProjectTankItem::create([
                 'project_id'  => $project->id,
                 'tank_type'   => $item['tank_type'],
+                'shape'       => $item['shape'] ?? null,
                 'capacity'    => $item['capacity'] ?? null,
                 'dimensions'  => $item['dimensions'] ?? null,
                 'quantity'    => $item['quantity'] ?? 1,
@@ -424,6 +440,7 @@ class ProjectController extends Controller
             ProjectTankItem::create([
                 'project_id'  => $project->id,
                 'tank_type'   => $item['tank_type'],
+                'shape'       => $item['shape'] ?? null,
                 'capacity'    => $item['capacity'] ?? null,
                 'dimensions'  => $item['dimensions'] ?? null,
                 'quantity'    => $item['quantity'] ?? 1,

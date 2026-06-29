@@ -121,7 +121,14 @@
                                 <td>{{ $payment->client }}</td>
                                 <td>₱{{ number_format($payment->contract_amount, 2) }}</td>
                                 <td>₱{{ number_format($balance, 2) }}</td>
-                                <td>{{ preg_replace('/\s*\(.*?\)/', '', $payment->payment_terms ?? '—') }}</td>
+                                @php
+                                    $phases = '—';
+                                    if ($payment->payment_terms) {
+                                        preg_match('/^(\d+)\s+phase/i', $payment->payment_terms, $pm);
+                                        $phases = isset($pm[1]) ? $pm[1].' phases' : $payment->payment_terms;
+                                    }
+                                @endphp
+                                <td>{{ $phases }}</td>
                                 <td>
                                     <span class="status-badge {{ \App\Models\Payment::statusBadgeClass($status) }}">
                                         {{ $status }}
@@ -136,11 +143,23 @@
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="8" style="text-align:center;padding:40px;color:var(--muted);">
-                                    No payment records yet. Click <strong>+ Record Payment Setup</strong> to get started.
+                                <td colspan="8" style="text-align:center;padding:60px 20px;color:var(--muted);">
+                                    <i data-lucide="inbox" style="width:36px;height:36px;opacity:.35;display:block;margin:0 auto 12px;"></i>
+                                    <div style="font-size:14px;font-weight:700;">No payment records yet.</div>
+                                    <div style="font-size:13px;margin-top:4px;">Click <strong>+ Record Payment Setup</strong> to get started.</div>
                                 </td>
                             </tr>
                             @endforelse
+                            {{-- Filter empty state (shown by JS) --}}
+                            @if($payments->isNotEmpty())
+                            <tr id="paymentEmptyRow" style="display:none;">
+                                <td colspan="8" style="text-align:center;padding:60px 20px;color:var(--muted);">
+                                    <i data-lucide="folder-open" style="width:36px;height:36px;opacity:.35;display:block;margin:0 auto 12px;"></i>
+                                    <div style="font-size:14px;font-weight:700;" id="paymentEmptyMsg">No payments in this category.</div>
+                                    <div style="font-size:13px;margin-top:4px;">Try switching to a different filter or check payment records.</div>
+                                </td>
+                            </tr>
+                            @endif
                         </tbody>
                     </table>
                 </div>
@@ -309,14 +328,35 @@
         });
     });
 
+    var paymentFilterMessages = {
+        '':                      'No payment records found.',
+        'pending down payment':  'No payments pending down payment.',
+        'progress payment paid': 'No payments at progress payment stage.',
+        'fully paid':            'No fully paid payments.'
+    };
+
     function applyFilters() {
-        var q      = document.getElementById('paymentSearch').value.toLowerCase();
-        var status = currentPaymentFilter.toLowerCase();
+        var q            = document.getElementById('paymentSearch').value.toLowerCase();
+        var status       = currentPaymentFilter.toLowerCase();
+        var visibleCount = 0;
+
         document.querySelectorAll('#paymentsTable tbody tr[data-search]').forEach(function(row) {
             var matchSearch = !q || row.dataset.search.includes(q);
             var matchStatus = !status || row.dataset.status.toLowerCase() === status;
-            row.style.display = (matchSearch && matchStatus) ? '' : 'none';
+            var show = matchSearch && matchStatus;
+            row.style.display = show ? '' : 'none';
+            if (show) visibleCount++;
         });
+
+        var emptyRow = document.getElementById('paymentEmptyRow');
+        var emptyMsg = document.getElementById('paymentEmptyMsg');
+        if (emptyRow) {
+            emptyRow.style.display = visibleCount === 0 ? '' : 'none';
+            if (emptyMsg) emptyMsg.textContent = q
+                ? 'No payments match "' + q + '".'
+                : (paymentFilterMessages[status] || 'No payments in this category.');
+            if (visibleCount === 0 && typeof lucide !== 'undefined') lucide.createIcons();
+        }
     }
 
     // ── Modal helpers ──────────────────────────────────────────────────────

@@ -84,15 +84,19 @@ class SalaryController extends Controller
         $validated = $request->validate([
             'employee_id'    => 'required|exists:employees,id',
             'pay_period'     => 'required|date_format:Y-m-d',
+            'project_ids'    => 'nullable|array',
+            'project_ids.*'  => 'exists:projects,id',
             'days_worked'    => 'required|numeric|min:0|max:7',
             'overtime_hours' => 'nullable|numeric|min:0|max:24',
             'notes'          => 'nullable|string|max:500',
         ]);
 
-        $employee = Employee::findOrFail($validated['employee_id']);
+        $employee   = Employee::findOrFail($validated['employee_id']);
+        $projectIds = array_filter((array) $request->input('project_ids', []));
 
         $data = SalaryRecord::compute([
             'employee_id'    => $employee->id,
+            'project_id'     => count($projectIds) === 1 ? $projectIds[0] : null,
             'pay_period'     => $validated['pay_period'],
             'daily_rate'     => $employee->daily_rate ?? 0,
             'days_worked'    => $validated['days_worked'],
@@ -105,7 +109,13 @@ class SalaryController extends Controller
             $data
         );
 
-        return response()->json(['record' => $this->format($record->load('employee'))]);
+        $record->projects()->sync($this->buildPivotData(
+            $request->input('allocations', []),
+            $projectIds,
+            (float) $employee->daily_rate
+        ));
+
+        return response()->json(['record' => $this->format($record->load('employee', 'projects'))]);
     }
 
     /** PUT /admin/salary-records/{id} */
@@ -116,20 +126,31 @@ class SalaryController extends Controller
         $validated = $request->validate([
             'days_worked'    => 'required|numeric|min:0|max:7',
             'overtime_hours' => 'nullable|numeric|min:0|max:24',
+            'project_ids'    => 'nullable|array',
+            'project_ids.*'  => 'exists:projects,id',
             'notes'          => 'nullable|string|max:500',
         ]);
 
+        $projectIds = array_filter((array) $request->input('project_ids', []));
+
         $data = SalaryRecord::compute([
-            'daily_rate'     => $record->employee->daily_rate ?? 0,
+            'daily_rate'     => (float) $record->daily_rate,
             'days_worked'    => $validated['days_worked'],
             'overtime_hours' => $validated['overtime_hours'] ?? 0,
         ]);
 
         $record->update(array_merge($data, [
-            'notes' => $validated['notes'] ?? $record->notes,
+            'project_id' => count($projectIds) === 1 ? $projectIds[0] : null,
+            'notes'      => $validated['notes'] ?? $record->notes,
         ]));
 
-        return response()->json(['record' => $this->format($record->load('employee'))]);
+        $record->projects()->sync($this->buildPivotData(
+            $request->input('allocations', []),
+            $projectIds,
+            (float) $record->daily_rate
+        ));
+
+        return response()->json(['record' => $this->format($record->load('employee', 'projects'))]);
     }
 
     /** DELETE /admin/salary-records/{id} */
@@ -139,22 +160,88 @@ class SalaryController extends Controller
         return response()->json(['ok' => true]);
     }
 
+    /**
+     * Build pivot sync data: keyed by project_id with days/ot/allocated_pay.
+     * Falls back to equal split when no per-project allocations provided.
+     */
+    private function buildPivotData(array $allocations, array $projectIds, float $dailyRate): array
+    {
+        $hourly   = $dailyRate / 8;
+        $byId     = collect($allocations)->keyBy('project_id');
+        $syncData = [];
+
+        foreach ($projectIds as $pid) {
+            $pid = (int) $pid;
+            if ($byId->has($pid)) {
+                $alloc = $byId[$pid];
+                $d     = (float) ($alloc['days_worked']    ?? 0);
+                $o     = (float) ($alloc['overtime_hours'] ?? 0);
+                // Use pre-computed allocated_pay from client (equal split) if provided,
+                // otherwise compute from days × rate (single-project fallback)
+                $pay   = isset($alloc['allocated_pay']) && (float) $alloc['allocated_pay'] > 0
+                    ? round((float) $alloc['allocated_pay'], 2)
+                    : round($dailyRate * $d + $o * $hourly, 2);
+            } else {
+                $d = 0; $o = 0; $pay = 0;
+            }
+            $syncData[$pid] = [
+                'days_worked'    => $d,
+                'overtime_hours' => $o,
+                'allocated_pay'  => $pay,
+            ];
+        }
+
+        return $syncData;
+    }
+
     private function format(SalaryRecord $r): array
     {
+        // Always use the STORED daily_rate — never pull from current employee rate
+        $dailyRate     = (float) $r->daily_rate;
+        $daysWorked    = (float) $r->days_worked;
+        $overtimeHours = (float) $r->overtime_hours;
+        $hourlyRate    = $dailyRate / 8;
+        $overtimePay   = $overtimeHours * $hourlyRate;
+
         return [
             'id'               => $r->id,
             'employee_id'      => $r->employee_id,
+            'project_id'       => $r->project_id,
             'employee_name'    => $r->employee->full_name ?? '—',
             'role'             => $r->employee->role ?? '—',
             'employee_type'    => $r->employee->employee_type ?? 'Regular',
             'pay_period'       => $r->pay_period,
-            'daily_rate'       => (float) ($r->employee->daily_rate ?? $r->daily_rate),
-            'days_worked'      => (float) $r->days_worked,
-            'overtime_hours'   => (float) $r->overtime_hours,
+            'daily_rate'       => $dailyRate,          // snapshot — not current employee rate
+            'days_worked'      => $daysWorked,
+            'overtime_hours'   => $overtimeHours,
+            'overtime_pay'     => round($overtimePay, 2),
             'gross_pay'        => (float) $r->gross_pay,
             'total_deductions' => (float) $r->total_deductions,
             'net_pay'          => (float) $r->net_pay,
             'notes'            => $r->notes,
+            'project_ids'      => $r->relationLoaded('projects')
+                ? $r->projects->pluck('id')->toArray()
+                : ($r->project_id ? [$r->project_id] : []),
         ];
+    }
+
+    /** GET /admin/salary-projects — project list with client + spec for salary picker */
+    public function projects()
+    {
+        $projects = \App\Models\Project::whereNotIn('status', ['completed', 'archived'])
+            ->with('tankItems')
+            ->orderBy('name')
+            ->get()
+            ->map(function ($p) {
+                $spec = $p->tankItems->map(fn($t) => $t->quantity.'× '.($t->tank_type ?? '').($t->capacity ? ' ('.$t->capacity.')' : ''))->join(', ');
+                return [
+                    'id'     => $p->id,
+                    'code'   => $p->code,
+                    'name'   => $p->name,
+                    'client' => $p->client,
+                    'spec'   => $spec ?: ($p->tank_type ?? ''),
+                ];
+            });
+        return response()->json($projects);
     }
 }

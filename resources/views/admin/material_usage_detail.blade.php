@@ -79,16 +79,25 @@
                         </div>
                     </div>
                     <div class="table-wrapper">
-                        <table class="pm-table">
+                        <table class="pm-table" style="table-layout:fixed;width:100%;">
+                            <colgroup>
+                                <col style="width:26%;">
+                                <col style="width:8%;">
+                                <col style="width:9%;">
+                                <col style="width:14%;">
+                                <col style="width:14%;">
+                                <col style="width:16%;">
+                                <col style="width:13%;">
+                            </colgroup>
                             <thead>
-                                <tr>
-                                    <th style="text-align:left;">Material</th>
-                                    <th class="ctr">Unit</th>
-                                    <th class="ctr">BOM Qty</th>
-                                    <th class="ctr">Unit Cost (&#x20B1;)</th>
-                                    <th class="ctr">Base Total (&#x20B1;)</th>
-                                    <th class="ctr">Budgeted Cost (&#x20B1;)</th>
-                                    <th class="ctr">Purchase Status</th>
+                                <tr style="background:var(--cream-soft);">
+                                    <th style="text-align:left;padding:10px 12px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">Material</th>
+                                    <th style="text-align:center;padding:10px 8px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">Unit</th>
+                                    <th style="text-align:center;padding:10px 8px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">Qty</th>
+                                    <th style="text-align:center;padding:10px 8px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">Unit Cost (₱)</th>
+                                    <th style="text-align:center;padding:10px 8px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">Base Total (₱)</th>
+                                    <th style="text-align:center;padding:10px 8px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">Budgeted Cost (₱)</th>
+                                    <th style="text-align:center;padding:10px 8px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">Status</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -101,16 +110,16 @@
                                     $budgetedSubtotal += $budgeted;
                                     $hasPurchase = isset($purchases) && $purchases->where('project_material_id', $mat->id)->isNotEmpty();
                                 @endphp
-                                <tr>
-                                    <td><strong>{{ $mat->material_name }}</strong></td>
-                                    <td class="ctr">{{ $mat->unit ?? '—' }}</td>
-                                    <td class="ctr">{{ number_format($mat->quantity, 0) }}</td>
-                                    <td class="ctr">&#x20B1;{{ number_format($mat->price_per_unit, 2) }}</td>
-                                    <td class="ctr">&#x20B1;{{ number_format($base, 2) }}</td>
-                                    <td class="ctr" style="color:#2A4EAA;font-weight:800;">&#x20B1;{{ number_format($budgeted, 2) }}</td>
-                                    <td class="ctr">
+                                <tr style="border-bottom:1px solid var(--border);">
+                                    <td style="padding:12px 12px;"><strong style="font-size:13px;color:var(--dark);">{{ $mat->material_name }}</strong></td>
+                                    <td style="text-align:center;padding:12px 8px;color:var(--muted);font-size:12px;">{{ $mat->unit ?? '—' }}</td>
+                                    <td style="text-align:center;padding:12px 8px;color:var(--dark);">{{ number_format($mat->quantity, 0) }}</td>
+                                    <td style="text-align:center;padding:12px 8px;color:var(--dark);">₱{{ number_format($mat->price_per_unit, 2) }}</td>
+                                    <td style="text-align:center;padding:12px 8px;color:var(--dark);">₱{{ number_format($base, 2) }}</td>
+                                    <td style="text-align:center;padding:12px 8px;color:var(--dark);font-weight:700;">₱{{ number_format($budgeted, 2) }}</td>
+                                    <td style="text-align:center;padding:12px 8px;">
                                         @if($hasPurchase)
-                                        <span class="pm-status purchased">Purchased &#10003;</span>
+                                        <span class="pm-status purchased">Purchased ✓</span>
                                         @else
                                         <span class="pm-status pending">Pending</span>
                                         @endif
@@ -122,13 +131,11 @@
                             </tbody>
                             @if($activeMats->isNotEmpty())
                             <tfoot>
-                                <tr class="pm-subtotal">
-                                    <td style="text-align:left;">Subtotal</td>
-                                    <td></td>
-                                    <td></td>
-                                    <td></td>
-                                    <td style="text-align:center;">&#x20B1;{{ number_format($baseSubtotal, 2) }}</td>
-                                    <td style="text-align:center;color:#2A4EAA;font-weight:900;">&#x20B1;{{ number_format($budgetedSubtotal, 2) }}</td>
+                                <tr style="background:var(--cream-soft);border-top:2px solid var(--border);">
+                                    <td style="padding:12px 12px;color:var(--dark);font-weight:900;font-size:12px;text-transform:uppercase;letter-spacing:.04em;">Subtotal</td>
+                                    <td></td><td></td><td></td>
+                                    <td style="text-align:center;padding:12px 8px;color:var(--dark);font-weight:700;">₱{{ number_format($baseSubtotal, 2) }}</td>
+                                    <td style="text-align:center;padding:12px 8px;color:var(--dark);font-weight:900;">₱{{ number_format($budgetedSubtotal, 2) }}</td>
                                     <td></td>
                                 </tr>
                             </tfoot>
@@ -143,10 +150,10 @@
                 @php $grouped = $purchases->groupBy('material_name'); @endphp
 
                 {{-- Summary + Form side by side --}}
-                <div style="display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:stretch;margin-bottom:16px;">
+                <div style="display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start;margin-bottom:16px;">
 
                 {{-- Left: Summary table --}}
-                <div class="pm-card" style="margin-bottom:0;display:flex;flex-direction:column;min-width:0;">
+                <div class="pm-card" style="margin-bottom:0;display:flex;flex-direction:column;min-width:0;height:500px;overflow:hidden;">
                     <div class="pm-card-header">
                         <div>
                             <div class="pm-card-title">Purchased materials &mdash; summary</div>
@@ -157,17 +164,35 @@
                         @endif
                     </div>
 
-                    <div class="table-wrapper" style="flex:1;">
-                        <table class="pm-table" style="border-collapse:collapse;width:100%;min-width:0;">
+                    @php $pcols = 'table-layout:fixed;border-collapse:collapse;width:100%;'; @endphp
+                    <div style="flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;">
+                        <table style="{{ $pcols }}">
+                            <colgroup>
+                                <col style="width:34%;">
+                                <col style="width:13%;">
+                                <col style="width:16%;">
+                                <col style="width:17%;">
+                                <col style="width:20%;">
+                            </colgroup>
                             <thead>
-                                <tr style="background:var(--cream-soft);position:relative;z-index:1;">
-                                    <th style="text-align:left;">Material</th>
-                                    <th class="ctr" style="">Planned Qty</th>
-                                    <th class="ctr" style="">Total Qty Bought</th>
-                                    <th class="ctr" style="">Total Paid (&#x20B1;)</th>
-                                    <th class="ctr">VS BOM Budget</th>
+                                <tr style="background:var(--cream-soft);border-bottom:1px solid var(--border);">
+                                    <th style="text-align:left;padding:10px 12px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">Material</th>
+                                    <th style="text-align:center;padding:10px 8px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">Planned Qty</th>
+                                    <th style="text-align:center;padding:10px 8px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">Qty Bought</th>
+                                    <th style="text-align:right;padding:10px 8px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">Total Paid (₱)</th>
+                                    <th style="text-align:center;padding:10px 8px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">VS BOM</th>
                                 </tr>
                             </thead>
+                        </table>
+                        <div style="flex:1;overflow-y:scroll;min-height:0;">
+                        <table style="{{ $pcols }}">
+                            <colgroup>
+                                <col style="width:34%;">
+                                <col style="width:13%;">
+                                <col style="width:16%;">
+                                <col style="width:17%;">
+                                <col style="width:20%;">
+                            </colgroup>
                             <tbody>
                                 @forelse($grouped as $matName => $group)
                                 @php
@@ -179,26 +204,25 @@
                                     $vsPct     = $budgeted > 0 ? min(150, round(($totalPaid / $budgeted) * 100)) : null;
                                     $vsColor   = $vsPct !== null ? ($vsPct <= 100 ? '#16a34a' : '#ef4444') : 'var(--muted)';
                                     $unit      = $group->first()->unit;
-                                    $rowBg     = $loop->even ? 'background:var(--cream-soft);' : '';
                                 @endphp
-                                <tr style="background:#fff;position:relative;z-index:1;">
-                                    <td style="">
-                                        <div style="font-weight:700;">{{ $matName }}</div>
-                                        @if($unit)<div style="font-size:11.5px;color:var(--muted-light);margin-top:2px;">{{ $unit }}</div>@endif
+                                <tr style="border-bottom:1px solid var(--border);">
+                                    <td style="padding:12px 12px;">
+                                        <strong style="font-size:13px;color:var(--dark);">{{ $matName }}</strong>
+                                        @if($unit)<div style="font-size:11.5px;color:var(--muted);margin-top:2px;">{{ $unit }}</div>@endif
                                     </td>
-                                    <td class="ctr" style="font-weight:700;color:#2A4EAA;">{{ $planned !== null ? number_format($planned, 0) : '—' }}</td>
-                                    <td class="ctr" style="font-weight:700;">{{ number_format($totalQty, 0) }}</td>
-                                    <td class="ctr" style=""><strong style="color:var(--dark);">&#x20B1;{{ number_format($totalPaid, 2) }}</strong></td>
-                                    <td class="ctr">
+                                    <td style="text-align:center;padding:12px 8px;color:var(--dark);">{{ $planned !== null ? number_format($planned, 0) : '—' }}</td>
+                                    <td style="text-align:center;padding:12px 8px;color:var(--dark);">{{ number_format($totalQty, 0) }}</td>
+                                    <td style="text-align:right;padding:12px 8px;color:var(--dark);font-weight:700;">₱{{ number_format($totalPaid, 2) }}</td>
+                                    <td style="text-align:center;padding:12px 8px;">
                                         @if($vsPct !== null)
                                         <div style="display:flex;align-items:center;gap:6px;justify-content:center;">
-                                            <div style="width:80px;height:6px;background:var(--cream-deep);border-radius:999px;overflow:hidden;flex-shrink:0;">
+                                            <div style="width:60px;height:5px;background:var(--cream-deep);border-radius:999px;overflow:hidden;flex-shrink:0;">
                                                 <div style="height:100%;width:{{ min(100,$vsPct) }}%;background:{{ $vsColor }};border-radius:999px;"></div>
                                             </div>
-                                            <span style="font-weight:800;font-size:12.5px;color:{{ $vsColor }};min-width:36px;">{{ $vsPct }}%</span>
+                                            <span style="font-weight:800;font-size:12px;color:{{ $vsColor }};min-width:30px;">{{ $vsPct }}%</span>
                                         </div>
                                         @else
-                                        <span style="color:var(--muted-light);">—</span>
+                                        <span style="color:var(--muted);">—</span>
                                         @endif
                                     </td>
                                 </tr>
@@ -210,41 +234,31 @@
                                     </td>
                                 </tr>
                                 @endforelse
-                                {{-- Empty placeholder rows to fill space --}}
-                                @php $fillerCount = max(0, 6 - $grouped->count()); @endphp
-                                @for($f = 0; $f < $fillerCount; $f++)
-                                <tr style="background:#fff;">
-                                    <td style="border-bottom:1px solid var(--border);">&nbsp;</td>
-                                    <td style="border-bottom:1px solid var(--border);"></td>
-                                    <td style="border-bottom:1px solid var(--border);"></td>
-                                    <td style="border-bottom:1px solid var(--border);"></td>
-                                    <td style="border-bottom:1px solid var(--border);"></td>
-                                </tr>
-                                @endfor
                             </tbody>
                         </table>
+                        </div>
                     </div>
                     @if($purchases->isNotEmpty())
-                    <div style="margin-top:auto;background:#0E1428;display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;border-top:2px solid rgba(255,255,255,.1);border-radius:0 0 14px 14px;overflow:hidden;">
-                        <div style="padding:12px 14px;color:#fff;font-weight:800;font-size:13px;">Total</div>
-                        <div style="padding:12px 14px;text-align:center;color:rgba(255,255,255,.4);">—</div>
-                        <div style="padding:12px 14px;text-align:center;color:rgba(255,255,255,.7);font-weight:700;">{{ number_format($purchases->sum('qty_bought'), 0) }}</div>
-                        <div style="padding:12px 14px;text-align:center;color:#4ade80;font-weight:900;font-size:14px;">&#x20B1;{{ number_format($totalPurchased, 2) }}</div>
-                        <div style="padding:12px 14px;"></div>
+                    <div style="background:var(--cream-soft);display:grid;grid-template-columns:34fr 13fr 16fr 17fr 20fr;border-top:2px solid var(--border);">
+                        <div style="padding:12px 14px;color:var(--dark);font-weight:900;font-size:12px;text-transform:uppercase;letter-spacing:.04em;">Total</div>
+                        <div style="padding:12px 8px;text-align:center;color:var(--muted);">—</div>
+                        <div style="padding:12px 8px;text-align:center;color:var(--dark);font-weight:700;">{{ number_format($purchases->sum('qty_bought'), 0) }}</div>
+                        <div style="padding:12px 8px;text-align:right;color:var(--dark);font-weight:900;">&#x20B1;{{ number_format($totalPurchased, 2) }}</div>
+                        <div style="padding:12px 8px;"></div>
                     </div>
                     @endif
 
                 </div>{{-- end summary card --}}
 
                 {{-- Right: Log New Purchase form as sidebar card --}}
-                <div class="pm-card" style="margin-bottom:0;background:linear-gradient(180deg,#333333 0%,#2a2a2a 100%);border-color:transparent;">
-                    <div class="pm-card-header" style="padding-bottom:12px;border-bottom-color:rgba(255,255,255,.1);">
+                <div class="pm-card" style="margin-bottom:0;background:linear-gradient(180deg,#333333 0%,#2a2a2a 100%);border-color:transparent;display:flex;flex-direction:column;height:500px;overflow:hidden;">
+                    <div class="pm-card-header" style="padding-bottom:12px;border-bottom-color:rgba(255,255,255,.1);flex-shrink:0;">
                         <div>
                             <div class="pm-card-title" style="font-size:13px;color:#fff;">Log New Purchase</div>
                             <div class="pm-card-sub" style="color:rgba(255,255,255,.45);">Record a material purchase</div>
                         </div>
                     </div>
-                    <form method="POST" action="{{ route('admin.material_usage.store_purchase', $project->id) }}" style="padding:10px 16px 16px;" class="dark-form">
+                    <form method="POST" action="{{ route('admin.material_usage.store_purchase', $project->id) }}" style="padding:10px 16px 16px;flex:1;overflow-y:auto;" class="dark-form">
                         @csrf
                         <input type="hidden" name="material_name" id="purchaseNameHidden">
                         <div style="display:flex;flex-direction:column;gap:12px;">
@@ -376,15 +390,23 @@
                         @endif
                     </div>
                     <div class="table-wrapper">
-                        <table class="pm-table">
+                        <table class="pm-table" style="table-layout:fixed;width:100%;">
+                            <colgroup>
+                                <col style="width:22%;">
+                                <col style="width:15%;">
+                                <col style="width:15%;">
+                                <col style="width:14%;">
+                                <col style="width:15%;">
+                                <col style="width:19%;">
+                            </colgroup>
                             <thead>
-                                <tr>
-                                    <th style="text-align:left;">Material</th>
-                                    <th class="ctr">BOM Budget (&#x20B1;)</th>
-                                    <th class="ctr">Actual Spent (&#x20B1;)</th>
-                                    <th class="ctr">Variance (&#x20B1;)</th>
-                                    <th class="ctr">Status</th>
-                                    <th class="ctr">Budget Used</th>
+                                <tr style="background:var(--cream-soft);">
+                                    <th style="text-align:left;padding:10px 12px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">Material</th>
+                                    <th style="text-align:center;padding:10px 8px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">BOM Budget (₱)</th>
+                                    <th style="text-align:center;padding:10px 8px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">Actual Spent (₱)</th>
+                                    <th style="text-align:center;padding:10px 8px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">Variance (₱)</th>
+                                    <th style="text-align:center;padding:10px 8px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">Status</th>
+                                    <th style="text-align:center;padding:10px 8px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">Budget Used</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -398,14 +420,14 @@
                                     $totalBudget += $budgeted;
                                     $totalSpent  += $spent;
                                 @endphp
-                                <tr>
-                                    <td><strong>{{ $mat->material_name }}</strong></td>
-                                    <td class="ctr">&#x20B1;{{ number_format($budgeted, 2) }}</td>
-                                    <td class="ctr">@if($spent > 0)&#x20B1;{{ number_format($spent, 2) }}@else&mdash;@endif</td>
-                                    <td class="ctr" style="color:{{ $variance >= 0 ? '#16a34a' : '#ef4444' }};font-weight:800;">
-                                        @if($spent > 0){{ $variance >= 0 ? '+' : '-' }}&#x20B1;{{ number_format(abs($variance), 2) }}@else&mdash;@endif
+                                <tr style="border-bottom:1px solid var(--border);">
+                                    <td style="padding:12px 12px;"><strong style="font-size:13px;color:var(--dark);">{{ $mat->material_name }}</strong></td>
+                                    <td style="text-align:center;padding:12px 8px;color:var(--dark);">₱{{ number_format($budgeted, 2) }}</td>
+                                    <td style="text-align:center;padding:12px 8px;color:var(--dark);">@if($spent > 0)₱{{ number_format($spent, 2) }}@else—@endif</td>
+                                    <td style="text-align:center;padding:12px 8px;color:{{ $variance >= 0 ? '#16a34a' : '#ef4444' }};font-weight:800;">
+                                        @if($spent > 0){{ $variance >= 0 ? '+' : '-' }}₱{{ number_format(abs($variance), 2) }}@else—@endif
                                     </td>
-                                    <td class="ctr">
+                                    <td style="text-align:center;padding:12px 8px;">
                                         @if($spent == 0)
                                         <span class="pm-status pending">Not purchased</span>
                                         @elseif($variance >= 0)
@@ -414,7 +436,7 @@
                                         <span class="pm-status over">Over budget</span>
                                         @endif
                                     </td>
-                                    <td class="ctr">
+                                    <td style="text-align:center;padding:12px 8px;">
                                         <div style="display:flex;align-items:center;gap:6px;justify-content:center;">
                                             <div style="width:60px;height:5px;background:var(--cream-deep);border-radius:999px;overflow:hidden;">
                                                 <div style="height:100%;width:{{ $usedPct }}%;background:{{ $usedPct <= 100 ? '#16a34a' : '#ef4444' }};border-radius:999px;"></div>
@@ -427,21 +449,23 @@
                                 <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--muted);">No BOM materials yet.</td></tr>
                                 @endforelse
                             </tbody>
+                            @if($activeMats->isNotEmpty())
+                            @php $totalVariance = $totalBudget - $totalSpent; @endphp
+                            <tfoot>
+                                <tr style="background:var(--cream-soft);border-top:2px solid var(--border);">
+                                    <td style="padding:12px 14px;color:var(--dark);font-weight:900;font-size:12px;text-transform:uppercase;letter-spacing:.04em;">Total</td>
+                                    <td style="padding:12px 8px;text-align:center;color:var(--dark);font-weight:700;">&#x20B1;{{ number_format($totalBudget, 2) }}</td>
+                                    <td style="padding:12px 8px;text-align:center;color:var(--dark);font-weight:700;">&#x20B1;{{ number_format($totalSpent, 2) }}</td>
+                                    <td style="padding:12px 8px;text-align:center;color:{{ $totalVariance >= 0 ? '#16a34a' : '#ef4444' }};font-weight:900;">
+                                        {{ ($totalVariance >= 0 ? '+' : '-') }}&#x20B1;{{ number_format(abs($totalVariance), 2) }}
+                                    </td>
+                                    <td></td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                            @endif
                         </table>
                     </div>
-                    @if($activeMats->isNotEmpty())
-                    @php $totalVariance = $totalBudget - $totalSpent; @endphp
-                    <div style="background:#0E1428;display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr;border-top:2px solid rgba(255,255,255,.1);border-radius:0 0 14px 14px;overflow:hidden;">
-                        <div style="padding:12px 14px;color:#fff;font-weight:800;font-size:13px;">Total</div>
-                        <div style="padding:12px 14px;text-align:center;color:rgba(255,255,255,.6);font-weight:700;">&#x20B1;{{ number_format($totalBudget, 2) }}</div>
-                        <div style="padding:12px 14px;text-align:center;color:#4ade80;font-weight:700;">&#x20B1;{{ number_format($totalSpent, 2) }}</div>
-                        <div style="padding:12px 14px;text-align:center;color:{{ $totalVariance >= 0 ? '#4ade80' : '#f87171' }};font-weight:900;font-size:14px;">
-                            {{ ($totalVariance >= 0 ? '+' : '-') }}&#x20B1;{{ number_format(abs($totalVariance), 2) }}
-                        </div>
-                        <div style="padding:12px 14px;"></div>
-                        <div style="padding:12px 14px;"></div>
-                    </div>
-                    @endif
                 </div>
             </div>
 
@@ -453,10 +477,10 @@
                 @endphp
 
                 {{-- Summary + Form side by side --}}
-                <div style="display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:stretch;margin-bottom:16px;">
+                <div style="display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start;margin-bottom:16px;">
 
                 {{-- Left: Summary table --}}
-                <div class="pm-card" style="margin-bottom:0;display:flex;flex-direction:column;min-width:0;">
+                <div class="pm-card" style="margin-bottom:0;display:flex;flex-direction:column;min-width:0;height:500px;overflow:hidden;">
                     <div class="pm-card-header">
                         <div>
                             <div class="pm-card-title">Material usage &mdash; summary</div>
@@ -466,22 +490,32 @@
                         <span style="font-size:12px;font-weight:700;color:var(--muted);">{{ $usageGrouped->count() }} material{{ $usageGrouped->count() !== 1 ? 's' : '' }} &nbsp;·&nbsp; Total: <strong style="color:var(--dark);">{{ number_format($activeUsageEntries->sum('quantity_used'), 0) }}</strong></span>
                         @endif
                     </div>
-                    <div class="table-wrapper" style="flex:1;">
-                        <table class="pm-table" style="border-collapse:collapse;width:100%;min-width:0;">
+                    @php $ucols = 'table-layout:fixed;border-collapse:collapse;width:100%;'; @endphp
+                    <div style="flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;">
+                        <table style="{{ $ucols }}">
                             <colgroup>
-                                <col style="width:28%;">
-                                <col style="width:24%;">
-                                <col style="width:24%;">
-                                <col style="width:24%;">
+                                <col style="width:40%;">
+                                <col style="width:20%;">
+                                <col style="width:20%;">
+                                <col style="width:20%;">
                             </colgroup>
                             <thead>
-                                <tr style="background:var(--cream-soft);position:relative;z-index:1;">
-                                    <th style="text-align:left;">Material</th>
-                                    <th class="ctr">Stock (Qty Bought)</th>
-                                    <th class="ctr">Total Qty Used</th>
-                                    <th class="ctr">Remaining</th>
+                                <tr style="background:var(--cream-soft);border-bottom:1px solid var(--border);">
+                                    <th style="text-align:left;padding:10px 12px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">Material</th>
+                                    <th style="text-align:center;padding:10px 8px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">Stock (Bought)</th>
+                                    <th style="text-align:center;padding:10px 8px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">Qty Used</th>
+                                    <th style="text-align:center;padding:10px 8px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">Remaining</th>
                                 </tr>
                             </thead>
+                        </table>
+                        <div style="flex:1;overflow-y:scroll;min-height:0;">
+                        <table style="{{ $ucols }}">
+                            <colgroup>
+                                <col style="width:40%;">
+                                <col style="width:20%;">
+                                <col style="width:20%;">
+                                <col style="width:20%;">
+                            </colgroup>
                             <tbody>
                                 @forelse($usageGrouped as $matName => $entries)
                                 @php
@@ -492,14 +526,14 @@
                                     $remaining   = $stock - $totalUsed;
                                     $remainColor = $remaining < 0 ? '#b91c1c' : ($remaining == 0 ? '#92400e' : '#15803d');
                                 @endphp
-                                <tr style="background:#fff;position:relative;z-index:1;">
-                                    <td>
-                                        <div style="font-weight:700;">{{ $matName }}</div>
-                                        @if($unit)<div style="font-size:11.5px;color:var(--muted-light);margin-top:2px;">{{ $unit }}</div>@endif
+                                <tr style="border-bottom:1px solid var(--border);">
+                                    <td style="padding:12px 12px;">
+                                        <strong style="font-size:13px;color:var(--dark);">{{ $matName }}</strong>
+                                        @if($unit)<div style="font-size:11.5px;color:var(--muted);margin-top:2px;">{{ $unit }}</div>@endif
                                     </td>
-                                    <td class="ctr" style="font-weight:700;color:#2A4EAA;">{{ $stock > 0 ? number_format($stock, 0) : '—' }}</td>
-                                    <td class="ctr" style="font-weight:800;color:var(--dark);">{{ number_format($totalUsed, 0) }}</td>
-                                    <td class="ctr" style="font-weight:800;color:{{ $remainColor }};">
+                                    <td style="text-align:center;padding:12px 8px;color:var(--dark);">{{ $stock > 0 ? number_format($stock, 0) : '—' }}</td>
+                                    <td style="text-align:center;padding:12px 8px;font-weight:700;color:var(--dark);">{{ number_format($totalUsed, 0) }}</td>
+                                    <td style="text-align:center;padding:12px 8px;font-weight:700;color:{{ $remainColor }};">
                                         {{ $stock > 0 ? number_format($remaining, 0) : '—' }}
                                     </td>
                                 </tr>
@@ -511,38 +545,29 @@
                                     </td>
                                 </tr>
                                 @endforelse
-                                {{-- Filler rows --}}
-                                @php $usageFillerCount = max(0, 6 - $usageGrouped->count()); @endphp
-                                @for($f = 0; $f < $usageFillerCount; $f++)
-                                <tr style="background:#fff;">
-                                    <td style="border-bottom:1px solid var(--border);">&nbsp;</td>
-                                    <td style="border-bottom:1px solid var(--border);"></td>
-                                    <td style="border-bottom:1px solid var(--border);"></td>
-                                    <td style="border-bottom:1px solid var(--border);"></td>
-                                </tr>
-                                @endfor
                             </tbody>
                         </table>
+                        </div>
                     </div>
                     @if($activeUsageEntries->isNotEmpty())
-                    <div style="margin-top:auto;background:#0E1428;display:grid;grid-template-columns:1fr 1fr 1fr 1fr;border-top:2px solid rgba(255,255,255,.1);border-radius:0 0 14px 14px;overflow:hidden;">
-                        <div style="padding:12px 14px;color:#fff;font-weight:800;font-size:13px;">Total</div>
-                        <div style="padding:12px 14px;text-align:center;color:#60a5fa;font-weight:800;">{{ isset($purchases) && $purchases->isNotEmpty() ? number_format($purchases->sum('qty_bought'), 0) : '—' }}</div>
-                        <div style="padding:12px 14px;text-align:center;color:#FDE74C;font-weight:900;font-size:14px;">{{ number_format($activeUsageEntries->sum('quantity_used'), 0) }}</div>
-                        <div style="padding:12px 14px;"></div>
+                    <div style="background:var(--cream-soft);display:grid;grid-template-columns:40fr 20fr 20fr 20fr;border-top:2px solid var(--border);">
+                        <div style="padding:12px 14px;color:var(--dark);font-weight:900;font-size:12px;text-transform:uppercase;letter-spacing:.04em;">Total</div>
+                        <div style="padding:12px 8px;text-align:center;color:var(--dark);font-weight:700;">{{ isset($purchases) && $purchases->isNotEmpty() ? number_format($purchases->sum('qty_bought'), 0) : '—' }}</div>
+                        <div style="padding:12px 8px;text-align:center;color:var(--dark);font-weight:900;">{{ number_format($activeUsageEntries->sum('quantity_used'), 0) }}</div>
+                        <div style="padding:12px 8px;"></div>
                     </div>
                     @endif
                 </div>{{-- end summary card --}}
 
                 {{-- Right: Log Usage form as sidebar card --}}
-                <div class="pm-card" style="margin-bottom:0;display:flex;flex-direction:column;background:linear-gradient(180deg,#333333 0%,#2a2a2a 100%);border-color:transparent;">
-                    <div class="pm-card-header" style="padding-bottom:12px;border-bottom-color:rgba(255,255,255,.1);">
+                <div class="pm-card" style="margin-bottom:0;display:flex;flex-direction:column;background:linear-gradient(180deg,#333333 0%,#2a2a2a 100%);border-color:transparent;height:500px;overflow:hidden;">
+                    <div class="pm-card-header" style="padding-bottom:12px;border-bottom-color:rgba(255,255,255,.1);flex-shrink:0;">
                         <div>
                             <div class="pm-card-title" style="font-size:13px;color:#fff;">Log Material Usage</div>
                             <div class="pm-card-sub" style="color:rgba(255,255,255,.45);">Record consumed material</div>
                         </div>
                     </div>
-                    <form method="POST" action="{{ route('admin.material_usage.store', $project->id) }}" style="padding:10px 16px 16px;display:flex;flex-direction:column;flex:1;" class="dark-form">
+                    <form method="POST" action="{{ route('admin.material_usage.store', $project->id) }}" style="padding:10px 16px 16px;flex:1;overflow-y:auto;" class="dark-form">
                         @csrf
                         <div style="display:flex;flex-direction:column;gap:12px;flex:1;">
                             @php

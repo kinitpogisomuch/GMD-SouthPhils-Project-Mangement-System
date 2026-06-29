@@ -9,6 +9,7 @@ class ProjectTankItem extends Model
     protected $fillable = [
         'project_id',
         'tank_type',
+        'shape',
         'capacity',
         'dimensions',
         'quantity',

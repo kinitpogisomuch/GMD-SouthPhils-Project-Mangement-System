@@ -428,35 +428,34 @@ function buildPhaseSteps(statuses) {
     if (typeof lucide !== "undefined") lucide.createIcons();
 }
 
+// Solid bar color + badge colors keyed by phase — matches the status badge in the tracker
+var PHASE_BAR_COLORS = {
+    'planning':    { bar: '#92400e', badgeBg: '#FEF3C7', badgeColor: '#92400e' },
+    'procurement': { bar: '#5B21B6', badgeBg: '#EDE9FE', badgeColor: '#5B21B6' },
+    'matl_prep':   { bar: '#0E7490', badgeBg: '#CFFAFE', badgeColor: '#0E7490' },
+    'fabrication': { bar: '#2563EB', badgeBg: '#DBEAFE', badgeColor: '#1e40af' },
+    'inspection':  { bar: '#EC4899', badgeBg: '#fce7f3', badgeColor: '#9d174d' },
+    'painting':    { bar: '#14B8A6', badgeBg: '#ccfbf1', badgeColor: '#0f766e' },
+    'completion':  { bar: '#10B981', badgeBg: '#d1fae5', badgeColor: '#065f46' },
+    'delivery':    { bar: '#059669', badgeBg: '#d1fae5', badgeColor: '#065f46' },
+};
+
 function updateProgressBadge(progress) {
     const badge = document.getElementById("progressBadge");
     const fill  = document.getElementById("progressFill");
+    const phase = (typeof PROJECT_CURRENT_PHASE !== 'undefined' ? PROJECT_CURRENT_PHASE : 'delivery').toLowerCase();
+    const pc    = PHASE_BAR_COLORS[phase] || PHASE_BAR_COLORS['delivery'];
 
     if (fill) {
-        fill.style.width = progress + '%';
-        if (progress >= 100) {
-            fill.style.background = 'linear-gradient(90deg, #207A3A, #16a34a)';
-        } else if (progress > 0) {
-            fill.style.background = 'linear-gradient(90deg, #1e3a8a, #2A4EAA)';
-        } else {
-            fill.style.background = '#8A6100';
-        }
+        fill.style.width      = progress + '%';
+        fill.style.background = progress > 0 ? pc.bar : '#e5e7eb';
+        fill.style.boxShadow  = progress > 0 ? ('0 0 6px ' + pc.bar + '66') : 'none';
     }
 
     if (!badge) return;
-    if (progress >= 100) {
-        badge.style.backgroundColor = "#E7F6EC";
-        badge.style.color           = "#207A3A";
-        badge.textContent           = "100%";
-    } else if (progress > 0) {
-        badge.style.backgroundColor = "#EAF0FF";
-        badge.style.color           = "#2A4EAA";
-        badge.textContent           = progress + "%";
-    } else {
-        badge.style.backgroundColor = "#FFF3D6";
-        badge.style.color           = "#8A6100";
-        badge.textContent           = "0%";
-    }
+    badge.style.backgroundColor = pc.badgeBg;
+    badge.style.color           = pc.badgeColor;
+    badge.textContent           = progress + '%';
 }
 
 /* ── INIT — only runs on project view pages ── */

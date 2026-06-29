@@ -288,6 +288,7 @@ class AdminController extends Controller
         $filterQuarter = $request->input('quarter', 'all');
         $filterStatus  = $request->input('status', 'all');
         $filterKpi     = $request->input('kpi', 'all');
+        $filterProject = $request->input('project', 'all');
 
         // Map quarter to months
         $quarterMonths = [
@@ -297,12 +298,20 @@ class AdminController extends Controller
         $filterYear  = now()->year;
         $filterMonth = null;
 
+        // All completed projects for the dropdown (unfiltered)
+        $allCompletedProjects = Project::where('status', 'completed')
+            ->orderBy('name')
+            ->get(['id', 'name', 'client']);
+
         // ── Per-project KPIs (completed projects only, ordered by completion) ──
         $query = Project::where('status', 'completed')->orderBy('updated_at');
         if ($filterQuarter !== 'all' && isset($quarterMonths[$filterQuarter])) {
             $months = $quarterMonths[$filterQuarter];
             $query->whereYear('updated_at', $filterYear)
                   ->whereIn(\DB::raw('EXTRACT(MONTH FROM updated_at)'), $months);
+        }
+        if ($filterProject !== 'all' && is_numeric($filterProject)) {
+            $query->where('id', (int) $filterProject);
         }
         $completedList = $query->get();
 
@@ -311,16 +320,46 @@ class AdminController extends Controller
             $received = $payment
                 ? (float) PaymentTransaction::where('payment_id', $payment->id)->sum('amount_paid')
                 : 0;
-            $matCost       = (float) ProjectMaterial::where('project_id', $project->id)
-                ->where('status', 'active')->sum('total_cost');
             $contractValue = $payment ? (float) $payment->contract_amount : 0;
-            $estProfit     = max(0, $contractValue - $matCost);
-            $saved         = max(0, $received - $matCost);
 
-            $profitMargin    = $contractValue > 0
-                ? round((($contractValue - $matCost) / $contractValue) * 100, 1) : 0;
-            $budgetAdherence = $contractValue > 0
-                ? min(100, round(($received / $contractValue) * 100, 1)) : 0;
+            // ── Actual material spend (from real purchases, not BOM estimate) ──
+            $actualMatSpend = (float) \App\Models\MaterialPurchase::where('project_id', $project->id)
+                ->sum('total_paid');
+
+            // ── BOM estimated material cost (budgeted) ──
+            $bomMatCost = (float) ProjectMaterial::where('project_id', $project->id)
+                ->where('status', 'active')->sum('total_cost');
+
+            // ── Actual labor cost = allocated_pay from salary_record_project pivot (equal split) ──
+            $actualLaborCost = (float) \DB::table('salary_record_project')
+                ->where('project_id', $project->id)
+                ->sum('allocated_pay');
+            // Fallback to project_labor total if no salary pivot records exist
+            if ($actualLaborCost == 0) {
+                $actualLaborCost = (float) \App\Models\ProjectLabor::where('project_id', $project->id)
+                    ->where('status', 'active')->sum('total_cost');
+            }
+
+            // ── Total actual spend (materials + labor) ──
+            $totalActualSpend = $actualMatSpend + $actualLaborCost;
+
+            // ── BOM total budget (materials + labor estimate) ──
+            $bomLaborCost = (float) \App\Models\ProjectLabor::where('project_id', $project->id)
+                ->sum('total_cost');
+            $bomTotalBudget = $bomMatCost + $bomLaborCost;
+
+            // ── Profit Margin = (Revenue received - Actual total spend) / Revenue ──
+            $profitMargin = $received > 0
+                ? round((($received - $totalActualSpend) / $received) * 100, 1)
+                : 0;
+
+            // ── Budget Adherence = BOM Budget / Actual Spend (higher = better, capped 100) ──
+            // If actual spend ≤ BOM budget = 100%, else show % of budget used
+            $budgetAdherence = $bomTotalBudget > 0
+                ? min(100, round(($bomTotalBudget / max(1, $totalActualSpend ?: $bomTotalBudget)) * 100, 1))
+                : ($contractValue > 0 ? min(100, round(($received / $contractValue) * 100, 1)) : 0);
+
+            // ── On-time delivery ──
             $onTime = $project->end_date
                 && $project->updated_at->startOfDay()->lte($project->end_date);
 
@@ -329,11 +368,12 @@ class AdminController extends Controller
                 $daysDelay = (int) $project->end_date->diffInDays($project->updated_at);
             }
 
-            $tag = $project->code;
+            $estProfit = max(0, $received - $totalActualSpend);
+            $saved     = max(0, $bomTotalBudget - $totalActualSpend);
 
             return [
                 'code'             => $project->code,
-                'label'            => $tag,
+                'label'            => $project->code,
                 'short'            => $project->code,
                 'full_name'        => $project->name,
                 'client'           => $project->client,
@@ -342,7 +382,10 @@ class AdminController extends Controller
                 'budget_adherence' => $budgetAdherence,
                 'contract_value'   => $contractValue,
                 'received'         => $received,
-                'mat_cost'         => $matCost,
+                'mat_cost'         => $actualMatSpend,       // actual, not BOM
+                'bom_mat_cost'     => $bomMatCost,
+                'labor_cost'       => $actualLaborCost,
+                'total_spend'      => $totalActualSpend,
                 'est_profit'       => $estProfit,
                 'saved'            => $saved,
                 'days_delay'       => $daysDelay,
@@ -387,10 +430,13 @@ class AdminController extends Controller
         // Last 5 for forecast chart
         $forecastChart = $projectKpis->take(-5)->values();
 
-        // Extra summary data
-        $totalRevenue   = $projectKpis->sum('received');
-        $totalMatCost   = $projectKpis->sum('mat_cost');
-        $totalSaved     = $projectKpis->sum('saved');
+        // Extra summary data — using actual spend
+        $totalRevenue    = $projectKpis->sum('received');
+        $totalMatCost    = $projectKpis->sum('mat_cost');       // actual material purchases
+        $totalLaborCost  = $projectKpis->sum('labor_cost');     // actual labor
+        $totalActualSpend = $projectKpis->sum('total_spend');   // mat + labor actual
+        $totalBomMatCost = $projectKpis->sum('bom_mat_cost');   // BOM estimate
+        $totalSaved      = $projectKpis->sum('saved');
         $totalContracted = $projectKpis->sum('contract_value');
         $delayedCount   = $projectKpis->where('on_time', false)->count();
         $avgDelayDays   = $delayedCount > 0
@@ -426,8 +472,10 @@ class AdminController extends Controller
             'projectKpis', 'count',
             'avgProfitMargin', 'onTimeCount', 'onTimeRate', 'avgBudgetAdherence',
             'wmaForecast', 'forecastChart', 'last3Avg', 'pmVals', 'last3',
-            'filterYear', 'filterMonth', 'filterQuarter', 'filterStatus', 'filterKpi',
-            'totalRevenue', 'totalMatCost', 'totalSaved', 'totalContracted',
+            'filterYear', 'filterMonth', 'filterQuarter', 'filterStatus', 'filterKpi', 'filterProject',
+            'allCompletedProjects',
+            'totalRevenue', 'totalMatCost', 'totalLaborCost', 'totalActualSpend',
+            'totalBomMatCost', 'totalSaved', 'totalContracted',
             'delayedCount', 'avgDelayDays', 'activeProjects',
             'currentQuarterLabel', 'next3Forecast', 'revTrend', 'pmTrend', 'baTrend', 'otTrend'
         ));

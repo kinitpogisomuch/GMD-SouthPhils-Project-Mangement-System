@@ -49,20 +49,6 @@
             @endif
 
             <!-- Summary Cards -->
-            <div class="page-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 24px;">
-                <div class="info-card blue">
-                    <div class="info-card-icon blue"><i data-lucide="users"></i></div>
-                    <h3>Total Employees</h3>
-                    <div class="value" id="totalEmpCount">{{ $employees->where('status', 'Active')->count() }}</div>
-                    <div class="info-card-sub">Active workforce</div>
-                </div>
-                <div class="info-card green">
-                    <div class="info-card-icon green"><i data-lucide="banknote"></i></div>
-                    <h3>Monthly Payroll</h3>
-                    <div class="value" id="totalPayroll">₱ 0</div>
-                    <div class="info-card-sub">Total salary expense</div>
-                </div>
-            </div>
 
             <!-- Tabs -->
             <div class="emp-tabs">
@@ -94,12 +80,6 @@
                                 <option value="">All</option>
                                 <option value="Active">Active</option>
                                 <option value="Inactive">Archived</option>
-                            </select>
-                            <select id="empSortFilter" class="filter-select">
-                                <option value="date-desc">Date Added (Newest First)</option>
-                                <option value="date-asc">Date Added (Oldest First)</option>
-                                <option value="name-asc">Name (A-Z)</option>
-                                <option value="name-desc">Name (Z-A)</option>
                             </select>
                         </div>
                     </div>
@@ -260,16 +240,18 @@
                                 <tr>
                                     <th>Employee Name</th>
                                     <th>Role</th>
-                                    <th>Employee Type</th>
                                     <th>Daily Rate</th>
                                     <th>Days Worked</th>
-                                    <th>Total</th>
+                                    <th>OT Hours</th>
+                                    <th>OT Pay</th>
+                                    <th>Gross Pay</th>
+                                    <th>Net Pay</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="salaryTableBody">
                                 <tr id="salaryLoadingRow">
-                                    <td colspan="7" style="text-align:center;padding:48px 20px;color:var(--muted);">
+                                    <td colspan="9" style="text-align:center;padding:48px 20px;color:var(--muted);">
                                         <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
                                             <i data-lucide="loader" style="width:28px;height:28px;opacity:0.4;"></i>
                                             <span style="font-size:14px;font-weight:600;">Loading...</span>
@@ -328,9 +310,10 @@
                     <div class="form-group">
                         <label>Contact Number </label>
                         <input type="text" name="contact" required maxlength="13"
-                               placeholder="e.g. 09171234567"
+                               placeholder="e.g. 0930-147-6598"
                                value="{{ old('contact') }}"
-                               oninput="empFieldError(this,'addEmpContactErr')">
+                               oninput="formatEmpContact(this);empFieldError(this,'addEmpContactErr')"
+                               onkeypress="return /[0-9\-]/.test(event.key)">
                         <span class="emp-field-err" id="addEmpContactErr"></span>
                     </div>
                     <div class="form-group">
@@ -497,8 +480,9 @@
                     <div class="form-group">
                         <label>Contact Number </label>
                         <input type="text" name="contact" id="editEmpContact" required maxlength="13"
-                               placeholder="e.g. 09171234567"
-                               oninput="empFieldError(this,'editEmpContactErr')">
+                               placeholder="e.g. 0930-147-6598"
+                               oninput="formatEmpContact(this);empFieldError(this,'editEmpContactErr')"
+                               onkeypress="return /[0-9\-]/.test(event.key)">
                         <span class="emp-field-err" id="editEmpContactErr"></span>
                     </div>
                     <div class="form-group">
@@ -618,14 +602,14 @@
                     <h2>Salary Details</h2>
                     <p id="salaryDetailName"></p>
                 </div>
-                <button class="modal-close" type="button" id="closeSalaryDetailModal">
+                <button class="modal-close" type="button" onclick="closeEmpModal('salaryDetailModal')">
                     <i data-lucide="x"></i>
                 </button>
             </div>
             <div id="salaryDetailBody"></div>
             <div class="modal-actions" style="margin-top: 16px;">
-                <button type="button" class="cancel-btn" id="cancelSalaryDetail">Close</button>
-                <button type="button" class="save-btn" onclick="document.getElementById('salaryDetailModal').classList.remove('show')">
+                <button type="button" class="cancel-btn" onclick="closeEmpModal('salaryDetailModal')">Close</button>
+                <button type="button" class="save-btn" onclick="printSalarySlip()">
                     <i data-lucide="printer"></i>
                     Print Slip
                 </button>
@@ -666,67 +650,112 @@
                 </div>
             </div>
 
-            <!-- STEP 2: Salary Form -->
-            <form id="recordPaymentForm" style="display:none;">
+            <!-- STEP 2: Salary Form (redesigned) -->
+            <form id="recordPaymentForm" style="display:none;max-height:82vh;overflow-y:auto;padding-right:2px;">
                 <input type="hidden" id="rpRecordId">
                 <input type="hidden" id="rpEmployee">
                 <input type="hidden" id="rpPeriod">
+                <input type="hidden" id="rpDays">
 
-                <div id="salarySelectedEmployee" style="display:flex;align-items:center;gap:12px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:16px;">
-                    <div class="client-select-avatar" id="salarySelectedAvatar">?</div>
+                {{-- Employee banner --}}
+                <div style="display:flex;align-items:center;gap:14px;background:linear-gradient(135deg,#0E1428,#1a2340);border-radius:12px;padding:14px 16px;margin-bottom:16px;">
+                    <div class="cs-avatar" style="width:44px;height:44px;min-width:44px;font-size:16px;" id="salarySelectedAvatar">?</div>
                     <div>
-                        <div style="font-weight:700;font-size:14px;" id="salarySelectedName">—</div>
-                        <div style="font-size:12px;color:var(--muted);" id="salarySelectedRole">—</div>
+                        <div style="font-weight:800;font-size:15px;color:#fff;" id="salarySelectedName">—</div>
+                        <div style="font-size:12px;color:rgba(255,255,255,.5);" id="salarySelectedRole">—</div>
                     </div>
                 </div>
 
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>Daily Rate (₱)</label>
-                        <input type="number" id="rpDailyRate" readonly placeholder="e.g. 800" min="0" step="0.01"
-                               style="background:rgba(0,0,0,0.03);cursor:default;">
+                {{-- ── Projects ── --}}
+                <div style="margin-bottom:16px;">
+                    <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+                        <i data-lucide="folder" style="width:12px;height:12px;"></i> Project(s)
+                        <span style="font-weight:500;text-transform:none;letter-spacing:0;">(optional — select all that apply)</span>
                     </div>
-                    <div class="form-group">
-                        <label>Days Worked This Week </label>
-                        <input type="number" id="rpDays" required placeholder="e.g. 5" min="0" max="7" step="0.5"
-                               oninput="updatePayPreview()">
-                        <span style="font-size:11px;color:var(--muted);margin-top:3px;display:block;">Use <strong>0.5</strong> for a half day (e.g. 4.5 = 4 full days + 1 half day)</span>
-                    </div>
-                    <div class="form-group" style="grid-column:1/-1;">
-                        <label>Overtime Hours <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
-                        <input type="number" id="rpOvertimeHours" placeholder="e.g. 2" min="0" max="24" step="0.5"
-                               oninput="updatePayPreview()">
-                        <span style="font-size:11px;color:var(--muted);margin-top:3px;display:block;">Overtime is computed at <strong>1.25×</strong> the hourly rate (daily rate ÷ 8)</span>
+                    <div id="rpProjectList" style="display:flex;flex-direction:column;gap:8px;max-height:220px;overflow-y:auto;padding-right:2px;">
+                        <div style="font-size:12px;color:var(--muted);text-align:center;padding:16px 0;">Loading projects…</div>
                     </div>
                 </div>
 
-                <!-- Live pay preview -->
-                <div id="rpPreview" style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-top:4px;display:none;">
-                    <div style="font-size:11px;font-weight:800;color:var(--primary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">Pay Preview</div>
-                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;font-size:13px;">
+                {{-- ── Attendance ── --}}
+                <div style="background:var(--cream-soft);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px;">
+                    <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px;">Attendance</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;">
                         <div>
-                            <div style="color:var(--muted);font-size:11px;font-weight:700;margin-bottom:2px;">Regular Pay</div>
-                            <div style="font-weight:700;color:var(--dark);" id="previewRegular">₱0.00</div>
-                        </div>
-                        <div id="previewOvertimeWrap" style="display:none;">
-                            <div style="color:var(--muted);font-size:11px;font-weight:700;margin-bottom:2px;">Overtime Pay</div>
-                            <div style="font-weight:700;color:#2563eb;" id="previewOvertime">₱0.00</div>
+                            <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px;">Daily Rate (₱)</label>
+                            <input type="number" id="rpDailyRate" readonly min="0" step="0.01"
+                                   style="width:100%;background:#fff;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;font-weight:800;color:var(--dark);cursor:default;">
                         </div>
                         <div>
-                            <div style="color:var(--muted);font-size:11px;font-weight:700;margin-bottom:2px;">Total Pay</div>
-                            <div style="font-size:18px;font-weight:900;color:#16a34a;" id="previewNet">₱0.00</div>
+                            <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px;">Full Days</label>
+                            <input type="number" id="rpFullDays" placeholder="0" min="0" max="7" step="1"
+                                   oninput="updatePayPreview()"
+                                   style="width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;font-weight:700;background:#fff;">
+                            <span style="font-size:10px;color:var(--muted);">max 7</span>
+                        </div>
+                        <div>
+                            <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px;">Half Days</label>
+                            <input type="number" id="rpHalfDays" placeholder="0" min="0" max="7" step="1"
+                                   oninput="updatePayPreview()"
+                                   style="width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;background:#fff;">
+                            <span style="font-size:10px;color:var(--muted);">× 0.5 each</span>
+                        </div>
+                        <div>
+                            <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px;">OT Hours</label>
+                            <input type="number" id="rpOvertimeHours" placeholder="0" min="0" max="24" step="0.5"
+                                   oninput="updatePayPreview()"
+                                   style="width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;background:#fff;">
                         </div>
                     </div>
                 </div>
 
-                <div id="rpError" style="display:none;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;margin-top:10px;color:#991b1b;font-size:13px;"></div>
+                {{-- ── Pay Breakdown ── --}}
+                <div id="rpPayBreakdown" style="display:none;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:14px;">
+                    <div style="background:var(--dark);padding:10px 14px;">
+                        <span style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.5);">Pay Computation</span>
+                    </div>
+                    <div style="padding:12px 14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;border-bottom:1px solid var(--border);">
+                        <div style="padding:8px;border-right:1px solid var(--border);">
+                            <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">Regular Pay</div>
+                            <div style="font-size:15px;font-weight:800;color:var(--dark);" id="pbRegular">₱0.00</div>
+                        </div>
+                        <div style="padding:8px;border-right:1px solid var(--border);">
+                            <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">Half Day Pay</div>
+                            <div style="font-size:15px;font-weight:800;color:var(--dark);" id="pbHalf">₱0.00</div>
+                        </div>
+                        <div style="padding:8px;">
+                            <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">OT Pay</div>
+                            <div style="font-size:15px;font-weight:800;color:#2563eb;" id="pbOT">₱0.00</div>
+                        </div>
+                    </div>
+                    <div style="padding:12px 14px;display:flex;justify-content:space-between;align-items:center;background:var(--cream-soft);">
+                        <span style="font-size:12px;font-weight:700;color:var(--dark);">Gross Labor Cost</span>
+                        <span style="font-size:20px;font-weight:900;color:#16a34a;" id="pbGross">₱0.00</span>
+                    </div>
+                </div>
+
+                {{-- ── Project Cost Allocation ── --}}
+                <div id="rpAllocationPreview" style="display:none;border:1px solid #bfdbfe;border-radius:12px;overflow:hidden;margin-bottom:14px;">
+                    <div style="background:#1e40af;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
+                        <span style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.7);">Project Cost Allocation</span>
+                        <span style="font-size:11px;font-weight:700;color:rgba(255,255,255,.5);">Split equally</span>
+                    </div>
+                    <div id="rpAllocRows" style="padding:10px 14px;display:flex;flex-direction:column;gap:6px;"></div>
+                    <div style="padding:10px 14px;background:#eff6ff;border-top:1px solid #bfdbfe;display:flex;justify-content:space-between;align-items:center;">
+                        <span style="font-size:12px;color:#1e40af;font-weight:700;">Total Allocated</span>
+                        <span style="font-size:14px;font-weight:900;color:#1e40af;" id="rpAllocTotal">₱0.00</span>
+                    </div>
+                </div>
+
+                <div id="rpError" style="display:none;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;margin-bottom:10px;color:#991b1b;font-size:13px;"></div>
 
                 <div class="modal-actions">
-                    <button type="button" class="cancel-btn" id="backSalaryStep2">Back</button>
+                    <button type="button" class="cancel-btn" id="backSalaryStep2">
+                        <i data-lucide="arrow-left" style="width:14px;height:14px;"></i> Back
+                    </button>
                     <button type="button" class="cancel-btn" id="cancelRecordPayment">Cancel</button>
                     <button type="submit" class="save-btn" id="recordPaymentSubmitBtn">
-                        <i data-lucide="save"></i>
-                        Save Record
+                        <i data-lucide="save"></i> Save Record
                     </button>
                 </div>
             </form>
@@ -744,6 +773,11 @@
     <script>
     (function () {
         // ---- Tab restoration from session ----
+        // Force reload if restored from bfcache
+        window.addEventListener('pageshow', function(e) {
+            if (e.persisted) window.location.reload();
+        });
+
         var activeTab = "{{ session('active_tab', 'employees') }}";
 
         document.addEventListener('DOMContentLoaded', function () {
@@ -865,29 +899,9 @@
                 }
             }
 
-            function sortEmployees() {
-                var sort  = document.getElementById('empSortFilter').value;
-                var tbody = document.querySelector('#employeesTable tbody');
-                var rows  = Array.from(tbody.querySelectorAll('tr[data-name]'));
-                rows.sort(function (a, b) {
-                    if (sort === 'date-desc') return Number(b.dataset.created) - Number(a.dataset.created);
-                    if (sort === 'date-asc')  return Number(a.dataset.created) - Number(b.dataset.created);
-                    if (sort === 'name-asc')  return a.dataset.name.localeCompare(b.dataset.name);
-                    if (sort === 'name-desc') return b.dataset.name.localeCompare(a.dataset.name);
-                    return 0;
-                });
-                rows.forEach(function (row) { tbody.appendChild(row); });
-            }
-
             document.getElementById('employeeSearch').addEventListener('keyup', filterEmployees);
             document.getElementById('empTypeFilter').addEventListener('change', filterEmployees);
             document.getElementById('empStatusFilter').addEventListener('change', filterEmployees);
-            document.getElementById('empSortFilter').addEventListener('change', function () {
-                sortEmployees();
-                filterEmployees();
-            });
-            // Apply default sort then filter (Active only) on load
-            sortEmployees();
             filterEmployees();
 
             // ---- Record Salary button (header) ----
@@ -944,14 +958,84 @@
                 if (week) loadSalaryRecords(week);
                 document.getElementById('salaryJumpPanel').classList.remove('show');
             });
+
+            if (activeTab === 'salary') loadSalaryRecords(null);
         });
     })();
 
     // =================== SALARY MODULE ===================
 
-    var SALARY_INDEX_URL  = '{{ route("admin.salary.index") }}';
-    var SALARY_STORE_URL  = '{{ route("admin.salary.store") }}';
-    var CSRF              = '{{ csrf_token() }}';
+    var SALARY_INDEX_URL    = '{{ route("admin.salary.index") }}';
+    var SALARY_STORE_URL    = '{{ route("admin.salary.store") }}';
+    var SALARY_PROJECTS_URL = '{{ route("admin.salary.projects") }}';
+    var CSRF                = '{{ csrf_token() }}';
+    var SALARY_PROJECTS_CACHE = null;
+
+    function loadSalaryProjects(selectedIds) {
+        selectedIds = selectedIds || [];
+        var list = document.getElementById('rpProjectList');
+        if (!list) return;
+
+        function render(projects) {
+            if (!projects.length) {
+                list.innerHTML = '<div style="font-size:12px;color:var(--muted);text-align:center;padding:16px 0;">No active projects</div>';
+                return;
+            }
+            list.innerHTML = projects.map(function(p) {
+                var sel = selectedIds.indexOf(p.id) !== -1;
+                return '<div data-proj-id="' + p.id + '" data-proj-name="' + (p.name||'').replace(/"/g,'&quot;') + '" data-proj-client="' + (p.client||'') + '" data-proj-spec="' + (p.spec||'') + '"'
+                    + ' onclick="toggleProjectCard(this)" style="cursor:pointer;border-radius:12px;padding:12px 14px;border:2px solid ' + (sel ? '#2563eb' : 'var(--border)') + ';background:' + (sel ? '#eff6ff' : '#fff') + ';transition:all .15s;position:relative;">'
+                    // Check icon
+                    + '<div style="position:absolute;top:10px;right:10px;width:20px;height:20px;border-radius:50%;background:' + (sel ? '#2563eb' : 'var(--cream-deep)') + ';display:flex;align-items:center;justify-content:center;transition:all .15s;">'
+                    +   '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="' + (sel ? '#fff' : '#aaa') + '" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+                    + '</div>'
+                    // Project name
+                    + '<div style="font-size:13px;font-weight:700;color:var(--dark);padding-right:28px;margin-bottom:8px;">' + p.name + '</div>'
+                    // Meta row
+                    + '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">'
+                    + (p.client ? '<span style="font-size:11px;font-weight:600;color:#475569;background:#f1f5f9;padding:2px 8px;border-radius:999px;border:1px solid #cbd5e1;">' + p.client + '</span>' : '')
+                    + (p.spec   ? '<span style="font-size:11px;font-weight:600;color:#1d4ed8;background:#eff6ff;padding:2px 8px;border-radius:999px;border:1px solid #bfdbfe;">' + p.spec + '</span>' : '')
+                    + '</div>'
+                    // Allocated cost (live preview)
+                    + '<div class="proj-alloc-line" style="margin-top:8px;font-size:11px;color:' + (sel ? '#1d4ed8' : 'var(--muted)') + ';font-weight:700;display:' + (sel ? 'block' : 'none') + ';">Allocated: <span class="proj-alloc-amt">₱0.00</span></div>'
+                    + '</div>';
+            }).join('');
+            updatePayPreview();
+        }
+
+        if (SALARY_PROJECTS_CACHE) { render(SALARY_PROJECTS_CACHE); return; }
+        list.innerHTML = '<div style="font-size:12px;color:var(--muted);text-align:center;padding:16px 0;">Loading…</div>';
+        fetch(SALARY_PROJECTS_URL, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function(r){ return r.json(); })
+            .then(function(data){ SALARY_PROJECTS_CACHE = data; render(data); });
+    }
+
+    function toggleProjectCard(card) {
+        var sel = card.style.borderColor === 'rgb(37, 99, 235)' || card.getAttribute('data-selected') === '1';
+        sel = !sel;
+        card.setAttribute('data-selected', sel ? '1' : '0');
+        card.style.border     = '2px solid ' + (sel ? '#2563eb' : 'var(--border)');
+        card.style.background = sel ? '#eff6ff' : '#fff';
+        var icon  = card.querySelector('div[style*="position:absolute"] div, div[style*="position:absolute"]');
+        var check = card.querySelector('div[style*="position:absolute"]');
+        if (check) {
+            check.style.background = sel ? '#2563eb' : 'var(--cream-deep)';
+            var svg = check.querySelector('svg polyline');
+            if (svg) svg.setAttribute('stroke', sel ? '#fff' : '#aaa');
+        }
+        var allocLine = card.querySelector('.proj-alloc-line');
+        if (allocLine) allocLine.style.display = sel ? 'block' : 'none';
+        updatePayPreview();
+    }
+
+    function getSelectedProjectIds() {
+        return Array.from(document.querySelectorAll('#rpProjectList [data-proj-id][data-selected="1"]'))
+            .map(function(c){ return parseInt(c.dataset.projId); });
+    }
+
+    // Legacy stub (no longer used but kept for safety)
+    function updateProjectAllocationUI() { updatePayPreview(); }
+    function updateProjHighlight() {}
 
     @php
     $employeesForSalaryPicker = $employees->where('status', 'Active')
@@ -1107,7 +1191,7 @@
         tbody.innerHTML = '<tr id="salaryLoadingRow"><td colspan="6" style="text-align:center;padding:48px 20px;color:var(--muted);"><div style="display:flex;flex-direction:column;align-items:center;gap:10px;"><i data-lucide="loader" style="width:28px;height:28px;opacity:0.4;"></i><span style="font-size:14px;font-weight:600;">Loading...</span></div></td></tr>';
         if (window.lucide) lucide.createIcons();
 
-        var url = SALARY_INDEX_URL + (payPeriod ? ('?pay_period=' + encodeURIComponent(payPeriod)) : '');
+        var url = SALARY_INDEX_URL + (payPeriod ? ('?pay_period=' + encodeURIComponent(payPeriod)) : '') + '&_=' + Date.now();
 
         fetch(url, {
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
@@ -1128,26 +1212,40 @@
         CURRENT_SALARY_RECORDS = records || [];
 
         if (!records || records.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:48px 20px;"><div style="display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--muted);"><i data-lucide="inbox" style="width:36px;height:36px;opacity:0.4;"></i><span style="font-size:14px;font-weight:600;">No salary records yet.</span></div></td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:48px 20px;"><div style="display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--muted);"><i data-lucide="inbox" style="width:36px;height:36px;opacity:0.4;"></i><span style="font-size:14px;font-weight:600;">No salary records yet.</span></div></td></tr>';
             if (window.lucide) lucide.createIcons();
             document.getElementById('summaryGross').textContent = '₱0.00';
             return;
         }
 
         tbody.innerHTML = records.map(function (r, idx) {
-            var actions = '<button class="action-btn view" title="Edit" onclick="openSalaryModal(' + idx + ')"><i data-lucide="pencil"></i></button>';
-            if (r.employee_type === 'Outsourced' && r.id) {
-                actions += '<button class="action-btn" title="Delete" style="color:#dc2626;" onclick="deleteSalaryRecord(' + r.id + ')"><i data-lucide="trash-2"></i></button>';
-            }
-            var typeBadge = '<span class="role-badge" style="' + (r.employee_type === 'Regular' ? 'background:#ede9fe;color:#6d28d9;' : 'background:#fef3c7;color:#92400e;') + '">' + escHtml(r.employee_type) + '</span>';
+            var hasRecord  = !!r.id;
+            var dailyRate  = parseFloat(r.daily_rate)       || 0;
+            var daysWorked = parseFloat(r.days_worked)      || 0;
+            var otHours    = parseFloat(r.overtime_hours)   || 0;
+            var otPay      = otHours * (dailyRate / 8);
+            var grossPay   = (dailyRate * daysWorked) + otPay;
+            var netPay     = parseFloat(r.net_pay)          || 0;
+
+            var iconStyle = 'style="width:16px;height:16px;"';
+            var viewBtn = hasRecord
+                ? '<button class="action-btn view" title="View Payslip" onclick="openSalaryDetail(' + idx + ')" style="color:#2563eb;"><i data-lucide="receipt-text" ' + iconStyle + '></i></button>'
+                : '<button class="action-btn" title="No record yet" disabled style="opacity:.3;cursor:default;"><i data-lucide="receipt-text" ' + iconStyle + '></i></button>';
+            var editBtn = '<button class="action-btn view" title="Edit" onclick="openSalaryModal(' + idx + ')"><i data-lucide="pencil" ' + iconStyle + '></i></button>';
+            var delBtn  = (r.employee_type === 'Outsourced' && hasRecord)
+                ? '<button class="action-btn" title="Delete" style="color:#dc2626;" onclick="deleteSalaryRecord(' + r.id + ')"><i data-lucide="trash-2"></i></button>'
+                : '';
+
             return '<tr data-id="' + (r.id || '') + '" data-name="' + r.employee_name.toLowerCase() + '">'
-                + '<td style="font-weight:600;">' + escHtml(r.employee_name) + '</td>'
-                + '<td>' + escHtml(r.role) + '</td>'
-                + '<td>' + typeBadge + '</td>'
-                + '<td>₱' + fmt(r.daily_rate) + '</td>'
-                + '<td>' + r.days_worked + '</td>'
-                + '<td style="font-weight:900;color:#16a34a;">₱' + fmt(r.net_pay) + '</td>'
-                + '<td class="action-cell">' + actions + '</td>'
+                + '<td style="font-weight:600;">'                                          + escHtml(r.employee_name) + '</td>'
+                + '<td>'                                                                   + escHtml(r.role || '—') + '</td>'
+                + '<td>₱'                                                                  + fmt(dailyRate) + '</td>'
+                + '<td>'                                                                   + (hasRecord ? daysWorked : '—') + '</td>'
+                + '<td style="color:' + (otHours > 0 ? '#2563eb' : 'var(--muted)') + ';">'+ (otHours > 0 ? otHours + ' hrs' : '—') + '</td>'
+                + '<td style="color:' + (otPay   > 0 ? '#2563eb' : 'var(--muted)') + ';">'+ (otPay   > 0 ? '₱' + fmt(otPay) : '—') + '</td>'
+                + '<td>'                                                                   + (hasRecord ? '₱' + fmt(grossPay) : '—') + '</td>'
+                + '<td style="font-weight:900;color:#16a34a;">'                           + (hasRecord ? '₱' + fmt(netPay) : '—') + '</td>'
+                + '<td class="action-cell">' + editBtn + viewBtn + delBtn + '</td>'
                 + '</tr>';
         }).join('');
 
@@ -1232,11 +1330,15 @@
         var rec = CURRENT_SALARY_RECORDS[idx];
         if (!rec) return;
 
-        document.getElementById('rpRecordId').value        = rec.id || '';
-        document.getElementById('rpEmployee').value        = rec.employee_id;
-        document.getElementById('rpPeriod').value          = rec.pay_period;
-        document.getElementById('rpError').style.display   = 'none';
-        document.getElementById('rpPreview').style.display = 'none';
+        document.getElementById('rpRecordId').value       = rec.id || '';
+        document.getElementById('rpEmployee').value       = rec.employee_id;
+        document.getElementById('rpPeriod').value         = rec.pay_period;
+        document.getElementById('rpError').style.display  = 'none';
+
+        var pb = document.getElementById('rpPayBreakdown');
+        var ap = document.getElementById('rpAllocationPreview');
+        if (pb) pb.style.display = 'none';
+        if (ap) ap.style.display = 'none';
 
         pickedSalaryEmployee = null;
 
@@ -1244,9 +1346,15 @@
         document.getElementById('recordPaymentSubtitle').textContent = 'Update the weekly salary for ' + rec.employee_name + '.';
 
         setSalarySelectedEmployee(rec.employee_name, rec.role);
-        document.getElementById('rpDailyRate').value     = rec.daily_rate;
-        document.getElementById('rpDays').value           = rec.days_worked;
+        document.getElementById('rpDailyRate').value      = rec.daily_rate;
+        var storedDays = parseFloat(rec.days_worked) || 0;
+        var fullPart   = Math.floor(storedDays);
+        var halfPart   = Math.round((storedDays - fullPart) / 0.5);
+        document.getElementById('rpFullDays').value       = fullPart || '';
+        document.getElementById('rpHalfDays').value       = halfPart || '';
+        document.getElementById('rpDays').value           = storedDays;
         document.getElementById('rpOvertimeHours').value  = rec.overtime_hours || '';
+        loadSalaryProjects(rec.project_ids || (rec.project_id ? [rec.project_id] : []));
 
         document.getElementById('backSalaryStep2').style.display = 'none';
         showSalaryStep(2);
@@ -1257,49 +1365,93 @@
 
     // Add an outsourced worker's salary entry for the current pay period
     function openAddOutsourcedModal() {
-        document.getElementById('rpRecordId').value        = '';
-        document.getElementById('rpEmployee').value        = '';
-        document.getElementById('rpPeriod').value          = currentSalaryPeriod || TODAY_PAY_PERIOD;
-        document.getElementById('rpError').style.display   = 'none';
-        document.getElementById('rpPreview').style.display = 'none';
+        document.getElementById('rpRecordId').value       = '';
+        document.getElementById('rpEmployee').value       = '';
+        document.getElementById('rpPeriod').value         = currentSalaryPeriod || TODAY_PAY_PERIOD;
+        document.getElementById('rpError').style.display  = 'none';
+        document.getElementById('rpDailyRate').value      = '';
+        document.getElementById('rpFullDays').value       = '';
+        document.getElementById('rpHalfDays').value       = '';
+        document.getElementById('rpDays').value           = '';
+        document.getElementById('rpOvertimeHours').value  = '';
+        var pb = document.getElementById('rpPayBreakdown');
+        var ap = document.getElementById('rpAllocationPreview');
+        if (pb) pb.style.display = 'none';
+        if (ap) ap.style.display = 'none';
 
         document.getElementById('recordPaymentTitle').textContent    = 'Add Outsourced Worker';
         document.getElementById('recordPaymentSubtitle').textContent = 'Select an outsourced worker to record their weekly salary.';
 
-        document.getElementById('rpDailyRate').value    = '';
-        document.getElementById('rpDays').value          = '';
-        document.getElementById('rpOvertimeHours').value = '';
-
+        loadSalaryProjects([]);
         pickedSalaryEmployee = null;
         document.getElementById('salaryEmpPickerSearch').value = '';
         renderSalaryEmployeePicker('');
         showSalaryStep(1);
-
         openEmpModal('recordPaymentModal');
     }
 
     function updatePayPreview() {
-        var rate          = parseFloat(document.getElementById('rpDailyRate').value)      || 0;
-        var days          = parseFloat(document.getElementById('rpDays').value)           || 0;
-        var overtimeHours = parseFloat(document.getElementById('rpOvertimeHours').value)  || 0;
+        var rate   = parseFloat(document.getElementById('rpDailyRate').value)      || 0;
+        var fullD  = parseFloat(document.getElementById('rpFullDays').value)       || 0;
+        var halfD  = parseFloat(document.getElementById('rpHalfDays').value)       || 0;
+        var otHrs  = parseFloat(document.getElementById('rpOvertimeHours').value)  || 0;
+        var hourly = rate / 8;
 
-        var regularPay   = rate * days;
-        var hourlyRate   = rate / 8;
-        var overtimePay  = overtimeHours * (hourlyRate * 1.25);
-        var total        = regularPay + overtimePay;
+        // Compute pay components
+        var regPay  = rate * fullD;
+        var halfPay = rate * 0.5 * halfD;
+        var otPay   = otHrs * hourly;
+        var gross   = regPay + halfPay + otPay;
+        var totalDays = fullD + halfD * 0.5;
 
-        document.getElementById('previewRegular').textContent = '₱' + fmt(regularPay);
-        document.getElementById('previewNet').textContent     = '₱' + fmt(total);
-
-        var otWrap = document.getElementById('previewOvertimeWrap');
-        if (overtimeHours > 0) {
-            document.getElementById('previewOvertime').textContent = '₱' + fmt(overtimePay);
-            otWrap.style.display = '';
-        } else {
-            otWrap.style.display = 'none';
+        // ── Pay breakdown panel ──
+        var breakdown = document.getElementById('rpPayBreakdown');
+        if (breakdown) {
+            breakdown.style.display = (gross > 0 || fullD > 0 || halfD > 0 || otHrs > 0) ? '' : 'none';
+            document.getElementById('pbRegular').textContent = '₱' + fmt(regPay);
+            document.getElementById('pbHalf').textContent    = '₱' + fmt(halfPay);
+            document.getElementById('pbOT').textContent      = '₱' + fmt(otPay);
+            document.getElementById('pbGross').textContent   = '₱' + fmt(gross);
         }
 
-        document.getElementById('rpPreview').style.display = 'block';
+        // ── Allocation preview ──
+        var selectedCards = Array.from(document.querySelectorAll('#rpProjectList [data-proj-id][data-selected="1"]'));
+        var allocEl  = document.getElementById('rpAllocationPreview');
+        var rowsEl   = document.getElementById('rpAllocRows');
+        var totalEl  = document.getElementById('rpAllocTotal');
+
+        if (allocEl && selectedCards.length > 0 && gross > 0) {
+            allocEl.style.display = '';
+            var n        = selectedCards.length;
+            var perProj  = Math.floor(gross * 100 / n) / 100;
+            var remainder= Math.round((gross - perProj * n) * 100) / 100;
+
+            var html = '';
+            selectedCards.forEach(function(card, i) {
+                var name  = card.dataset.projName || 'Project';
+                var amt   = perProj + (i === n - 1 ? remainder : 0);
+                html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #dbeafe;">'
+                    + '<div style="min-width:0;">'
+                    +   '<div style="font-size:12px;font-weight:700;color:#1e40af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px;">✓ ' + name + '</div>'
+                    + '</div>'
+                    + '<div style="font-size:13px;font-weight:800;color:#1e40af;flex-shrink:0;margin-left:12px;">₱' + fmt(amt) + '</div>'
+                    + '</div>';
+                // Update allocated cost line on the card itself
+                var line = card.querySelector('.proj-alloc-line');
+                var amtEl = card.querySelector('.proj-alloc-amt');
+                if (line)  line.style.display = 'block';
+                if (amtEl) amtEl.textContent  = '₱' + fmt(amt);
+            });
+            rowsEl.innerHTML = html;
+            totalEl.textContent = '₱' + fmt(gross);
+        } else {
+            if (allocEl) allocEl.style.display = 'none';
+            // Clear allocated lines on unselected cards
+            document.querySelectorAll('#rpProjectList [data-proj-id]').forEach(function(card) {
+                var line = card.querySelector('.proj-alloc-line');
+                if (line && card.getAttribute('data-selected') !== '1') line.style.display = 'none';
+            });
+        }
     }
 
     document.addEventListener('DOMContentLoaded', function () {
@@ -1332,7 +1484,7 @@
 
         document.getElementById('recordPaymentForm').addEventListener('submit', function (e) {
             e.preventDefault();
-            var errEl   = document.getElementById('rpError');
+            var errEl     = document.getElementById('rpError');
             var submitBtn = document.getElementById('recordPaymentSubmitBtn');
             var recordId  = document.getElementById('rpRecordId').value;
             var isEdit    = !!recordId;
@@ -1340,11 +1492,39 @@
             errEl.style.display = 'none';
             submitBtn.disabled  = true;
 
+            // Single attendance fields
+            var fullD     = parseFloat(document.getElementById('rpFullDays').value)      || 0;
+            var halfD     = parseFloat(document.getElementById('rpHalfDays').value)      || 0;
+            var totalDays = fullD + halfD * 0.5;
+            var totalOT   = parseFloat(document.getElementById('rpOvertimeHours').value) || 0;
+
+            // Build equal-split allocations for selected projects
+            var projIds   = getSelectedProjectIds();
+            var rate      = parseFloat(document.getElementById('rpDailyRate').value) || 0;
+            var hourly    = rate / 8;
+            var gross     = rate * totalDays + totalOT * hourly;
+            var n         = projIds.length;
+            var allocations = [];
+            if (n > 0 && gross > 0) {
+                var perProj   = Math.floor(gross * 100 / n) / 100;
+                var remainder = Math.round((gross - perProj * n) * 100) / 100;
+                projIds.forEach(function(pid, i) {
+                    allocations.push({
+                        project_id:     pid,
+                        days_worked:    totalDays,
+                        overtime_hours: totalOT,
+                        allocated_pay:  perProj + (i === n - 1 ? remainder : 0)
+                    });
+                });
+            }
+
             var payload = {
                 employee_id:    document.getElementById('rpEmployee').value,
+                project_ids:    projIds,
                 pay_period:     document.getElementById('rpPeriod').value,
-                days_worked:    document.getElementById('rpDays').value,
-                overtime_hours: document.getElementById('rpOvertimeHours').value || 0,
+                days_worked:    totalDays,
+                overtime_hours: totalOT,
+                allocations:    allocations,
             };
 
             var url    = isEdit ? '/admin/salary-records/' + recordId : SALARY_STORE_URL;
@@ -1394,6 +1574,76 @@
 
     function fmt(n) { return Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
     function escHtml(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    function openSalaryDetail(idx) {
+        var r = CURRENT_SALARY_RECORDS[idx];
+        if (!r || !r.id) return;
+
+        var dailyRate  = parseFloat(r.daily_rate)        || 0;
+        var daysWorked = parseFloat(r.days_worked)       || 0;
+        var otHours    = parseFloat(r.overtime_hours)    || 0;
+        var otPay      = parseFloat(r.overtime_pay)      || (otHours * dailyRate / 8);
+        var basicPay   = dailyRate * daysWorked;
+        var grossPay   = parseFloat(r.gross_pay)         || 0;
+        var deductions = parseFloat(r.total_deductions)  || 0;
+        var netPay     = parseFloat(r.net_pay)           || 0;
+
+        var periodStart = parsePayPeriod(r.pay_period);
+        var periodEnd   = new Date(periodStart);
+        periodEnd.setDate(periodEnd.getDate() + 6);
+        var period = formatPayPeriodDate(periodStart) + ' – ' + formatPayPeriodDate(periodEnd);
+
+        document.getElementById('salaryDetailName').textContent = r.employee_name + ' · ' + (r.role || 'Employee');
+
+        function detailRow(label, value, valueStyle) {
+            return '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">'
+                + '<span style="font-size:13px;color:var(--muted);">' + label + '</span>'
+                + '<strong style="font-size:13px;' + (valueStyle || '') + '">' + value + '</strong>'
+                + '</div>';
+        }
+
+        var dedSection = deductions > 0
+            ? detailRow('Deductions', '- ₱' + fmt(deductions), 'color:#dc2626;')
+            : '';
+
+        document.getElementById('salaryDetailBody').innerHTML =
+            '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">'
+            + period
+            + '</div>'
+            + '<div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;">'
+            + detailRow('Daily Rate', '₱' + fmt(dailyRate))
+            + detailRow('Days Worked', daysWorked + ' days')
+            + detailRow('Basic Pay', '₱' + fmt(basicPay))
+            + detailRow('Overtime (' + otHours + ' hrs)', otHours > 0 ? '₱' + fmt(otPay) : '0.00', otHours > 0 ? 'color:#2563eb;' : 'color:var(--muted);')
+            + detailRow('Gross Pay', '₱' + fmt(grossPay))
+            + dedSection
+            + '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-top:2px solid var(--border);background:var(--cream-soft);">'
+                + '<span style="font-size:14px;font-weight:900;color:var(--dark);">NET PAY</span>'
+                + '<strong style="font-size:20px;font-weight:900;color:#16a34a;">₱' + fmt(netPay) + '</strong>'
+            + '</div>'
+            + '</div>';
+
+        openEmpModal('salaryDetailModal');
+    }
+
+    function printSalarySlip() {
+        var body    = document.getElementById('salaryDetailBody');
+        var name    = document.getElementById('salaryDetailName').textContent;
+        var win     = window.open('', '_blank', 'width=480,height=600');
+        win.document.write(
+            '<html><head><title>Salary Slip – ' + escHtml(name) + '</title>'
+            + '<style>body{font-family:sans-serif;padding:32px;color:#111;}h2{margin:0 0 4px;}p{margin:0 0 20px;color:#666;font-size:13px;}'
+            + '.row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #eee;font-size:13px;}'
+            + '.row strong{font-size:13px;}.net{display:flex;justify-content:space-between;padding:14px 0;margin-top:4px;border-top:2px solid #111;}'
+            + '.net span{font-size:15px;font-weight:900;}.net strong{font-size:20px;font-weight:900;color:#16a34a;}'
+            + '</style></head><body>'
+            + '<h2>Salary Slip</h2><p>' + escHtml(name) + '</p>'
+            + body.innerHTML
+            + '</body></html>'
+        );
+        win.document.close();
+        win.print();
+    }
 
     // =================== END SALARY MODULE ===================
 
@@ -1477,6 +1727,17 @@
         if (['province','city','region'].includes(name) && !val) return 'This field is required.';
         if (name === 'street_address' && !val) return 'Street address is required.';
         return '';
+    }
+
+    function formatEmpContact(input) {
+        var digits = input.value.replace(/\D/g, '').substring(0, 11);
+        var formatted = digits;
+        if (digits.length > 4 && digits.length <= 7) {
+            formatted = digits.substring(0,4) + '-' + digits.substring(4);
+        } else if (digits.length > 7) {
+            formatted = digits.substring(0,4) + '-' + digits.substring(4,7) + '-' + digits.substring(7);
+        }
+        input.value = formatted;
     }
 
     function empFieldError(el, errId) {

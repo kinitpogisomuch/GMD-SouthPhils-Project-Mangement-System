@@ -1355,11 +1355,13 @@ body {
 }
 
 .data-table th {
-    padding: 15px 14px;
+    padding: 11px 14px;
     text-align: left;
-    font-size: 13px;
-    font-weight: 900;
+    font-size: 11.5px;
+    font-weight: 700;
     color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .04em;
     border-bottom: 1px solid var(--border);
     white-space: nowrap;
 }
@@ -1702,6 +1704,15 @@ body {
 #usageTable th:first-child { padding-left: 20px; }
 #usageTable td:last-child  { padding-right: 16px; }
 #usageTable th:last-child  { padding-right: 16px; }
+
+/* Projects table — compact layout to fit all columns without scroll */
+#projectsTable { min-width: unset; }
+#projectsTable th { padding: 10px 8px; font-size: 10.5px; }
+#projectsTable td { padding: 12px 8px; font-size: 12px; white-space: nowrap; }
+#projectsTable th:first-child,
+#projectsTable td:first-child { padding-left: 16px; }
+#projectsTable th:last-child,
+#projectsTable td:last-child  { padding-right: 12px; }
 
 .client-badge {
     display: inline-flex;
@@ -2189,7 +2200,7 @@ body {
 .pi-tank-grid {
     flex: 1;
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 10px;
 }
 
@@ -3814,23 +3825,18 @@ td.action-cell .action-btn + .action-btn {
 .tracker-progress-fill {
     height: 100%;
     border-radius: 999px;
-    background: linear-gradient(90deg, #059669 0%, #10B981 60%, #34d399 100%);
-    transition: width 0.5s ease;
+    background: #059669;
+    transition: width 0.5s ease, background 0.3s ease;
     position: relative;
-    box-shadow: 0 0 8px rgba(16,185,129,.45), 0 1px 3px rgba(16,185,129,.3);
+    box-shadow: none;
 }
 .tracker-progress-fill::after {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 50%;
-    background: rgba(255,255,255,.35);
-    border-radius: 999px 999px 0 0;
+    content: none;
 }
 
 .tracker-progress-badge {
-    background-color: #E7F6EC;
-    color: #207A3A;
+    background-color: #fef3c7;
+    color: #92400e;
     font-size: 13px;
     font-weight: 900;
     padding: 6px 14px;
@@ -4694,6 +4700,7 @@ td.action-cell .action-btn + .action-btn {
     overflow: hidden;
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
 }
 

@@ -71,12 +71,14 @@
                 <div class="fd-overview-grid">
                     <div class="fd-ov-item">
                         <span class="fd-ov-label">Contract Value</span>
-                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Total Project Quotation</span>
+                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Total Project Cost</span>
                         <span class="fd-ov-val">{{ $contractAmount > 0 ? '₱'.number_format($contractAmount,2) : '—' }}</span>
                     </div>
                     <div class="fd-ov-item">
-                        <span class="fd-ov-label">Budget</span>
-                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">First payment received</span>
+                        <span class="fd-ov-label">Total Received</span>
+                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">
+                            {{ $payment && $payment->status === 'Fully Paid' ? 'Fully Paid' : 'Amount received' }}
+                        </span>
                         <span class="fd-ov-val" style="color:#4ade80;">
                             {{ $budgetReceived > 0 ? '₱'.number_format($budgetReceived,2) : '—' }}
                         </span>
@@ -101,19 +103,23 @@
                         <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Total gross &middot; salary module</span>
                         <span class="fd-ov-val">{{ $actLaborCost > 0 ? '₱'.number_format($actLaborCost,2) : '—' }}</span>
                     </div>
+                    @php
+                        $totalActualSpend = $actMaterialCost + $actLaborCost;
+                        $netProfit        = $contractAmount > 0 ? $contractAmount - $totalActualSpend : null;
+                    @endphp
                     <div class="fd-ov-item fd-ov-highlight">
-                        <span class="fd-ov-label">Remaining Budget</span>
-                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Budget - actual spending</span>
-                        <span class="fd-ov-val" style="color:{{ $remainingBudget >= 0 ? '#4ade80' : '#f87171' }};font-size:17px;">
-                            {{ $budgetReceived > 0 ? (($remainingBudget >= 0 ? '+' : '-').'₱'.number_format(abs($remainingBudget),2)) : '—' }}
+                        <span class="fd-ov-label">Total Actual Spend</span>
+                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Actual materials + labor</span>
+                        <span class="fd-ov-val" style="color:{{ $totalActualSpend > 0 ? '#f87171' : 'rgba(255,255,255,0.35)' }};font-size:17px;">
+                            {{ $totalActualSpend > 0 ? '₱'.number_format($totalActualSpend,2) : '—' }}
                         </span>
                     </div>
                     <div class="fd-ov-item fd-ov-highlight">
-                        <span class="fd-ov-label">Est. Profit</span>
-                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Quotation - est. costs</span>
-                        @if($profit !== null && $profit != 0)
-                        <span class="fd-ov-val" style="color:{{ $profit >= 0 ? '#4ade80' : '#f87171' }};font-size:17px;">
-                            {{ $profit >= 0 ? '+' : '' }}₱{{ number_format($profit, 2) }}
+                        <span class="fd-ov-label">Net Profit</span>
+                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Contract value - actual costs</span>
+                        @if($netProfit !== null)
+                        <span class="fd-ov-val" style="color:{{ $netProfit >= 0 ? '#4ade80' : '#f87171' }};font-size:17px;">
+                            {{ $netProfit >= 0 ? '+' : '' }}₱{{ number_format($netProfit, 2) }}
                         </span>
                         @else
                         <span class="fd-ov-val" style="color:rgba(255,255,255,0.35);">—</span>
@@ -121,12 +127,15 @@
                     </div>
                 </div>
                 <div style="margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.1);">
+                    @php
+                        $payLabel = ($payment && $payment->status === 'Fully Paid') ? 'Fully paid' : 'Payment received';
+                    @endphp
                     <div style="display:flex;justify-content:space-between;font-size:11.5px;color:rgba(255,255,255,0.5);margin-bottom:6px;">
-                        <span>Down payment progress</span>
+                        <span>{{ $payLabel }}</span>
                         <span>{{ $collPct }}% &middot; {{ $budgetReceived > 0 ? '₱'.number_format($budgetReceived,2) : '—' }} of ₱{{ number_format($contractAmount,2) }}</span>
                     </div>
                     <div style="height:8px;background:rgba(255,255,255,0.12);border-radius:999px;overflow:hidden;">
-                        <div style="height:100%;width:{{ $collPct }}%;background:#4ade80;border-radius:999px;transition:width 0.5s;"></div>
+                        <div style="height:100%;width:{{ $collPct }}%;background:{{ $collPct >= 100 ? '#4ade80' : '#facc15' }};border-radius:999px;transition:width 0.5s;"></div>
                     </div>
                 </div>
             </div>
@@ -755,8 +764,8 @@
                 <div class="pi-section-label"><i data-lucide="user" style="width:13px;height:13px;"></i> Client Details</div>
                 <div class="project-detail-grid" style="margin-top:10px;margin-bottom:20px;">
                     <div class="project-detail-box"><span>Client</span><strong>{{ $project->client }}</strong></div>
-                    <div class="project-detail-box"><span>Contact Number</span><strong>{{ $project->contact_number ?? '—' }}</strong></div>
-                    <div class="project-detail-box"><span>Email</span><strong>{{ $project->email ?? '—' }}</strong></div>
+                    <div class="project-detail-box"><span>Contact Number</span><strong>{{ $clientContact ?? '—' }}</strong></div>
+                    <div class="project-detail-box"><span>Email</span><strong>{{ $clientEmail ?? '—' }}</strong></div>
                     <div class="project-detail-box" style="grid-column:span 3;"><span>Address</span><strong>{{ $clientAddress ?? '—' }}</strong></div>
                 </div>
 
@@ -770,6 +779,7 @@
                     <div class="pi-tank-row">
                         <div class="pi-tank-grid">
                             <div class="project-detail-box"><span>Tank Type</span><strong>{{ $ti->tank_type }}</strong></div>
+                            <div class="project-detail-box"><span>Shape</span><strong>{{ $ti->shape ?? '—' }}</strong></div>
                             <div class="project-detail-box"><span>Capacity</span><strong>{{ $ti->capacity ?? '—' }}</strong></div>
                             <div class="project-detail-box"><span>Dimensions</span><strong>{{ $ti->dimensions ?? '—' }}</strong></div>
                             <div class="project-detail-box"><span>Quantity</span><strong>{{ $ti->quantity }}</strong></div>

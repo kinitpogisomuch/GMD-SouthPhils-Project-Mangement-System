@@ -348,7 +348,7 @@
                                         title="Edit"
                                         data-id="{{ $entry->id }}"
                                         data-description="{{ $entry->description }}"
-                                        data-daily-rate="{{ $entry->daily_rate }}"
+                                        data-daily-rate="{{ $entry->daily_rate ?? ($entry->rate_per_hour * 8) }}"
                                         data-notes="{{ $entry->notes }}">
                                         <i data-lucide="pencil"></i>
                                     </button>

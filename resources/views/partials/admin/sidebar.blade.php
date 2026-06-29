@@ -68,17 +68,6 @@
             <span>Clients</span>
         </a>
 
-        <div class="sidebar-section-label">Communication</div>
-        <a href="{{ route('admin.messages') }}"
-           class="{{ request()->routeIs('admin.messages') ? 'active' : '' }}"
-           title="Messages">
-            <div class="sidebar-icon">
-                <i data-lucide="message-square"></i>
-                <span class="sidebar-badge" id="sidebarMessagesBadge" style="display:none;"></span>
-            </div>
-            <span>Messages</span>
-        </a>
-
         <div class="sidebar-section-label">Account</div>
         <a href="{{ route('admin.settings') }}"
            class="{{ request()->routeIs('admin.settings') ? 'active' : '' }}"

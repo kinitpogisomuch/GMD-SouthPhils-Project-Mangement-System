@@ -31,13 +31,21 @@
 
             {{-- ── Supplier Contacts Section ─────────────────────────────── --}}
             <div class="table-card" style="margin-bottom:20px;">
-                <div class="table-toolbar" style="border-bottom:1px solid var(--border);padding-bottom:14px;margin-bottom:16px;">
-                    <div>
-                        <h2 style="font-size:15px;font-weight:700;margin:0 0 2px;">Supplier Contacts</h2>
-                        <p style="font-size:13px;color:var(--muted);margin:0;">Manually manage your supplier directory.</p>
+                <div style="display:flex;align-items:center;gap:16px;border-bottom:1px solid var(--border);padding:0 20px 14px;margin-bottom:0;">
+                    <div style="flex-shrink:0;">
+                        <div style="font-size:15px;font-weight:700;color:var(--dark);">Supplier Contacts</div>
+                        <div style="font-size:12px;color:var(--muted);margin-top:2px;">Manually manage your supplier directory.</div>
+                    </div>
+                    <div style="flex:1;display:flex;justify-content:center;">
+                        <div style="display:flex;align-items:center;gap:8px;background:#f5f6f8;border-radius:999px;padding:0 18px;border:1px solid var(--border);width:280px;height:42px;">
+                            <i data-lucide="search" style="width:15px;height:15px;color:#888;flex-shrink:0;"></i>
+                            <input type="text" id="supplierSearch" placeholder="Search..."
+                                style="border:none;background:transparent;font-size:13px;outline:none;width:100%;color:var(--dark);height:100%;"
+                                oninput="filterSuppliers(this.value)">
+                        </div>
                     </div>
                     <button type="button" id="openAddSupplierBtn"
-                        style="display:inline-flex;align-items:center;gap:7px;background:var(--dark);color:#fff;border:none;border-radius:10px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;transition:opacity .15s;"
+                        style="display:inline-flex;align-items:center;gap:7px;background:var(--dark);color:#fff;border:none;border-radius:10px;padding:0 18px;height:42px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:opacity .15s;"
                         onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
                         <i data-lucide="plus" style="width:15px;height:15px;"></i> Add Supplier
                     </button>
@@ -49,23 +57,21 @@
                     <p style="font-size:13px;margin:0;">No supplier contacts yet. Add your first one.</p>
                 </div>
                 @else
-                <div class="table-wrapper">
-                    <table class="data-table" id="suppliersTable">
-                        <thead>
+                <div style="max-height:285px;overflow-y:auto;">
+                    <table class="data-table" id="suppliersTable" style="margin:0;">
+                        <thead style="position:sticky;top:0;z-index:2;">
                             <tr>
                                 <th>Name</th>
-                                <th>Company</th>
                                 <th>Phone</th>
                                 <th>Email</th>
                                 <th>Address</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="supplierTbody">
                             @foreach($suppliers as $sup)
-                            <tr>
+                            <tr data-sup-name="{{ strtolower($sup->name) }}" data-sup-phone="{{ $sup->phone }}" data-sup-addr="{{ strtolower($sup->address ?? '') }}">
                                 <td><strong>{{ $sup->name }}</strong></td>
-                                <td>{{ $sup->company ?? '—' }}</td>
                                 <td>{{ $sup->phone ?? '—' }}</td>
                                 <td>{{ $sup->email ?? '—' }}</td>
                                 <td>{{ $sup->address ?? '—' }}</td>
@@ -89,12 +95,19 @@
 
             {{-- ── Projects Table ────────────────────────────────────────── --}}
             <div class="table-card">
-                <div class="table-toolbar">
-                    <div class="search-box">
-                        <i data-lucide="search"></i>
-                        <input type="text" id="projectSearch" placeholder="Search project or client...">
+                <div style="display:flex;align-items:center;gap:16px;padding:0 20px 14px;border-bottom:1px solid var(--border);margin-bottom:0;">
+                    <div style="flex-shrink:0;">
+                        <div style="font-size:15px;font-weight:700;color:var(--dark);">Project Material Usage</div>
+                        <div style="font-size:12px;color:var(--muted);margin-top:2px;">Track BOM planned materials, actual purchases, and cost variance per project.</div>
                     </div>
-                    <div class="filter-tabs" id="usageFilterTabs">
+                    <div style="flex:1;display:flex;justify-content:center;">
+                        <div style="display:flex;align-items:center;gap:8px;background:#f5f6f8;border-radius:999px;padding:0 18px;border:1px solid var(--border);width:280px;height:42px;">
+                            <i data-lucide="search" style="width:15px;height:15px;color:#888;flex-shrink:0;"></i>
+                            <input type="text" id="projectSearch" placeholder="Search project or client..."
+                                style="border:none;background:transparent;font-size:13px;outline:none;width:100%;color:var(--dark);height:100%;">
+                        </div>
+                    </div>
+                    <div class="filter-tabs" id="usageFilterTabs" style="flex-shrink:0;">
                         <button type="button" class="filter-tab active" data-filter="active">
                             Active
                             <span class="filter-count">{{ $projects->whereNotIn('status', ['completed', 'archived'])->count() }}</span>
@@ -110,9 +123,9 @@
                     </div>
                 </div>
 
-                <div class="table-wrapper">
-                    <table class="data-table" id="usageTable">
-                        <thead>
+                <div style="max-height:399px;overflow-y:auto;">
+                    <table class="data-table" id="usageTable" style="margin:0;">
+                        <thead style="position:sticky;top:0;z-index:2;">
                             <tr>
                                 <th>Project Name</th>
                                 <th>Client</th>
@@ -158,8 +171,10 @@
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="9" style="text-align:center;padding:40px;color:var(--muted);">
-                                    No projects found.
+                                <td colspan="9" style="text-align:center;padding:60px 20px;color:var(--muted);">
+                                    <i data-lucide="inbox" style="width:36px;height:36px;opacity:.35;display:block;margin:0 auto 12px;"></i>
+                                    <div style="font-size:14px;font-weight:700;">No projects found.</div>
+                                    <div style="font-size:13px;margin-top:4px;">Add projects via the <strong>Projects</strong> page.</div>
                                 </td>
                             </tr>
                             @endforelse
@@ -196,7 +211,12 @@
                     </div>
                     <div class="form-group">
                         <label>Phone</label>
-                        <input type="text" name="phone" placeholder="e.g. 09XX-XXX-XXXX">
+                        <input type="text" name="phone" id="addSupPhone"
+                               placeholder="e.g. 0917-123-4567"
+                               maxlength="13"
+                               oninput="formatSupPhone(this)"
+                               onblur="validateSupPhone(this)">
+                        <span class="emp-field-err" id="addSupPhoneErr" style="display:none;color:#dc2626;font-size:11.5px;margin-top:4px;"></span>
                     </div>
                     <div class="form-group">
                         <label>Email</label>
@@ -244,7 +264,12 @@
                     </div>
                     <div class="form-group">
                         <label>Phone</label>
-                        <input type="text" name="phone" id="editSupPhone">
+                        <input type="text" name="phone" id="editSupPhone"
+                               placeholder="e.g. 0917-123-4567"
+                               maxlength="13"
+                               oninput="formatSupPhone(this)"
+                               onblur="validateSupPhone(this)">
+                        <span class="emp-field-err" id="editSupPhoneErr" style="display:none;color:#dc2626;font-size:11.5px;margin-top:4px;"></span>
                     </div>
                     <div class="form-group">
                         <label>Email</label>
@@ -303,6 +328,30 @@
             closeModal('editSupplierModal');
         });
 
+        function filterSuppliers(q) {
+            q = (q || '').toLowerCase().trim();
+            var tbody = document.getElementById('supplierTbody');
+            var noMatch = document.getElementById('supplierNoMatch');
+            var visibleCount = 0;
+
+            document.querySelectorAll('#supplierTbody tr:not(#supplierNoMatch)').forEach(function(row) {
+                var name  = row.dataset.supName  || '';
+                var phone = row.dataset.supPhone || '';
+                var addr  = row.dataset.supAddr  || '';
+                var show  = !q || name.includes(q) || phone.includes(q) || addr.includes(q);
+                row.style.display = show ? '' : 'none';
+                if (show) visibleCount++;
+            });
+
+            if (!noMatch) {
+                noMatch = document.createElement('tr');
+                noMatch.id = 'supplierNoMatch';
+                noMatch.innerHTML = '<td colspan="5" style="text-align:center;padding:40px 20px;color:var(--muted);font-size:13px;">No suppliers match your search.</td>';
+                tbody.appendChild(noMatch);
+            }
+            noMatch.style.display = visibleCount === 0 ? '' : 'none';
+        }
+
         function openEditSupplier(id, name, company, phone, email, address) {
             document.getElementById('editSupplierForm').action = supplierBaseUrl + '/' + id;
             document.getElementById('editSupName').value    = name    || '';
@@ -325,18 +374,48 @@
 
             var currentStatusFilter = 'active';
 
+            var usageFilterMessages = {
+                'active':    'No active projects yet.',
+                'completed': 'No completed projects yet.',
+                'archived':  'No archived projects.'
+            };
+
             function applyUsageFilters() {
-                var q = (document.getElementById('projectSearch').value || '').toLowerCase();
-                document.querySelectorAll('#usageTable tbody tr').forEach(function(row) {
-                    var status = (row.dataset.status || '').toLowerCase();
+                var q            = (document.getElementById('projectSearch').value || '').toLowerCase();
+                var tbody        = document.querySelector('#usageTable tbody');
+                var noMatchRow   = document.getElementById('usageNoMatch');
+                var visibleCount = 0;
+
+                document.querySelectorAll('#usageTable tbody tr:not(#usageNoMatch)').forEach(function(row) {
+                    var status      = (row.dataset.status || '').toLowerCase();
                     var matchSearch = row.textContent.toLowerCase().indexOf(q) !== -1;
                     var matchFilter = currentStatusFilter === 'active'
                         ? status !== 'archived' && status !== 'completed'
                         : currentStatusFilter === 'completed'
                         ? status === 'completed'
                         : status === 'archived';
-                    row.style.display = (matchSearch && matchFilter) ? '' : 'none';
+                    var show = matchSearch && matchFilter;
+                    row.style.display = show ? '' : 'none';
+                    if (show) visibleCount++;
                 });
+
+                // Build / update styled empty state row
+                if (!noMatchRow) {
+                    noMatchRow = document.createElement('tr');
+                    noMatchRow.id = 'usageNoMatch';
+                    tbody.appendChild(noMatchRow);
+                }
+                var msg = q
+                    ? 'No projects match &ldquo;' + q + '&rdquo;.'
+                    : (usageFilterMessages[currentStatusFilter] || 'No projects in this category.');
+                noMatchRow.innerHTML =
+                    '<td colspan="8" style="text-align:center;padding:60px 20px;color:var(--muted);">' +
+                    '<i data-lucide="folder-open" style="width:36px;height:36px;opacity:.35;display:block;margin:0 auto 12px;"></i>' +
+                    '<div style="font-size:14px;font-weight:700;">' + msg + '</div>' +
+                    '<div style="font-size:13px;margin-top:4px;">Try switching to a different tab or add a new project.</div>' +
+                    '</td>';
+                noMatchRow.style.display = visibleCount === 0 ? '' : 'none';
+                if (visibleCount === 0 && typeof lucide !== 'undefined') lucide.createIcons();
             }
 
             document.getElementById('projectSearch')?.addEventListener('keyup', applyUsageFilters);
@@ -352,6 +431,34 @@
 
             applyUsageFilters();
         });
+        // ── Supplier phone helpers — format: 09XX-XXX-XXXX ───────────────
+        function formatSupPhone(input) {
+            var digits = input.value.replace(/\D/g, '').substring(0, 11);
+            var formatted = digits;
+            if (digits.length > 4) {
+                formatted = digits.substring(0, 4) + '-' + digits.substring(4);
+            }
+            if (digits.length > 7) {
+                formatted = digits.substring(0, 4) + '-' + digits.substring(4, 7) + '-' + digits.substring(7);
+            }
+            input.value = formatted;
+        }
+
+        function validateSupPhone(input) {
+            var errId = input.id + 'Err';
+            var err   = document.getElementById(errId);
+            var val   = input.value.trim();
+            var msg   = '';
+            if (val && !/^09\d{2}-\d{3}-\d{4}$/.test(val)) {
+                msg = 'Must be in format 09XX-XXX-XXXX (11 digits starting with 09).';
+            }
+            if (err) {
+                err.textContent   = msg;
+                err.style.display = msg ? 'block' : 'none';
+            }
+            input.style.borderColor = msg ? '#dc2626' : '';
+            return !msg;
+        }
     </script>
 </body>
 </html>

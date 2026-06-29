@@ -8,6 +8,7 @@ class SalaryRecord extends Model
 {
     protected $fillable = [
         'employee_id',
+        'project_id',
         'pay_period',
         'daily_rate',
         'days_worked',
@@ -32,6 +33,16 @@ class SalaryRecord extends Model
         return $this->belongsTo(Employee::class);
     }
 
+    public function project()
+    {
+        return $this->belongsTo(Project::class);
+    }
+
+    public function projects()
+    {
+        return $this->belongsToMany(Project::class, 'salary_record_project');
+    }
+
     public static function compute(array $data): array
     {
         $dailyRate     = (float) ($data['daily_rate']     ?? 0);
@@ -39,8 +50,8 @@ class SalaryRecord extends Model
         $overtimeHours = (float) ($data['overtime_hours'] ?? 0);
 
         $regularPay   = $dailyRate * $daysWorked;
-        $hourlyRate   = $dailyRate / 8;                        // 8-hour standard workday
-        $overtimePay  = $overtimeHours * ($hourlyRate * 1.25); // 25 % OT premium
+        $hourlyRate   = $dailyRate / 8;               // daily rate ÷ 8 hours
+        $overtimePay  = $overtimeHours * $hourlyRate; // overtime at straight hourly rate
         $gross        = $regularPay + $overtimePay;
 
         $data['overtime_hours']   = $overtimeHours;

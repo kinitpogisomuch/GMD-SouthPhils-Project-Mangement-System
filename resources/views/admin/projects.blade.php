@@ -65,7 +65,13 @@
                 <div class="table-wrapper">
                     <table class="data-table" id="projectsTable">
                         <colgroup>
-                            <col><col><col><col><col><col><col>
+                            <col style="width:26%;">
+                            <col style="width:14%;">
+                            <col style="width:12%;">
+                            <col style="width:12%;">
+                            <col style="width:13%;">
+                            <col style="width:11%;">
+                            <col style="width:12%;">
                         </colgroup>
                         <thead>
                             <tr>
@@ -81,7 +87,22 @@
                         <tbody>
                             @forelse($projects as $project)
                             <tr data-status="{{ $project->status }}">
-                                <td><strong style="font-size:13px;line-height:1.4;">{{ $project->name }}</strong></td>
+                                @php
+                                    $namePrefix = '';
+                                    $nameMain   = $project->name;
+                                    if (preg_match('/^(Fabrication of)\s+(.+)$/i', $project->name, $nm)) {
+                                        $namePrefix = $nm[1];
+                                        $nameMain   = $nm[2];
+                                    }
+                                @endphp
+                                <td style="overflow:hidden;">
+                                    <span style="display:inline-flex;flex-direction:column;background:#dbeafe;border-radius:10px;padding:4px 10px;box-shadow:0 0 0 1px rgba(37,99,235,.2),0 2px 6px rgba(37,99,235,.12);max-width:100%;min-width:0;">
+                                        @if($namePrefix)
+                                            <span style="font-size:9px;font-weight:700;color:#3b82f6;letter-spacing:.05em;line-height:1.2;text-transform:uppercase;white-space:nowrap;">{{ $namePrefix }}</span>
+                                        @endif
+                                        <span style="font-size:12px;font-weight:800;color:#1e3a8a;line-height:1.3;white-space:normal;word-break:break-word;">{{ $nameMain }}</span>
+                                    </span>
+                                </td>
                                 <td><span class="client-pill">{{ $project->client }}</span></td>
                                 <td style="white-space:nowrap;">{{ $project->start_date->format('M d, Y') }}</td>
                                 <td style="white-space:nowrap;">{{ $project->end_date->format('M d, Y') }}</td>
@@ -144,7 +165,7 @@
                                         data-start-date="{{ $project->start_date->format('Y-m-d') }}"
                                         data-end-date="{{ $project->end_date->format('Y-m-d') }}"
                                         data-notes="{{ $project->notes }}"
-                                        data-tank-items="{{ $project->tankItems->map(fn($t) => ['tank_type'=>$t->tank_type,'capacity'=>$t->capacity,'dimensions'=>$t->dimensions,'quantity'=>$t->quantity,'notes'=>$t->notes])->toJson() }}">
+                                        data-tank-items="{{ $project->tankItems->map(fn($t) => ['tank_type'=>$t->tank_type,'shape'=>$t->shape,'capacity'=>$t->capacity,'dimensions'=>$t->dimensions,'quantity'=>$t->quantity,'notes'=>$t->notes])->toJson() }}">
                                         <i data-lucide="pencil"></i>
                                     </button>
                                     <button class="action-btn view archive-project-btn" type="button"
@@ -166,8 +187,10 @@
                             @endforelse
                             @if($projects->isNotEmpty())
                             <tr id="noProjectsRow" style="display:none;">
-                                <td colspan="7" style="text-align:center; padding:40px; color:var(--muted);">
-                                    No projects match this filter.
+                                <td colspan="7" style="text-align:center;padding:60px 20px;color:var(--muted);">
+                                    <i data-lucide="folder-open" style="width:36px;height:36px;opacity:.35;display:block;margin:0 auto 12px;"></i>
+                                    <div style="font-size:14px;font-weight:700;" id="noProjectsMsg">No projects in this category.</div>
+                                    <div style="font-size:13px;margin-top:4px;">Try switching to a different tab or add a new project.</div>
                                 </td>
                             </tr>
                             @endif
@@ -261,7 +284,10 @@
                     </div>
 
                     <!-- Tank Specifications -->
-                    <div class="form-section-label" style="margin-top:18px;">Tank Specifications</div>
+                    <div style="margin-top:18px;margin-bottom:10px;display:flex;align-items:center;gap:10px;">
+                        <div style="background:linear-gradient(180deg,#333 0%,#2a2a2a 100%);color:#fff;font-size:10px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;padding:4px 12px;border-radius:999px;">Tank Specifications</div>
+                        <div style="flex:1;height:1px;background:linear-gradient(90deg,#333,transparent);"></div>
+                    </div>
 
                     <div id="tankItemsContainer">
                         <!-- Tank rows injected by JS -->
@@ -320,7 +346,10 @@
                         </div>
                     </div>
 
-                    <div class="form-section-label" style="margin-top:18px;">Tank Specifications</div>
+                    <div style="margin-top:18px;margin-bottom:10px;display:flex;align-items:center;gap:10px;">
+                        <div style="background:linear-gradient(180deg,#333 0%,#2a2a2a 100%);color:#fff;font-size:10px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;padding:4px 12px;border-radius:999px;">Tank Specifications</div>
+                        <div style="flex:1;height:1px;background:linear-gradient(90deg,#333,transparent);"></div>
+                    </div>
                     <div id="editTankItemsContainer"></div>
 
                     <div class="form-section-label" style="margin-top:18px;">Schedule</div>
@@ -483,14 +512,17 @@
                     ? '<img src="' + client.profile_photo + '" class="cs-avatar-img" alt="' + client.name + '">'
                     : '<span class="cs-avatar-init">' + client.name.charAt(0).toUpperCase() + '</span>';
 
+                var pillStyle = 'display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;margin-right:4px;margin-top:3px;';
                 item.innerHTML =
                     '<div class="cs-avatar">' + avatarHtml + '</div>' +
                     '<div class="cs-info">' +
                         '<div class="cs-name">' + client.name + '</div>' +
-                        '<div class="cs-meta">' +
-                            (client.contact ? '<span><i data-lucide="phone" style="width:11px;height:11px;flex-shrink:0;"></i>' + client.contact + '</span>' : '') +
-                            (client.email   ? '<span><i data-lucide="mail"  style="width:11px;height:11px;flex-shrink:0;"></i>' + client.email   + '</span>' : '') +
-                            (client.address ? '<span><i data-lucide="map-pin" style="width:11px;height:11px;flex-shrink:0;"></i>' + client.address + '</span>' : '') +
+                        '<div style="margin-top:4px;">' +
+                            '<div style="display:flex;flex-wrap:wrap;gap:4px;">' +
+                                (client.contact ? '<span style="' + pillStyle + 'background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;">' + client.contact + '</span>' : '') +
+                                (client.email   ? '<span style="' + pillStyle + 'background:#F0FDF4;color:#15803D;border:1px solid #BBF7D0;">' + client.email   + '</span>' : '') +
+                            '</div>' +
+                            (client.address ? '<div style="margin-top:3px;"><span style="' + pillStyle + 'background:#FEF9C3;color:#A16207;border:1px solid #FDE68A;">' + client.address + '</span></div>' : '') +
                         '</div>' +
                     '</div>' +
                     '<div class="cs-check" style="display:' + (isSelected ? 'flex' : 'none') + ';">' +
@@ -687,95 +719,174 @@
 
         /* ── Tank type options shared by both modals ── */
         var TANK_TYPES = [
-            'Fuel Day Tank', 'Cooking Oil Storage Tank', 'Underground Fuel Tank',
-            'Aboveground Fuel Tank', 'Polymer Tank', 'Aboveground Water Tank',
-            'Chemical Tank', 'Others'
+            'Underground Fuel Storage Tanks',
+            'Cooking Oil Storage Tank',
+            'Chemical Tank',
+            'Polymer Tank',
+            'Aboveground Water Storage Tanks',
+            'Tetrapod',
+            'Fuel Pipe Line Installation',
+            'Re-piping of Fuel Pipe Line',
+            'Aboveground Fuel Storage Tanks',
+            'Fuel Day Tanks',
+            'Others'
         ];
 
+        // Per tank type: allowed shapes and dimension mode
+        var TANK_META = {
+            'Underground Fuel Storage Tanks':   { shapes: ['Cylindrical'],                       dims: 'cyl-dl' },
+            'Cooking Oil Storage Tank':          { shapes: ['Rectangular', 'Modular'],            dims: 'rect' },
+            'Chemical Tank':                     { shapes: ['Cylindrical'],                       dims: 'cyl-dl' },
+            'Polymer Tank':                      { shapes: ['Rectangular', 'Modular'],            dims: 'rect' },
+            'Aboveground Water Storage Tanks':   { shapes: ['Cylindrical'],                       dims: 'cyl-dl' },
+            'Tetrapod':                          { shapes: ['3-Legged Pod'],                      dims: 'pod' },
+            'Fuel Pipe Line Installation':       { shapes: ['N/A'],                              dims: 'linear' },
+            'Re-piping of Fuel Pipe Line':       { shapes: ['N/A'],                              dims: 'linear' },
+            'Aboveground Fuel Storage Tanks':    { shapes: ['Cylindrical'],                       dims: 'cyl-dl' },
+            'Fuel Day Tanks':                    { shapes: ['Cylindrical', 'Rectangular'],        dims: 'auto' },
+            'Others':                            { shapes: ['Cylindrical', 'Rectangular', 'Modular', '3-Legged Pod', 'N/A'], dims: 'auto' },
+        };
+
         function tankTypeOptions(selected) {
-            return '<option value="">Select tank type</option>' +
+            return '<option value="" disabled' + (!selected ? ' selected' : '') + ' style="display:none;">Select tank type</option>' +
                 TANK_TYPES.map(function(t) {
                     return '<option value="' + t + '"' + (t === selected ? ' selected' : '') + '>' + t + '</option>';
                 }).join('');
         }
 
-        function computeRowCapacity(row) {
-            var shape      = row.querySelector('.ti-shape').value;
-            var capDisplay = row.querySelector('.ti-cap-display');
-            var capHidden  = row.querySelector('.ti-cap-hidden');
-            var dimHidden  = row.querySelector('.ti-dim-hidden');
-            var capacity = 0, dimsStr = '';
-
-            if (shape === 'cylindrical') {
-                var d = parseFloat(row.querySelector('[data-dim="d"]').value) || 0;
-                var h = parseFloat(row.querySelector('[data-dim="h"]').value) || 0;
-                if (d > 0 && h > 0) {
-                    capacity = Math.PI * Math.pow(d / 2, 2) * h * 1000;
-                    dimsStr  = 'Cylindrical: Ø' + d + 'm × H' + h + 'm';
-                }
-            } else {
-                var l  = parseFloat(row.querySelector('[data-dim="l"]').value)  || 0;
-                var w  = parseFloat(row.querySelector('[data-dim="w"]').value)  || 0;
-                var rh = parseFloat(row.querySelector('[data-dim="rh"]').value) || 0;
-                if (l > 0 && w > 0 && rh > 0) {
-                    capacity = l * w * rh * 1000;
-                    dimsStr  = 'L' + l + 'm × W' + w + 'm × H' + rh + 'm';
-                }
-            }
-
-            if (capacity > 0) {
-                var formatted = Math.round(capacity).toLocaleString() + ' L';
-                capDisplay.value = formatted;
-                capHidden.value  = formatted;
-                dimHidden.value  = dimsStr;
-            } else {
-                capDisplay.value = '';
-                capHidden.value  = '';
-                dimHidden.value  = '';
-            }
+        function tankShapeOptions(type, selected) {
+            var meta   = TANK_META[type];
+            var shapes = meta ? meta.shapes : ['Cylindrical', 'Rectangular'];
+            return shapes.map(function(s) {
+                return '<option value="' + s + '"' + (s === selected ? ' selected' : '') + '>' + s + '</option>';
+            }).join('');
         }
 
-        function toggleRowShape(shapeSelect) {
-            var row   = shapeSelect.closest('.tank-item-row');
-            var isCyl = shapeSelect.value === 'cylindrical';
-            row.querySelectorAll('.ti-cyl').forEach(function(el) { el.style.display = isCyl ? '' : 'none'; });
-            row.querySelectorAll('.ti-rect').forEach(function(el) { el.style.display = isCyl ? 'none' : ''; });
+        function onTankTypeChange(sel) {
+            var row    = sel.closest('.tank-item-row');
+            var type   = sel.value;
+            var meta   = TANK_META[type] || { shapes: ['Cylindrical', 'Rectangular'], dims: 'auto' };
+            // Show dimensions section
+            var dimsSection = row.querySelector('.ti-dims-section');
+            if (dimsSection) dimsSection.style.display = type ? '' : 'none';
+            // Update shape dropdown
+            var shapeSel = row.querySelector('.ti-shape');
+            shapeSel.innerHTML = tankShapeOptions(type, meta.shapes[0]);
+            shapeSel.value = meta.shapes[0];
+            updateDimFields(row, meta.shapes[0], meta.dims);
+        }
+
+        function updateDimFields(row, shape, dimMode) {
+            var isCyl    = shape === 'Cylindrical';
+            var isRect   = shape === 'Rectangular' || shape === 'Modular';
+            var isPod    = shape === '3-Legged Pod';
+            var isLinear = shape === 'N/A' || dimMode === 'linear';
+
+            // dim mode overrides
+            if (dimMode === 'cyl-dl')  { isCyl = true;   isRect = false; isPod = false; isLinear = false; }
+            if (dimMode === 'rect')    { isCyl = false;  isRect = true;  isPod = false; isLinear = false; }
+            if (dimMode === 'pod')     { isCyl = false;  isRect = false; isPod = true;  isLinear = false; }
+            if (dimMode === 'linear')  { isCyl = false;  isRect = false; isPod = false; isLinear = true;  }
+
+            // Update label for cylindrical: Diameter+Length vs Diameter+Height
+            var cylLabel2 = row.querySelector('.ti-cyl-label2');
+            if (cylLabel2) cylLabel2.textContent = (dimMode === 'cyl-dl' || !isRect) ? 'Length (m)' : 'Height (m)';
+
+            row.querySelectorAll('.ti-cyl').forEach(function(el)    { el.style.display = isCyl    ? '' : 'none'; });
+            row.querySelectorAll('.ti-rect').forEach(function(el)   { el.style.display = isRect   ? '' : 'none'; });
+            row.querySelectorAll('.ti-pod').forEach(function(el)    { el.style.display = isPod    ? '' : 'none'; });
+            row.querySelectorAll('.ti-linear').forEach(function(el) { el.style.display = isLinear ? '' : 'none'; });
             row.querySelectorAll('.ti-dim-input').forEach(function(el) { el.value = ''; });
             computeRowCapacity(row);
         }
 
+        function onTankShapeChange(sel) {
+            var row  = sel.closest('.tank-item-row');
+            var type = row.querySelector('select[name$="[tank_type]"]').value;
+            var meta = TANK_META[type] || { dims: 'auto' };
+            updateDimFields(row, sel.value, meta.dims);
+        }
+
+        function computeRowCapacity(row) {
+            var shape      = row.querySelector('.ti-shape') ? row.querySelector('.ti-shape').value : '';
+            var capHidden  = row.querySelector('.ti-cap-hidden');
+            var dimHidden  = row.querySelector('.ti-dim-hidden');
+            var capacity = 0, dimsStr = '';
+
+            if (shape === 'Cylindrical') {
+                var d  = parseFloat(row.querySelector('[data-dim="d"]')  ? row.querySelector('[data-dim="d"]').value  : 0) || 0;
+                var h  = parseFloat(row.querySelector('[data-dim="h"]')  ? row.querySelector('[data-dim="h"]').value  : 0) || 0;
+                if (d > 0 && h > 0) {
+                    capacity = Math.PI * Math.pow(d / 2, 2) * h * 1000;
+                    dimsStr  = 'Ø' + d + 'm × L' + h + 'm';
+                }
+            } else if (shape === 'Rectangular' || shape === 'Modular') {
+                var l  = parseFloat(row.querySelector('[data-dim="l"]')  ? row.querySelector('[data-dim="l"]').value  : 0) || 0;
+                var w  = parseFloat(row.querySelector('[data-dim="w"]')  ? row.querySelector('[data-dim="w"]').value  : 0) || 0;
+                var rh = parseFloat(row.querySelector('[data-dim="rh"]') ? row.querySelector('[data-dim="rh"]').value : 0) || 0;
+                if (l > 0 && w > 0 && rh > 0) {
+                    capacity = l * w * rh * 1000;
+                    dimsStr  = 'L' + l + 'm × W' + w + 'm × H' + rh + 'm';
+                }
+            } else if (shape === '3-Legged Pod') {
+                var ph = parseFloat(row.querySelector('[data-dim="ph"]') ? row.querySelector('[data-dim="ph"]').value : 0) || 0;
+                var pw = parseFloat(row.querySelector('[data-dim="pw"]') ? row.querySelector('[data-dim="pw"]').value : 0) || 0;
+                if (ph > 0 || pw > 0) dimsStr = 'H' + ph + 'm × W' + pw + 'm';
+            } else if (shape === 'N/A') {
+                var lm = parseFloat(row.querySelector('[data-dim="lm"]') ? row.querySelector('[data-dim="lm"]').value : 0) || 0;
+                if (lm > 0) dimsStr = lm + ' linear m';
+            }
+
+            if (dimHidden) dimHidden.value = dimsStr;
+            if (capHidden && capacity > 0) capHidden.value = Math.round(capacity).toLocaleString() + ' L';
+        }
+
         function buildTankRow(prefix, item, removable) {
             item = item || {};
-            var isCyl = !item.dimensions || item.dimensions.indexOf('Cylindrical') !== -1 || !item.dimensions;
-            // Parse existing dims back if editing
-            var dVal = '', hVal = '', lVal = '', wVal = '', rhVal = '';
-            if (item.dimensions) {
-                var cylMatch  = item.dimensions.match(/Ø([\d.]+)m × H([\d.]+)m/);
-                var rectMatch = item.dimensions.match(/L([\d.]+)m × W([\d.]+)m × H([\d.]+)m/);
-                if (cylMatch)  { dVal = cylMatch[1];  hVal  = cylMatch[2]; isCyl = true; }
-                if (rectMatch) { lVal = rectMatch[1]; wVal  = rectMatch[2]; rhVal = rectMatch[3]; isCyl = false; }
-            }
-            var shape = isCyl ? 'cylindrical' : 'rectangular';
+            var type  = item.tank_type || '';
+            var meta  = TANK_META[type] || { shapes: ['Cylindrical', 'Rectangular'], dims: 'auto' };
+            var dims  = item.dimensions || '';
+
+            // Parse stored dimensions
+            var dVal='', hVal='', lVal='', wVal='', rhVal='', phVal='', pwVal='', lmVal='';
+            var cylMatch  = dims.match(/Ø([\d.]+)m × L([\d.]+)m/);
+            var rectMatch = dims.match(/L([\d.]+)m × W([\d.]+)m × H([\d.]+)m/);
+            var podMatch  = dims.match(/H([\d.]+)m × W([\d.]+)m/);
+            var linMatch  = dims.match(/([\d.]+) linear m/);
+            if (cylMatch)  { dVal = cylMatch[1]; hVal = cylMatch[2]; }
+            if (rectMatch) { lVal = rectMatch[1]; wVal = rectMatch[2]; rhVal = rectMatch[3]; }
+            if (podMatch)  { phVal = podMatch[1]; pwVal = podMatch[2]; }
+            if (linMatch)  { lmVal = linMatch[1]; }
+
+            // Determine initial shape
+            var initShape = meta.shapes[0];
+            if (item.tank_shape) initShape = item.tank_shape;
+            else if (cylMatch)  initShape = 'Cylindrical';
+            else if (rectMatch) initShape = 'Rectangular';
+            else if (podMatch)  initShape = '3-Legged Pod';
+            else if (linMatch)  initShape = 'N/A';
+
+            var isCyl    = initShape === 'Cylindrical';
+            var isRect   = initShape === 'Rectangular' || initShape === 'Modular';
+            var isPod    = initShape === '3-Legged Pod';
+            var isLinear = initShape === 'N/A';
 
             var row = document.createElement('div');
             row.className = 'tank-item-row';
-            row.style.cssText = 'background:var(--cream-soft);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;position:relative;';
+            row.style.cssText = 'background:#fff;border:1.5px solid #333;border-radius:14px;padding:16px;margin-bottom:12px;position:relative;box-shadow:0 2px 8px rgba(0,0,0,.10);';
 
             row.innerHTML =
-                // Remove button
                 (removable ? '<button type="button" onclick="this.closest(\'.tank-item-row\').remove()" title="Remove tank" style="position:absolute;top:12px;right:12px;background:none;border:none;cursor:pointer;color:var(--muted);line-height:1;"><i data-lucide="x" style="width:15px;height:15px;"></i></button>' : '') +
 
-                // Row 1: Type + Shape + Quantity
                 '<div style="display:flex;gap:12px;align-items:flex-end;">' +
                     '<div class="form-group" style="flex:2;">' +
                         '<label>Tank Type</label>' +
-                        '<select name="' + prefix + '[tank_type]" required>' + tankTypeOptions(item.tank_type || '') + '</select>' +
+                        '<select name="' + prefix + '[tank_type]" required onchange="onTankTypeChange(this)">' + tankTypeOptions(type) + '</select>' +
                     '</div>' +
                     '<div class="form-group" style="flex:1.5;">' +
                         '<label>Tank Shape</label>' +
-                        '<select class="ti-shape" onchange="toggleRowShape(this)">' +
-                            '<option value="cylindrical"' + (isCyl ? ' selected' : '') + '>Cylindrical</option>' +
-                            '<option value="rectangular"' + (!isCyl ? ' selected' : '') + '>Rectangular</option>' +
+                        '<select class="ti-shape" onchange="onTankShapeChange(this)">' +
+                            (!type ? '<option value="" disabled selected style="display:none;">—</option>' : tankShapeOptions(type, initShape)) +
                         '</select>' +
                     '</div>' +
                     '<div class="form-group" style="width:90px;flex-shrink:0;">' +
@@ -784,38 +895,61 @@
                     '</div>' +
                 '</div>' +
 
-                // Row 2: Dimensions
-                '<div class="form-section-label" style="margin-top:10px;margin-bottom:8px;font-size:11px;">Dimensions</div>' +
+                '<div class="ti-dims-section" style="' + (!type ? 'display:none;' : '') + '">' +
+                '<div style="margin-top:12px;margin-bottom:8px;display:flex;align-items:center;gap:8px;">' +
+                    '<span style="font-size:10px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:.08em;background:linear-gradient(180deg,#333 0%,#2a2a2a 100%);padding:3px 10px;border-radius:999px;">Dimensions</span>' +
+                    '<div style="flex:1;height:1px;background:linear-gradient(90deg,#555,transparent);"></div>' +
+                '</div>' +
                 '<div class="form-grid">' +
-                    // Cylindrical
+
+                    // Cylindrical: Diameter + Length
                     '<div class="form-group ti-cyl"' + (!isCyl ? ' style="display:none;"' : '') + '>' +
                         '<label>Diameter (m)</label>' +
-                        '<input type="number" class="ti-dim-input" data-dim="d" min="0" step="0.01" value="' + dVal + '" placeholder="e.g. 2.00">' +
+                        '<input type="number" class="ti-dim-input" data-dim="d" min="0" step="0.01" value="' + dVal + '" placeholder="e.g. 2.00" oninput="computeRowCapacity(this.closest(\'.tank-item-row\'))">' +
                     '</div>' +
                     '<div class="form-group ti-cyl"' + (!isCyl ? ' style="display:none;"' : '') + '>' +
-                        '<label>Height (m)</label>' +
-                        '<input type="number" class="ti-dim-input" data-dim="h" min="0" step="0.01" value="' + hVal + '" placeholder="e.g. 3.00">' +
+                        '<label class="ti-cyl-label2">Length (m)</label>' +
+                        '<input type="number" class="ti-dim-input" data-dim="h" min="0" step="0.01" value="' + hVal + '" placeholder="e.g. 3.00" oninput="computeRowCapacity(this.closest(\'.tank-item-row\'))">' +
                     '</div>' +
-                    // Rectangular
-                    '<div class="form-group ti-rect"' + (isCyl ? ' style="display:none;"' : '') + '>' +
+
+                    // Rectangular / Modular: L + W + H
+                    '<div class="form-group ti-rect"' + (!isRect ? ' style="display:none;"' : '') + '>' +
                         '<label>Length (m)</label>' +
-                        '<input type="number" class="ti-dim-input" data-dim="l" min="0" step="0.01" value="' + lVal + '" placeholder="e.g. 4.00">' +
+                        '<input type="number" class="ti-dim-input" data-dim="l" min="0" step="0.01" value="' + lVal + '" placeholder="e.g. 4.00" oninput="computeRowCapacity(this.closest(\'.tank-item-row\'))">' +
                     '</div>' +
-                    '<div class="form-group ti-rect"' + (isCyl ? ' style="display:none;"' : '') + '>' +
+                    '<div class="form-group ti-rect"' + (!isRect ? ' style="display:none;"' : '') + '>' +
                         '<label>Width (m)</label>' +
-                        '<input type="number" class="ti-dim-input" data-dim="w" min="0" step="0.01" value="' + wVal + '" placeholder="e.g. 2.00">' +
+                        '<input type="number" class="ti-dim-input" data-dim="w" min="0" step="0.01" value="' + wVal + '" placeholder="e.g. 2.00" oninput="computeRowCapacity(this.closest(\'.tank-item-row\'))">' +
                     '</div>' +
-                    '<div class="form-group ti-rect"' + (isCyl ? ' style="display:none;"' : '') + '>' +
+                    '<div class="form-group ti-rect"' + (!isRect ? ' style="display:none;"' : '') + '>' +
                         '<label>Height (m)</label>' +
-                        '<input type="number" class="ti-dim-input" data-dim="rh" min="0" step="0.01" value="' + rhVal + '" placeholder="e.g. 2.00">' +
+                        '<input type="number" class="ti-dim-input" data-dim="rh" min="0" step="0.01" value="' + rhVal + '" placeholder="e.g. 2.00" oninput="computeRowCapacity(this.closest(\'.tank-item-row\'))">' +
                     '</div>' +
-                    // Manual capacity input
+
+                    // 3-Legged Pod: Height + Width
+                    '<div class="form-group ti-pod"' + (!isPod ? ' style="display:none;"' : '') + '>' +
+                        '<label>Height (m)</label>' +
+                        '<input type="number" class="ti-dim-input" data-dim="ph" min="0" step="0.01" value="' + phVal + '" placeholder="e.g. 1.50" oninput="computeRowCapacity(this.closest(\'.tank-item-row\'))">' +
+                    '</div>' +
+                    '<div class="form-group ti-pod"' + (!isPod ? ' style="display:none;"' : '') + '>' +
+                        '<label>Width (m)</label>' +
+                        '<input type="number" class="ti-dim-input" data-dim="pw" min="0" step="0.01" value="' + pwVal + '" placeholder="e.g. 0.80" oninput="computeRowCapacity(this.closest(\'.tank-item-row\'))">' +
+                    '</div>' +
+
+                    // Pipe: linear meter
+                    '<div class="form-group ti-linear"' + (!isLinear ? ' style="display:none;"' : '') + '>' +
+                        '<label>Linear Meter (m)</label>' +
+                        '<input type="number" class="ti-dim-input" data-dim="lm" min="0" step="0.01" value="' + lmVal + '" placeholder="e.g. 120" oninput="computeRowCapacity(this.closest(\'.tank-item-row\'))">' +
+                    '</div>' +
+
+                    // Capacity
                     '<div class="form-group">' +
                         '<label>Capacity</label>' +
                         '<input type="text" name="' + prefix + '[capacity]" class="ti-cap-hidden" placeholder="e.g. 5000 L" value="' + (item.capacity || '') + '">' +
                         '<input type="hidden" name="' + prefix + '[dimensions]" class="ti-dim-hidden" value="' + (item.dimensions || '') + '">' +
                     '</div>' +
-                '</div>';
+                '</div>' +
+                '</div>'; // close ti-dims-section
 
             return row;
         }
@@ -899,23 +1033,37 @@
 
         var currentArchiveFilter = 'active';
 
+        var projectFilterMessages = {
+            'active':    'No active projects yet.',
+            'completed': 'No completed projects yet.',
+            'archived':  'No archived projects.'
+        };
+
         function applyProjectFilters() {
-            var q = (document.getElementById('projectSearch').value || '').toLowerCase();
+            var q            = (document.getElementById('projectSearch').value || '').toLowerCase();
             var visibleCount = 0;
+
             document.querySelectorAll('#projectsTable tbody tr').forEach(function(row) {
                 if (row.id === 'noProjectsRow' || !row.dataset.status) return;
-                var status = (row.dataset.status || '').toLowerCase();
+                var status      = (row.dataset.status || '').toLowerCase();
                 var matchSearch = row.textContent.toLowerCase().indexOf(q) !== -1;
                 var matchFilter = (currentArchiveFilter === 'archived'  && status === 'archived')
                     || (currentArchiveFilter === 'completed' && status === 'completed')
                     || (currentArchiveFilter === 'active'    && status !== 'archived' && status !== 'completed');
-                var visible = matchSearch && matchFilter;
-                row.style.display = visible ? '' : 'none';
-                if (visible) visibleCount++;
+                var show = matchSearch && matchFilter;
+                row.style.display = show ? '' : 'none';
+                if (show) visibleCount++;
             });
 
             var noRow = document.getElementById('noProjectsRow');
-            if (noRow) noRow.style.display = visibleCount === 0 ? '' : 'none';
+            var noMsg = document.getElementById('noProjectsMsg');
+            if (noRow) {
+                noRow.style.display = visibleCount === 0 ? '' : 'none';
+                if (noMsg) noMsg.textContent = q
+                    ? 'No projects match "' + q + '".'
+                    : (projectFilterMessages[currentArchiveFilter] || 'No projects in this category.');
+                if (visibleCount === 0 && typeof lucide !== 'undefined') lucide.createIcons();
+            }
         }
 
         function initializeSearch() {

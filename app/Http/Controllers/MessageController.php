@@ -43,6 +43,14 @@ class MessageController extends Controller
         return view($view, compact('contacts', 'myName', 'myPhoto'));
     }
 
+    /** GET /admin/messages/contacts — for chat popup */
+    public function contacts()
+    {
+        $me       = $this->currentActor();
+        $contacts = $this->contactsFor($me['type'], $me['id']);
+        return response()->json($contacts);
+    }
+
     /** GET /{portal}/messages/thread/{type}/{id} */
     public function thread(string $type, int $id)
     {

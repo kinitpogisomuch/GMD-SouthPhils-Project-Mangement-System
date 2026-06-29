@@ -96,6 +96,7 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::delete('/reviews/{id}', [ReviewController::class, 'destroy'])->name('reviews.destroy');
 
     Route::get('/messages', [MessageController::class, 'index'])->name('messages');
+    Route::get('/messages/contacts', [MessageController::class, 'contacts'])->name('messages.contacts');
     Route::get('/messages/thread/{type}/{id}', [MessageController::class, 'thread'])->name('messages.thread');
     Route::post('/messages/send', [MessageController::class, 'send'])->name('messages.send');
     Route::get('/messages/unread-count', [MessageController::class, 'unreadCount'])->name('messages.unread_count');
@@ -170,6 +171,7 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
 
     // Salary Records
     Route::get('/salary-records', [SalaryController::class, 'index'])->name('salary.index');
+    Route::get('/salary-projects', [SalaryController::class, 'projects'])->name('salary.projects');
     Route::post('/salary-records', [SalaryController::class, 'store'])->name('salary.store');
     Route::put('/salary-records/{id}', [SalaryController::class, 'update'])->name('salary.update');
     Route::delete('/salary-records/{id}', [SalaryController::class, 'destroy'])->name('salary.destroy');

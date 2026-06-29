@@ -19,7 +19,7 @@ class ProjectMaterialController extends Controller
 
     public function adminIndex()
     {
-        $projects = Project::with('activeMaterials', 'activeLabor')
+        $projects = Project::with('activeMaterials', 'activeLabor', 'payments')
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -44,9 +44,16 @@ class ProjectMaterialController extends Controller
             ->orderBy('last_name')
             ->get();
 
-        // Keep stored totals in sync with the project's estimated working days
-        ProjectLabor::where('project_id', $projectId)->get()->each(function ($entry) use ($project) {
-            $expected = round($entry->daily_rate * $project->estimated_working_days, 2);
+        // Employee lookup keyed by full name for rate resolution
+        $employeeByName = $regularEmployees->keyBy(fn ($e) => trim($e->first_name . ' ' . $e->last_name));
+
+        // Keep stored totals in sync using the employee's actual daily rate
+        ProjectLabor::where('project_id', $projectId)->get()->each(function ($entry) use ($project, $employeeByName) {
+            preg_match('/^(.+?)\s*\(/', $entry->description, $m);
+            $empName   = isset($m[1]) ? trim($m[1]) : '';
+            $emp       = $employeeByName->get($empName);
+            $dailyRate = $emp ? (float) $emp->daily_rate : ($entry->rate_per_hour * 8);
+            $expected  = round($dailyRate * $project->estimated_working_days, 2);
             if ((float) $entry->total_cost !== $expected) {
                 $entry->update(['total_cost' => $expected]);
             }
@@ -54,7 +61,14 @@ class ProjectMaterialController extends Controller
 
         $laborEntries = ProjectLabor::where('project_id', $projectId)
             ->orderBy('created_at', 'asc')
-            ->get();
+            ->get()
+            ->map(function ($entry) use ($employeeByName) {
+                preg_match('/^(.+?)\s*\(/', $entry->description, $m);
+                $empName       = isset($m[1]) ? trim($m[1]) : '';
+                $emp           = $employeeByName->get($empName);
+                $entry->daily_rate = $emp ? (float) $emp->daily_rate : ($entry->rate_per_hour * 8);
+                return $entry;
+            });
 
         $activeLabor       = $laborEntries->where('status', 'active');
         $totalLaborEntries = $activeLabor->count();

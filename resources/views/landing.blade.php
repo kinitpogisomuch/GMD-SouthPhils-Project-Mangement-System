@@ -26,7 +26,7 @@
         <ul class="nav-links">
             <li class="nav-pill" id="navPill" aria-hidden="true"></li>
             <li><a href="#about">About</a></li>
-            <li><a href="#tanks">Tank Types</a></li>
+            <li><a href="#tanks">What We Build</a></li>
             <li><a href="#portfolio">Our Work</a></li>
             @if($reviews->isNotEmpty())
             <li><a href="#reviews">Client Feedback</a></li>
@@ -45,7 +45,7 @@
     <!-- Mobile menu drawer -->
     <div class="mobile-menu" id="mobileMenu">
         <a href="#about"     class="mm-link">About</a>
-        <a href="#tanks"     class="mm-link">Tank Types</a>
+        <a href="#tanks"     class="mm-link">What We Build</a>
         <a href="#portfolio" class="mm-link">Our Work</a>
         @if($reviews->isNotEmpty())
         <a href="#reviews"   class="mm-link">Client Feedback</a>
@@ -107,7 +107,7 @@
         </div>
         <div class="stat-box reveal">
             <div class="stat-num">4<sup>+</sup></div>
-            <div class="stat-label">Tank Types</div>
+            <div class="stat-label">Product Types</div>
         </div>
         <div class="stat-box reveal">
             <div class="stat-num">100%</div>
@@ -197,7 +197,7 @@
     <section class="tanks-wrap" id="tanks">
         <div class="tanks-inner">
             <div class="section-tag reveal">Our Specialties</div>
-            <h2 class="section-title reveal">We Fabricate</h2>
+            <h2 class="section-title reveal">What We Build</h2>
             <p class="section-sub reveal">We build a wide range of industrial storage tanks engineered for different applications and industries.</p>
         </div>
 
@@ -242,14 +242,14 @@
             <h2 class="section-title reveal">Projects We've Built</h2>
             <p class="section-sub reveal">A showcase of our completed storage tank projects — each fabricated to client specifications, pressure-tested, and delivered on schedule.</p>
 
-            <div class="portfolio-grid">
-                @foreach($portfolioItems as $item)
+            <div class="portfolio-grid" id="portfolioGrid">
+                @foreach($portfolioItems as $i => $item)
                 @php
                     $src = $item->image_url && !str_starts_with($item->image_url, 'http')
                         ? asset($item->image_url)
                         : $item->image_url;
                 @endphp
-                <div class="portfolio-card reveal">
+                <div class="portfolio-card reveal" data-portfolio-index="{{ $i }}">
                     <div class="portfolio-media"
                          @if($src) style="background-image:url('{{ $src }}')" @endif>
                         <span class="portfolio-spec">{{ $item->spec }}</span>
@@ -270,6 +270,50 @@
                 </div>
                 @endforeach
             </div>
+
+            {{-- Pagination controls --}}
+            <div id="portfolioPagination" style="display:flex;align-items:center;justify-content:center;gap:12px;margin-top:36px;">
+                <button id="portPrev" onclick="portfolioPage(-1)"
+                    style="width:40px;height:40px;border-radius:50%;border:2px solid #fff;background:transparent;color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s;"
+                    onmouseover="this.style.background='rgba(255,255,255,.15)'" onmouseout="this.style.background='transparent'">
+                    &#8592;
+                </button>
+                <span id="portPageInfo" style="font-size:13px;font-weight:700;color:rgba(255,255,255,.7);min-width:80px;text-align:center;"></span>
+                <button id="portNext" onclick="portfolioPage(1)"
+                    style="width:40px;height:40px;border-radius:50%;border:2px solid #fff;background:transparent;color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s;"
+                    onmouseover="this.style.background='rgba(255,255,255,.15)'" onmouseout="this.style.background='transparent'">
+                    &#8594;
+                </button>
+            </div>
+            <script>
+            (function(){
+                var PER_PAGE = 6;
+                var currentPage = 0;
+                var cards = document.querySelectorAll('#portfolioGrid .portfolio-card');
+                var total = cards.length;
+
+                function render() {
+                    var totalPages = Math.ceil(total / PER_PAGE);
+                    var start = currentPage * PER_PAGE;
+                    cards.forEach(function(c, i) {
+                        c.style.display = (i >= start && i < start + PER_PAGE) ? '' : 'none';
+                    });
+                    document.getElementById('portPageInfo').textContent = totalPages > 1 ? 'Page ' + (currentPage+1) + ' of ' + totalPages : '';
+                    document.getElementById('portPrev').style.opacity = currentPage === 0 ? '0.3' : '1';
+                    document.getElementById('portNext').style.opacity = currentPage >= totalPages-1 ? '0.3' : '1';
+                    document.getElementById('portfolioPagination').style.display = totalPages > 1 ? 'flex' : 'none';
+                }
+
+                window.portfolioPage = function(dir) {
+                    var totalPages = Math.ceil(total / PER_PAGE);
+                    currentPage = Math.max(0, Math.min(totalPages-1, currentPage + dir));
+                    render();
+                    document.getElementById('portfolio').scrollIntoView({behavior:'smooth', block:'start'});
+                };
+
+                render();
+            })();
+            </script>
 
             <div class="portfolio-foot">
                 <p>Each project is engineered to the client's exact specifications — pressure tested, quality inspected, and delivered ready for operation.</p>
@@ -354,6 +398,9 @@
                         <div>
                             <div class="review-name">{{ $review->client_name }}</div>
                             <div class="review-project">{{ $review->project->tank_type ?? $review->project->name }}</div>
+                        </div>
+                        <div style="margin-left:auto;font-size:11px;color:var(--muted);white-space:nowrap;">
+                            {{ $review->created_at->format('M d, Y') }}
                         </div>
                     </div>
                 </div>
@@ -474,7 +521,7 @@
                 <div class="footer-col-title">Quick Links</div>
                 <ul class="footer-links">
                     <li><a href="#about">About</a></li>
-                            <li><a href="#tanks">Tank Types</a></li>
+                            <li><a href="#tanks">What We Build</a></li>
                     <li><a href="#portfolio">Our Work</a></li>
                     @if($reviews->isNotEmpty())
                     <li><a href="#reviews">Client Feedback</a></li>

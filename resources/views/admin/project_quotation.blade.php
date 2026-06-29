@@ -74,10 +74,10 @@
                         <tbody>
                             @forelse($projects as $project)
                             @php
-                                $matCost   = $project->activeMaterials->sum('total_cost');
-                                $laborCost = $project->activeLabor->sum('total_cost');
-                                $projCost  = $matCost + $laborCost;
-                                $matCount  = $project->activeMaterials->count();
+                                $matCount    = $project->activeMaterials->count();
+                                $payment     = $project->payments->first();
+                                $projCost    = $payment ? (float) $payment->contract_amount
+                                             : ($project->activeMaterials->sum('total_cost') + $project->activeLabor->sum('total_cost'));
                                 $phase     = strtolower($project->current_phase ?? 'planning');
                                 $phaseColors = [
                                     'planning'    => ['bg'=>'#FEF3C7','color'=>'#92400E','shadow'=>'rgba(245,158,11,.2)'],
@@ -113,12 +113,22 @@
                                 </td>
                             </tr>
                             @empty
-                            <tr>
-                                <td colspan="7" style="text-align:center;padding:40px;color:var(--muted);">
-                                    No projects found. Add projects via the <strong>Projects</strong> page.
+                            <tr id="noDataRow">
+                                <td colspan="7" style="text-align:center;padding:60px 20px;color:var(--muted);">
+                                    <i data-lucide="inbox" style="width:36px;height:36px;opacity:.35;display:block;margin:0 auto 12px;"></i>
+                                    <div style="font-size:14px;font-weight:700;">No projects found.</div>
+                                    <div style="font-size:13px;margin-top:4px;">Add projects via the <strong>Projects</strong> page.</div>
                                 </td>
                             </tr>
                             @endforelse
+                            {{-- Filter empty state (shown by JS when a tab has no matching rows) --}}
+                            <tr id="filterEmptyRow" style="display:none;">
+                                <td colspan="7" style="text-align:center;padding:60px 20px;color:var(--muted);">
+                                    <i data-lucide="folder-open" style="width:36px;height:36px;opacity:.35;display:block;margin:0 auto 12px;"></i>
+                                    <div style="font-size:14px;font-weight:700;" id="filterEmptyMsg">No projects in this category.</div>
+                                    <div style="font-size:13px;margin-top:4px;color:var(--muted);">Try switching to a different tab or check the <strong>Projects</strong> page.</div>
+                                </td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -131,18 +141,38 @@
     <script>
         var currentStatusFilter = 'active';
 
+        var filterEmptyMessages = {
+            'active':    'No active projects yet.',
+            'completed': 'No completed projects yet.',
+            'archived':  'No archived projects.'
+        };
+
         function applyFilters() {
-            var q = (document.getElementById('projectSearch').value || '').toLowerCase();
-            document.querySelectorAll('#materialsTable tbody tr').forEach(function(row) {
-                var status = (row.dataset.status || '').toLowerCase();
+            var q        = (document.getElementById('projectSearch').value || '').toLowerCase();
+            var emptyRow = document.getElementById('filterEmptyRow');
+            var emptyMsg = document.getElementById('filterEmptyMsg');
+            var visible  = 0;
+
+            document.querySelectorAll('#materialsTable tbody tr[data-status]').forEach(function(row) {
+                var status      = (row.dataset.status || '').toLowerCase();
                 var matchSearch = row.textContent.toLowerCase().indexOf(q) !== -1;
                 var matchFilter = currentStatusFilter === 'active'
                     ? status !== 'archived' && status !== 'completed'
                     : currentStatusFilter === 'completed'
                     ? status === 'completed'
                     : status === 'archived';
-                row.style.display = (matchSearch && matchFilter) ? '' : 'none';
+                var show = matchSearch && matchFilter;
+                row.style.display = show ? '' : 'none';
+                if (show) visible++;
             });
+
+            if (emptyRow) {
+                emptyRow.style.display = visible === 0 ? '' : 'none';
+                if (emptyMsg) emptyMsg.textContent = q
+                    ? 'No projects match "' + q + '".'
+                    : (filterEmptyMessages[currentStatusFilter] || 'No projects in this category.');
+                if (visible === 0 && typeof lucide !== 'undefined') lucide.createIcons();
+            }
         }
 
         document.addEventListener('DOMContentLoaded', function() {

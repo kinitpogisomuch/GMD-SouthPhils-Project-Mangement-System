@@ -54,9 +54,9 @@
                         </select>
                     </div>
                 </div>
-                <div class="table-wrapper">
-                    <table class="data-table" id="clientsTable">
-                        <thead>
+                <div style="max-height:570px;overflow-y:auto;">
+                    <table class="data-table" id="clientsTable" style="margin:0;">
+                        <thead style="position:sticky;top:0;z-index:2;">
                             <tr>
                                 <th>Client Name</th>
                                 <th>Username</th>
@@ -232,9 +232,11 @@
                     </div>
                     <div class="form-group">
                         <label>Contact Number </label>
-                        <input type="text" name="contact" required
-                               placeholder="e.g. 09XX XXX XXXX"
-                               value="{{ old('contact') }}">
+                        <input type="text" name="contact" id="addClientContact" required
+                               placeholder="e.g. 0930-147-6598" maxlength="13"
+                               value="{{ old('contact') }}"
+                               oninput="formatClientContact(this)"
+                               onkeypress="return /[0-9\-]/.test(event.key)">
                     </div>
                     <div class="form-group">
                         <label>Email Address <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
@@ -312,7 +314,9 @@
                     </div>
                     <div class="form-group">
                         <label>Contact Number </label>
-                        <input type="text" name="contact" id="editClientContact" required placeholder="Contact number">
+                        <input type="text" name="contact" id="editClientContact" required placeholder="e.g. 0930-147-6598" maxlength="13"
+                               oninput="formatClientContact(this)"
+                               onkeypress="return /[0-9\-]/.test(event.key)">
                     </div>
                     <div class="form-group">
                         <label>Email Address</label>
@@ -613,6 +617,19 @@
             if (label) label.textContent = msg || 'Saved successfully.';
             toast.classList.add('show');
             setTimeout(function () { toast.classList.remove('show'); }, 3000);
+        }
+
+        function formatClientContact(input) {
+            // Strip everything except digits
+            var digits = input.value.replace(/\D/g, '').substring(0, 11);
+            var formatted = digits;
+            // Apply 0930-147-6598 format (4-3-4)
+            if (digits.length > 4 && digits.length <= 7) {
+                formatted = digits.substring(0,4) + '-' + digits.substring(4);
+            } else if (digits.length > 7) {
+                formatted = digits.substring(0,4) + '-' + digits.substring(4,7) + '-' + digits.substring(7);
+            }
+            input.value = formatted;
         }
     </script>
 </body>
