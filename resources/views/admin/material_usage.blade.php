@@ -71,10 +71,10 @@
                         <tbody id="supplierTbody">
                             @foreach($suppliers as $sup)
                             <tr data-sup-name="{{ strtolower($sup->name) }}" data-sup-phone="{{ $sup->phone }}" data-sup-addr="{{ strtolower($sup->address ?? '') }}">
-                                <td><strong>{{ $sup->name }}</strong></td>
-                                <td>{{ $sup->phone ?? '—' }}</td>
-                                <td>{{ $sup->email ?? '—' }}</td>
-                                <td>{{ $sup->address ?? '—' }}</td>
+                                <td style="font-size:14px;font-weight:700;color:var(--dark);">{{ $sup->name }}</td>
+                                <td style="font-size:14px;font-weight:400;color:var(--dark);">{{ $sup->phone ?? '—' }}</td>
+                                <td style="font-size:14px;font-weight:400;color:var(--dark);">{{ $sup->email ?? '—' }}</td>
+                                <td style="font-size:14px;font-weight:400;color:var(--dark);">{{ $sup->address ?? '—' }}</td>
                                 <td class="action-cell">
                                     <button class="action-btn edit" title="Edit"
                                         onclick="openEditSupplier({{ $sup->id }}, {{ json_encode($sup->name) }}, {{ json_encode($sup->company) }}, {{ json_encode($sup->phone) }}, {{ json_encode($sup->email) }}, {{ json_encode($sup->address) }})">
@@ -140,7 +140,22 @@
                         <tbody>
                             @forelse($projects as $project)
                             <tr data-status="{{ $project->status }}">
-                                <td><strong>{{ $project->name }}</strong></td>
+                                @php
+                                    $namePrefix = '';
+                                    $nameMain   = $project->name;
+                                    if (preg_match('/^(Fabrication of)\s+(.+)$/i', $project->name, $nm)) {
+                                        $namePrefix = $nm[1];
+                                        $nameMain   = $nm[2];
+                                    }
+                                @endphp
+                                <td style="overflow:hidden;">
+                                    <span style="display:inline-flex;flex-direction:column;max-width:100%;min-width:0;">
+                                        @if($namePrefix)
+                                            <span style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:.05em;line-height:1.2;text-transform:uppercase;white-space:nowrap;">{{ $namePrefix }}</span>
+                                        @endif
+                                        <span style="font-size:12.5px;font-weight:800;color:var(--dark);line-height:1.3;white-space:normal;word-break:break-word;">{{ $nameMain }}</span>
+                                    </span>
+                                </td>
                                 <td>{{ $project->client }}</td>
                                 <td>
                                     <span class="status-badge {{ $project->status === 'completed' ? 'completed' : 'ongoing' }}">
@@ -149,19 +164,19 @@
                                 </td>
                                 <td>
                                     @php $matCount = $project->activeMaterials->count(); @endphp
-                                    <span style="font-weight:700;">{{ $matCount }}</span>
-                                    <span style="color:var(--muted);font-size:13px;"> material{{ $matCount !== 1 ? 's' : '' }}</span>
+                                    <span style="font-size:14px;font-weight:700;color:var(--dark);">{{ $matCount }}</span>
+                                    <span style="font-size:13px;font-weight:400;color:var(--muted);"> material{{ $matCount !== 1 ? 's' : '' }}</span>
                                 </td>
                                 <td>
                                     @php $usageCount = $project->activeMaterialUsages->count(); @endphp
-                                    <span style="font-weight:700;">{{ $usageCount }}</span>
-                                    <span style="color:var(--muted);font-size:13px;"> entr{{ $usageCount !== 1 ? 'ies' : 'y' }}</span>
+                                    <span style="font-size:14px;font-weight:700;color:var(--dark);">{{ $usageCount }}</span>
+                                    <span style="font-size:13px;font-weight:400;color:var(--muted);"> entr{{ $usageCount !== 1 ? 'ies' : 'y' }}</span>
                                 </td>
                                 <td>
                                     @php $totalQty = $project->activeMaterialUsages->sum('quantity_used'); @endphp
-                                    <strong>{{ number_format($totalQty, 0) }}</strong>
+                                    <strong style="font-size:14px;font-weight:700;color:var(--dark);">{{ number_format($totalQty, 0) }}</strong>
                                 </td>
-                                <td>{{ $project->created_at->format('M d, Y') }}</td>
+                                <td style="font-size:14px;font-weight:700;color:var(--dark);">{{ $project->created_at->format('M d, Y') }}</td>
                                 <td class="action-cell">
                                     <a href="{{ route('admin.material_usage.detail', $project->id) }}"
                                        class="action-btn view" title="View Materials">

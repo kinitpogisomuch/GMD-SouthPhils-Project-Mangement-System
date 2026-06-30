@@ -218,37 +218,47 @@ class MaterialUsageController extends Controller
             'status'              => 'active',
         ]);
 
-        NotificationService::materialUsageLogged(
-            $project,
-            $request->input('material_name'),
-            (float) $request->input('quantity_used'),
-            $loggedBy
-        );
+        // Only notify when an employee logs usage — skip when the admin logs it themselves
+        if ($loggedBy) {
+            NotificationService::materialUsageLogged(
+                $project,
+                $request->input('material_name'),
+                (float) $request->input('quantity_used'),
+                $loggedBy
+            );
+        }
 
-        // Low stock alert: if linked to a BOM material, check if total usage >= 80% of planned qty
+        // Low stock alert: based on ACTUAL purchased stock remaining, not the BOM planned quantity
         $bomId = $request->input('project_material_id') ?: null;
         if ($bomId) {
             $bomMaterial = \App\Models\ProjectMaterial::find($bomId);
-            if ($bomMaterial && $bomMaterial->quantity > 0) {
-                $totalUsed = MaterialUsage::where('project_id', $project->id)
+            if ($bomMaterial) {
+                $stockBought = MaterialPurchase::where('project_id', $project->id)
                     ->where('project_material_id', $bomId)
-                    ->where('status', 'active')
-                    ->sum('quantity_used');
+                    ->sum('qty_bought');
 
-                $usagePct = ($totalUsed / $bomMaterial->quantity) * 100;
+                if ($stockBought > 0) {
+                    $totalUsed = MaterialUsage::where('project_id', $project->id)
+                        ->where('project_material_id', $bomId)
+                        ->where('status', 'active')
+                        ->sum('quantity_used');
 
-                if ($usagePct >= 80 && $usagePct < 100) {
-                    NotificationService::lowStockAlert($project, $bomMaterial);
-                } elseif ($usagePct >= 100) {
-                    NotificationService::notifyAdmins(
-                        'Material Stock Depleted',
-                        "\"{$bomMaterial->material_name}\" in {$project->name} has been fully consumed ({$bomMaterial->quantity} units planned, " . number_format($totalUsed, 2) . " used).",
-                        'warning',
-                        'red',
-                        $project->id,
-                        null,
-                        "/admin/material-usage/{$project->id}"
-                    );
+                    $usagePct = ($totalUsed / $stockBought) * 100;
+
+                    // Alert once remaining stock drops to 25% (half of half) of what was actually purchased
+                    if ($usagePct >= 75 && $usagePct < 100) {
+                        NotificationService::lowStockAlert($project, $bomMaterial, $stockBought - $totalUsed);
+                    } elseif ($usagePct >= 100) {
+                        NotificationService::notifyAdmins(
+                            'Material Stock Depleted',
+                            "\"{$bomMaterial->material_name}\" in {$project->name} has been fully consumed ({$stockBought} units bought, " . number_format($totalUsed, 2) . " used).",
+                            'warning',
+                            'red',
+                            $project->id,
+                            null,
+                            "/admin/material-usage/{$project->id}"
+                        );
+                    }
                 }
             }
         }

@@ -228,10 +228,23 @@ class NotificationService
         );
     }
 
-    /** Material stock is low (≤5 remaining) → alert admins */
-    public static function lowStockAlert(\App\Models\Project $project, \App\Models\ProjectMaterial $material): void
+    /** Material stock is running low (≤25% of purchased stock remaining) → alert admins once per material, no spam */
+    public static function lowStockAlert(\App\Models\Project $project, \App\Models\ProjectMaterial $material, ?float $remainingQty = null): void
     {
-        $message = "Low stock alert: \"{$material->material_name}\" has only {$material->quantity} unit(s) remaining in Project: {$project->name}.";
+        // Skip if an unread low-stock alert for this exact material on this project already exists
+        $alreadyAlerted = \App\Models\Notification::where('user_type', 'admin')
+            ->where('related_project_id', $project->id)
+            ->where('title', 'Low Material Stock')
+            ->where('message', 'like', '%"' . $material->material_name . '"%')
+            ->unread()
+            ->exists();
+
+        if ($alreadyAlerted) {
+            return;
+        }
+
+        $remainingText = $remainingQty !== null ? rtrim(rtrim(number_format($remainingQty, 2), '0'), '.') : $material->quantity;
+        $message = "Low stock alert: \"{$material->material_name}\" has only {$remainingText} unit(s) remaining in Project: {$project->name}.";
 
         self::notifyAdmins(
             'Low Material Stock',

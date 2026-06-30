@@ -262,41 +262,11 @@ class ForgotPasswordController extends Controller
         // Invalidate all reset codes for this email
         PasswordReset::where('email', session('fp_email'))->update(['is_used' => DB::raw('true')]);
 
-        // Wipe forgot-password session keys, then build the login session
-        $email = session('fp_email');
+        // Wipe forgot-password session keys — do not auto-login, send back to login page
         $request->session()->flush();
 
-        if ($userType === 'admin') {
-            session([
-                'user_id'     => $user->id,
-                'full_name'   => $user->full_name,
-                'name'        => $user->full_name,
-                'role'        => 'admin',
-                'email'       => $user->email,
-                'first_login' => (bool) $user->first_login,
-            ]);
-        } elseif ($userType === 'employee') {
-            session([
-                'user_id'     => $user->id,
-                'full_name'   => trim($user->last_name . ', ' . $user->first_name),
-                'name'        => trim($user->first_name . ' ' . $user->last_name),
-                'role'        => 'employee',
-                'email'       => $user->email,
-                'first_login' => (bool) $user->first_login,
-            ]);
-        } else {
-            session([
-                'user_id'     => $user->id,
-                'full_name'   => $user->full_name ?? $user->name,
-                'name'        => $user->full_name ?? $user->name,
-                'role'        => 'client',
-                'email'       => $user->email,
-                'first_login' => (bool) $user->first_login,
-            ]);
-        }
-
-        return redirect()->route($userType . '.dashboard')
-            ->with('success', 'Password updated successfully. Welcome back!');
+        return redirect()->route('login')
+            ->with('success', 'Password updated successfully. Please log in with your new password.');
     }
 
     // -------------------------------------------------------------------------

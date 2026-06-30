@@ -43,6 +43,13 @@
                 </div>
                 @endif
 
+                @if(session('success'))
+                <div class="success-message">
+                    <i data-lucide="check-circle"></i>
+                    <span>{{ session('success') }}</span>
+                </div>
+                @endif
+
                 <form method="POST" action="{{ route('login.post') }}">
                     @csrf
                     <div class="form-group">

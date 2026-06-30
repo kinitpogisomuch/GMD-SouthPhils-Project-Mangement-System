@@ -145,6 +145,8 @@ class ProjectMaterialController extends Controller
             'quantity.*'         => 'required|numeric|min:0.01',
             'price_per_unit'     => 'required|array|min:1',
             'price_per_unit.*'   => 'required|numeric|min:0',
+            'unit'               => 'nullable|array',
+            'unit.*'             => 'nullable|string|max:50',
             'factor'             => 'nullable|numeric|min:0|max:100',
             'notes'              => 'nullable|array',
             'notes.*'            => 'nullable|string',
@@ -155,6 +157,7 @@ class ProjectMaterialController extends Controller
         $names     = $request->input('material_name');
         $qtys      = $request->input('quantity');
         $prices    = $request->input('price_per_unit');
+        $units     = $request->input('unit', []);
         $notes     = $request->input('notes', []);
         $factor    = $request->filled('factor') ? (float) $request->input('factor') : 7;
 
@@ -189,6 +192,7 @@ class ProjectMaterialController extends Controller
                     $material->update([
                         'material_name'  => $name,
                         'quantity'       => $qty,
+                        'unit'           => $units[$i] ?? $material->unit,
                         'price_per_unit' => $price,
                         'total_cost'     => round($qty * $price, 2),
                         'notes'          => $notes[$i] ?? null,
@@ -204,7 +208,7 @@ class ProjectMaterialController extends Controller
                 'project_id'     => (int) $projectId,
                 'material_name'  => $name,
                 'quantity'       => $qty,
-                'unit'           => '',
+                'unit'           => $units[$i] ?? '',
                 'price_per_unit' => $price,
                 'total_cost'     => round($qty * $price, 2),
                 'factor'         => $factor,
@@ -212,7 +216,6 @@ class ProjectMaterialController extends Controller
                 'status'         => 'active',
             ]);
 
-            NotificationService::materialAdded($project, $name, $qty);
             $createdCount++;
         }
 
@@ -409,10 +412,24 @@ class ProjectMaterialController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        // Notify admin if any material has 5 or fewer units remaining
-        $lowStockItems = $materials->filter(fn($m) => $m->quantity <= 5);
-        foreach ($lowStockItems as $item) {
-            NotificationService::lowStockAlert($project, $item);
+        // Notify admin if any material's remaining stock (actual purchased stock - used) has dropped to 25% (half of half) or less
+        foreach ($materials as $item) {
+            $stockBought = MaterialPurchase::where('project_id', $projectId)
+                ->where('project_material_id', $item->id)
+                ->sum('qty_bought');
+
+            if ($stockBought <= 0) continue;
+
+            $totalUsed = \App\Models\MaterialUsage::where('project_id', $projectId)
+                ->where('project_material_id', $item->id)
+                ->where('status', 'active')
+                ->sum('quantity_used');
+
+            $remainingPct = (($stockBought - $totalUsed) / $stockBought) * 100;
+
+            if ($remainingPct <= 25 && $remainingPct > 0) {
+                NotificationService::lowStockAlert($project, $item, $stockBought - $totalUsed);
+            }
         }
 
         return view('employee.project_materials_detail', compact(

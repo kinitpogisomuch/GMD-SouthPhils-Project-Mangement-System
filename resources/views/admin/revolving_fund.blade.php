@@ -179,9 +179,22 @@
                                 @forelse($transactions as $tx)
                                 <tr data-type="{{ $tx->type }}"
                                     data-search="{{ strtolower(($tx->purpose ?? $tx->description ?? '') . ' ' . ($tx->project->name ?? '')) }}">
-                                    <td>
+                                    <td style="overflow:hidden;">
                                         @if($tx->project)
-                                        <span class="client-pill">{{ $tx->project->name }}</span>
+                                        @php
+                                            $namePrefix = '';
+                                            $nameMain   = $tx->project->name;
+                                            if (preg_match('/^(Fabrication of)\s+(.+)$/i', $tx->project->name, $nm)) {
+                                                $namePrefix = $nm[1];
+                                                $nameMain   = $nm[2];
+                                            }
+                                        @endphp
+                                        <span style="display:inline-flex;flex-direction:column;max-width:100%;min-width:0;">
+                                            @if($namePrefix)
+                                                <span style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:.05em;line-height:1.2;text-transform:uppercase;white-space:nowrap;">{{ $namePrefix }}</span>
+                                            @endif
+                                            <span style="font-size:12.5px;font-weight:800;color:var(--dark);line-height:1.3;white-space:normal;word-break:break-word;">{{ $nameMain }}</span>
+                                        </span>
                                         @else
                                         <span style="color:var(--muted);">—</span>
                                         @endif

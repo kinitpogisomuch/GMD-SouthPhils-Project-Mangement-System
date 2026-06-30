@@ -104,12 +104,12 @@
                         <span class="fd-ov-val">{{ $actLaborCost > 0 ? '₱'.number_format($actLaborCost,2) : '—' }}</span>
                     </div>
                     @php
-                        $totalActualSpend = $actMaterialCost + $actLaborCost;
+                        $totalActualSpend = $actMaterialCost + $actLaborCost + $overheadShare;
                         $netProfit        = $contractAmount > 0 ? $contractAmount - $totalActualSpend : null;
                     @endphp
                     <div class="fd-ov-item fd-ov-highlight">
                         <span class="fd-ov-label">Total Actual Spend</span>
-                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Actual materials + labor</span>
+                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Materials + Labor + Overhead</span>
                         <span class="fd-ov-val" style="color:{{ $totalActualSpend > 0 ? '#f87171' : 'rgba(255,255,255,0.35)' }};font-size:17px;">
                             {{ $totalActualSpend > 0 ? '₱'.number_format($totalActualSpend,2) : '—' }}
                         </span>
@@ -770,7 +770,7 @@
                 </div>
 
                 <div class="pi-section-label">
-                    <i data-lucide="package" style="width:13px;height:13px;"></i> Tank Specifications
+                    <i data-lucide="package" style="width:13px;height:13px;"></i> Project Specifications
                     <span style="font-size:11px;font-weight:600;color:var(--muted-light);">({{ $project->tankItems->isNotEmpty() ? $project->tankItems->count() : 1 }} tank{{ $project->tankItems->count() !== 1 ? 's' : '' }})</span>
                 </div>
                 @if($project->tankItems->isNotEmpty())
@@ -778,7 +778,7 @@
                     @foreach($project->tankItems as $i => $ti)
                     <div class="pi-tank-row">
                         <div class="pi-tank-grid">
-                            <div class="project-detail-box"><span>Tank Type</span><strong>{{ $ti->tank_type }}</strong></div>
+                            <div class="project-detail-box"><span>Project Type</span><strong>{{ $ti->tank_type }}</strong></div>
                             <div class="project-detail-box"><span>Shape</span><strong>{{ $ti->shape ?? '—' }}</strong></div>
                             <div class="project-detail-box"><span>Capacity</span><strong>{{ $ti->capacity ?? '—' }}</strong></div>
                             <div class="project-detail-box"><span>Dimensions</span><strong>{{ $ti->dimensions ?? '—' }}</strong></div>
@@ -789,7 +789,7 @@
                 </div>
                 @else
                 <div class="project-detail-grid" style="margin-top:10px;margin-bottom:20px;">
-                    <div class="project-detail-box"><span>Tank Type</span><strong>{{ $project->tank_type }}</strong></div>
+                    <div class="project-detail-box"><span>Project Type</span><strong>{{ $project->tank_type }}</strong></div>
                     <div class="project-detail-box"><span>Capacity</span><strong>{{ $project->capacity }}</strong></div>
                     <div class="project-detail-box"><span>Dimensions</span><strong>{{ $project->dimensions ?? '—' }}</strong></div>
                 </div>

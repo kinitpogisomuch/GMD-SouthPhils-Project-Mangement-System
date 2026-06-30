@@ -40,6 +40,44 @@
             </div>
             @endif
 
+            {{-- ── Projects Financial Summary ── --}}
+            <div class="pf-summary-grid">
+                <div class="pf-summary-card">
+                    <div class="pf-summary-icon" style="background:#d1fae5;color:#059669;">
+                        <i data-lucide="banknote"></i>
+                    </div>
+                    <div class="pf-summary-body">
+                        <div class="pf-summary-label">Total Revenue</div>
+                        <div class="pf-summary-value">₱{{ number_format($totalRevenue, 2) }}</div>
+                        <div class="pf-summary-sub">Contract value of active projects</div>
+                    </div>
+                </div>
+
+                <div class="pf-summary-card">
+                    <div class="pf-summary-icon" style="background:#dbeafe;color:#2563eb;">
+                        <i data-lucide="folder-kanban"></i>
+                    </div>
+                    <div class="pf-summary-body">
+                        <div class="pf-summary-label">Active Projects</div>
+                        <div class="pf-summary-value">{{ $activeProjectsCount }}</div>
+                        <div class="pf-summary-sub">Currently in progress</div>
+                    </div>
+                </div>
+
+                <div class="pf-summary-card">
+                    <div class="pf-summary-icon" style="background:{{ $netProfit < 0 ? '#fee2e2' : '#ede9fe' }};color:{{ $netProfit < 0 ? '#dc2626' : '#7c3aed' }};">
+                        <i data-lucide="trending-up"></i>
+                    </div>
+                    <div class="pf-summary-body">
+                        <div class="pf-summary-label">Net Profit</div>
+                        <div class="pf-summary-value" style="{{ $netProfit < 0 ? 'color:#dc2626;' : '' }}">
+                            {{ $netProfit < 0 ? '-' : '' }}₱{{ number_format(abs($netProfit), 2) }}
+                        </div>
+                        <div class="pf-summary-sub">Revenue − Material − Labor − Overhead</div>
+                    </div>
+                </div>
+            </div>
+
             <div class="table-card">
                 <div class="table-toolbar">
                     <div class="search-box">
@@ -65,23 +103,23 @@
                 <div class="table-wrapper">
                     <table class="data-table" id="projectsTable">
                         <colgroup>
-                            <col style="width:26%;">
-                            <col style="width:14%;">
-                            <col style="width:12%;">
-                            <col style="width:12%;">
+                            <col style="width:28%;">
                             <col style="width:13%;">
                             <col style="width:11%;">
-                            <col style="width:12%;">
+                            <col style="width:11%;">
+                            <col style="width:11%;">
+                            <col style="width:10%;">
+                            <col style="width:16%;">
                         </colgroup>
                         <thead>
                             <tr>
                                 <th>Project Name</th>
                                 <th>Client</th>
-                                <th>Start Date</th>
-                                <th>End Date</th>
-                                <th>Status</th>
-                                <th>Progress</th>
-                                <th>Action</th>
+                                <th style="text-align:center;">Start Date</th>
+                                <th style="text-align:center;">End Date</th>
+                                <th style="text-align:center;">Status</th>
+                                <th style="text-align:center;">Progress</th>
+                                <th style="text-align:center;">Action</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -96,16 +134,16 @@
                                     }
                                 @endphp
                                 <td style="overflow:hidden;">
-                                    <span style="display:inline-flex;flex-direction:column;background:#dbeafe;border-radius:10px;padding:4px 10px;box-shadow:0 0 0 1px rgba(37,99,235,.2),0 2px 6px rgba(37,99,235,.12);max-width:100%;min-width:0;">
+                                    <span style="display:inline-flex;flex-direction:column;max-width:100%;min-width:0;">
                                         @if($namePrefix)
-                                            <span style="font-size:9px;font-weight:700;color:#3b82f6;letter-spacing:.05em;line-height:1.2;text-transform:uppercase;white-space:nowrap;">{{ $namePrefix }}</span>
+                                            <span style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:.05em;line-height:1.2;text-transform:uppercase;white-space:nowrap;">{{ $namePrefix }}</span>
                                         @endif
-                                        <span style="font-size:12px;font-weight:800;color:#1e3a8a;line-height:1.3;white-space:normal;word-break:break-word;">{{ $nameMain }}</span>
+                                        <span style="font-size:12.5px;font-weight:800;color:var(--dark);line-height:1.3;white-space:normal;word-break:break-word;">{{ $nameMain }}</span>
                                     </span>
                                 </td>
                                 <td><span class="client-pill">{{ $project->client }}</span></td>
-                                <td style="white-space:nowrap;">{{ $project->start_date->format('M d, Y') }}</td>
-                                <td style="white-space:nowrap;">{{ $project->end_date->format('M d, Y') }}</td>
+                                <td style="white-space:nowrap;text-align:center;">{{ $project->start_date->format('M d, Y') }}</td>
+                                <td style="white-space:nowrap;text-align:center;">{{ $project->end_date->format('M d, Y') }}</td>
                                 @php
                                     $phase = strtolower($project->current_phase ?? 'planning');
                                     $phaseColors = [
@@ -122,12 +160,12 @@
                                     $pc = $phaseColors[$phase] ?? ['bg'=>'#F3F4F6','color'=>'#6B7280','shadow'=>'rgba(0,0,0,.1)'];
                                     $phaseLabel = ucwords(str_replace('_', ' ', $phase));
                                 @endphp
-                                <td>
+                                <td style="text-align:center;">
                                     <span class="status-badge" style="background:{{ $pc['bg'] }};color:{{ $pc['color'] }};box-shadow:0 0 0 1px {{ $pc['shadow'] }},0 2px 8px {{ $pc['shadow'] }};">
                                         {{ $phaseLabel }}
                                     </span>
                                 </td>
-                                <td>
+                                <td style="text-align:center;">
                                     @php
                                         $prog = $project->progress ?? 0;
                                         $progColor = $prog == 0 ? '#9CA3AF'
@@ -147,7 +185,7 @@
                                         {{ $prog }}%
                                     </span>
                                 </td>
-                                <td class="action-cell">
+                                <td class="action-cell" style="text-align:center;">
                                     <button class="action-btn view project-view-btn" type="button" title="View Project"
                                         data-id="{{ $project->id }}">
                                         <i data-lucide="eye"></i>
@@ -285,7 +323,7 @@
 
                     <!-- Tank Specifications -->
                     <div style="margin-top:18px;margin-bottom:10px;display:flex;align-items:center;gap:10px;">
-                        <div style="background:linear-gradient(180deg,#333 0%,#2a2a2a 100%);color:#fff;font-size:10px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;padding:4px 12px;border-radius:999px;">Tank Specifications</div>
+                        <div style="background:linear-gradient(180deg,#333 0%,#2a2a2a 100%);color:#fff;font-size:10px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;padding:4px 12px;border-radius:999px;">Project Specifications</div>
                         <div style="flex:1;height:1px;background:linear-gradient(90deg,#333,transparent);"></div>
                     </div>
 
@@ -347,7 +385,7 @@
                     </div>
 
                     <div style="margin-top:18px;margin-bottom:10px;display:flex;align-items:center;gap:10px;">
-                        <div style="background:linear-gradient(180deg,#333 0%,#2a2a2a 100%);color:#fff;font-size:10px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;padding:4px 12px;border-radius:999px;">Tank Specifications</div>
+                        <div style="background:linear-gradient(180deg,#333 0%,#2a2a2a 100%);color:#fff;font-size:10px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;padding:4px 12px;border-radius:999px;">Project Specifications</div>
                         <div style="flex:1;height:1px;background:linear-gradient(90deg,#333,transparent);"></div>
                     </div>
                     <div id="editTankItemsContainer"></div>
@@ -880,11 +918,11 @@
 
                 '<div style="display:flex;gap:12px;align-items:flex-end;">' +
                     '<div class="form-group" style="flex:2;">' +
-                        '<label>Tank Type</label>' +
+                        '<label>Project Type</label>' +
                         '<select name="' + prefix + '[tank_type]" required onchange="onTankTypeChange(this)">' + tankTypeOptions(type) + '</select>' +
                     '</div>' +
                     '<div class="form-group" style="flex:1.5;">' +
-                        '<label>Tank Shape</label>' +
+                        '<label>Project Shape</label>' +
                         '<select class="ti-shape" onchange="onTankShapeChange(this)">' +
                             (!type ? '<option value="" disabled selected style="display:none;">—</option>' : tankShapeOptions(type, initShape)) +
                         '</select>' +

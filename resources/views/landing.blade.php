@@ -102,11 +102,11 @@
     ============================================================ -->
     <div class="stats-bar">
         <div class="stat-box reveal">
-            <div class="stat-num">10<sup>+</sup></div>
+            <div class="stat-num">7<sup>+</sup></div>
             <div class="stat-label">Years of Experience</div>
         </div>
         <div class="stat-box reveal">
-            <div class="stat-num">4<sup>+</sup></div>
+            <div class="stat-num">10<sup>+</sup></div>
             <div class="stat-label">Product Types</div>
         </div>
         <div class="stat-box reveal">
@@ -415,6 +415,25 @@
             @endif
         </div>
     </section>
+    <script>
+    (function() {
+        var wrap = document.querySelector('.reviews-marquee-wrap');
+        if (!wrap) return;
+
+        wrap.addEventListener('click', function(e) {
+            var card = e.target.closest('.review-card');
+            if (!card) return;
+            wrap.classList.toggle('is-paused');
+        });
+
+        // Tapping anywhere outside the marquee resumes it
+        document.addEventListener('click', function(e) {
+            if (!wrap.contains(e.target)) {
+                wrap.classList.remove('is-paused');
+            }
+        });
+    })();
+    </script>
 
 
 

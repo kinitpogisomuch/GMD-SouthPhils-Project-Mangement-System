@@ -29,8 +29,9 @@ class MonthlyExpenseController extends Controller
 
         // All non-completed, non-archived projects for selection
         $projects = Project::whereNotIn('status', ['completed', 'archived'])
+            ->with('tankItems')
             ->orderBy('name')
-            ->get(['id', 'name', 'client']);
+            ->get(['id', 'name', 'client', 'tank_type']);
 
         // Per-project amount for preview
         $perProject = count($allocated) > 0 && $total > 0

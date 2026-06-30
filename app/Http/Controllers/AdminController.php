@@ -187,7 +187,39 @@ class AdminController extends Controller
     public function projects()
     {
         $projects = Project::with('assignedEmployees', 'tankItems')->orderBy('created_at', 'desc')->get();
-        return view('admin.projects', compact('projects'));
+
+        // ── Financial Summary (Active projects only: not completed, archived, or cancelled) ──
+        $activeStatuses = ['completed', 'archived', 'cancelled'];
+        $activeProjectIds = $projects->reject(fn($p) => in_array(strtolower($p->status), $activeStatuses))
+            ->pluck('id');
+
+        $activeProjectsCount = $activeProjectIds->count();
+
+        $totalRevenue = $activeProjectIds->isEmpty() ? 0 : (float) \App\Models\Payment::whereIn('project_id', $activeProjectIds)
+            ->sum('contract_amount');
+
+        $actualMaterialCost = $activeProjectIds->isEmpty() ? 0 : (float) \App\Models\MaterialPurchase::whereIn('project_id', $activeProjectIds)
+            ->sum('total_paid');
+
+        $actualLaborCost = $activeProjectIds->isEmpty() ? 0 : (float) \DB::table('salary_record_project')
+            ->whereIn('project_id', $activeProjectIds)
+            ->sum('allocated_pay');
+
+        $actualOverheadCost = $activeProjectIds->isEmpty() ? 0 : (float) \DB::table('monthly_expense_projects')
+            ->whereIn('project_id', $activeProjectIds)
+            ->sum('allocated_amount');
+
+        $netProfit = $totalRevenue - $actualMaterialCost - $actualLaborCost - $actualOverheadCost;
+
+        return view('admin.projects', compact(
+            'projects',
+            'activeProjectsCount',
+            'totalRevenue',
+            'actualMaterialCost',
+            'actualLaborCost',
+            'actualOverheadCost',
+            'netProfit'
+        ));
     }
 
     public function employees()

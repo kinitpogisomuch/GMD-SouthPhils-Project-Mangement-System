@@ -340,6 +340,27 @@ body {
     flex-shrink: 0;
 }
 
+/* ================= SUCCESS ================= */
+
+.success-message {
+    background-color: #d1fae5;
+    color: #16a34a;
+    padding: 13px 14px;
+    border-radius: 16px;
+    font-size: 14px;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-weight: 700;
+}
+
+.success-message svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+
 @keyframes errorShake {
     0%, 100% { transform: translateX(0); }
     20%, 60% { transform: translateX(-4px); }

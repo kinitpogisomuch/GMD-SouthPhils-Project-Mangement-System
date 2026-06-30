@@ -412,15 +412,15 @@
                         <span style="font-size:12px;color:var(--muted);">— applied to all materials in this project</span>
                     </div>
                     <div style="overflow-x:auto;max-height:420px;overflow-y:auto;">
-                        <table style="width:100%;border-collapse:collapse;min-width:680px;">
+                        <table style="width:100%;border-collapse:collapse;min-width:760px;">
                             <thead style="position:sticky;top:0;z-index:1;">
                                 <tr style="background:var(--cream-soft,#f5f5f5);">
                                     <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);width:36px;">#</th>
                                     <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);">Material Name <span style="color:var(--danger);">*</span></th>
+                                    <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);width:90px;">Unit</th>
                                     <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);width:110px;">Quantity <span style="color:var(--danger);">*</span></th>
                                     <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);width:130px;">Price Per Unit</th>
                                     <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);width:120px;">Total Cost</th>
-                                    <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);">Notes</th>
                                     <th style="width:40px;"></th>
                                 </tr>
                             </thead>
@@ -429,7 +429,7 @@
                             </tbody>
                             <tfoot>
                                 <tr style="border-top:2px solid rgba(0,0,0,0.1);background:var(--cream-soft,#f5f5f5);">
-                                    <td colspan="4" style="padding:12px;text-align:right;font-size:13px;font-weight:700;color:var(--dark);">Grand Total</td>
+                                    <td colspan="5" style="padding:12px;text-align:right;font-size:13px;font-weight:700;color:var(--dark);">Grand Total</td>
                                     <td style="padding:12px;font-size:15px;font-weight:900;color:var(--dark);" id="addGrandTotal">₱0.00</td>
                                     <td colspan="2"></td>
                                 </tr>
@@ -1000,12 +1000,13 @@
                       '<i data-lucide="trash-2" style="width:15px;height:15px;"></i>' +
                   '</button>';
 
-            var removeCell = isExisting
-                ? '<div style="display:flex;flex-direction:column;align-items:center;gap:4px;">' +
-                      '<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);">Existing</span>' +
-                      removeBtn +
-                  '</div>'
-                : removeBtn;
+            var removeCell =
+                '<div style="display:flex;flex-direction:column;align-items:center;gap:4px;">' +
+                    (isExisting
+                        ? '<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);">Existing</span>'
+                        : '<span style="font-size:10px;visibility:hidden;">Existing</span>') +
+                    removeBtn +
+                '</div>';
 
             tr.innerHTML =
                 '<input type="hidden" name="material_id[]" value="' + (data.id || '') + '">' +
@@ -1022,6 +1023,12 @@
                     '<div class="mat-combo-warning">This material is already added in another row.</div>' +
                 '</td>' +
                 '<td style="padding:8px 10px;vertical-align:top;">' +
+                    '<input type="text" name="unit[]" class="row-unit" autocomplete="off"' +
+                           ' value="' + escapeHtml(data.unit || '') + '"' +
+                           ' placeholder="pcs"' +
+                           ' style="width:100%;padding:8px 10px;border:1px solid rgba(0,0,0,0.14);border-radius:8px;font-size:13px;">' +
+                '</td>' +
+                '<td style="padding:8px 10px;vertical-align:top;">' +
                     '<input type="number" name="quantity[]" class="row-qty" required min="0.01" step="0.01"' +
                            ' value="' + (data.qty != null ? data.qty : '') + '"' +
                            ' placeholder="0" oninput="updateRowTotal(this)"' +
@@ -1036,11 +1043,6 @@
                 '<td style="padding:8px 10px;vertical-align:top;">' +
                     '<input type="text" class="row-total-display" readonly placeholder="—"' +
                            ' style="width:100%;padding:8px 10px;border:1px solid rgba(0,0,0,0.08);border-radius:8px;font-size:13px;font-weight:800;color:var(--dark);background:rgba(0,0,0,0.03);cursor:default;">' +
-                '</td>' +
-                '<td style="padding:8px 10px;vertical-align:top;">' +
-                    '<input type="text" name="notes[]" placeholder="Optional notes..."' +
-                           ' value="' + escapeHtml(data.notes || '') + '"' +
-                           ' style="width:100%;padding:8px 10px;border:1px solid rgba(0,0,0,0.14);border-radius:8px;font-size:13px;">' +
                 '</td>' +
                 '<td style="padding:8px 10px;vertical-align:top;text-align:center;">' + removeCell + '</td>';
 
@@ -1113,7 +1115,7 @@
                     name: mat.material_name,
                     qty: mat.quantity,
                     price: mat.price_per_unit,
-                    notes: mat.notes
+                    unit: mat.unit
                 }));
             });
             container.appendChild(buildMaterialRow(rowNum++));
@@ -1160,10 +1162,10 @@
                 var name = nameInput ? nameInput.value.trim() : '';
                 var qtyEl = row.querySelector('.row-qty');
                 var priceEl = row.querySelector('.row-price');
+                var unitEl = row.querySelector('.row-unit');
                 var qty = parseFloat(qtyEl ? qtyEl.value : '') || 0;
                 var price = parseFloat(priceEl ? priceEl.value : '') || 0;
-                var notesInput = row.querySelector('[name="notes[]"]');
-                var notes = notesInput ? notesInput.value.trim() : '';
+                var unit = unitEl ? unitEl.value.trim() : '';
 
                 if (!name) { valid = false; if (nameInput) nameInput.style.outline = '2px solid var(--danger)'; }
                 if (qty <= 0) { valid = false; if (qtyEl) qtyEl.style.outline = '2px solid var(--danger)'; }
@@ -1180,7 +1182,7 @@
                 }
 
                 if (name && qty > 0) {
-                    items.push({ num: i + 1, name: name, qty: qty, price: price, total: qty * price, notes: notes, existing: isExisting });
+                    items.push({ num: i + 1, name: name, unit: unit, qty: qty, price: price, total: qty * price, existing: isExisting });
                 }
             });
 
@@ -1197,6 +1199,7 @@
             html += '<thead><tr>';
             html += '<th style="' + thStyle + 'width:36px;">#</th>';
             html += '<th style="' + thStyle + '">Material</th>';
+            html += '<th style="' + thStyle + 'width:70px;">Unit</th>';
             html += '<th style="' + thStyle + 'width:100px;">Quantity</th>';
             html += '<th style="' + thStyle + 'width:120px;">Price / Unit</th>';
             html += '<th style="' + thStyle + 'width:120px;">Total Cost</th>';
@@ -1215,6 +1218,7 @@
                     html += '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' + escapeHtml(item.notes) + '</div>';
                 }
                 html += '</td>';
+                html += '<td style="padding:10px 12px;font-size:12.5px;color:var(--muted);">' + (item.unit ? escapeHtml(item.unit) : '—') + '</td>';
                 html += '<td style="padding:10px 12px;font-size:13px;">' + parseFloat(item.qty).toLocaleString('en-PH', {minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
                 html += '<td style="padding:10px 12px;font-size:13px;">₱' + parseFloat(item.price).toLocaleString('en-PH', {minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
                 html += '<td style="padding:10px 12px;font-size:13px;font-weight:800;color:var(--dark);">₱' + parseFloat(item.total).toLocaleString('en-PH', {minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';

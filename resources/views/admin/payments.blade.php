@@ -117,7 +117,22 @@
                             @endphp
                             <tr data-status="{{ $status }}"
                                 data-search="{{ strtolower(($payment->project->name ?? '') . ' ' . $payment->client) }}">
-                                <td><strong>{{ $payment->project->name ?? '—' }}</strong></td>
+                                @php
+                                    $namePrefix = '';
+                                    $nameMain   = $payment->project->name ?? '—';
+                                    if ($payment->project && preg_match('/^(Fabrication of)\s+(.+)$/i', $payment->project->name, $nm)) {
+                                        $namePrefix = $nm[1];
+                                        $nameMain   = $nm[2];
+                                    }
+                                @endphp
+                                <td style="overflow:hidden;">
+                                    <span style="display:inline-flex;flex-direction:column;max-width:100%;min-width:0;">
+                                        @if($namePrefix)
+                                            <span style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:.05em;line-height:1.2;text-transform:uppercase;white-space:nowrap;">{{ $namePrefix }}</span>
+                                        @endif
+                                        <span style="font-size:12.5px;font-weight:800;color:var(--dark);line-height:1.3;white-space:normal;word-break:break-word;">{{ $nameMain }}</span>
+                                    </span>
+                                </td>
                                 <td>{{ $payment->client }}</td>
                                 <td>₱{{ number_format($payment->contract_amount, 2) }}</td>
                                 <td>₱{{ number_format($balance, 2) }}</td>

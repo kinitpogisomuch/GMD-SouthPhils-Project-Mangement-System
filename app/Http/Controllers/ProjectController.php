@@ -129,8 +129,8 @@ class ProjectController extends Controller
             ->where('project_id', $project->id)
             ->sum('allocated_amount');
 
-        // Remaining budget = budget received - actual spending
-        $remainingBudget = $budgetReceived - ($actMaterialCost + $actLaborCost);
+        // Remaining budget = budget received - actual spending (materials + labor + overhead)
+        $remainingBudget = $budgetReceived - ($actMaterialCost + $actLaborCost + $overheadShare);
 
         // Variance vs actual spending
         $matVariance   = $estMaterialCost - $actMaterialCost;
@@ -159,7 +159,7 @@ class ProjectController extends Controller
             'payment', 'contractAmount', 'budgetReceived', 'totalReceived', 'remainingBudget',
             'estMaterialCost', 'actMaterialCost', 'matVariance',
             'estLaborCost', 'actLaborCost', 'laborVariance',
-            'estTotalCost', 'projectGrandTotal',
+            'estTotalCost', 'projectGrandTotal', 'overheadShare',
             // legacy
             'materialCost', 'laborCost', 'profit',
             // fund
