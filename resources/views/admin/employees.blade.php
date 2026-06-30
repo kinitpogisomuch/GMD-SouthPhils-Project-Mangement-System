@@ -658,11 +658,38 @@
                 <input type="hidden" id="rpDays">
 
                 {{-- Employee banner --}}
-                <div style="display:flex;align-items:center;gap:14px;background:linear-gradient(135deg,#0E1428,#1a2340);border-radius:12px;padding:14px 16px;margin-bottom:16px;">
-                    <div class="cs-avatar" style="width:44px;height:44px;min-width:44px;font-size:16px;" id="salarySelectedAvatar">?</div>
-                    <div>
-                        <div style="font-weight:800;font-size:15px;color:#fff;" id="salarySelectedName">—</div>
-                        <div style="font-size:12px;color:rgba(255,255,255,.5);" id="salarySelectedRole">—</div>
+                <div style="background:linear-gradient(135deg,var(--dark) 0%,var(--dark-deep) 100%);border-radius:14px;padding:16px 18px;margin-bottom:16px;position:relative;overflow:hidden;">
+                    {{-- Decorative glow --}}
+                    <div style="position:absolute;top:-30px;right:-30px;width:120px;height:120px;background:radial-gradient(circle,rgba(253,231,76,.08) 0%,transparent 70%);pointer-events:none;"></div>
+                    <div style="position:absolute;bottom:-20px;left:60px;width:80px;height:80px;background:radial-gradient(circle,rgba(37,99,235,.1) 0%,transparent 70%);pointer-events:none;"></div>
+
+                    <div style="display:flex;align-items:center;gap:14px;position:relative;">
+                        {{-- Avatar --}}
+                        <div style="flex-shrink:0;">
+                            <div class="cs-avatar" style="width:52px;height:52px;min-width:52px;font-size:18px;font-weight:900;border:2px solid rgba(253,231,76,.3);" id="salarySelectedAvatar">?</div>
+                        </div>
+
+                        {{-- Info --}}
+                        <div style="flex:1;min-width:0;">
+                            <div style="font-weight:900;font-size:16px;color:#fff;line-height:1.2;margin-bottom:3px;" id="salarySelectedName">—</div>
+                            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                                <span style="font-size:11px;font-weight:700;color:rgba(255,255,255,.5);background:rgba(255,255,255,.08);padding:2px 8px;border-radius:999px;" id="salarySelectedRole">—</span>
+                                <span style="font-size:10px;color:rgba(255,255,255,.3);">·</span>
+                                <span style="font-size:11px;color:rgba(255,255,255,.35);" id="salarySelectedType">Employee</span>
+                            </div>
+                        </div>
+
+                        {{-- Daily rate chip --}}
+                        <div style="flex-shrink:0;text-align:right;">
+                            <div style="font-size:9px;font-weight:700;color:rgba(253,231,76,.6);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">Daily Rate</div>
+                            <div style="font-size:18px;font-weight:900;color:#FDE74C;line-height:1;" id="salaryRateDisplay">₱0</div>
+                        </div>
+                    </div>
+
+                    {{-- Pay period strip --}}
+                    <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:6px;">
+                        <i data-lucide="calendar" style="width:11px;height:11px;color:rgba(255,255,255,.3);"></i>
+                        <span style="font-size:10px;color:rgba(255,255,255,.35);font-weight:600;" id="salaryPeriodDisplay">Week of —</span>
                     </div>
                 </div>
 
@@ -921,7 +948,7 @@
                     if (addEmpBtn)    addEmpBtn.style.display    = (tab === 'salary')    ? 'none' : '';
                     if (recSalaryBtn) recSalaryBtn.style.display = (tab === 'employees') ? 'none' : '';
 
-                    if (tab === 'salary') loadSalaryRecords(currentSalaryPeriod);
+                    if (tab === 'salary') loadSalaryRecords(currentSalaryPeriod || TODAY_PAY_PERIOD);
                 });
             });
 
@@ -959,7 +986,7 @@
                 document.getElementById('salaryJumpPanel').classList.remove('show');
             });
 
-            if (activeTab === 'salary') loadSalaryRecords(null);
+            if (activeTab === 'salary') loadSalaryRecords(TODAY_PAY_PERIOD);
         });
     })();
 
@@ -986,8 +1013,8 @@
                 return '<div data-proj-id="' + p.id + '" data-proj-name="' + (p.name||'').replace(/"/g,'&quot;') + '" data-proj-client="' + (p.client||'') + '" data-proj-spec="' + (p.spec||'') + '"'
                     + ' onclick="toggleProjectCard(this)" style="cursor:pointer;border-radius:12px;padding:12px 14px;border:2px solid ' + (sel ? '#2563eb' : 'var(--border)') + ';background:' + (sel ? '#eff6ff' : '#fff') + ';transition:all .15s;position:relative;">'
                     // Check icon
-                    + '<div style="position:absolute;top:10px;right:10px;width:20px;height:20px;border-radius:50%;background:' + (sel ? '#2563eb' : 'var(--cream-deep)') + ';display:flex;align-items:center;justify-content:center;transition:all .15s;">'
-                    +   '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="' + (sel ? '#fff' : '#aaa') + '" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+                    + '<div class="proj-check-icon" style="position:absolute;top:10px;right:10px;width:20px;height:20px;border-radius:50%;background:#2563eb;display:' + (sel ? 'flex' : 'none') + ';align-items:center;justify-content:center;">'
+                    +   '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
                     + '</div>'
                     // Project name
                     + '<div style="font-size:13px;font-weight:700;color:var(--dark);padding-right:28px;margin-bottom:8px;">' + p.name + '</div>'
@@ -1016,13 +1043,8 @@
         card.setAttribute('data-selected', sel ? '1' : '0');
         card.style.border     = '2px solid ' + (sel ? '#2563eb' : 'var(--border)');
         card.style.background = sel ? '#eff6ff' : '#fff';
-        var icon  = card.querySelector('div[style*="position:absolute"] div, div[style*="position:absolute"]');
-        var check = card.querySelector('div[style*="position:absolute"]');
-        if (check) {
-            check.style.background = sel ? '#2563eb' : 'var(--cream-deep)';
-            var svg = check.querySelector('svg polyline');
-            if (svg) svg.setAttribute('stroke', sel ? '#fff' : '#aaa');
-        }
+        var check = card.querySelector('.proj-check-icon');
+        if (check) check.style.display = sel ? 'flex' : 'none';
         var allocLine = card.querySelector('.proj-alloc-line');
         if (allocLine) allocLine.style.display = sel ? 'block' : 'none';
         updatePayPreview();
@@ -1269,10 +1291,29 @@
         document.getElementById('recordPaymentForm').style.display = (step === 2) ? '' : 'none';
     }
 
-    function setSalarySelectedEmployee(name, role) {
-        document.getElementById('salarySelectedName').textContent = name;
-        document.getElementById('salarySelectedRole').textContent = role || 'Employee';
-        document.getElementById('salarySelectedAvatar').textContent = (name || '?').charAt(0).toUpperCase();
+    function setSalarySelectedEmployee(name, role, rate, type, period) {
+        var parts = (name || '').trim().split(/\s+/);
+        var initials = parts.length >= 2
+            ? parts[0].charAt(0).toUpperCase() + parts[parts.length-1].charAt(0).toUpperCase()
+            : (parts[0] || '?').substring(0,2).toUpperCase();
+
+        document.getElementById('salarySelectedAvatar').textContent = initials;
+        document.getElementById('salarySelectedName').textContent   = name || '—';
+        document.getElementById('salarySelectedRole').textContent   = role || 'Employee';
+
+        var typeEl = document.getElementById('salarySelectedType');
+        if (typeEl) typeEl.textContent = type || 'Regular';
+
+        var rateEl = document.getElementById('salaryRateDisplay');
+        if (rateEl) rateEl.textContent = rate ? '₱' + parseFloat(rate).toLocaleString('en-PH') : '₱0';
+
+        var periodEl = document.getElementById('salaryPeriodDisplay');
+        if (periodEl && period) {
+            var d = parsePayPeriod(period);
+            var e = new Date(d); e.setDate(e.getDate() + 6);
+            periodEl.textContent = 'Week of ' + formatPayPeriodDate(d) + ' – ' + formatPayPeriodDate(e);
+        }
+        if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
     function renderSalaryEmployeePicker(filter) {
@@ -1345,7 +1386,7 @@
         document.getElementById('recordPaymentTitle').textContent    = rec.id ? 'Edit Salary Record' : 'Record Salary';
         document.getElementById('recordPaymentSubtitle').textContent = 'Update the weekly salary for ' + rec.employee_name + '.';
 
-        setSalarySelectedEmployee(rec.employee_name, rec.role);
+        setSalarySelectedEmployee(rec.employee_name, rec.role, rec.daily_rate, rec.employee_type, rec.pay_period);
         document.getElementById('rpDailyRate').value      = rec.daily_rate;
         var storedDays = parseFloat(rec.days_worked) || 0;
         var fullPart   = Math.floor(storedDays);
@@ -1468,7 +1509,7 @@
             if (!pickedSalaryEmployee) { alert('Please select an outsourced worker to continue.'); return; }
             document.getElementById('rpEmployee').value  = pickedSalaryEmployee.id;
             document.getElementById('rpDailyRate').value = pickedSalaryEmployee.daily_rate || '';
-            setSalarySelectedEmployee(pickedSalaryEmployee.name, pickedSalaryEmployee.role);
+            setSalarySelectedEmployee(pickedSalaryEmployee.name, pickedSalaryEmployee.role, pickedSalaryEmployee.daily_rate, 'Outsourced', currentSalaryPeriod || TODAY_PAY_PERIOD);
             document.getElementById('backSalaryStep2').style.display = '';
             showSalaryStep(2);
             updatePayPreview();

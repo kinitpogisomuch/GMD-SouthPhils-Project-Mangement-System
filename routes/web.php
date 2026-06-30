@@ -23,6 +23,7 @@ use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\FundController;
 use App\Http\Controllers\MaterialRequestController;
 use App\Http\Controllers\SupplierContactController;
+use App\Http\Controllers\MonthlyExpenseController;
 use App\Http\Controllers\MessageController;
 
 /*
@@ -170,6 +171,11 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::get('/employees/list', [EmployeeAccountController::class, 'list'])->name('employee.list');
 
     // Salary Records
+    Route::get('/monthly-expenses', [MonthlyExpenseController::class, 'index'])->name('monthly-expenses.index');
+    Route::post('/monthly-expenses', [MonthlyExpenseController::class, 'store'])->name('monthly-expenses.store');
+    Route::post('/monthly-expenses/allocate', [MonthlyExpenseController::class, 'allocate'])->name('monthly-expenses.allocate');
+    Route::delete('/monthly-expenses/{id}', [MonthlyExpenseController::class, 'destroy'])->name('monthly-expenses.destroy');
+
     Route::get('/salary-records', [SalaryController::class, 'index'])->name('salary.index');
     Route::get('/salary-projects', [SalaryController::class, 'projects'])->name('salary.projects');
     Route::post('/salary-records', [SalaryController::class, 'store'])->name('salary.store');

@@ -132,7 +132,7 @@
         <button onclick="closeChatWindow()" style="width:32px;height:32px;border-radius:50%;background:#f0f2f5;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#050505;">
             <i data-lucide="arrow-left" style="width:16px;height:16px;"></i>
         </button>
-        <div id="chatWinAvatarWrap" style="width:40px;height:40px;border-radius:50%;background:#0E1428;color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;flex-shrink:0;overflow:hidden;">
+        <div id="chatWinAvatarWrap" style="width:40px;height:40px;border-radius:50%;background:var(--dark);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;flex-shrink:0;overflow:hidden;">
             <span id="chatWinAvatar">?</span>
         </div>
         <div style="flex:1;min-width:0;">
@@ -178,8 +178,8 @@
                 onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChatMsg();}"></textarea>
         </div>
         <button type="button" onclick="sendChatMsg()" title="Send"
-            style="width:36px;height:36px;border-radius:50%;background:#0E1428;color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s;"
-            onmouseover="this.style.background='#1a2340'" onmouseout="this.style.background='#0E1428'">
+            style="width:36px;height:36px;border-radius:50%;background:var(--dark);color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s;"
+            onmouseover="this.style.background='var(--dark-deep)'" onmouseout="this.style.background='var(--dark)'">
             <i data-lucide="send" style="width:15px;height:15px;"></i>
         </button>
     </div>
@@ -502,7 +502,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 // bubble + images
                 html += '<div style="display:flex;flex-direction:column;align-items:flex-end;max-width:75%;">';
                 if (m.body) {
-                    html += '<div style="background:#0E1428;color:#fff;border-radius:16px 16px 3px 16px;padding:8px 12px;font-size:13px;line-height:1.45;word-break:break-word;">' + escHtml(m.body) + '</div>';
+                    html += '<div style="background:var(--dark);color:#fff;border-radius:16px 16px 3px 16px;padding:8px 12px;font-size:13px;line-height:1.45;word-break:break-word;">' + escHtml(m.body) + '</div>';
                 }
                 if (imgHtml) html += imgHtml;
                 if (fileHtml) html += fileHtml;
@@ -516,7 +516,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 // RECEIVED — left side
                 var cInit = (chatContact && chatContact.name || '?').charAt(0).toUpperCase();
                 html += '<div style="display:flex;justify-content:flex-start;align-items:flex-end;gap:5px;margin-bottom:' + mb + ';">';
-                html += '<div style="' + avatarStyle + 'background:#0E1428;">' + cInit + '</div>';
+                html += '<div style="' + avatarStyle + 'background:var(--dark);">' + cInit + '</div>';
                 html += '<div style="display:flex;flex-direction:column;align-items:flex-start;max-width:75%;">';
                 if (m.body) {
                     html += '<div style="background:#fff;color:#050505;border:1px solid #e8e8e8;border-radius:16px 16px 16px 3px;padding:8px 12px;font-size:13px;line-height:1.45;word-break:break-word;box-shadow:0 1px 2px rgba(0,0,0,.05);">' + escHtml(m.body) + '</div>';
@@ -550,7 +550,7 @@ document.addEventListener('DOMContentLoaded', function () {
         var div = document.createElement('div');
         div.style.cssText = 'display:flex;flex-direction:column;align-items:flex-end;margin-bottom:10px;';
         div.innerHTML = '<div style="display:flex;align-items:flex-end;gap:6px;">'
-            + '<div style="max-width:72%;background:#0E1428;color:#fff;border-radius:18px 18px 4px 18px;padding:9px 14px;font-size:13px;line-height:1.5;word-break:break-word;">'+escHtml(body)+'</div>'
+            + '<div style="max-width:72%;background:var(--dark);color:#fff;border-radius:18px 18px 4px 18px;padding:9px 14px;font-size:13px;line-height:1.5;word-break:break-word;">'+escHtml(body)+'</div>'
             + '<div style="width:30px;height:30px;border-radius:50%;background:#555;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0;">'+myInit+'</div>'
             + '</div>';
         msgList.appendChild(div);

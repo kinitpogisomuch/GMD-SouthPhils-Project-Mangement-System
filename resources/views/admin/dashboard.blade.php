@@ -57,7 +57,7 @@
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
 
                 {{-- Top Client --}}
-                <div style="background:linear-gradient(135deg,#0E1428 0%,#1a2340 100%);border-radius:18px;padding:24px;box-shadow:0 8px 24px rgba(14,20,40,.25);">
+                <div style="background:linear-gradient(135deg,var(--dark) 0%,var(--dark-deep) 100%);border-radius:18px;padding:24px;box-shadow:0 8px 24px rgba(14,20,40,.25);">
                     <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:14px;">
                         <div style="width:36px;height:36px;background:rgba(255,255,255,.1);border-radius:10px;display:flex;align-items:center;justify-content:center;">
                             <i data-lucide="crown" style="width:18px;height:18px;color:#FDE74C;"></i>

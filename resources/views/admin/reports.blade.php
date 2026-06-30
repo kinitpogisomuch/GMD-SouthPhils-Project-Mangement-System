@@ -124,8 +124,12 @@
                     <div style="background:linear-gradient(135deg,#fffbeb,#fef3c7);padding:16px 18px;border-bottom:1px solid #fde68a;">
                         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
                             <span style="font-size:13px;font-weight:800;color:#92400e;">Profit Margin</span>
-                            <span style="font-size:11px;font-weight:700;padding:2px 10px;border-radius:999px;background:{{ $pmDiff >= 0 ? '#10B981' : '#F59E0B' }};color:#fff;">
-                                {{ $pmDiff >= 0 ? 'On target' : 'Near target' }}
+                            @php
+                                $pmLabel = $pmDiff < 0 ? 'Below target' : ($pmDiff <= 5 ? 'On target' : 'Exceeding');
+                                $pmBadgeClr = $pmDiff < 0 ? '#F59E0B' : '#10B981';
+                            @endphp
+                            <span style="font-size:11px;font-weight:700;padding:2px 10px;border-radius:999px;background:{{ $pmBadgeClr }};color:#fff;">
+                                {{ $pmLabel }}
                             </span>
                         </div>
                         <div style="display:flex;align-items:flex-end;gap:12px;">
@@ -162,8 +166,11 @@
                     <div style="background:linear-gradient(135deg,{{ $otBg }},{{ $otBg }});padding:16px 18px;border-bottom:1px solid {{ $otDiff >= 0 ? '#bbf7d0' : '#fecaca' }};">
                         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
                             <span style="font-size:13px;font-weight:800;color:{{ $otText }};">On-Time Delivery</span>
+                            @php
+                                $otLabel = $otDiff < 0 ? 'Below target' : ($otDiff <= 5 ? 'On target' : 'Exceeding');
+                            @endphp
                             <span style="font-size:11px;font-weight:700;padding:2px 10px;border-radius:999px;background:{{ $otColor }};color:#fff;">
-                                {{ $otDiff >= 0 ? 'On target' : 'Below target' }}
+                                {{ $otLabel }}
                             </span>
                         </div>
                         <div style="display:flex;align-items:flex-end;gap:12px;">
@@ -195,20 +202,23 @@
                 </div>
 
                 {{-- Budget Adherence --}}
-                @php $baColor = $baDiff >= 0 ? '#2563EB' : '#ef4444'; @endphp
+                @php
+                    $baLabel = $baDiff < 0 ? 'Below target' : ($baDiff <= 5 ? 'On target' : 'Exceeding');
+                    $baColor = $baDiff < 0 ? '#ef4444' : ($baDiff <= 5 ? '#10B981' : '#2563EB');
+                @endphp
                 <div style="background:var(--white);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.05);">
                     <div style="background:linear-gradient(135deg,#eff6ff,#dbeafe);padding:16px 18px;border-bottom:1px solid #bfdbfe;">
                         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
                             <span style="font-size:13px;font-weight:800;color:#1e40af;">Budget Adherence</span>
                             <span style="font-size:11px;font-weight:700;padding:2px 10px;border-radius:999px;background:{{ $baColor }};color:#fff;">
-                                {{ $baDiff >= 0 ? 'Exceeding' : 'Below target' }}
+                                {{ $baLabel }}
                             </span>
                         </div>
                         <div style="display:flex;align-items:flex-end;gap:12px;">
                             <div>
                                 <div style="font-size:36px;font-weight:900;color:#1e3a8a;line-height:1;">{{ $avgBudgetAdherence }}%</div>
                                 <div style="font-size:11px;color:#1e40af;margin-top:3px;">
-                                    {{ $baDiff >= 0 ? 'Exceeds' : 'Below' }} {{ $baTarget }}% target
+                                    {{ $baDiff < 0 ? 'Below' : ($baDiff <= 5 ? 'Meets' : 'Exceeds') }} {{ $baTarget }}% target
                                 </div>
                             </div>
                             <canvas id="baDonut" width="64" height="64" style="width:64px!important;height:64px!important;flex-shrink:0;margin-bottom:4px;"></canvas>

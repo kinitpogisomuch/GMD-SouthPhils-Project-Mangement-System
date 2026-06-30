@@ -120,10 +120,14 @@ class ProjectController extends Controller
         $actMaterialCost = (float) \App\Models\MaterialPurchase::where('project_id', $project->id)->sum('total_paid');
 
         // Actual labor cost = sum of allocated_pay from salary_record_project pivot
-        // (equal split across projects as set in the salary management module)
         $actLaborCost = (float) \DB::table('salary_record_project')
             ->where('project_id', $project->id)
             ->sum('allocated_pay');
+
+        // Monthly overhead share allocated to this project
+        $overheadShare = (float) \DB::table('monthly_expense_projects')
+            ->where('project_id', $project->id)
+            ->sum('allocated_amount');
 
         // Remaining budget = budget received - actual spending
         $remainingBudget = $budgetReceived - ($actMaterialCost + $actLaborCost);
@@ -132,8 +136,10 @@ class ProjectController extends Controller
         $matVariance   = $estMaterialCost - $actMaterialCost;
         $laborVariance = $estLaborCost    - $actLaborCost;
 
-        // Est. Profit = Contract Value - Actual Material Cost - Actual Labor Cost
-        $profit = $contractAmount > 0 ? $contractAmount - $actMaterialCost - $actLaborCost : null;
+        // Net Profit = Contract Value - Materials - Labor - Overhead Share
+        $profit = $contractAmount > 0
+            ? $contractAmount - $actMaterialCost - $actLaborCost - $overheadShare
+            : null;
 
         // Legacy aliases (scaled values)
         $materialCost = $estMaterialCost;

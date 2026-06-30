@@ -46,6 +46,13 @@
             <span>Payments</span>
         </a>
 
+        <a href="{{ route('admin.monthly-expenses.index') }}"
+           class="{{ request()->routeIs('admin.monthly-expenses.*') ? 'active' : '' }}"
+           title="Monthly Expenses">
+            <div class="sidebar-icon"><i data-lucide="receipt"></i></div>
+            <span>Monthly Expenses</span>
+        </a>
+
         <a href="{{ route('admin.revolving_fund') }}"
            class="{{ request()->routeIs('admin.revolving_fund') ? 'active' : '' }}"
            title="Revolving Fund">
