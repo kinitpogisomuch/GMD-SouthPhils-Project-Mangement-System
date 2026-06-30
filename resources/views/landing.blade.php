@@ -384,27 +384,31 @@
             <p class="section-sub reveal">Real feedback from clients after their completed tank fabrication projects.</p>
 
             @if($reviews->isNotEmpty())
-            <div class="reviews-grid">
-                @foreach($reviews as $review)
-                <div class="review-card reveal">
-                    <div class="review-stars">
-                        @for($i=1;$i<=5;$i++)
-                            <i data-lucide="star" style="width:16px;height:16px;color:{{ $i <= $review->rating ? 'var(--accent)' : 'var(--border)' }};{{ $i <= $review->rating ? 'fill:var(--accent);' : '' }}"></i>
-                        @endfor
-                    </div>
-                    <p class="review-text">"{{ $review->comment }}"</p>
-                    <div class="review-author">
-                        <div class="review-avatar">{{ strtoupper(substr($review->client_name, 0, 1)) }}</div>
-                        <div>
-                            <div class="review-name">{{ $review->client_name }}</div>
-                            <div class="review-project">{{ $review->project->tank_type ?? $review->project->name }}</div>
+            <div class="reviews-marquee-wrap reveal">
+                <div class="reviews-marquee-track">
+                    @for($pass = 0; $pass < 2; $pass++)
+                        @foreach($reviews as $review)
+                        <div class="review-card">
+                            <div class="review-stars">
+                                @for($i=1;$i<=5;$i++)
+                                    <i data-lucide="star" style="width:16px;height:16px;color:{{ $i <= $review->rating ? 'var(--accent)' : 'var(--border)' }};{{ $i <= $review->rating ? 'fill:var(--accent);' : '' }}"></i>
+                                @endfor
+                            </div>
+                            <p class="review-text">"{{ $review->comment }}"</p>
+                            <div class="review-author">
+                                <div class="review-avatar">{{ strtoupper(substr($review->client_name, 0, 1)) }}</div>
+                                <div>
+                                    <div class="review-name">{{ $review->client_name }}</div>
+                                    <div class="review-project">{{ $review->project->tank_type ?? $review->project->name }}</div>
+                                </div>
+                                <div style="margin-left:auto;font-size:11px;color:var(--muted);white-space:nowrap;">
+                                    {{ $review->project && $review->project->end_date ? \Carbon\Carbon::parse($review->project->end_date)->format('M d, Y') : $review->created_at->format('M d, Y') }}
+                                </div>
+                            </div>
                         </div>
-                        <div style="margin-left:auto;font-size:11px;color:var(--muted);white-space:nowrap;">
-                            {{ $review->created_at->format('M d, Y') }}
-                        </div>
-                    </div>
+                        @endforeach
+                    @endfor
                 </div>
-                @endforeach
             </div>
             @else
             <p class="section-sub reveal" style="margin-top:40px;">No reviews yet — check back soon!</p>
