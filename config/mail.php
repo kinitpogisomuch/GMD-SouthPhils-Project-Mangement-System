@@ -66,10 +66,6 @@ return [
             'transport' => 'resend',
         ],
 
-        'resend-http' => [
-            'transport' => 'resend-http',
-        ],
-
         'sendgrid-http' => [
             'transport' => 'sendgrid-http',
         ],
