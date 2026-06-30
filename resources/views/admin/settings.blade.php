@@ -404,7 +404,15 @@
                         <span style="font-weight:700;font-size:15px;">Client Reviews</span>
                     </div>
                     <div class="table-wrapper">
-                        <table class="data-table">
+                        <table class="data-table" style="table-layout:fixed;width:100%;">
+                            <colgroup>
+                                <col style="width:22%;">
+                                <col style="width:13%;">
+                                <col style="width:10%;">
+                                <col style="width:33%;">
+                                <col style="width:10%;">
+                                <col style="width:12%;">
+                            </colgroup>
                             <thead>
                                 <tr>
                                     <th>Project</th>
@@ -418,8 +426,8 @@
                             <tbody>
                                 @forelse($reviews as $review)
                                 <tr>
-                                    <td><strong>{{ $review->project->name ?? 'N/A' }}</strong></td>
-                                    <td>{{ $review->client_name }}</td>
+                                    <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><strong>{{ $review->project->name ?? 'N/A' }}</strong></td>
+                                    <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $review->client_name }}</td>
                                     <td>
                                         <div style="display:flex;gap:2px;">
                                             @for($i=1;$i<=5;$i++)
@@ -427,7 +435,7 @@
                                             @endfor
                                         </div>
                                     </td>
-                                    <td style="max-width:320px;">{{ \Illuminate\Support\Str::limit($review->comment, 80) }}</td>
+                                    <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ $review->comment }}">{{ \Illuminate\Support\Str::limit($review->comment, 80) }}</td>
                                     <td>
                                         <span class="status-badge {{ $review->status === 'active' ? 'active' : 'archived' }}">
                                             {{ $review->status === 'active' ? 'Visible' : 'Hidden' }}
@@ -465,6 +473,7 @@
                 </div>
             </div>
 
+            <!-- ===== TAB: KPI TARGETS ===== -->
         </main>
     </div>
 
@@ -486,10 +495,6 @@
                     <div class="form-group form-group-full">
                         <label>Image <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
                         <input type="file" name="image" accept="image/*">
-                    </div>
-                    <div class="form-group form-group-full">
-                        <label>Icon <span style="font-weight:400;color:var(--muted);">(used when no image is set, e.g. flame, droplets, container — see lucide.dev)</span></label>
-                        <input type="text" name="icon" placeholder="e.g. flame">
                     </div>
                     <div class="form-group">
                         <label>Spec / Badge </label>
@@ -567,10 +572,6 @@
                     <div class="form-group">
                         <label>Replace Image <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
                         <input type="file" name="image" id="editPortfolioImageInput" accept="image/*">
-                    </div>
-                    <div class="form-group">
-                        <label>Icon <span style="font-weight:400;color:var(--muted);">— lucide.dev name</span></label>
-                        <input type="text" name="icon" id="editPortfolioIcon" placeholder="e.g. flame">
                     </div>
                     <div class="form-group">
                         <label>Spec / Badge</label>

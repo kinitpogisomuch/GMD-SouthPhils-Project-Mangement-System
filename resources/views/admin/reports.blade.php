@@ -59,15 +59,6 @@
                         </div>
                     </div>
                     <div>
-                        <label style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);display:block;margin-bottom:5px;">KPI Focus</label>
-                        <select name="kpi" class="filter-select" onchange="this.form.submit()" style="min-width:165px;">
-                            <option value="all">All KPIs</option>
-                            <option value="profit"   {{ $filterKpi === 'profit'   ? 'selected' : '' }}>Profit margin</option>
-                            <option value="otd"      {{ $filterKpi === 'otd'      ? 'selected' : '' }}>On-time delivery</option>
-                            <option value="budget"   {{ $filterKpi === 'budget'   ? 'selected' : '' }}>Budget adherence</option>
-                        </select>
-                    </div>
-                    <div>
                         <label style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);display:block;margin-bottom:5px;">Project</label>
                         <select name="project" class="filter-select" onchange="this.form.submit()" style="min-width:210px;max-width:260px;">
                             <option value="all">All projects</option>
@@ -96,9 +87,17 @@
             @else
 
             @php
-                $pmTarget  = 20;
-                $otTarget  = 90;
-                $baTarget  = 90;
+                /*
+                    KPI targets are admin-configurable (Settings > KPI Targets), not hardcoded.
+                    Defaults are research-backed - see resources/views/admin/settings.blade.php
+                    for the basis/citations shown next to each field:
+                    - Profit Margin: PH COA contractor margin benchmark (8-10% of Estimated Direct Cost)
+                    - On-Time Delivery: industry benchmark range (80-90% for effective contractors)
+                    - Budget Adherence: PMI Cost Performance Index standard (CPI = 1.0 / 100% = on budget)
+                */
+                $pmTarget  = (float) $kpiTargets->kpi_profit_margin_target;
+                $otTarget  = (float) $kpiTargets->kpi_on_time_target;
+                $baTarget  = (float) $kpiTargets->kpi_budget_adherence_target;
                 $pmDiff    = round($avgProfitMargin - $pmTarget, 1);
                 $otDiff    = round($onTimeRate - $otTarget, 1);
                 $baDiff    = round($avgBudgetAdherence - $baTarget, 1);
@@ -139,7 +138,7 @@
                     <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:6px;">Performance Report — {{ $currentQuarterLabel }}</div>
                     @php
                         $pmStatusWord = $pmDiff < 0 ? 'below' : ($pmDiff <= 5 ? 'in line with' : 'well above');
-                        $otStatusWord = $otDiff < 0 ? 'below' : ($otDiff <= 5 ? 'meeting' : 'exceeding');
+                        $otStatusWord = $otDiff < 0 ? 'below' : ($otDiff <= 5 ? 'meeting' : 'excelling at');
                         $baStatusWord = $baDiff < 0 ? 'below' : ($baDiff <= 5 ? 'meeting' : 'exceeding');
                         $pmForecastWord = ($count > 0 && isset($next3Forecast[0]))
                             ? ($next3Forecast[0]['pm'] > $avgProfitMargin ? 'expected to improve further' : ($next3Forecast[0]['pm'] < $avgProfitMargin ? 'expected to ease slightly' : 'expected to hold steady'))
@@ -178,7 +177,7 @@
                         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
                             <span style="font-size:13px;font-weight:800;color:#92400e;">Profit Margin</span>
                             @php
-                                $pmLabel = $pmDiff < 0 ? 'Below target' : ($pmDiff <= 5 ? 'On target' : 'Exceeding');
+                                $pmLabel = $pmDiff < 0 ? 'Below target' : ($pmDiff <= 5 ? 'On target' : 'Excellent');
                                 $pmBadgeClr = $pmDiff < 0 ? '#F59E0B' : '#10B981';
                             @endphp
                             <span style="font-size:11px;font-weight:700;padding:2px 10px;border-radius:999px;background:{{ $pmBadgeClr }};color:#fff;">
@@ -220,7 +219,7 @@
                         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
                             <span style="font-size:13px;font-weight:800;color:{{ $otText }};">On-Time Delivery</span>
                             @php
-                                $otLabel = $otDiff < 0 ? 'Below target' : ($otDiff <= 5 ? 'On target' : 'Exceeding');
+                                $otLabel = $otDiff < 0 ? 'Below target' : ($otDiff <= 5 ? 'On target' : 'Excellent');
                             @endphp
                             <span style="font-size:11px;font-weight:700;padding:2px 10px;border-radius:999px;background:{{ $otColor }};color:#fff;">
                                 {{ $otLabel }}
@@ -510,6 +509,7 @@
                     </div>
                 </div>
             </div>
+
 
             @endif
 

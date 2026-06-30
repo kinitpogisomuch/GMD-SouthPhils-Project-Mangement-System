@@ -24,7 +24,7 @@
                 }
                 $adminFirstName = $adminFirstName ? explode(' ', $adminFirstName)[0] : 'Admin';
 
-                $hour = (int) now()->format('G');
+                $hour = (int) now()->timezone('Asia/Manila')->format('G');
                 $greeting = $hour < 12 ? 'Good morning' : ($hour < 18 ? 'Good afternoon' : 'Good evening');
             @endphp
 
@@ -79,8 +79,8 @@
                             <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;margin-top:2px;">Completed</div>
                         </div>
                         <div style="background:rgba(255,255,255,.06);border-radius:10px;padding:10px 12px;text-align:center;">
-                            <div style="font-size:14px;font-weight:900;color:#60a5fa;">₱{{ number_format($topClient['received'] / 1000, 0) }}k</div>
-                            <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;margin-top:2px;">Received</div>
+                            <div id="topClientReceived" style="font-size:14px;font-weight:900;color:#60a5fa;">₱{{ number_format($topClient['received'] / 1000, 0) }}k</div>
+                            <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;margin-top:2px;" id="topClientReceivedLabel">Received</div>
                         </div>
                     </div>
                     @else
@@ -786,12 +786,30 @@
 
         buildPeakChart(currentYear);
 
+        // Per-year received amounts for the top client card (pre-computed server-side)
+        @if($topClient)
+        var topClientReceivedByYear = @json($topClient['received_by_year']);
+
+        function updateTopClientReceived(year) {
+            var amt = topClientReceivedByYear[year] !== undefined ? topClientReceivedByYear[year] : 0;
+            var el  = document.getElementById('topClientReceived');
+            var lbl = document.getElementById('topClientReceivedLabel');
+            if (el)  el.textContent  = '₱' + Math.round(amt / 1000).toLocaleString() + 'k';
+            if (lbl) lbl.textContent = year + ' Received';
+        }
+        updateTopClientReceived(currentYear); // sync card to the default active year on page load
+        @endif
+
         // Year filter buttons
         document.querySelectorAll('.db-year-btn').forEach(function(btn) {
             btn.addEventListener('click', function() {
                 document.querySelectorAll('.db-year-btn').forEach(function(b) { b.classList.remove('active'); });
                 this.classList.add('active');
-                buildPeakChart(parseInt(this.dataset.year));
+                var year = parseInt(this.dataset.year);
+                buildPeakChart(year);
+                @if($topClient)
+                updateTopClientReceived(year);
+                @endif
             });
         });
         // ─────────────────────────────────────────────────────────────────

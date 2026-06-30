@@ -93,13 +93,26 @@ class AdminController extends Controller
         if ($topClientData) {
             $topClientProjects = Project::where('client', $topClientData->client)->get();
             $topClientPayments = Payment::whereIn('project_id', $topClientProjects->pluck('id'))->get();
-            $topClientReceived = PaymentTransaction::whereIn('payment_id', $topClientPayments->pluck('id'))->sum('amount_paid');
+            $paymentIds        = $topClientPayments->pluck('id');
+
+            $topClientReceived = PaymentTransaction::whereIn('payment_id', $paymentIds)->sum('amount_paid');
+
+            // Pre-compute received per year so the JS year filter can update the card without a reload
+            $currentYear  = now()->year;
+            $receivedByYear = [];
+            for ($y = $currentYear - 1; $y <= $currentYear; $y++) {
+                $receivedByYear[$y] = (float) PaymentTransaction::whereIn('payment_id', $paymentIds)
+                    ->whereYear('payment_date', $y)
+                    ->sum('amount_paid');
+            }
+
             $topClient = [
-                'name'          => $topClientData->client,
-                'project_count' => $topClientData->project_count,
-                'contract_value'=> $topClientPayments->sum('contract_amount'),
-                'received'      => $topClientReceived,
-                'completed'     => $topClientProjects->where('status', 'completed')->count(),
+                'name'            => $topClientData->client,
+                'project_count'   => $topClientData->project_count,
+                'contract_value'  => $topClientPayments->sum('contract_amount'),
+                'received'        => $topClientReceived,
+                'received_by_year'=> $receivedByYear,
+                'completed'       => $topClientProjects->where('status', 'completed')->count(),
             ];
         }
 
@@ -313,6 +326,21 @@ class AdminController extends Controller
         return redirect()->route('admin.settings')
             ->with('success', 'Contact information updated successfully.')
             ->with('active_tab', 'landing');
+    }
+
+    public function updateKpiTargets(Request $request)
+    {
+        $validated = $request->validate([
+            'kpi_profit_margin_target'    => 'required|numeric|min:0|max:100',
+            'kpi_on_time_target'          => 'required|numeric|min:0|max:100',
+            'kpi_budget_adherence_target' => 'required|numeric|min:0|max:100',
+        ]);
+
+        SiteSetting::instance()->update($validated);
+
+        return redirect()->route('admin.settings')
+            ->with('success', 'KPI targets updated successfully.')
+            ->with('active_tab', 'kpi');
     }
 
     public function reports(Request $request)
@@ -589,6 +617,51 @@ class AdminController extends Controller
             ['pm' => min(100, $pmForecast[2]), 'ba' => min(100, $baForecast[2]), 'ot' => min(100, $otForecast[2]), 'rev' => max(0, round($revForecast[2]))],
         ];
 
+        // ── KPI targets: admin-configurable (Settings page), no longer hardcoded ──
+        $kpiTargets = SiteSetting::instance();
+
+        // ── EAC (Estimate at Completion) cost forecast for ONGOING projects ──
+        // Standard PMI Earned Value Management formula: EAC = BAC / CPI, where
+        // CPI = EV / AC, EV = % complete x BAC (Budget at Completion), AC = actual cost to date.
+        $activeProjectsList = Project::whereNotIn('status', ['completed', 'archived'])->get();
+
+        $eacForecast = $activeProjectsList->map(function ($project) {
+            $bomMatCost   = (float) ProjectMaterial::where('project_id', $project->id)
+                ->where('status', 'active')->sum('total_cost');
+            $bomLaborCost = (float) \App\Models\ProjectLabor::where('project_id', $project->id)
+                ->where('status', 'active')->sum('total_cost');
+            $bac = $bomMatCost + $bomLaborCost; // Budget at Completion
+
+            $actualMatSpend = (float) \App\Models\MaterialPurchase::where('project_id', $project->id)
+                ->sum('total_paid');
+            $actualLaborCost = (float) \DB::table('salary_record_project')
+                ->where('project_id', $project->id)->sum('allocated_pay');
+            if ($actualLaborCost == 0) {
+                $actualLaborCost = (float) \App\Models\ProjectLabor::where('project_id', $project->id)
+                    ->where('status', 'active')->sum('total_cost');
+            }
+            $ac = $actualMatSpend + $actualLaborCost; // Actual Cost to date
+
+            $pctComplete = ((float) $project->progress) / 100;
+            $ev = $pctComplete * $bac; // Earned Value
+
+            $cpi = $ac > 0 ? round($ev / $ac, 2) : null;
+            $eac = ($cpi && $cpi > 0) ? round($bac / $cpi, 2) : $bac;
+
+            return [
+                'name'         => $project->name,
+                'code'         => $project->code,
+                'phase'        => $project->current_phase,
+                'progress'     => $project->progress,
+                'bac'          => $bac,
+                'ac'           => $ac,
+                'ev'           => round($ev, 2),
+                'cpi'          => $cpi,
+                'eac'          => $eac,
+                'variance'     => round($bac - $eac, 2), // negative = forecasted overrun
+            ];
+        })->filter(fn($row) => $row['bac'] > 0)->values();
+
         return view('admin.reports', compact(
             'projectKpis', 'count',
             'avgProfitMargin', 'onTimeCount', 'onTimeRate', 'avgBudgetAdherence',
@@ -599,7 +672,8 @@ class AdminController extends Controller
             'totalRevenue', 'totalMatCost', 'totalLaborCost', 'totalActualSpend',
             'totalBomMatCost', 'totalSaved', 'totalContracted',
             'delayedCount', 'avgDelayDays', 'activeProjects',
-            'currentQuarterLabel', 'next3Forecast'
+            'currentQuarterLabel', 'next3Forecast',
+            'kpiTargets', 'eacForecast'
         ));
     }
 

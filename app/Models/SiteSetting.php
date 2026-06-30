@@ -14,6 +14,9 @@ class SiteSetting extends Model
         'facebook',
         'business_hours',
         'description',
+        'kpi_profit_margin_target',
+        'kpi_on_time_target',
+        'kpi_budget_adherence_target',
     ];
 
     public static function instance(): self
