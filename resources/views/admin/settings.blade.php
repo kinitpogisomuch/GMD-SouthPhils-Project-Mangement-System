@@ -551,7 +551,7 @@
 
                 {{-- Image section --}}
                 <div id="editPortfolioImagePreviewWrap" style="display:none;margin-bottom:16px;">
-                    <label style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);display:block;margin-bottom:8px;">Current Image</label>
+                    <label id="editPortfolioImagePreviewLabel" style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);display:block;margin-bottom:8px;">Current Image</label>
                     <div style="display:flex;align-items:center;gap:16px;">
                         <img id="editPortfolioImagePreview" src="" alt=""
                              style="width:90px;height:70px;object-fit:cover;border-radius:10px;border:1px solid var(--border);">
@@ -566,7 +566,7 @@
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
                     <div class="form-group">
                         <label>Replace Image <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
-                        <input type="file" name="image" accept="image/*">
+                        <input type="file" name="image" id="editPortfolioImageInput" accept="image/*">
                     </div>
                     <div class="form-group">
                         <label>Icon <span style="font-weight:400;color:var(--muted);">— lucide.dev name</span></label>
@@ -712,6 +712,12 @@
                 document.getElementById('editPortfolioSortOrder').value = this.dataset.sortOrder || '';
                 document.getElementById('editPortfolioRemoveImage').checked = false;
 
+                var imageInput = document.getElementById('editPortfolioImageInput');
+                imageInput.value = '';
+
+                var previewLabel = document.getElementById('editPortfolioImagePreviewLabel');
+                if (previewLabel) previewLabel.textContent = 'Current Image';
+
                 var preview = document.getElementById('editPortfolioImagePreview');
                 var previewWrap = document.getElementById('editPortfolioImagePreviewWrap');
                 if (this.dataset.image) {
@@ -729,6 +735,29 @@
             .addEventListener('click', function () { closeModal('editPortfolioModal'); });
         document.getElementById('cancelEditPortfolio')
             .addEventListener('click', function () { closeModal('editPortfolioModal'); });
+
+        // ---- Live preview when replacing the portfolio image ----
+        document.getElementById('editPortfolioImageInput')?.addEventListener('change', function () {
+            var file = this.files && this.files[0];
+            if (!file) return;
+
+            var preview = document.getElementById('editPortfolioImagePreview');
+            var previewWrap = document.getElementById('editPortfolioImagePreviewWrap');
+            var removeCheckbox = document.getElementById('editPortfolioRemoveImage');
+
+            var label = document.getElementById('editPortfolioImagePreviewLabel');
+
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                preview.src = e.target.result;
+                previewWrap.style.display = '';
+                if (label) label.textContent = 'New Image Preview';
+            };
+            reader.readAsDataURL(file);
+
+            // Picking a new file overrides "remove image"
+            if (removeCheckbox) removeCheckbox.checked = false;
+        });
 
         // ---- Overlay click to close ----
         document.querySelectorAll('.modal-overlay').forEach(function (modal) {
