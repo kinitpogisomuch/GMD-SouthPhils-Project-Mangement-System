@@ -264,7 +264,7 @@
                                 <div>
                                     <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.45);display:block;margin-bottom:6px;">Project</label>
                                     <select name="project_id" required style="width:100%;height:44px;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.12);border-radius:10px;color:#fff;padding:0 12px;font-size:13px;font-weight:600;">
-                                        <option value="" style="background:#2a2a2a;">Select project</option>
+                                        <option value="" disabled selected hidden style="background:#2a2a2a;">Select project</option>
                                         @foreach($projects as $p)
                                         <option value="{{ $p->id }}" style="background:#2a2a2a;">{{ $p->name }}</option>
                                         @endforeach
@@ -300,7 +300,7 @@
                                 <div>
                                     <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.45);display:block;margin-bottom:6px;">Project</label>
                                     <select name="project_id" required style="width:100%;height:44px;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.12);border-radius:10px;color:#fff;padding:0 12px;font-size:13px;font-weight:600;">
-                                        <option value="" style="background:#2a2a2a;">Select project</option>
+                                        <option value="" disabled selected hidden style="background:#2a2a2a;">Select project</option>
                                         @foreach($projects as $p)
                                         <option value="{{ $p->id }}" style="background:#2a2a2a;">{{ $p->name }}</option>
                                         @endforeach

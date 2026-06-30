@@ -137,67 +137,6 @@
                 </div>
             </div>
 
-            <!-- Recent Documents -->
-            <div class="card">
-                <div class="card-header">
-                    <span class="card-title">Recent Documents</span>
-                    <a href="{{ route('client.documents') }}" class="btn btn-outline btn-sm">
-                        <i data-lucide="arrow-right"></i> View All
-                    </a>
-                </div>
-                <div class="table-wrap">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Document</th>
-                                <th>Project</th>
-                                <th>Type</th>
-                                <th>Uploaded</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>
-                                    <div style="display:flex; align-items:center; gap:8px;">
-                                        <i data-lucide="file-text" style="width:16px;height:16px;color:var(--accent)"></i>
-                                        Contract Agreement – Unit A
-                                    </div>
-                                </td>
-                                <td>Storage Tank Fabrication</td>
-                                <td><span class="badge badge-teal">Contract</span></td>
-                                <td>Jan 15, 2025</td>
-                                <td><a href="#" class="btn btn-outline btn-sm"><i data-lucide="download"></i> Download</a></td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div style="display:flex; align-items:center; gap:8px;">
-                                        <i data-lucide="file-text" style="width:16px;height:16px;color:var(--accent)"></i>
-                                        Technical Drawings Rev.2
-                                    </div>
-                                </td>
-                                <td>Pipeline Installation</td>
-                                <td><span class="badge badge-info">Drawing</span></td>
-                                <td>Feb 20, 2025</td>
-                                <td><a href="#" class="btn btn-outline btn-sm"><i data-lucide="download"></i> Download</a></td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div style="display:flex; align-items:center; gap:8px;">
-                                        <i data-lucide="file-text" style="width:16px;height:16px;color:var(--accent)"></i>
-                                        Inspection Report – Q1
-                                    </div>
-                                </td>
-                                <td>Structural Steel Works</td>
-                                <td><span class="badge badge-gray">Report</span></td>
-                                <td>Mar 31, 2025</td>
-                                <td><a href="#" class="btn btn-outline btn-sm"><i data-lucide="download"></i> Download</a></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
         </main>
     </div>
 

@@ -1124,6 +1124,30 @@ class ProjectController extends Controller
     | Marks the ProgressRequest back to 'completed' → revision form disappears
     |--------------------------------------------------------------------------
     */
+    /**
+     * Maximum number of revision request/resubmit cycles allowed per submission lineage.
+     */
+    const MAX_REVISIONS = 2;
+
+    /**
+     * Count how many revisions already exist in this update's lineage,
+     * walking back through parent_update_id (inclusive of $update itself).
+     */
+    private function countRevisionChain(?ProjectUpdate $update): int
+    {
+        $count  = 0;
+        $cursor = $update;
+
+        while ($cursor) {
+            if ($cursor->update_label === 'revision') {
+                $count++;
+            }
+            $cursor = $cursor->parent_update_id ? ProjectUpdate::find($cursor->parent_update_id) : null;
+        }
+
+        return $count;
+    }
+
     public function submitRevision(Request $request, $id)
     {
         $project = Project::findOrFail($id);
@@ -1152,6 +1176,13 @@ class ProjectController extends Controller
         if (!$activeRequest) {
             return redirect()->route('employee.project_view', $id)
                 ->with('error', 'No active revision request found.');
+        }
+
+        // Enforce the maximum number of revision resubmissions for this submission lineage
+        $parentForCheck = ProjectUpdate::find($request->parent_update_id);
+        if ($this->countRevisionChain($parentForCheck) >= self::MAX_REVISIONS) {
+            return redirect()->route('employee.project_view', $id)
+                ->with('error', 'Maximum of ' . self::MAX_REVISIONS . ' revision requests already used for this submission. Please contact the admin directly.');
         }
 
         $photoUrls = $this->storage->uploadMultiple(
@@ -1219,6 +1250,11 @@ class ProjectController extends Controller
         $request->validate(['revision_comment' => 'required|string']);
 
         $update = ProjectUpdate::findOrFail($updateId);
+
+        if ($this->countRevisionChain($update) >= self::MAX_REVISIONS) {
+            return redirect()->route('admin.project_view', $update->project_id)
+                ->with('error', 'Maximum of ' . self::MAX_REVISIONS . ' revision requests already used for this submission.');
+        }
 
         // Store clean feedback on the update
         $update->update([

@@ -226,7 +226,7 @@
                     <div class="form-group form-group-full">
                         <label>Payment Stage</label>
                         <select name="payment_stage" required id="stageSelect">
-                            <option value="" disabled selected>Select stage</option>
+                            <option value="" disabled selected hidden>Select stage</option>
                             @foreach($payment->stages() as $stage)
                             <option value="{{ $stage }}"
                                 data-expected="{{ $stageAmounts[$stage] ?? 0 }}"

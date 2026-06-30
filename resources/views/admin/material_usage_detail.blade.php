@@ -275,7 +275,7 @@
                             <div class="pm-add-field">
                                 <label>Material</label>
                                 <select name="project_material_id" id="purchaseBomSelect" onchange="prefillPurchase(this)">
-                                    <option value="" disabled selected>Select material...</option>
+                                    <option value="" disabled selected hidden>Select material...</option>
                                     @foreach($activeMats as $mat)
                                     <option value="{{ $mat->id }}"
                                             data-name="{{ $mat->material_name }}"
@@ -315,7 +315,7 @@
                                 <label>Supplier</label>
                                 @if(isset($suppliers) && $suppliers->isNotEmpty())
                                 <select id="supplierDropdown" onchange="onSupplierChange(this)">
-                                    <option value="" disabled selected>Select supplier...</option>
+                                    <option value="" disabled selected hidden>Select supplier...</option>
                                     @foreach($suppliers as $sup)
                                     <option value="{{ $sup->name }}">{{ $sup->name }}{{ $sup->company ? ' — '.$sup->company : '' }}</option>
                                     @endforeach
@@ -637,7 +637,7 @@
                             <div class="pm-add-field">
                                 <label>Material</label>
                                 <select name="project_material_id" id="usageBomSelect" onchange="prefillUsage(this)">
-                                    <option value="" disabled selected>Select material...</option>
+                                    <option value="" disabled selected hidden>Select material...</option>
                                     @foreach($matsWithStock as $mat)
                                     <option value="{{ $mat->id }}"
                                             data-name="{{ $mat->material_name }}"
@@ -836,6 +836,7 @@
             var dd = document.getElementById('supplierDropdown');
             if (dd) onSupplierChange(dd);
         });
+
     </script>
 
     <style>

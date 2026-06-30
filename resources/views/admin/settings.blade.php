@@ -498,7 +498,7 @@
                     <div class="form-group">
                         <label>Category Tag</label>
                         <select name="tag" id="addTagSelect" required onchange="toggleAddCustomTag(this)">
-                            <option value="" disabled selected>Select category...</option>
+                            <option value="" disabled selected hidden>Select category...</option>
                             <option value="Water Storage">Water Storage</option>
                             <option value="Oil Storage">Oil Storage</option>
                             <option value="Pipe Line">Pipe Line</option>
@@ -579,7 +579,7 @@
                     <div class="form-group">
                         <label>Category Tag</label>
                         <select name="tag" id="editTagSelect" required onchange="toggleEditCustomTag(this)">
-                            <option value="" disabled>Select category...</option>
+                            <option value="" disabled hidden>Select category...</option>
                             <option value="Water Storage">Water Storage</option>
                             <option value="Oil Storage">Oil Storage</option>
                             <option value="Pipe Line">Pipe Line</option>

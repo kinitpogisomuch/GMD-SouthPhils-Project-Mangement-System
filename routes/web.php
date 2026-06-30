@@ -204,7 +204,6 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
 
 Route::prefix('client')->name('client.')->middleware(['role:client', 'profile.complete', 'no.back'])->group(function () {
     Route::get('/dashboard', [ClientController::class, 'dashboard'])->name('dashboard');
-    Route::get('/documents', [ClientController::class, 'documents'])->name('documents');
     Route::get('/messages', [MessageController::class, 'index'])->name('messages');
     Route::get('/messages/thread/{type}/{id}', [MessageController::class, 'thread'])->name('messages.thread');
     Route::post('/messages/send', [MessageController::class, 'send'])->name('messages.send');

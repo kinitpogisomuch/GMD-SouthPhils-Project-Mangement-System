@@ -1476,17 +1476,73 @@
 
         var KNOWN_LABOR_ROLES = ['Fabricator', 'Welder', 'Helper/Labor', 'Outsourced'];
 
-        function buildLaborEmployeeOptions() {
-            var html = '<option value="">Select employee</option>';
+        function buildLaborEmployeeOptions(selectedValue, usedNames) {
+            usedNames = usedNames || [];
+            selectedValue = selectedValue || '';
+            var html = '<option value="" disabled' + (selectedValue ? '' : ' selected') + ' hidden>Select employee</option>';
             LABOR_EMPLOYEES.forEach(function(emp) {
-                html += '<option value="' + escapeHtml(emp.name) + '" data-role="' + escapeHtml(emp.role || '') + '" data-rate="' + (emp.daily_rate || 0) + '">' + escapeHtml(emp.name) + '</option>';
+                var isUsed = usedNames.indexOf(emp.name) !== -1 && emp.name !== selectedValue;
+                html += '<option value="' + escapeHtml(emp.name) + '"' +
+                            ' data-role="' + escapeHtml(emp.role || '') + '" data-rate="' + (emp.daily_rate || 0) + '"' +
+                            (emp.name === selectedValue ? ' selected' : '') +
+                            (isUsed ? ' disabled' : '') + '>' +
+                            escapeHtml(emp.name) + (isUsed ? ' — Already added' : '') +
+                        '</option>';
             });
             html += '<option value="other">Other (type manually)...</option>';
             return html;
         }
 
+        // ---- prevent the same employee being selected in more than one labor row ----
+        function getUsedLaborEmployeeNames(excludeSelect) {
+            var used = [];
+            document.querySelectorAll('#laborRowsContainer .row-labor-name-select').forEach(function(sel) {
+                if (sel === excludeSelect) return;
+                if (sel.value && sel.value !== 'other') used.push(sel.value);
+            });
+            // Employees already on the project (locked reference rows) are also off-limits
+            document.querySelectorAll('#laborRowsContainer .labor-existing-row').forEach(function(row) {
+                if (row.dataset.employeeName) used.push(row.dataset.employeeName);
+            });
+            return used;
+        }
+
+        function buildExistingLaborRow(num, entry) {
+            var tr = document.createElement('tr');
+            tr.className = 'labor-existing-row';
+            tr.style.cssText = 'border-bottom:1px solid rgba(0,0,0,0.06);background:var(--cream-soft,#f8f8f6);';
+
+            var desc = entry.description || '';
+            var m = desc.match(/^(.+?)\s*\((.+?)\)\s*$/);
+            var name = m ? m[1].trim() : desc;
+            var role = m ? m[2].trim() : '';
+            tr.dataset.employeeName = name;
+
+            tr.innerHTML =
+                '<td style="padding:10px 12px;font-size:12px;font-weight:700;color:var(--muted);vertical-align:top;padding-top:16px;" class="labor-row-label">' + num + '</td>' +
+                '<td style="padding:10px 12px;vertical-align:top;">' +
+                    '<div style="font-weight:700;font-size:13px;color:var(--dark);">' + escapeHtml(name) + '</div>' +
+                '</td>' +
+                '<td style="padding:10px 12px;vertical-align:top;font-size:13px;color:var(--muted);">' + (role ? escapeHtml(role) : '—') + '</td>' +
+                '<td style="padding:10px 12px;vertical-align:top;font-size:13px;color:var(--dark);">₱' + fmt(entry.daily_rate || 0) + '</td>' +
+                '<td style="padding:10px 12px;vertical-align:top;font-size:13px;font-weight:800;color:var(--dark);">₱' + fmt(entry.total_cost || 0) + '</td>' +
+                '<td style="padding:10px 12px;vertical-align:top;text-align:center;">' +
+                    '<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;background:rgba(0,0,0,0.06);color:var(--muted);">Existing</span>' +
+                '</td>';
+            return tr;
+        }
+
+        function refreshAllLaborEmployeeOptions() {
+            document.querySelectorAll('#laborRowsContainer .row-labor-name-select').forEach(function(sel) {
+                var currentValue = sel.value;
+                var used = getUsedLaborEmployeeNames(sel);
+                sel.innerHTML = buildLaborEmployeeOptions(currentValue, used);
+                sel.value = currentValue;
+            });
+        }
+
         function buildLaborRoleOptions() {
-            var html = '<option value="">Select role</option>';
+            var html = '<option value="" disabled selected hidden>Select role</option>';
             KNOWN_LABOR_ROLES.forEach(function(role) {
                 html += '<option value="' + escapeHtml(role) + '">' + escapeHtml(role) + '</option>';
             });
@@ -1503,7 +1559,7 @@
                 '<td style="padding:8px 10px;vertical-align:top;min-width:180px;">' +
                     '<select name="employee_name[]" class="row-labor-name-select" required onchange="onLaborEmployeeChange(this)"' +
                         ' style="width:100%;padding:8px 10px;border:1px solid rgba(0,0,0,0.14);border-radius:8px;font-size:13px;background:#fff;">' +
-                        buildLaborEmployeeOptions() +
+                        buildLaborEmployeeOptions('', getUsedLaborEmployeeNames()) +
                     '</select>' +
                     '<input type="text" class="row-labor-name-custom" name="_emp_unused"' +
                            ' placeholder="Employee name"' +
@@ -1536,6 +1592,7 @@
             return tr;
         }
 
+
         function onLaborEmployeeChange(sel) {
             var row        = sel.closest('.labor-add-row');
             var nameCustom = row.querySelector('.row-labor-name-custom');
@@ -1555,6 +1612,7 @@
                 rateInput.style.cursor = 'text';
                 rateInput.value = '';
                 updateLaborRowTotal(rateInput);
+                refreshAllLaborEmployeeOptions();
                 return;
             }
 
@@ -1590,6 +1648,7 @@
             rateInput.style.cursor = 'default';
             rateInput.value = rate;
             updateLaborRowTotal(rateInput);
+            refreshAllLaborEmployeeOptions();
         }
 
         function toggleRowLaborRole(sel) {
@@ -1644,10 +1703,11 @@
             btn.closest('.labor-add-row').remove();
             renumberLaborRows();
             updateLaborGrandTotal();
+            refreshAllLaborEmployeeOptions();
         }
 
         function renumberLaborRows() {
-            document.querySelectorAll('#laborRowsContainer .labor-add-row').forEach(function(row, i) {
+            document.querySelectorAll('#laborRowsContainer tr').forEach(function(row, i) {
                 var lbl = row.querySelector('.labor-row-label');
                 if (lbl) lbl.textContent = i + 1;
             });
@@ -1656,7 +1716,13 @@
         function openAddLaborModal() {
             var container = document.getElementById('laborRowsContainer');
             container.innerHTML = '';
-            container.appendChild(buildLaborRow(1));
+
+            var rowNum = 1;
+            BOM_LABOR.forEach(function(entry) {
+                container.appendChild(buildExistingLaborRow(rowNum++, entry));
+            });
+            container.appendChild(buildLaborRow(rowNum++));
+
             if (typeof lucide !== 'undefined') lucide.createIcons();
             var estDaysEl = document.getElementById('addLaborEstDays');
             if (estDaysEl) estDaysEl.value = ESTIMATED_DAYS;
@@ -1772,7 +1838,7 @@
             var addAnotherLaborRowBtn = document.getElementById('addAnotherLaborRowBtn');
             if (addAnotherLaborRowBtn) addAnotherLaborRowBtn.addEventListener('click', function() {
                 var container = document.getElementById('laborRowsContainer');
-                var count = container.querySelectorAll('.labor-add-row').length + 1;
+                var count = container.querySelectorAll('tr').length + 1;
                 var newRow = buildLaborRow(count);
                 container.appendChild(newRow);
                 if (typeof lucide !== 'undefined') lucide.createIcons();

@@ -305,7 +305,7 @@
                         <div class="form-group form-group-full">
                             <label>Project Name</label>
                             <select id="projectNameSelect" required>
-                                <option value="">Select project name</option>
+                                <option value="" disabled selected hidden>Select project name</option>
                                 <option value="Fabrication of Fuel Day Tank">Fabrication of Fuel Day Tank</option>
                                 <option value="Fabrication of Cooking Oil Storage Tank">Fabrication of Cooking Oil Storage Tank</option>
                                 <option value="Fabrication of Underground Fuel Storage Tanks">Fabrication of Underground Fuel Storage Tanks</option>
@@ -786,7 +786,7 @@
         };
 
         function tankTypeOptions(selected) {
-            return '<option value="" disabled' + (!selected ? ' selected' : '') + ' style="display:none;">Select tank type</option>' +
+            return '<option value="" disabled' + (!selected ? ' selected' : '') + ' hidden>Select tank type</option>' +
                 TANK_TYPES.map(function(t) {
                     return '<option value="' + t + '"' + (t === selected ? ' selected' : '') + '>' + t + '</option>';
                 }).join('');
@@ -876,7 +876,7 @@
             }
 
             if (dimHidden) dimHidden.value = dimsStr;
-            if (capHidden && capacity > 0) capHidden.value = Math.round(capacity).toLocaleString() + ' L';
+            // Capacity is entered manually by the admin — no longer auto-computed from dimensions.
         }
 
         function buildTankRow(prefix, item, removable) {
@@ -924,7 +924,7 @@
                     '<div class="form-group" style="flex:1.5;">' +
                         '<label>Project Shape</label>' +
                         '<select class="ti-shape" onchange="onTankShapeChange(this)">' +
-                            (!type ? '<option value="" disabled selected style="display:none;">—</option>' : tankShapeOptions(type, initShape)) +
+                            (!type ? '<option value="" disabled selected hidden>—</option>' : tankShapeOptions(type, initShape)) +
                         '</select>' +
                     '</div>' +
                     '<div class="form-group" style="width:90px;flex-shrink:0;">' +

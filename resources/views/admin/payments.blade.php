@@ -266,7 +266,7 @@
                 <div class="form-group" style="margin-bottom:20px;">
                     <label>Project Type </label>
                     <select name="payment_term_type" id="setupTermType" required>
-                        <option value="">Select payment terms</option>
+                        <option value="" disabled selected hidden>Select payment terms</option>
                         <option value="big_project">Big Project — 3 Phases (50% / 30% / 20%)</option>
                         <option value="small_project">Small Project — 2 Phases (50% / 50%)</option>
                     </select>

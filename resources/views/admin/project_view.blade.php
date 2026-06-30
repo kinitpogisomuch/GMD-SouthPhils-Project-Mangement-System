@@ -241,7 +241,8 @@
 
                     @php
                         $hideRequestBtn = $project->current_phase === 'planning'
-                            || ($project->current_phase === 'fabrication' && $isBigProject && !$project->isPaymentStageSettled('progress_payment'));
+                            || ($project->current_phase === 'fabrication' && $isBigProject && !$project->isPaymentStageSettled('progress_payment'))
+                            || ($project->current_phase === 'delivery' && !$project->isPaymentStageSettled('final_payment'));
                     @endphp
                     @unless($hideRequestBtn)
                     <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">

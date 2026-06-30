@@ -17,13 +17,6 @@
             <span>My Projects</span>
         </a>
 
-        <a href="{{ route('client.documents') }}"
-           class="{{ request()->routeIs('client.documents') ? 'active' : '' }}"
-           title="Documents">
-            <div class="sidebar-icon"><i data-lucide="file-text"></i></div>
-            <span>Documents</span>
-        </a>
-
         <div class="sidebar-section-label">Finance</div>
         <a href="{{ route('client.payments') }}"
            class="{{ request()->routeIs('client.payments') ? 'active' : '' }}"

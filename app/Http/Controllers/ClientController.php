@@ -43,11 +43,6 @@ class ClientController extends Controller
         return view('client.projects', compact('projects', 'reviews'));
     }
 
-    public function documents()
-    {
-        return view('client.documents');
-    }
-
     public function settings()
     {
         $client = Client::findOrFail(session('user_id'));

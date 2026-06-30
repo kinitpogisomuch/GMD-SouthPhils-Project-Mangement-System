@@ -941,6 +941,37 @@ body {
     z-index: 110;
 }
 
+/* ================= DESKTOP SIDEBAR HOVER-TO-EXPAND ================= */
+
+@media (min-width: 1025px) {
+    .sidebar-toggle-btn {
+        display: none !important;
+    }
+
+    .client-sidebar:hover {
+        width: var(--sidebar-expanded);
+        box-shadow: 6px 0 20px rgba(0, 0, 0, 0.08);
+    }
+
+    .client-sidebar:hover .sidebar-section-label {
+        max-height: 16px;
+        opacity: 1;
+        margin: 2px 0 -3px;
+    }
+
+    .client-sidebar:hover .client-sidebar-nav a {
+        width: calc(var(--sidebar-expanded) - 20px);
+    }
+
+    .client-sidebar:hover .client-sidebar-nav a span {
+        opacity: 1;
+        visibility: visible;
+        max-width: 140px;
+        margin-left: 2px;
+        transform: translateX(0);
+    }
+}
+
 /* ================= CONTENT ================= */
 
 .admin-content {

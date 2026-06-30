@@ -327,7 +327,7 @@
                     <div class="form-group">
                         <label>Role </label>
                         <select name="role" required onchange="empFieldError(this,'addEmpRoleErr')">
-                            <option value="">Select role</option>
+                            <option value="" disabled {{ old('role') ? '' : 'selected' }} hidden>Select role</option>
                             <option value="Fabricator" {{ old('role') === 'Fabricator' ? 'selected' : '' }}>Fabricator</option>
                             <option value="Welder" {{ old('role') === 'Welder' ? 'selected' : '' }}>Welder</option>
                             <option value="Helper/Labor" {{ old('role') === 'Helper/Labor' ? 'selected' : '' }}>Helper/Labor</option>
