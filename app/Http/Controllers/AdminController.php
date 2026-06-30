@@ -285,16 +285,90 @@ class AdminController extends Controller
 
     public function reports(Request $request)
     {
-        $filterQuarter = $request->input('quarter', 'all');
-        $filterStatus  = $request->input('status', 'all');
-        $filterKpi     = $request->input('kpi', 'all');
-        $filterProject = $request->input('project', 'all');
+        // ── Build preset month-range options from actual completed-project dates ──
+        // Group consecutive months that contain at least one completed project into a single range
+        // e.g. projects completed across Jun–Sep form one option, Oct–Nov (after a gap) form another
+        $monthsWithData = Project::where('status', 'completed')
+            ->selectRaw("DISTINCT TO_CHAR(updated_at, 'YYYY-MM') as ym")
+            ->orderBy('ym')
+            ->pluck('ym')
+            ->toArray();
 
-        // Map quarter to months
-        $quarterMonths = [
-            'q1' => [1,2,3], 'q2' => [4,5,6],
-            'q3' => [7,8,9], 'q4' => [10,11,12],
-        ];
+        $clusters = [];
+        $current  = [];
+        foreach ($monthsWithData as $ym) {
+            if (empty($current)) {
+                $current[] = $ym;
+            } else {
+                $expectedNext = \Carbon\Carbon::createFromFormat('Y-m', end($current))->addMonth()->format('Y-m');
+                if ($ym === $expectedNext) {
+                    $current[] = $ym;
+                } else {
+                    $clusters[] = $current;
+                    $current = [$ym];
+                }
+            }
+        }
+        if (!empty($current)) $clusters[] = $current;
+
+        // Enforce a minimum 2-month span per option by merging short clusters into a neighbor
+        $merged = true;
+        while ($merged && count($clusters) > 1) {
+            $merged = false;
+            for ($i = 0; $i < count($clusters); $i++) {
+                $cStart = \Carbon\Carbon::createFromFormat('Y-m', $clusters[$i][0]);
+                $cEnd   = \Carbon\Carbon::createFromFormat('Y-m', end($clusters[$i]));
+                $spanMonths = $cStart->diffInMonths($cEnd) + 1;
+                if ($spanMonths < 2) {
+                    if ($i < count($clusters) - 1) {
+                        $clusters[$i] = array_merge($clusters[$i], $clusters[$i + 1]);
+                        array_splice($clusters, $i + 1, 1);
+                    } elseif ($i > 0) {
+                        $clusters[$i - 1] = array_merge($clusters[$i - 1], $clusters[$i]);
+                        array_splice($clusters, $i, 1);
+                    } else {
+                        break;
+                    }
+                    $merged = true;
+                    break;
+                }
+            }
+        }
+
+        $rangeOptions = [];
+        foreach ($clusters as $cluster) {
+            $start = \Carbon\Carbon::createFromFormat('Y-m', $cluster[0])->startOfMonth();
+            $end   = \Carbon\Carbon::createFromFormat('Y-m', end($cluster))->endOfMonth();
+            $label = $start->format('Y') === $end->format('Y')
+                ? $start->format('M') . ' – ' . $end->format('M Y')
+                : $start->format('M Y') . ' – ' . $end->format('M Y');
+
+            $rangeOptions[] = [
+                'value' => $start->format('Y-m-d') . '_' . $end->format('Y-m-d'),
+                'start' => $start->format('Y-m-d'),
+                'end'   => $end->format('Y-m-d'),
+                'label' => $label,
+                'year'  => $start->format('Y'),
+            ];
+        }
+
+        $defaultStart = $rangeOptions ? $rangeOptions[0]['start'] : now()->startOfYear()->format('Y-m-d');
+        $defaultEnd   = $rangeOptions ? end($rangeOptions)['end'] : now()->format('Y-m-d');
+
+        // ── Selected range (from dropdown) ──
+        $selectedRange = $request->input('range', 'all');
+        if ($selectedRange !== 'all' && str_contains($selectedRange, '_')) {
+            [$filterStartDate, $filterEndDate] = explode('_', $selectedRange, 2);
+        } else {
+            $selectedRange   = 'all';
+            $filterStartDate = null;
+            $filterEndDate   = null;
+        }
+
+        $filterStatus    = $request->input('status', 'all');
+        $filterKpi       = $request->input('kpi', 'all');
+        $filterProject   = $request->input('project', 'all');
+
         $filterYear  = now()->year;
         $filterMonth = null;
 
@@ -305,10 +379,11 @@ class AdminController extends Controller
 
         // ── Per-project KPIs (completed projects only, ordered by completion) ──
         $query = Project::where('status', 'completed')->orderBy('updated_at');
-        if ($filterQuarter !== 'all' && isset($quarterMonths[$filterQuarter])) {
-            $months = $quarterMonths[$filterQuarter];
-            $query->whereYear('updated_at', $filterYear)
-                  ->whereIn(\DB::raw('EXTRACT(MONTH FROM updated_at)'), $months);
+        if ($filterStartDate) {
+            $query->whereDate('updated_at', '>=', $filterStartDate);
+        }
+        if ($filterEndDate) {
+            $query->whereDate('updated_at', '<=', $filterEndDate);
         }
         if ($filterProject !== 'all' && is_numeric($filterProject)) {
             $query->where('id', (int) $filterProject);
@@ -444,40 +519,55 @@ class AdminController extends Controller
             : 0;
         $activeProjects = Project::whereNotIn('status', ['completed','archived'])->count();
 
-        // Quarter label
-        $quarterLabels = [
-            'q1' => 'Q1 — Jan to Mar', 'q2' => 'Q2 — Apr to Jun',
-            'q3' => 'Q3 — Jul to Sep', 'q4' => 'Q4 — Oct to Dec',
-            'all' => 'All periods',
-        ];
-        $currentQuarterLabel = $quarterLabels[$filterQuarter] ?? 'All periods';
+        // Date range label
+        if ($filterStartDate && $filterEndDate) {
+            $currentQuarterLabel = \Carbon\Carbon::parse($filterStartDate)->format('M j, Y')
+                . ' – ' . \Carbon\Carbon::parse($filterEndDate)->format('M j, Y');
+        } elseif ($filterStartDate) {
+            $currentQuarterLabel = 'From ' . \Carbon\Carbon::parse($filterStartDate)->format('M j, Y');
+        } elseif ($filterEndDate) {
+            $currentQuarterLabel = 'Until ' . \Carbon\Carbon::parse($filterEndDate)->format('M j, Y');
+        } else {
+            $currentQuarterLabel = 'All periods';
+        }
 
-        // Next 3 forecast (MLR-style projection using WMA trend)
-        $pmTrend  = count($pmVals) >= 2 ? ($pmVals[count($pmVals)-1] - $pmVals[0]) / max(1, count($pmVals)-1) : 0;
-        $baTrend  = count($baVals) >= 2 ? ($baVals[count($baVals)-1] - $baVals[0]) / max(1, count($baVals)-1) : 0;
-        $otTrend  = count($otVals) >= 2 ? ($otVals[count($otVals)-1] - $otVals[0]) / max(1, count($otVals)-1) : 0;
-        $lastPm   = count($pmVals) > 0 ? end($pmVals) : $avgProfitMargin;
-        $lastBa   = count($baVals) > 0 ? end($baVals) : $avgBudgetAdherence;
-        $lastOt   = count($otVals) > 0 ? end($otVals) : $onTimeRate;
-        $lastRev  = $count > 0 ? $projectKpis->last()['received'] : 0;
-        $revTrend = $count >= 2 ? ($projectKpis->last()['received'] - $projectKpis->first()['received']) / max(1, $count-1) : 0;
+        // Next 3 forecast — iterative Weighted Moving Average (weights 3-2-1 on the trailing 3 values)
+        // Each forecasted period feeds back into the sliding window for the next period's WMA.
+        $revVals = $last3->pluck('received')->values()->toArray();
+
+        $wmaForecastSeries = function (array $vals, int $steps) use ($wmaCalc) {
+            $series    = $vals;
+            $forecasts = [];
+            for ($i = 0; $i < $steps; $i++) {
+                $next = $wmaCalc(array_slice($series, -3));
+                $forecasts[] = $next;
+                $series[] = $next;
+            }
+            return $forecasts;
+        };
+
+        $pmForecast  = $wmaForecastSeries($pmVals  ?: [$avgProfitMargin],    3);
+        $baForecast  = $wmaForecastSeries($baVals  ?: [$avgBudgetAdherence], 3);
+        $otForecast  = $wmaForecastSeries($otVals  ?: [$onTimeRate],         3);
+        $revForecast = $wmaForecastSeries($revVals ?: [0],                   3);
 
         $next3Forecast = [
-            ['pm' => min(100, round($lastPm + $pmTrend, 1)),    'ba' => min(100, round($lastBa + $baTrend, 1)),    'ot' => min(100, round($lastOt + $otTrend)),    'rev' => max(0, round($lastRev + $revTrend))],
-            ['pm' => min(100, round($lastPm + $pmTrend*2, 1)),  'ba' => min(100, round($lastBa + $baTrend*2, 1)),  'ot' => min(100, round($lastOt + $otTrend*2)),  'rev' => max(0, round($lastRev + $revTrend*2))],
-            ['pm' => min(100, round($lastPm + $pmTrend*3, 1)),  'ba' => min(100, round($lastBa + $baTrend*3, 1)),  'ot' => min(100, round($lastOt + $otTrend*3)),  'rev' => max(0, round($lastRev + $revTrend*3))],
+            ['pm' => min(100, $pmForecast[0]), 'ba' => min(100, $baForecast[0]), 'ot' => min(100, $otForecast[0]), 'rev' => max(0, round($revForecast[0]))],
+            ['pm' => min(100, $pmForecast[1]), 'ba' => min(100, $baForecast[1]), 'ot' => min(100, $otForecast[1]), 'rev' => max(0, round($revForecast[1]))],
+            ['pm' => min(100, $pmForecast[2]), 'ba' => min(100, $baForecast[2]), 'ot' => min(100, $otForecast[2]), 'rev' => max(0, round($revForecast[2]))],
         ];
 
         return view('admin.reports', compact(
             'projectKpis', 'count',
             'avgProfitMargin', 'onTimeCount', 'onTimeRate', 'avgBudgetAdherence',
             'wmaForecast', 'forecastChart', 'last3Avg', 'pmVals', 'last3',
-            'filterYear', 'filterMonth', 'filterQuarter', 'filterStatus', 'filterKpi', 'filterProject',
+            'filterYear', 'filterMonth', 'filterStartDate', 'filterEndDate', 'filterStatus', 'filterKpi', 'filterProject',
+            'defaultStart', 'defaultEnd', 'rangeOptions', 'selectedRange',
             'allCompletedProjects',
             'totalRevenue', 'totalMatCost', 'totalLaborCost', 'totalActualSpend',
             'totalBomMatCost', 'totalSaved', 'totalContracted',
             'delayedCount', 'avgDelayDays', 'activeProjects',
-            'currentQuarterLabel', 'next3Forecast', 'revTrend', 'pmTrend', 'baTrend', 'otTrend'
+            'currentQuarterLabel', 'next3Forecast'
         ));
     }
 

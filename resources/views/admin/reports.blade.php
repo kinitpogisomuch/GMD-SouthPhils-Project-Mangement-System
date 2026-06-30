@@ -35,13 +35,28 @@
                 <form method="GET" action="{{ route('admin.reports') }}" style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;">
                     <div>
                         <label style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);display:block;margin-bottom:5px;">Timeline</label>
-                        <select name="quarter" class="filter-select" onchange="this.form.submit()" style="min-width:145px;">
-                            <option value="all" {{ $filterQuarter === 'all' ? 'selected' : '' }}>All periods</option>
-                            <option value="q1"  {{ $filterQuarter === 'q1'  ? 'selected' : '' }}>Q1 — Jan to Mar</option>
-                            <option value="q2"  {{ $filterQuarter === 'q2'  ? 'selected' : '' }}>Q2 — Apr to Jun</option>
-                            <option value="q3"  {{ $filterQuarter === 'q3'  ? 'selected' : '' }}>Q3 — Jul to Sep</option>
-                            <option value="q4"  {{ $filterQuarter === 'q4'  ? 'selected' : '' }}>Q4 — Oct to Dec</option>
-                        </select>
+                        <div style="position:relative;">
+                            <i data-lucide="calendar" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:var(--muted);pointer-events:none;z-index:1;"></i>
+                            <select name="range" class="filter-select" onchange="this.form.submit()" style="min-width:190px;padding-left:32px;">
+                                <option value="all" {{ $selectedRange === 'all' ? 'selected' : '' }}>All periods</option>
+                                @php $lastYear = null; @endphp
+                                @foreach($rangeOptions as $opt)
+                                    @if($opt['year'] !== $lastYear)
+                                        @if($lastYear !== null)
+                                            </optgroup>
+                                        @endif
+                                        <optgroup label="{{ $opt['year'] }}">
+                                        @php $lastYear = $opt['year']; @endphp
+                                    @endif
+                                    <option value="{{ $opt['value'] }}" {{ $selectedRange === $opt['value'] ? 'selected' : '' }}>
+                                        {{ $opt['label'] }}
+                                    </option>
+                                @endforeach
+                                @if($lastYear !== null)
+                                    </optgroup>
+                                @endif
+                            </select>
+                        </div>
                     </div>
                     <div>
                         <label style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);display:block;margin-bottom:5px;">KPI Focus</label>
@@ -113,6 +128,44 @@
                     </div>
                 </div>
                 @endforeach
+            </div>
+
+            {{-- ── NARRATIVE REPORT SUMMARY ── --}}
+            <div style="background:linear-gradient(135deg,var(--cream-soft),var(--white));border:1px solid var(--border);border-radius:14px;padding:18px 22px;margin-bottom:24px;display:flex;gap:14px;align-items:flex-start;">
+                <div style="width:34px;height:34px;border-radius:10px;background:#2563eb18;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i data-lucide="file-text" style="width:17px;height:17px;color:#2563eb;"></i>
+                </div>
+                <div>
+                    <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:6px;">Performance Report — {{ $currentQuarterLabel }}</div>
+                    @php
+                        $pmStatusWord = $pmDiff < 0 ? 'below' : ($pmDiff <= 5 ? 'in line with' : 'well above');
+                        $otStatusWord = $otDiff < 0 ? 'below' : ($otDiff <= 5 ? 'meeting' : 'exceeding');
+                        $baStatusWord = $baDiff < 0 ? 'below' : ($baDiff <= 5 ? 'meeting' : 'exceeding');
+                        $pmForecastWord = ($count > 0 && isset($next3Forecast[0]))
+                            ? ($next3Forecast[0]['pm'] > $avgProfitMargin ? 'expected to improve further' : ($next3Forecast[0]['pm'] < $avgProfitMargin ? 'expected to ease slightly' : 'expected to hold steady'))
+                            : null;
+                        $narrativeSaved = max(0, $totalContracted - $totalActualSpend);
+                    @endphp
+                    <p style="font-size:13px;line-height:1.75;color:var(--dark);margin:0;">
+                        Across <strong>{{ $count }}</strong> completed project{{ $count !== 1 ? 's' : '' }} for this period, the company generated
+                        <strong>₱{{ number_format($totalRevenue) }}</strong> in revenue and retained
+                        <strong>₱{{ number_format($totalNetProfit) }}</strong> as net profit, an average margin of
+                        <strong>{{ $overallMargin }}%</strong> — {{ $pmStatusWord }} the {{ $pmTarget }}% target.
+                        On-time delivery stands at <strong>{{ $onTimeRate }}%</strong>, {{ $otStatusWord }} the {{ $otTarget }}% target
+                        @if($delayedCount > 0)
+                            ({{ $delayedCount }} project{{ $delayedCount !== 1 ? 's' : '' }} delayed{{ $avgDelayDays > 0 ? ', averaging ~'.$avgDelayDays.' days late' : '' }}),
+                        @else
+                            with zero delays recorded,
+                        @endif
+                        while budget adherence is at <strong>{{ $avgBudgetAdherence }}%</strong>, {{ $baStatusWord }} the {{ $baTarget }}% target.
+                        @if($pmForecastWord)
+                            The WMA forecast model projects profit margin to be <strong>{{ $pmForecastWord }}</strong> on the next project, landing around <strong>{{ $next3Forecast[0]['pm'] }}%</strong>.
+                        @endif
+                        @if($narrativeSaved > 0)
+                            Overall, the company saved <strong>₱{{ number_format($narrativeSaved) }}</strong> against the contracted value across this period.
+                        @endif
+                    </p>
+                </div>
             </div>
 
             {{-- ── KPI CARDS ── --}}
@@ -396,27 +449,62 @@
                     <div style="font-size:13px;font-weight:800;margin-bottom:14px;">Insights &amp; Actions</div>
                     @php
                         $insights = [];
-                        if ($onTimeRate >= 90) {
-                            $insights[] = ['✓', '#16a34a', 'OTD at '.$onTimeRate.'% — delivery schedule is well-managed.'];
+
+                        // On-Time Delivery
+                        if ($onTimeRate >= $otTarget) {
+                            $insights[] = ['kpi'=>'otd', 'icon'=>'✓', 'color'=>'#16a34a', 'text'=>'OTD at '.$onTimeRate.'% — delivery schedule is well-managed.'];
                         } else {
-                            $insights[] = ['!', '#ef4444', 'OTD at '.$onTimeRate.'%. '.$delayedCount.' project'.($delayedCount!==1?'s':'').' delayed'.($avgDelayDays>0?' (~'.$avgDelayDays.' days avg)':'').'.'];
+                            $insights[] = ['kpi'=>'otd', 'icon'=>'!', 'color'=>'#ef4444', 'text'=>'OTD at '.$onTimeRate.'%. '.$delayedCount.' project'.($delayedCount!==1?'s':'').' delayed'.($avgDelayDays>0?' (~'.$avgDelayDays.' days avg)':'').'.'];
                         }
+
+                        // Profit Margin
                         if ($avgProfitMargin >= $pmTarget) {
-                            $insights[] = ['✓', '#16a34a', 'Profit margin '.$avgProfitMargin.'% is above the '.$pmTarget.'% target.'];
+                            $insights[] = ['kpi'=>'profit', 'icon'=>'✓', 'color'=>'#16a34a', 'text'=>'Profit margin '.$avgProfitMargin.'% is above the '.$pmTarget.'% target.'];
                         } else {
-                            $insights[] = ['↑', '#f59e0b', 'Margin at '.$avgProfitMargin.'% vs '.$pmTarget.'% target. Review labor costing in next quotation.'];
+                            $insights[] = ['kpi'=>'profit', 'icon'=>'↑', 'color'=>'#f59e0b', 'text'=>'Margin at '.$avgProfitMargin.'% vs '.$pmTarget.'% target. Review labor costing in next quotation.'];
                         }
-                        $saved = max(0,$totalContracted-$totalActualSpend);
+
+                        // Budget Adherence
+                        if ($avgBudgetAdherence >= $baTarget) {
+                            $insights[] = ['kpi'=>'budget', 'icon'=>'✓', 'color'=>'#16a34a', 'text'=>'Budget adherence at '.$avgBudgetAdherence.'% — spending is within the planned budget.'];
+                        } else {
+                            $insights[] = ['kpi'=>'budget', 'icon'=>'!', 'color'=>'#ef4444', 'text'=>'Budget adherence at '.$avgBudgetAdherence.'% vs '.$baTarget.'% target. Actual spend is exceeding the BOM budget.'];
+                        }
+
+                        // WMA forecast trend (next project vs current average)
+                        if ($count > 0) {
+                            $pmDelta = round($next3Forecast[0]['pm'] - $avgProfitMargin, 1);
+                            if (abs($pmDelta) >= 1) {
+                                $insights[] = [
+                                    'kpi'   => 'profit',
+                                    'icon'  => $pmDelta > 0 ? '↗' : '↘',
+                                    'color' => $pmDelta > 0 ? '#16a34a' : '#ef4444',
+                                    'text'  => 'WMA forecast projects margin to '.($pmDelta > 0 ? 'rise' : 'fall').' to '.$next3Forecast[0]['pm'].'% on the next project.',
+                                ];
+                            }
+                        }
+
+                        // Net savings
+                        $saved = max(0, $totalContracted - $totalActualSpend);
                         if ($saved > 0) {
-                            $insights[] = ['₱', '#2563eb', '₱'.number_format($saved).' net savings vs contracted value across '.$count.' projects.'];
+                            $insights[] = ['kpi'=>'all', 'icon'=>'₱', 'color'=>'#2563eb', 'text'=>'₱'.number_format($saved).' net savings vs contracted value across '.$count.' project'.($count!==1?'s':'').'.'];
                         }
-                        $insights[] = ['→', '#7c3aed', 'Avg revenue per project: ₱'.number_format($count > 0 ? round($totalRevenue/$count) : 0).'.'];
+
+                        // Avg revenue per project
+                        $insights[] = ['kpi'=>'all', 'icon'=>'→', 'color'=>'#7c3aed', 'text'=>'Avg revenue per project: ₱'.number_format($count > 0 ? round($totalRevenue/$count) : 0).'.'];
+
+                        // When a specific KPI Focus filter is active, surface its insights first
+                        if ($filterKpi !== 'all') {
+                            usort($insights, fn($a, $b) => ($b['kpi'] === $filterKpi ? 1 : 0) <=> ($a['kpi'] === $filterKpi ? 1 : 0));
+                        }
+
+                        $insights = array_slice($insights, 0, 5);
                     @endphp
                     <div style="display:flex;flex-direction:column;gap:10px;">
                         @foreach($insights as $ins)
                         <div style="display:flex;align-items:flex-start;gap:10px;">
-                            <span style="min-width:22px;height:22px;background:{{ $ins[1] }}18;color:{{ $ins[1] }};border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;flex-shrink:0;border:1px solid {{ $ins[1] }}40;">{{ $ins[0] }}</span>
-                            <span style="font-size:12px;color:var(--dark);line-height:1.5;">{{ $ins[2] }}</span>
+                            <span style="min-width:22px;height:22px;background:{{ $ins['color'] }}18;color:{{ $ins['color'] }};border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;flex-shrink:0;border:1px solid {{ $ins['color'] }}40;">{{ $ins['icon'] }}</span>
+                            <span style="font-size:12px;color:var(--dark);line-height:1.5;">{{ $ins['text'] }}</span>
                         </div>
                         @endforeach
                     </div>
