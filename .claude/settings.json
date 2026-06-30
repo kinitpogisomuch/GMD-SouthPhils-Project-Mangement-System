@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell([System.Environment]::GetEnvironmentVariable\\(\"MAIL_MAILER\", \"Machine\"\\); [System.Environment]::GetEnvironmentVariable\\(\"MAIL_MAILER\", \"User\"\\); $env:MAIL_MAILER)",
+      "Bash(xargs grep -l \"SetEnv\\\\|GMD-SouthPhils\")",
+      "PowerShell(Get-Process httpd -ErrorAction SilentlyContinue)"
+    ]
+  }
+}
