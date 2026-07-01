@@ -23,14 +23,9 @@
                     <p>General business wallet — shared across all active projects.</p>
                 </div>
                 <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                    <button class="add-btn" type="button" id="openDrawdownModal">
-                        <i data-lucide="plus"></i> Record Drawdown
-                    </button>
-                    <button class="cancel-btn" type="button" id="openReplenishModal" style="display:inline-flex;align-items:center;gap:6px;">
-                        <i data-lucide="refresh-cw" style="width:15px;height:15px;"></i> Record Replenishment
-                    </button>
                     <button class="cancel-btn" type="button" id="openInitialFundModal" style="display:inline-flex;align-items:center;gap:6px;background:var(--cream-deep);">
                         <i data-lucide="settings" style="width:15px;height:15px;"></i>
+                        Initial Fund Setup
                     </button>
                 </div>
             </div>
