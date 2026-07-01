@@ -43,10 +43,9 @@
             </div>
 
             {{-- ── Year filter ── --}}
-            <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
                 <span style="font-size:13px;font-weight:700;color:var(--muted);">Filter by year:</span>
-                @php $currentYear = now()->year; @endphp
-                @foreach([$currentYear-1, $currentYear] as $yr)
+                @foreach($availableYears as $yr)
                 <button type="button" class="db-year-btn {{ $yr == $currentYear ? 'active' : '' }}" data-year="{{ $yr }}">
                     {{ $yr }}
                 </button>
@@ -67,25 +66,22 @@
                             <div style="font-size:13px;font-weight:800;color:#fff;">By number of projects</div>
                         </div>
                     </div>
-                    @if($topClient)
-                    <div style="font-size:22px;font-weight:900;color:#fff;margin-bottom:12px;">{{ $topClient['name'] }}</div>
-                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+                    <div id="topClientName" style="font-size:22px;font-weight:900;color:#fff;margin-bottom:12px;">{{ $topClient['name'] ?? '—' }}</div>
+                    <div id="topClientStats" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;" {{ !$topClient ? 'style="display:none;"' : '' }}>
                         <div style="background:rgba(255,255,255,.06);border-radius:10px;padding:10px 12px;text-align:center;">
-                            <div style="font-size:18px;font-weight:900;color:#FDE74C;">{{ $topClient['project_count'] }}</div>
-                            <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;margin-top:2px;">Projects</div>
+                            <div id="topClientProjects" style="font-size:18px;font-weight:900;color:#FDE74C;">{{ $topClient['projects'] ?? 0 }}</div>
+                            <div id="topClientProjectsLabel" style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;margin-top:2px;">Projects</div>
                         </div>
                         <div style="background:rgba(255,255,255,.06);border-radius:10px;padding:10px 12px;text-align:center;">
-                            <div style="font-size:18px;font-weight:900;color:#4ade80;">{{ $topClient['completed'] }}</div>
-                            <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;margin-top:2px;">Completed</div>
+                            <div id="topClientCompleted" style="font-size:18px;font-weight:900;color:#4ade80;">{{ $topClient['completed'] ?? 0 }}</div>
+                            <div id="topClientCompletedLabel" style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;margin-top:2px;">Completed</div>
                         </div>
                         <div style="background:rgba(255,255,255,.06);border-radius:10px;padding:10px 12px;text-align:center;">
-                            <div id="topClientReceived" style="font-size:14px;font-weight:900;color:#60a5fa;">₱{{ number_format($topClient['received'] / 1000, 0) }}k</div>
-                            <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;margin-top:2px;" id="topClientReceivedLabel">Received</div>
+                            <div id="topClientReceived" style="font-size:14px;font-weight:900;color:#60a5fa;">₱{{ number_format(($topClient['received'] ?? 0) / 1000, 0) }}k</div>
+                            <div id="topClientReceivedLabel" style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;margin-top:2px;">Received</div>
                         </div>
                     </div>
-                    @else
-                    <div style="color:rgba(255,255,255,.3);font-size:13px;text-align:center;padding:20px 0;">No client data yet.</div>
-                    @endif
+                    <div id="topClientEmpty" style="color:rgba(255,255,255,.3);font-size:13px;text-align:center;padding:20px 0;{{ $topClient ? 'display:none;' : '' }}">No client data yet.</div>
                 </div>
 
                 {{-- Top Supplier --}}
@@ -99,21 +95,18 @@
                             <div style="font-size:13px;font-weight:800;color:#fff;">By total materials purchased</div>
                         </div>
                     </div>
-                    @if($topSupplier)
-                    <div style="font-size:22px;font-weight:900;color:#fff;margin-bottom:12px;">{{ $topSupplier['name'] }}</div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                    <div id="topSupplierName" style="font-size:22px;font-weight:900;color:#fff;margin-bottom:12px;">{{ $topSupplier['name'] ?? '—' }}</div>
+                    <div id="topSupplierStats" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;" {{ !$topSupplier ? 'style="display:none;"' : '' }}>
                         <div style="background:rgba(255,255,255,.06);border-radius:10px;padding:10px 12px;text-align:center;">
-                            <div style="font-size:18px;font-weight:900;color:#10B981;">{{ $topSupplier['purchase_count'] }}</div>
-                            <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;margin-top:2px;">Purchases</div>
+                            <div id="topSupplierCount" style="font-size:18px;font-weight:900;color:#10B981;">{{ $topSupplier['purchase_count'] ?? 0 }}</div>
+                            <div id="topSupplierCountLabel" style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;margin-top:2px;">Purchases</div>
                         </div>
                         <div style="background:rgba(255,255,255,.06);border-radius:10px;padding:10px 12px;text-align:center;">
-                            <div style="font-size:14px;font-weight:900;color:#4ade80;">₱{{ number_format($topSupplier['total_spent'], 2) }}</div>
-                            <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;margin-top:2px;">Total Spent</div>
+                            <div id="topSupplierSpent" style="font-size:14px;font-weight:900;color:#4ade80;">₱{{ number_format($topSupplier['total_spent'] ?? 0, 2) }}</div>
+                            <div id="topSupplierSpentLabel" style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;margin-top:2px;">Total Spent</div>
                         </div>
                     </div>
-                    @else
-                    <div style="color:rgba(255,255,255,.3);font-size:13px;text-align:center;padding:20px 0;">No supplier data yet.</div>
-                    @endif
+                    <div id="topSupplierEmpty" style="color:rgba(255,255,255,.3);font-size:13px;text-align:center;padding:20px 0;{{ $topSupplier ? 'display:none;' : '' }}">No supplier data yet.</div>
                 </div>
             </div>
 
@@ -308,7 +301,7 @@
                             </div>
                             <div>
                                 <div class="db-tc-name">{{ $topClient['name'] }}</div>
-                                <div class="db-tc-sub">{{ $topClient['project_count'] }} project{{ $topClient['project_count'] !== 1 ? 's' : '' }} &nbsp;·&nbsp; {{ $topClient['completed'] }} completed</div>
+                                <div class="db-tc-sub">{{ $topClient['projects'] }} project{{ $topClient['projects'] !== 1 ? 's' : '' }} &nbsp;·&nbsp; {{ $topClient['completed'] }} completed</div>
                             </div>
                         </div>
 
@@ -316,8 +309,8 @@
 
                         <div class="db-mat-grid">
                             <div class="db-mat-stat">
-                                <div class="db-mat-stat-val">₱{{ number_format($topClient['contract_value'], 0) }}</div>
-                                <div class="db-mat-stat-label">Contract</div>
+                                <div class="db-mat-stat-val">{{ $topClient['projects'] }}</div>
+                                <div class="db-mat-stat-label">Projects</div>
                             </div>
                             <div class="db-mat-stat">
                                 <div class="db-mat-stat-val" style="color:#16a34a;">₱{{ number_format($topClient['received'], 0) }}</div>
@@ -786,30 +779,66 @@
 
         buildPeakChart(currentYear);
 
-        // Per-year received amounts for the top client card (pre-computed server-side)
-        @if($topClient)
-        var topClientReceivedByYear = @json($topClient['received_by_year']);
+        // Per-year top client and top supplier — name changes per year, not just stats
+        var topClientByYear  = @json($topClientByYear);
+        var topSupplierByYear = @json($topSupplierByYear);
 
-        function updateTopClientReceived(year) {
-            var amt = topClientReceivedByYear[year] !== undefined ? topClientReceivedByYear[year] : 0;
-            var el  = document.getElementById('topClientReceived');
-            var lbl = document.getElementById('topClientReceivedLabel');
-            if (el)  el.textContent  = '₱' + Math.round(amt / 1000).toLocaleString() + 'k';
-            if (lbl) lbl.textContent = year + ' Received';
+        function updateTopClient(year) {
+            var data = topClientByYear[year];
+            var nameEl = document.getElementById('topClientName');
+            var wrapEl = document.getElementById('topClientStats');
+            var emptyEl = document.getElementById('topClientEmpty');
+            if (!data) {
+                if (nameEl)  nameEl.textContent = '—';
+                if (wrapEl)  wrapEl.style.display = 'none';
+                if (emptyEl) { emptyEl.style.display = ''; emptyEl.textContent = 'No client data for ' + year + '.'; }
+                return;
+            }
+            if (nameEl)  nameEl.textContent = data.name;
+            if (wrapEl)  wrapEl.style.display = 'grid';
+            if (emptyEl) emptyEl.style.display = 'none';
+            var fmt = function(n) { return '₱' + Math.round(n / 1000).toLocaleString() + 'k'; };
+            var el;
+            el = document.getElementById('topClientProjects');      if(el) el.textContent = data.projects;
+            el = document.getElementById('topClientProjectsLabel'); if(el) el.textContent = year + ' Projects';
+            el = document.getElementById('topClientCompleted');     if(el) el.textContent = data.completed;
+            el = document.getElementById('topClientCompletedLabel');if(el) el.textContent = year + ' Completed';
+            el = document.getElementById('topClientReceived');      if(el) el.textContent = fmt(data.received);
+            el = document.getElementById('topClientReceivedLabel'); if(el) el.textContent = year + ' Received';
         }
-        updateTopClientReceived(currentYear); // sync card to the default active year on page load
-        @endif
+        updateTopClient(currentYear);
 
-        // Year filter buttons
+        function updateTopSupplier(year) {
+            var data = topSupplierByYear[year];
+            var nameEl  = document.getElementById('topSupplierName');
+            var wrapEl  = document.getElementById('topSupplierStats');
+            var emptyEl = document.getElementById('topSupplierEmpty');
+            if (!data) {
+                if (nameEl)  nameEl.textContent = '—';
+                if (wrapEl)  wrapEl.style.display = 'none';
+                if (emptyEl) { emptyEl.style.display = ''; emptyEl.textContent = 'No supplier data for ' + year + '.'; }
+                return;
+            }
+            if (nameEl)  nameEl.textContent = data.name;
+            if (wrapEl)  wrapEl.style.display = 'grid';
+            if (emptyEl) emptyEl.style.display = 'none';
+            var el;
+            el = document.getElementById('topSupplierCount');       if(el) el.textContent = data.purchase_count;
+            el = document.getElementById('topSupplierCountLabel');  if(el) el.textContent = year + ' Purchases';
+            el = document.getElementById('topSupplierSpent');       if(el) el.textContent = '₱' + parseFloat(data.total_spent).toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2});
+            el = document.getElementById('topSupplierSpentLabel');  if(el) el.textContent = year + ' Total Spent';
+        }
+        updateTopSupplier(currentYear);
+
+        // Year filter buttons — update chart AND both cards (name + stats)
         document.querySelectorAll('.db-year-btn').forEach(function(btn) {
             btn.addEventListener('click', function() {
                 document.querySelectorAll('.db-year-btn').forEach(function(b) { b.classList.remove('active'); });
                 this.classList.add('active');
                 var year = parseInt(this.dataset.year);
                 buildPeakChart(year);
-                @if($topClient)
-                updateTopClientReceived(year);
-                @endif
+                updateTopClient(year);
+                updateTopSupplier(year);
             });
         });
         // ─────────────────────────────────────────────────────────────────

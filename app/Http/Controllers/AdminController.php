@@ -80,64 +80,78 @@ class AdminController extends Controller
             $weekNum++;
         }
 
-        // Top client by project count + contract value
-        $topClientData = Project::select('client')
-            ->selectRaw('COUNT(*) as project_count')
-            ->whereNotNull('client')
-            ->where('client', '!=', '')
-            ->groupBy('client')
-            ->orderByRaw('COUNT(*) DESC')
-            ->first();
+        // All distinct years that have any data — drives year filter buttons
+        $availableYears = collect()
+            ->merge(\DB::table('payment_transactions')->selectRaw('EXTRACT(YEAR FROM payment_date)::int as yr')->whereNotNull('payment_date')->distinct()->pluck('yr'))
+            ->merge(\DB::table('projects')->selectRaw('EXTRACT(YEAR FROM created_at)::int as yr')->distinct()->pluck('yr'))
+            ->merge(\DB::table('material_purchases')->selectRaw('EXTRACT(YEAR FROM purchase_date)::int as yr')->whereNotNull('purchase_date')->distinct()->pluck('yr'))
+            ->filter()->unique()->sort()->values()->toArray();
 
-        $topClient = null;
-        if ($topClientData) {
-            $topClientProjects = Project::where('client', $topClientData->client)->get();
-            $topClientPayments = Payment::whereIn('project_id', $topClientProjects->pluck('id'))->get();
-            $paymentIds        = $topClientPayments->pluck('id');
+        $currentYear = now()->year;
 
-            $topClientReceived = PaymentTransaction::whereIn('payment_id', $paymentIds)->sum('amount_paid');
+        // Pre-compute the TOP CLIENT and TOP SUPPLIER for each available year
+        // so switching year shows who was actually #1 that year, not the all-time leader
+        $topClientByYear  = [];
+        $topSupplierByYear = [];
 
-            // Pre-compute received per year so the JS year filter can update the card without a reload
-            $currentYear  = now()->year;
-            $receivedByYear = [];
-            for ($y = $currentYear - 1; $y <= $currentYear; $y++) {
-                $receivedByYear[$y] = (float) PaymentTransaction::whereIn('payment_id', $paymentIds)
-                    ->whereYear('payment_date', $y)
-                    ->sum('amount_paid');
+        foreach ($availableYears as $y) {
+            // Top client for this year = client with most projects created in that year
+            $topYearClient = Project::select('client')
+                ->selectRaw('COUNT(*) as project_count')
+                ->whereNotNull('client')->where('client', '!=', '')
+                ->whereYear('created_at', $y)
+                ->groupBy('client')
+                ->orderByRaw('COUNT(*) DESC')
+                ->first();
+
+            if ($topYearClient) {
+                $yProjects    = Project::where('client', $topYearClient->client)->whereYear('created_at', $y)->get();
+                $yProjectIds  = $yProjects->pluck('id');
+                $yPaymentIds  = Payment::whereIn('project_id', $yProjectIds)->pluck('id');
+                $yCompleted   = Project::where('client', $topYearClient->client)
+                    ->where('status', 'completed')->whereYear('updated_at', $y)->count();
+                // Total received = sum of ALL payment transactions for each project (no date filter)
+                // matches what the financial overview shows per project
+                $yReceived    = (float) PaymentTransaction::whereIn('payment_id', $yPaymentIds)->sum('amount_paid');
+
+                $topClientByYear[$y] = [
+                    'name'      => $topYearClient->client,
+                    'projects'  => (int) $topYearClient->project_count,
+                    'completed' => $yCompleted,
+                    'received'  => $yReceived,
+                ];
+            } else {
+                $topClientByYear[$y] = null;
             }
 
-            $topClient = [
-                'name'            => $topClientData->client,
-                'project_count'   => $topClientData->project_count,
-                'contract_value'  => $topClientPayments->sum('contract_amount'),
-                'received'        => $topClientReceived,
-                'received_by_year'=> $receivedByYear,
-                'completed'       => $topClientProjects->where('status', 'completed')->count(),
-            ];
+            // Top supplier for this year = supplier with highest total spend in that year
+            $topYearSupplier = MaterialPurchase::select('supplier')
+                ->selectRaw('SUM(total_paid) as total_spent')
+                ->selectRaw('COUNT(*) as purchase_count')
+                ->whereNotNull('supplier')->where('supplier', '!=', '')
+                ->whereYear('purchase_date', $y)
+                ->groupBy('supplier')
+                ->orderByRaw('SUM(total_paid) DESC')
+                ->first();
+
+            if ($topYearSupplier) {
+                $topSupplierByYear[$y] = [
+                    'name'           => $topYearSupplier->supplier,
+                    'purchase_count' => (int)   $topYearSupplier->purchase_count,
+                    'total_spent'    => (float) $topYearSupplier->total_spent,
+                ];
+            } else {
+                $topSupplierByYear[$y] = null;
+            }
         }
 
-        // Top supplier by total amount purchased
-        $topSupplierData = MaterialPurchase::select('supplier')
-            ->selectRaw('SUM(total_paid) as total_spent')
-            ->selectRaw('COUNT(*) as purchase_count')
-            ->whereNotNull('supplier')
-            ->where('supplier', '!=', '')
-            ->groupBy('supplier')
-            ->orderByRaw('SUM(total_paid) DESC')
-            ->first();
+        // Default card values = current year's top client/supplier
+        $topClient   = $topClientByYear[$currentYear]   ?? ($topClientByYear[max($availableYears)] ?? null);
+        $topSupplier = $topSupplierByYear[$currentYear] ?? ($topSupplierByYear[max($availableYears)] ?? null);
 
-        $topSupplier = null;
-        if ($topSupplierData) {
-            $topSupplier = [
-                'name'           => $topSupplierData->supplier,
-                'total_spent'    => (float) $topSupplierData->total_spent,
-                'purchase_count' => (int) $topSupplierData->purchase_count,
-            ];
-        }
-
-        // Peak months — full year monthly revenue for line chart (last 2 years for year filter)
+        // Peak months — monthly revenue per year for all available years
         $peakMonthsData = [];
-        for ($y = now()->year - 1; $y <= now()->year; $y++) {
+        foreach ($availableYears as $y) {
             $months = [];
             for ($m = 1; $m <= 12; $m++) {
                 $months[] = [
@@ -193,7 +207,11 @@ class AdminController extends Controller
             'weeklyRevenue',
             'projectStatusChart',
             'topSupplier',
-            'peakMonthsData'
+            'topClientByYear',
+            'topSupplierByYear',
+            'peakMonthsData',
+            'availableYears',
+            'currentYear'
         ));
     }
 
