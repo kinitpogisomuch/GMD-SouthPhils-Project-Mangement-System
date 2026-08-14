@@ -271,8 +271,6 @@ class ProjectMaterialController extends Controller
                 'total_cost'  => round($rate * $project->estimated_working_days, 2),
                 'status'      => 'active',
             ]);
-
-            NotificationService::laborAdded($project, $description, $rate);
         }
 
         // Keep all existing entries' totals in sync with the (possibly updated) estimated working days

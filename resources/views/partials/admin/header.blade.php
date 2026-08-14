@@ -19,7 +19,7 @@
             </button>
 
             {{-- Chat list dropdown --}}
-            <div id="chatPopupDropdown" style="display:none;position:absolute;top:calc(100% + 10px);right:0;width:340px;background:#fff;border:1px solid var(--border);border-radius:18px;box-shadow:0 16px 48px rgba(0,0,0,.16);z-index:600;overflow:hidden;">
+            <div id="chatPopupDropdown" style="display:none;position:absolute;top:62px;right:-54px;width:360px;background:linear-gradient(180deg, var(--white) 0%, #fafafa 100%);border:1px solid var(--border);border-radius:20px;box-shadow:0 18px 40px rgba(0,0,0,0.14);z-index:600;overflow:hidden;">
 
                 {{-- Header --}}
                 <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 16px 12px;border-bottom:1px solid var(--border);">
@@ -43,7 +43,7 @@
                 </div>
 
                 {{-- Contact list --}}
-                <div id="chatContactList" style="max-height:360px;overflow-y:auto;">
+                <div id="chatContactList" style="max-height:320px;overflow-y:auto;">
                     <div style="text-align:center;padding:32px;color:var(--muted);font-size:13px;">Loading...</div>
                 </div>
 
@@ -129,9 +129,6 @@
 
     {{-- Header --}}
     <div style="background:#fff;border-bottom:1px solid #eee;padding:10px 14px;display:flex;align-items:center;gap:10px;">
-        <button onclick="closeChatWindow()" style="width:32px;height:32px;border-radius:50%;background:#f0f2f5;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#050505;">
-            <i data-lucide="arrow-left" style="width:16px;height:16px;"></i>
-        </button>
         <div id="chatWinAvatarWrap" style="width:40px;height:40px;border-radius:50%;background:var(--dark);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;flex-shrink:0;overflow:hidden;">
             <span id="chatWinAvatar">?</span>
         </div>
@@ -139,8 +136,8 @@
             <div id="chatWinName" style="font-size:14px;font-weight:800;color:#050505;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;">—</div>
             <div id="chatWinRole" style="font-size:11px;color:#888;">—</div>
         </div>
-        <button style="width:32px;height:32px;border-radius:50%;background:none;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#888;">
-            <i data-lucide="info" style="width:16px;height:16px;"></i>
+        <button onclick="closeChatWindow()" title="Close" style="width:32px;height:32px;border-radius:50%;background:#f0f2f5;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#050505;">
+            <i data-lucide="x" style="width:16px;height:16px;"></i>
         </button>
     </div>
 
@@ -223,7 +220,6 @@ document.addEventListener('DOMContentLoaded', function () {
         phase_advanced:     'layers',
         project_completed:  'award',
         pending_review:     'clock',
-        new_message:        'message-square',
     };
 
     const priorityClass = {
@@ -372,12 +368,23 @@ document.addEventListener('DOMContentLoaded', function () {
     var window_  = document.getElementById('chatWindow');
     var msgList  = document.getElementById('chatWinMessages');
 
+    window.closeChatPopup = function () {
+        popupOpen = false;
+        dropdown.style.display = 'none';
+    };
+
     // Toggle dropdown
     btn && btn.addEventListener('click', function (e) {
         e.stopPropagation();
         popupOpen = !popupOpen;
         dropdown.style.display = popupOpen ? 'block' : 'none';
-        if (popupOpen) loadContacts();
+        if (popupOpen) {
+            var notificationDropdown = document.querySelector('.notification-dropdown');
+            var adminDropdown        = document.querySelector('.admin-dropdown');
+            if (notificationDropdown) notificationDropdown.classList.remove('open');
+            if (adminDropdown) adminDropdown.classList.remove('open');
+            loadContacts();
+        }
     });
 
     document.addEventListener('click', function (e) {
@@ -451,6 +458,8 @@ document.addEventListener('DOMContentLoaded', function () {
         dropdown.style.display = 'none';
         popupOpen = false;
 
+        try { localStorage.setItem('gmd_open_chat', JSON.stringify(chatContact)); } catch (e) {}
+
         document.getElementById('chatWinName').textContent = name;
         document.getElementById('chatWinRole').textContent = type.charAt(0).toUpperCase() + type.slice(1);
         document.getElementById('chatWinAvatar').textContent = name.charAt(0).toUpperCase();
@@ -479,8 +488,8 @@ document.addEventListener('DOMContentLoaded', function () {
             var next     = i < messages.length - 1 ? messages[i + 1] : null;
             var sameNext = next && (!!next.is_mine) === isMe;
             var mb       = sameNext ? '2px' : '8px';
-            var time     = m.timestamp || '';
-            var showTime = !sameNext && time;
+            var timeId   = 'chatMsgTime-' + (m.id || i) + '-' + i;
+            var timeLabel = [m.date_label, m.time].filter(Boolean).join(' · ');
 
             // Images / attachments
             var imgHtml = '', fileHtml = '';
@@ -502,11 +511,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 // bubble + images
                 html += '<div style="display:flex;flex-direction:column;align-items:flex-end;max-width:75%;">';
                 if (m.body) {
-                    html += '<div style="background:var(--dark);color:#fff;border-radius:16px 16px 3px 16px;padding:8px 12px;font-size:13px;line-height:1.45;word-break:break-word;">' + escHtml(m.body) + '</div>';
+                    html += '<div onclick="toggleChatMsgTime(\''+timeId+'\')" style="cursor:pointer;background:var(--dark);color:#fff;border-radius:16px 16px 3px 16px;padding:8px 12px;font-size:13px;line-height:1.45;word-break:break-word;">' + escHtml(m.body) + '</div>';
                 }
                 if (imgHtml) html += imgHtml;
                 if (fileHtml) html += fileHtml;
-                if (showTime) html += '<div style="font-size:10px;color:#aaa;margin-top:2px;text-align:right;">' + time + '</div>';
+                if (timeLabel) html += '<div id="'+timeId+'" style="display:none;font-size:10px;color:#aaa;margin-top:3px;text-align:right;">' + escHtml(timeLabel) + '</div>';
                 html += '</div>';
                 // my avatar
                 html += '<div style="' + avatarStyle + 'background:#444;">' + myInit + '</div>';
@@ -519,11 +528,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 html += '<div style="' + avatarStyle + 'background:var(--dark);">' + cInit + '</div>';
                 html += '<div style="display:flex;flex-direction:column;align-items:flex-start;max-width:75%;">';
                 if (m.body) {
-                    html += '<div style="background:#fff;color:#050505;border:1px solid #e8e8e8;border-radius:16px 16px 16px 3px;padding:8px 12px;font-size:13px;line-height:1.45;word-break:break-word;box-shadow:0 1px 2px rgba(0,0,0,.05);">' + escHtml(m.body) + '</div>';
+                    html += '<div onclick="toggleChatMsgTime(\''+timeId+'\')" style="cursor:pointer;background:#fff;color:#050505;border:1px solid #e8e8e8;border-radius:16px 16px 16px 3px;padding:8px 12px;font-size:13px;line-height:1.45;word-break:break-word;box-shadow:0 1px 2px rgba(0,0,0,.05);">' + escHtml(m.body) + '</div>';
                 }
                 if (imgHtml) html += imgHtml;
                 if (fileHtml) html += fileHtml;
-                if (showTime) html += '<div style="font-size:10px;color:#aaa;margin-top:2px;">' + time + '</div>';
+                if (timeLabel) html += '<div id="'+timeId+'" style="display:none;font-size:10px;color:#aaa;margin-top:3px;">' + escHtml(timeLabel) + '</div>';
                 html += '</div>';
                 html += '</div>';
             }
@@ -546,18 +555,36 @@ document.addEventListener('DOMContentLoaded', function () {
         fd.append('_token',         CSRF);
 
         // Optimistic render
-        var myInit = '{{ strtoupper(substr(session("full_name", "A"), 0, 1)) }}';
+        var myInit   = '{{ strtoupper(substr(session("full_name", "A"), 0, 1)) }}';
+        var statusId = 'chatMsgStatus-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
         var div = document.createElement('div');
         div.style.cssText = 'display:flex;flex-direction:column;align-items:flex-end;margin-bottom:10px;';
         div.innerHTML = '<div style="display:flex;align-items:flex-end;gap:6px;">'
             + '<div style="max-width:72%;background:var(--dark);color:#fff;border-radius:18px 18px 4px 18px;padding:9px 14px;font-size:13px;line-height:1.5;word-break:break-word;">'+escHtml(body)+'</div>'
             + '<div style="width:30px;height:30px;border-radius:50%;background:#555;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0;">'+myInit+'</div>'
-            + '</div>';
+            + '</div>'
+            + '<div id="'+statusId+'" style="font-size:10px;color:#aaa;margin-top:3px;margin-right:36px;">Sending…</div>';
         msgList.appendChild(div);
         msgList.scrollTop = msgList.scrollHeight;
 
         fetch(SEND_URL, { method:'POST', body: fd, headers:{ 'X-Requested-With':'XMLHttpRequest' } })
-            .catch(function(){});
+            .then(function(r){
+                var statusEl = document.getElementById(statusId);
+                if (!statusEl) return;
+                if (r.ok) {
+                    statusEl.textContent = 'Sent';
+                } else {
+                    statusEl.textContent = 'Failed to send';
+                    statusEl.style.color = '#e53e3e';
+                }
+            })
+            .catch(function(){
+                var statusEl = document.getElementById(statusId);
+                if (statusEl) {
+                    statusEl.textContent = 'Failed to send';
+                    statusEl.style.color = '#e53e3e';
+                }
+            });
     };
 
     window.sendChatFile = function(input) {
@@ -588,6 +615,7 @@ document.addEventListener('DOMContentLoaded', function () {
     window.closeChatWindow = function() {
         window_.style.display = 'none';
         chatContact = null;
+        try { localStorage.removeItem('gmd_open_chat'); } catch (e) {}
         if (window.lucide) lucide.createIcons();
     };
 
@@ -595,9 +623,23 @@ document.addEventListener('DOMContentLoaded', function () {
         return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
+    window.toggleChatMsgTime = function(id) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.style.display = (el.style.display === 'none') ? 'block' : 'none';
+    };
+
     // expose loadUnreadMessages for badge refresh after send
     var loadUnreadMessages = null;
     window.__setMsgBadgeRefresh = function(fn) { loadUnreadMessages = fn; };
+
+    // Restore the chat window if it was left open on a previous page
+    try {
+        var savedChat = JSON.parse(localStorage.getItem('gmd_open_chat') || 'null');
+        if (savedChat && savedChat.type && savedChat.id) {
+            window.openChatWith(savedChat.type, savedChat.id, savedChat.name);
+        }
+    } catch (e) {}
 })();
 
 (function () {
@@ -610,6 +652,7 @@ document.addEventListener('DOMContentLoaded', function () {
         adminBtn.addEventListener('click', function (e) {
             e.stopPropagation();
             if (notificationDropdown) notificationDropdown.classList.remove('open');
+            if (window.closeChatPopup) window.closeChatPopup();
             adminDropdown.classList.toggle('open');
         });
     }
@@ -618,6 +661,7 @@ document.addEventListener('DOMContentLoaded', function () {
         notificationBtn.addEventListener('click', function (e) {
             e.stopPropagation();
             if (adminDropdown) adminDropdown.classList.remove('open');
+            if (window.closeChatPopup) window.closeChatPopup();
             notificationDropdown.classList.toggle('open');
         });
     }

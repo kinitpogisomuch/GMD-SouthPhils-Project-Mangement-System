@@ -4083,10 +4083,10 @@ td.action-cell .action-btn + .action-btn {
     color: var(--muted);
 }
 
-/* Sub-phase stepper — amber accent */
+/* Sub-phase stepper — amber accent while active, green once done */
 .sub-phase-steps .phase-step.done .phase-step-box {
-    background-color: #fef3c7;
-    border-color: #F59E0B;
+    background-color: #dcfce7;
+    border-color: #16a34a;
 }
 
 .sub-phase-steps .phase-step.active .phase-step-box {
@@ -4095,9 +4095,9 @@ td.action-cell .action-btn + .action-btn {
 }
 
 .sub-phase-steps .phase-step.done .phase-step-icon {
-    background-color: #F59E0B;
+    background-color: #16a34a;
     color: var(--white);
-    box-shadow: 0 0 8px rgba(245,158,11,.45), 0 1px 3px rgba(245,158,11,.3);
+    box-shadow: 0 0 8px rgba(22,163,74,.45), 0 1px 3px rgba(22,163,74,.3);
 }
 
 .sub-phase-steps .phase-step.active .phase-step-icon {

@@ -256,7 +256,8 @@ class AdminController extends Controller
     public function employees()
     {
         $employees = Employee::orderBy('created_at', 'desc')->get();
-        return view('admin.employees', compact('employees'));
+        $nextEmployeeUsername = Employee::nextUsername();
+        return view('admin.employees', compact('employees', 'nextEmployeeUsername'));
     }
 
     public function projectMaterials()

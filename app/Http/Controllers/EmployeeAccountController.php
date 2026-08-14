@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use App\Models\Employee;
@@ -12,18 +11,7 @@ class EmployeeAccountController extends Controller
 {
     private function generateUsername(): string
     {
-        $row = DB::selectOne(
-            "SELECT COALESCE(MAX(CAST(SUBSTRING(username FROM 6) AS INTEGER)), 0) AS max_num
-             FROM employees WHERE username ~ '^EGMD-[0-9]+$'"
-        );
-        $nextNum = (int) ($row->max_num ?? 0) + 1;
-        do {
-            $username = 'EGMD-' . str_pad($nextNum, 4, '0', STR_PAD_LEFT);
-            if (!Employee::where('username', $username)->exists()) {
-                return $username;
-            }
-            $nextNum++;
-        } while (true);
+        return Employee::nextUsername();
     }
 
     private function generatePin(): string

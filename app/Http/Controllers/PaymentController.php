@@ -116,11 +116,22 @@ class PaymentController extends Controller
         $validated = $request->validate([
             'payment_stage'    => "required|string|in:{$stageIn}",
             'amount_paid'      => 'required|numeric|min:0.01',
-            'payment_date'     => 'required|date',
+            'payment_date'     => 'required|date|after_or_equal:today',
             'mode_of_payment'  => 'nullable|string|in:cheque,bank_transfer,cash',
             'reference_number' => 'nullable|string|max:100',
             'notes'            => 'nullable|string|max:1000',
         ]);
+
+        $paidStages  = $payment->paidStages();
+        $stageIndex  = array_search($validated['payment_stage'], $stageOptions);
+        $priorStages = array_slice($stageOptions, 0, $stageIndex);
+
+        if (in_array($validated['payment_stage'], $paidStages)) {
+            return back()->withErrors(['payment_stage' => 'This stage has already been paid.']);
+        }
+        if (array_diff($priorStages, $paidStages)) {
+            return back()->withErrors(['payment_stage' => 'Earlier payment stages must be recorded first.']);
+        }
 
         PaymentTransaction::create([
             'payment_id'       => $payment->id,

@@ -258,6 +258,20 @@
                             <h3 class="pv-card-title" style="margin-bottom:4px;">Contact Information</h3>
                             <p style="font-size:13px;color:var(--muted);margin:0;">Displayed on the public landing page.</p>
                         </div>
+                        <div id="contactInfoActions">
+                            <button type="button" class="save-btn" id="editContactInfoBtn" onclick="enableContactEdit()">
+                                <i data-lucide="pencil"></i>
+                                Edit Contact Info
+                            </button>
+                        </div>
+                        <div id="contactInfoEditActions" style="display:none;">
+                            <button type="button" class="cancel-btn" onclick="cancelContactEdit()">
+                                <i data-lucide="x"></i> Cancel
+                            </button>
+                            <button type="submit" form="contactInfoForm" class="save-btn">
+                                <i data-lucide="save"></i> Save Contact Info
+                            </button>
+                        </div>
                     </div>
 
                     <form method="POST" action="{{ route('admin.settings.contact_info') }}" id="contactInfoForm">
@@ -266,45 +280,45 @@
                         <div class="form-grid">
                             <div class="form-group">
                                 <label>Phone</label>
-                                <input type="text" name="phone" value="{{ old('phone', $contactInfo->phone) }}"
-                                       placeholder="e.g. (082) 123-4567" maxlength="20">
+                                <input type="text" name="phone" class="contact-field"
+                                       value="{{ old('phone', $contactInfo->phone) }}"
+                                       placeholder="e.g. (082) 123-4567" maxlength="20" disabled>
                             </div>
                             <div class="form-group">
                                 <label>Mobile</label>
-                                <input type="text" name="mobile" value="{{ old('mobile', $contactInfo->mobile) }}"
-                                       placeholder="e.g. 09XX XXX XXXX" maxlength="20">
+                                <input type="text" name="mobile" class="contact-field"
+                                       value="{{ old('mobile', $contactInfo->mobile) }}"
+                                       placeholder="e.g. 09XX XXX XXXX" maxlength="20" disabled>
                             </div>
                             <div class="form-group">
                                 <label>Email</label>
-                                <input type="email" name="email" value="{{ old('email', $contactInfo->email) }}"
-                                       placeholder="e.g. info@gmdsouthphils.com" maxlength="255">
+                                <input type="email" name="email" class="contact-field"
+                                       value="{{ old('email', $contactInfo->email) }}"
+                                       placeholder="e.g. info@gmdsouthphils.com" maxlength="255" disabled>
                             </div>
                             <div class="form-group">
                                 <label>Business Hours</label>
-                                <input type="text" name="business_hours" value="{{ old('business_hours', $contactInfo->business_hours) }}"
-                                       placeholder="e.g. Mon–Fri: 8AM–5PM" maxlength="255">
+                                <input type="text" name="business_hours" class="contact-field"
+                                       value="{{ old('business_hours', $contactInfo->business_hours) }}"
+                                       placeholder="e.g. Mon–Fri: 8AM–5PM" maxlength="255" disabled>
                             </div>
-                            <div class="form-group form-group-full">
+                            <div class="form-group">
                                 <label>Address</label>
-                                <input type="text" name="address" value="{{ old('address', $contactInfo->address) }}"
-                                       placeholder="e.g. 123 Main Street, Davao City, Philippines" maxlength="500">
+                                <input type="text" name="address" class="contact-field"
+                                       value="{{ old('address', $contactInfo->address) }}"
+                                       placeholder="e.g. 123 Main Street, Davao City, Philippines" maxlength="500" disabled>
                             </div>
-                            <div class="form-group form-group-full">
+                            <div class="form-group">
                                 <label>Facebook Page URL</label>
-                                <input type="text" name="facebook" value="{{ old('facebook', $contactInfo->facebook) }}"
-                                       placeholder="e.g. https://facebook.com/gmdsouthphils" maxlength="255">
+                                <input type="text" name="facebook" class="contact-field"
+                                       value="{{ old('facebook', $contactInfo->facebook) }}"
+                                       placeholder="e.g. https://facebook.com/gmdsouthphils" maxlength="255" disabled>
                             </div>
                             <div class="form-group form-group-full">
                                 <label>Company Description</label>
-                                <textarea name="description" rows="4" maxlength="1000"
-                                          placeholder="Brief description about GMD South Phils displayed on the landing page...">{{ old('description', $contactInfo->description) }}</textarea>
+                                <textarea name="description" class="contact-field" rows="4" maxlength="1000"
+                                          placeholder="Brief description about GMD South Phils displayed on the landing page..." disabled>{{ old('description', $contactInfo->description) }}</textarea>
                             </div>
-                        </div>
-                        <div class="settings-form-actions">
-                            <button type="submit" class="save-btn">
-                                <i data-lucide="save"></i>
-                                Save Contact Info
-                            </button>
                         </div>
                     </form>
                 </div>
@@ -909,6 +923,26 @@
         document.getElementById('profileEditActions').style.display = 'none';
     }
 
+    var contactOriginalValues = {};
+
+    function enableContactEdit() {
+        document.querySelectorAll('#contactInfoForm .contact-field').forEach(function (f) {
+            contactOriginalValues[f.name] = f.value;
+            f.removeAttribute('disabled');
+        });
+        document.getElementById('contactInfoActions').style.display = 'none';
+        document.getElementById('contactInfoEditActions').style.display = 'flex';
+    }
+
+    function cancelContactEdit() {
+        document.querySelectorAll('#contactInfoForm .contact-field').forEach(function (f) {
+            f.value = contactOriginalValues[f.name] !== undefined ? contactOriginalValues[f.name] : f.value;
+            f.setAttribute('disabled', '');
+        });
+        document.getElementById('contactInfoActions').style.display = '';
+        document.getElementById('contactInfoEditActions').style.display = 'none';
+    }
+
     // --- Password requirements ---
     function checkPw() {
         var v = document.getElementById('newPassword').value;
@@ -955,6 +989,12 @@
             cursor: default;
             border-color: var(--border);
         }
+        .contact-field:disabled {
+            background: var(--surface-2);
+            color: var(--text-secondary);
+            cursor: default;
+            border-color: var(--border);
+        }
         select.profile-field {
             appearance: none; -webkit-appearance: none;
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
@@ -969,6 +1009,7 @@
         }
         @keyframes psgcSpin { to { transform: translateY(-50%) rotate(360deg); } }
         #profileEditActions { display: none; gap: 8px; flex-wrap: wrap; }
+        #contactInfoEditActions { display: none; gap: 8px; flex-wrap: wrap; }
         .pw-req {
             font-size: 11.5px; padding: 3px 9px; border-radius: 99px;
             border: 1px solid #e5e7eb; color: #9ca3af; background: #f9fafb;

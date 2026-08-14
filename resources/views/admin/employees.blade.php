@@ -92,7 +92,6 @@
                                     <th>Username</th>
                                     <th>Contact Number</th>
                                     <th>Email</th>
-                                    <th>Address</th>
                                     <th>Role</th>
                                     <th>Employee Type</th>
                                     <th>Daily Rate</th>
@@ -123,14 +122,6 @@
                                     </td>
                                     <td>{{ $employee->contact ?? '—' }}</td>
                                     <td>{{ $employee->email ?? '—' }}</td>
-                                    <td style="font-size:12px;color:var(--text-secondary);max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"
-                                        title="{{ $employee->address ?? '' }}">
-                                        @if($employee->province && $employee->city)
-                                            {{ $employee->province }}, {{ $employee->city }}
-                                        @else
-                                            {{ $employee->address ?? '—' }}
-                                        @endif
-                                    </td>
                                     <td>{{ $employee->role }}</td>
                                     <td>
                                         <span class="role-badge" style="{{ ($employee->employee_type ?? 'Regular') === 'Regular' ? 'background:#ede9fe;color:#6d28d9;' : 'background:#fef3c7;color:#92400e;' }}">
@@ -146,6 +137,25 @@
                                         @endif
                                     </td>
                                     <td class="action-cell">
+                                        <button class="action-btn view view-emp-btn" type="button" title="View Employee"
+                                            data-id="{{ $employee->id }}"
+                                            data-username="{{ $employee->username ?? '—' }}"
+                                            data-first-name="{{ $employee->first_name }}"
+                                            data-last-name="{{ $employee->last_name }}"
+                                            data-contact="{{ $employee->contact }}"
+                                            data-email="{{ $employee->email }}"
+                                            data-province="{{ $employee->province }}"
+                                            data-city="{{ $employee->city }}"
+                                            data-region="{{ $employee->region }}"
+                                            data-street-address="{{ $employee->street_address }}"
+                                            data-address="{{ $employee->address }}"
+                                            data-role="{{ $employee->role }}"
+                                            data-type="{{ $employee->employee_type ?? 'Regular' }}"
+                                            data-rate="{{ $employee->daily_rate ?? 0 }}"
+                                            data-status="{{ $employee->status }}"
+                                            data-created="{{ $employee->created_at->format('M d, Y') }}">
+                                            <i data-lucide="eye"></i>
+                                        </button>
                                         <button class="action-btn view edit-emp-btn" type="button" title="Edit Employee"
                                             data-id="{{ $employee->id }}"
                                             data-first-name="{{ $employee->first_name }}"
@@ -172,13 +182,13 @@
                                 </tr>
                                 @empty
                                 <tr id="empBladeEmpty">
-                                    <td colspan="11" style="text-align:center;padding:40px;color:var(--muted);">
+                                    <td colspan="9" style="text-align:center;padding:40px;color:var(--muted);">
                                         No employees found. Click <strong>Add Employee</strong> to get started.
                                     </td>
                                 </tr>
                                 @endforelse
                                 <tr id="empEmptyState" style="display:none;">
-                                    <td colspan="10" style="text-align:center;padding:48px 20px;">
+                                    <td colspan="9" style="text-align:center;padding:48px 20px;">
                                         <div style="display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--muted);">
                                             <i data-lucide="inbox" style="width:36px;height:36px;opacity:0.4;"></i>
                                             <span id="empEmptyMsg" style="font-size:14px;font-weight:600;">No employees found.</span>
@@ -296,7 +306,7 @@
                         <input type="text" name="first_name" required minlength="2" maxlength="50"
                                placeholder="e.g. Kenneth"
                                value="{{ old('first_name') }}"
-                               oninput="empCapName(this); empFieldError(this,'addEmpFirstNameErr')">
+                               oninput="empCapName(this); empFieldError(this,'addEmpFirstNameErr'); addEmpUpdateAccountPreview()">
                         <span class="emp-field-err" id="addEmpFirstNameErr"></span>
                     </div>
                     <div class="form-group">
@@ -304,7 +314,7 @@
                         <input type="text" name="last_name" required minlength="2" maxlength="50"
                                placeholder="e.g. Nadera"
                                value="{{ old('last_name') }}"
-                               oninput="empCapName(this); empFieldError(this,'addEmpLastNameErr')">
+                               oninput="empCapName(this); empFieldError(this,'addEmpLastNameErr'); addEmpUpdateAccountPreview()">
                         <span class="emp-field-err" id="addEmpLastNameErr"></span>
                     </div>
                     <div class="form-group">
@@ -312,7 +322,7 @@
                         <input type="text" name="contact" required maxlength="13"
                                placeholder="e.g. 0930-147-6598"
                                value="{{ old('contact') }}"
-                               oninput="formatEmpContact(this);empFieldError(this,'addEmpContactErr')"
+                               oninput="formatEmpContact(this);empFieldError(this,'addEmpContactErr'); addEmpUpdateAccountPreview()"
                                onkeypress="return /[0-9\-]/.test(event.key)">
                         <span class="emp-field-err" id="addEmpContactErr"></span>
                     </div>
@@ -326,7 +336,7 @@
                     </div>
                     <div class="form-group">
                         <label>Role </label>
-                        <select name="role" required onchange="empFieldError(this,'addEmpRoleErr')">
+                        <select name="role" required onchange="empFieldError(this,'addEmpRoleErr'); addEmpUpdateAccountPreview()">
                             <option value="" disabled {{ old('role') ? '' : 'selected' }} hidden>Select role</option>
                             <option value="Fabricator" {{ old('role') === 'Fabricator' ? 'selected' : '' }}>Fabricator</option>
                             <option value="Welder" {{ old('role') === 'Welder' ? 'selected' : '' }}>Welder</option>
@@ -337,8 +347,9 @@
                     </div>
                     <div class="form-group">
                         <label>Employee Type </label>
-                        <select name="employee_type" required onchange="empFieldError(this,'addEmpTypeErr')">
-                            <option value="Regular" {{ old('employee_type', 'Regular') === 'Regular' ? 'selected' : '' }}>Regular</option>
+                        <select name="employee_type" required onchange="empFieldError(this,'addEmpTypeErr'); addEmpUpdateAccountPreview()">
+                            <option value="" disabled {{ old('employee_type') ? '' : 'selected' }} hidden>Select employee type</option>
+                            <option value="Regular" {{ old('employee_type') === 'Regular' ? 'selected' : '' }}>Regular</option>
                             <option value="Outsourced" {{ old('employee_type') === 'Outsourced' ? 'selected' : '' }}>Outsourced</option>
                         </select>
                         <span class="emp-field-err" id="addEmpTypeErr"></span>
@@ -348,7 +359,7 @@
                         <input type="number" name="daily_rate" required min="1" step="0.01"
                                placeholder="e.g. 500"
                                value="{{ old('daily_rate') }}"
-                               oninput="empFieldError(this,'addEmpRateErr')">
+                               oninput="empFieldError(this,'addEmpRateErr'); addEmpUpdateAccountPreview()">
                         <span class="emp-field-err" id="addEmpRateErr"></span>
                     </div>
                 </div>
@@ -357,18 +368,18 @@
                 <div class="form-grid">
                     <div class="form-group">
                         <label>Username</label>
-                        <div style="display:flex;align-items:center;gap:8px;height:44px;background:var(--cream-soft);border:1px solid var(--border);border-radius:10px;padding:0 12px;">
+                        <div id="addEmpUsernameBox" style="display:flex;align-items:center;gap:8px;height:44px;background:var(--cream-soft);border:1px solid var(--border);border-radius:10px;padding:0 12px;transition:background .15s,border-color .15s;">
                             <i data-lucide="user" style="width:15px;height:15px;color:var(--muted);flex-shrink:0;"></i>
-                            <span style="font-size:13px;font-weight:700;color:var(--muted);font-family:monospace;">EGMD-XXXX</span>
-                            <span style="font-size:11px;color:var(--muted-light);margin-left:auto;">Auto-generated</span>
+                            <span id="addEmpUsernameText" style="font-size:13px;font-weight:700;color:var(--muted);font-family:monospace;">EGMD-XXXX</span>
+                            <span id="addEmpUsernameTag" style="font-size:11px;color:var(--muted-light);margin-left:auto;">Auto-generated</span>
                         </div>
                     </div>
                     <div class="form-group">
                         <label>PIN / Password</label>
-                        <div style="display:flex;align-items:center;gap:8px;height:44px;background:var(--cream-soft);border:1px solid var(--border);border-radius:10px;padding:0 12px;">
+                        <div id="addEmpPinBox" style="display:flex;align-items:center;gap:8px;height:44px;background:var(--cream-soft);border:1px solid var(--border);border-radius:10px;padding:0 12px;transition:background .15s,border-color .15s;">
                             <i data-lucide="key-round" style="width:15px;height:15px;color:var(--muted);flex-shrink:0;"></i>
                             <span style="font-size:13px;font-weight:700;color:var(--muted);letter-spacing:4px;">••••••</span>
-                            <span style="font-size:11px;color:var(--muted-light);margin-left:auto;">6-digit PIN</span>
+                            <span id="addEmpPinTag" style="font-size:11px;color:var(--muted-light);margin-left:auto;">6-digit PIN</span>
                         </div>
                     </div>
                 </div>
@@ -446,6 +457,67 @@
         </div>
     </div>
     @endif
+
+    <!-- ===== VIEW EMPLOYEE MODAL ===== -->
+    <div class="modal-overlay" id="viewEmpModal">
+        <div class="modal-card" style="max-width:500px;">
+            <div class="modal-header">
+                <div>
+                    <h2>Employee Details</h2>
+                    <p>Full employee information.</p>
+                </div>
+                <button class="modal-close" type="button" id="closeViewEmpModal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:14px;padding:6px 0 18px;">
+                <div class="cs-avatar" style="width:52px;height:52px;min-width:52px;font-size:18px;font-weight:900;" id="viewEmpAvatar">?</div>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-weight:900;font-size:16px;color:var(--text-primary);line-height:1.2;margin-bottom:4px;" id="viewEmpName">—</div>
+                    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                        <span style="font-family:monospace;font-weight:700;font-size:12px;color:var(--text-secondary);" id="viewEmpUsername">—</span>
+                        <span id="viewEmpStatusBadge"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:0;border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--cream-soft);">
+                    <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;">Contact Number</span>
+                    <span style="font-size:13px;font-weight:700;color:var(--text-primary);" id="viewEmpContact">—</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">
+                    <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;">Email</span>
+                    <span style="font-size:13px;font-weight:700;color:var(--text-primary);" id="viewEmpEmail">—</span>
+                </div>
+                <div style="padding:12px 16px;border-bottom:1px solid var(--border);background:var(--cream-soft);">
+                    <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:4px;">Address</span>
+                    <span style="font-size:13px;font-weight:600;color:var(--text-primary);" id="viewEmpAddress">—</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">
+                    <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;">Role</span>
+                    <span style="font-size:13px;font-weight:700;color:var(--text-primary);" id="viewEmpRole">—</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--cream-soft);">
+                    <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;">Employee Type</span>
+                    <span id="viewEmpType"></span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">
+                    <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;">Daily Rate</span>
+                    <span style="font-size:13px;font-weight:800;color:var(--text-primary);" id="viewEmpRate">—</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--cream-soft);">
+                    <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;">Date Joined</span>
+                    <span style="font-size:13px;font-weight:700;color:var(--text-primary);" id="viewEmpCreated">—</span>
+                </div>
+            </div>
+
+            <div class="modal-actions" style="margin-top:18px;">
+                <button type="button" class="cancel-btn" id="cancelViewEmp">Close</button>
+            </div>
+        </div>
+    </div>
 
     <!-- ===== EDIT EMPLOYEE MODAL ===== -->
     <div class="modal-overlay" id="editEmpModal">
@@ -824,6 +896,7 @@
             // Re-open modal on validation error
             @if($errors->hasBag('employee_account'))
             openEmpModal('addEmployeeModal');
+            addEmpUpdateAccountPreview();
             @endif
             @if($errors->hasBag('employee_edit'))
             openEmpModal('editEmpModal');
@@ -831,11 +904,47 @@
 
             // ---- Add Employee Modal ----
             var openAddBtn = document.getElementById('openAddEmployeeModal');
-            if (openAddBtn) openAddBtn.addEventListener('click', function () { openEmpModal('addEmployeeModal'); if (typeof lucide !== 'undefined') lucide.createIcons(); });
+            if (openAddBtn) openAddBtn.addEventListener('click', function () { openEmpModal('addEmployeeModal'); addEmpUpdateAccountPreview(); if (typeof lucide !== 'undefined') lucide.createIcons(); });
             var closeAddBtn = document.getElementById('closeAddEmployeeModal');
-            if (closeAddBtn) closeAddBtn.addEventListener('click', function () { closeEmpModal('addEmployeeModal'); document.getElementById('addEmpAccountForm').reset(); });
+            if (closeAddBtn) closeAddBtn.addEventListener('click', function () { closeEmpModal('addEmployeeModal'); document.getElementById('addEmpAccountForm').reset(); addEmpUpdateAccountPreview(); });
             var cancelAddBtn = document.getElementById('cancelAddEmployee');
-            if (cancelAddBtn) cancelAddBtn.addEventListener('click', function () { closeEmpModal('addEmployeeModal'); document.getElementById('addEmpAccountForm').reset(); });
+            if (cancelAddBtn) cancelAddBtn.addEventListener('click', function () { closeEmpModal('addEmployeeModal'); document.getElementById('addEmpAccountForm').reset(); addEmpUpdateAccountPreview(); });
+
+            // ---- View Employee Modal ----
+            document.querySelectorAll('.view-emp-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var d = this.dataset;
+                    var fullName = (d.firstName || '') + ' ' + (d.lastName || '');
+                    var initials = ((d.firstName || '?').charAt(0) + (d.lastName || '').charAt(0)).toUpperCase();
+
+                    document.getElementById('viewEmpAvatar').textContent   = initials;
+                    document.getElementById('viewEmpName').textContent     = fullName.trim() || '—';
+                    document.getElementById('viewEmpUsername').textContent = d.username || '—';
+                    document.getElementById('viewEmpContact').textContent  = d.contact || '—';
+                    document.getElementById('viewEmpEmail').textContent    = d.email || '—';
+                    document.getElementById('viewEmpRole').textContent     = d.role || '—';
+                    document.getElementById('viewEmpRate').textContent     = '₱' + parseFloat(d.rate || 0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+                    document.getElementById('viewEmpCreated').textContent  = d.created || '—';
+
+                    var addressParts = [d.streetAddress, d.city, d.province, d.region].filter(Boolean);
+                    document.getElementById('viewEmpAddress').textContent = addressParts.length
+                        ? addressParts.join(', ')
+                        : (d.address || '—');
+
+                    document.getElementById('viewEmpStatusBadge').innerHTML = d.status === 'Active'
+                        ? '<span class="status-badge active">Active</span>'
+                        : '<span class="status-badge archived">Archived</span>';
+
+                    document.getElementById('viewEmpType').innerHTML = '<span class="role-badge" style="' +
+                        (d.type === 'Regular' ? 'background:#ede9fe;color:#6d28d9;' : 'background:#fef3c7;color:#92400e;') +
+                        '">' + (d.type || 'Regular') + '</span>';
+
+                    openEmpModal('viewEmpModal');
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                });
+            });
+            document.getElementById('closeViewEmpModal').addEventListener('click', function () { closeEmpModal('viewEmpModal'); });
+            document.getElementById('cancelViewEmp').addEventListener('click', function () { closeEmpModal('viewEmpModal'); });
 
             // ---- Edit Employee Modal ----
             document.querySelectorAll('.edit-emp-btn').forEach(function (btn) {
@@ -1750,7 +1859,7 @@
         }
         if (name === 'contact') {
             if (!val) return 'Contact number is required.';
-            var stripped = val.replace(/\s/g, '');
+            var stripped = val.replace(/[\s\-]/g, '');
             if (/[^0-9+]/.test(stripped)) return 'Contact number must contain digits only.';
             if (!CONTACT_RE.test(stripped)) return 'Must be a valid PH mobile number (e.g. 09171234567).';
         }
@@ -1768,6 +1877,51 @@
         if (['province','city','region'].includes(name) && !val) return 'This field is required.';
         if (name === 'street_address' && !val) return 'Street address is required.';
         return '';
+    }
+
+    var NEXT_EMP_USERNAME = @json($nextEmployeeUsername);
+
+    function addEmpUpdateAccountPreview() {
+        var form = document.getElementById('addEmpAccountForm');
+        if (!form) return;
+        var requiredFields = ['first_name', 'last_name', 'contact', 'role', 'employee_type', 'daily_rate'];
+        var ready = requiredFields.every(function (name) {
+            var el = form.querySelector('[name="' + name + '"]');
+            return el && el.value.trim() && !empValidateField(el);
+        });
+
+        var usernameBox  = document.getElementById('addEmpUsernameBox');
+        var usernameText = document.getElementById('addEmpUsernameText');
+        var usernameTag  = document.getElementById('addEmpUsernameTag');
+        var pinBox        = document.getElementById('addEmpPinBox');
+        var pinTag         = document.getElementById('addEmpPinTag');
+        if (!usernameBox || !pinBox) return;
+
+        if (ready) {
+            usernameBox.style.background   = '#ecfdf5';
+            usernameBox.style.borderColor  = '#6ee7b7';
+            usernameText.textContent       = NEXT_EMP_USERNAME;
+            usernameText.style.color       = '#047857';
+            usernameTag.textContent        = 'Ready';
+            usernameTag.style.color        = '#059669';
+
+            pinBox.style.background = '#ecfdf5';
+            pinBox.style.borderColor = '#6ee7b7';
+            pinTag.textContent = 'Ready';
+            pinTag.style.color = '#059669';
+        } else {
+            usernameBox.style.background  = 'var(--cream-soft)';
+            usernameBox.style.borderColor = 'var(--border)';
+            usernameText.textContent      = 'EGMD-XXXX';
+            usernameText.style.color      = 'var(--muted)';
+            usernameTag.textContent       = 'Auto-generated';
+            usernameTag.style.color       = 'var(--muted-light)';
+
+            pinBox.style.background = 'var(--cream-soft)';
+            pinBox.style.borderColor = 'var(--border)';
+            pinTag.textContent = '6-digit PIN';
+            pinTag.style.color = 'var(--muted-light)';
+        }
     }
 
     function formatEmpContact(input) {

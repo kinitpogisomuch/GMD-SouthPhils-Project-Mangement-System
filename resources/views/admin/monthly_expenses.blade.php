@@ -94,6 +94,8 @@
                 </div>
             </div>
 
+            @php $isAllocLocked = count($allocated) > 0; @endphp
+
             {{-- Main grid: expenses + allocation --}}
             <div class="me-main-grid" style="display:grid;grid-template-columns:1fr 440px;gap:20px;margin-bottom:28px;align-items:stretch;">
 
@@ -231,7 +233,7 @@
                         </div>
                     </div>
 
-                    <form method="POST" action="{{ route('admin.monthly-expenses.allocate') }}" style="padding:16px;display:flex;flex-direction:column;flex:1;">
+                    <form method="POST" action="{{ route('admin.monthly-expenses.allocate') }}" id="allocForm" style="padding:16px;display:flex;flex-direction:column;flex:1;">
                         @csrf
                         <input type="hidden" name="month_year" value="{{ $month }}">
 
@@ -253,16 +255,17 @@
                             <div style="font-size:13px;font-weight:600;">No active projects found.</div>
                         </div>
                         @else
-                        <div style="display:flex;flex-direction:column;gap:7px;max-height:250px;overflow-y:auto;margin-bottom:16px;padding-right:2px;">
+                        <div id="allocProjectsList" style="display:flex;flex-direction:column;gap:7px;max-height:250px;overflow-y:auto;margin-bottom:16px;padding-right:2px;">
                             @foreach($projects as $proj)
                             @php
                                 $isAlloc = in_array($proj->id, $allocated);
                                 $totalQty = $proj->tankItems->isNotEmpty() ? $proj->tankItems->sum('quantity') : 1;
                             @endphp
-                            <label class="me-project-row" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;cursor:pointer;border:1.5px solid {{ $isAlloc ? '#2563eb' : 'var(--border)' }};background:{{ $isAlloc ? '#eff6ff' : 'var(--white)' }};transition:all .15s;"
-                                   onclick="updateAllocationPreview()">
+                            <label class="me-project-row" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;cursor:{{ $isAllocLocked ? 'not-allowed' : 'pointer' }};border:1.5px solid {{ $isAlloc ? '#2563eb' : 'var(--border)' }};background:{{ $isAlloc ? '#eff6ff' : 'var(--white)' }};transition:all .15s;{{ $isAllocLocked ? 'opacity:.65;' : '' }}"
+                                   @if(!$isAllocLocked) onclick="updateAllocationPreview()" @endif>
                                 <input type="checkbox" name="project_ids[]" value="{{ $proj->id }}"
                                        {{ $isAlloc ? 'checked' : '' }}
+                                       {{ $isAllocLocked ? 'disabled' : '' }}
                                        style="width:15px;height:15px;accent-color:#2563eb;flex-shrink:0;"
                                        onchange="updateAllocationPreview();updateCheckStyle(this)">
                                 <div style="width:30px;height:30px;border-radius:9px;background:{{ $isAlloc ? '#2563eb' : 'var(--cream-soft)' }};color:{{ $isAlloc ? '#fff' : 'var(--muted)' }};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;transition:all .15s;">
@@ -302,9 +305,22 @@
                                 </div>
                             </div>
 
-                            <button type="submit" class="save-btn" style="width:100%;justify-content:center;">
-                                <i data-lucide="save" style="width:14px;height:14px;"></i>
-                                Save Allocation
+                            @if($isAllocLocked)
+                            <div id="allocLockNotice" style="display:flex;align-items:center;gap:8px;background:#fef9c3;border:1px solid #fde68a;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#854d0e;">
+                                <i data-lucide="lock" style="width:14px;height:14px;flex-shrink:0;"></i>
+                                This month's allocation is saved. Click <strong>&nbsp;Edit Allocation&nbsp;</strong> to make changes.
+                            </div>
+                            @endif
+
+                            <button type="button" class="save-btn" id="allocActionBtn" data-locked="{{ $isAllocLocked ? '1' : '0' }}"
+                                    style="width:100%;justify-content:center;" onclick="allocActionClick()">
+                                @if($isAllocLocked)
+                                    <i data-lucide="pencil" style="width:14px;height:14px;"></i>
+                                    Edit Allocation
+                                @else
+                                    <i data-lucide="save" style="width:14px;height:14px;"></i>
+                                    Save Allocation
+                                @endif
                             </button>
                         </div>
                     </form>
@@ -396,6 +412,35 @@
         document.getElementById('previewCount').textContent = checked;
         document.getElementById('previewPer').textContent   = '₱' + per.toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2});
         document.getElementById('previewTotal').textContent = '₱' + TOTAL_OVERHEAD.toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2});
+    }
+
+    function allocActionClick() {
+        var btn = document.getElementById('allocActionBtn');
+        if (btn.dataset.locked === '1') {
+            enableAllocationEdit();
+        } else {
+            document.getElementById('allocForm').submit();
+        }
+    }
+
+    function enableAllocationEdit() {
+        document.querySelectorAll('#allocProjectsList input[name="project_ids[]"]').forEach(function (cb) {
+            cb.disabled = false;
+            var label = cb.closest('label');
+            if (label) {
+                label.style.cursor = 'pointer';
+                label.style.opacity = '1';
+                label.onclick = function () { updateAllocationPreview(); };
+            }
+        });
+
+        var lockNotice = document.getElementById('allocLockNotice');
+        if (lockNotice) lockNotice.style.display = 'none';
+
+        var btn = document.getElementById('allocActionBtn');
+        btn.dataset.locked = '0';
+        btn.innerHTML = '<i data-lucide="save" style="width:14px;height:14px;"></i> Save Allocation';
+        if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
     function updateCheckStyle(checkbox) {

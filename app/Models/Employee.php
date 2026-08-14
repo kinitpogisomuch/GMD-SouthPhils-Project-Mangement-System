@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Casts\PostgresBoolean;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 class Employee extends Model
 {
@@ -70,5 +71,22 @@ class Employee extends Model
     public function assignedProjects()
     {
         return $this->belongsToMany(Project::class, 'project_employee')->withTimestamps();
+    }
+
+    /** Next "EGMD-XXXX" username that would be assigned to a new employee */
+    public static function nextUsername(): string
+    {
+        $row = DB::selectOne(
+            "SELECT COALESCE(MAX(CAST(SUBSTRING(username FROM 6) AS INTEGER)), 0) AS max_num
+             FROM employees WHERE username ~ '^EGMD-[0-9]+$'"
+        );
+        $nextNum = (int) ($row->max_num ?? 0) + 1;
+        do {
+            $username = 'EGMD-' . str_pad($nextNum, 4, '0', STR_PAD_LEFT);
+            if (!self::where('username', $username)->exists()) {
+                return $username;
+            }
+            $nextNum++;
+        } while (true);
     }
 }

@@ -6,7 +6,6 @@ use App\Models\Client;
 use App\Models\Employee;
 use App\Models\Message;
 use App\Models\User;
-use App\Services\NotificationService;
 use App\Services\SupabaseStorageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -116,23 +115,6 @@ class MessageController extends Controller
             'body'           => $validated['body'] ?? '',
             'attachments'    => $attachments,
         ]);
-
-        $senderName = session('name', 'Someone');
-        $body       = $validated['body'] ?? '';
-        $preview    = $body !== '' ? $body : ($attachments ? 'Sent an attachment' : '');
-        $actionUrl  = match ($validated['recipient_type']) {
-            'admin'    => '/admin/messages',
-            'employee' => '/employee/messages',
-            'client'   => '/client/messages',
-        };
-
-        NotificationService::newMessage(
-            $validated['recipient_type'],
-            $validated['recipient_id'],
-            $senderName,
-            $preview,
-            $actionUrl
-        );
 
         return response()->json(['message' => $this->format($message, $me)]);
     }

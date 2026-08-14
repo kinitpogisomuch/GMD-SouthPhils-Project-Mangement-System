@@ -16,6 +16,12 @@
 
         <main class="admin-content">
 
+            @php
+                $status    = $payment->computeStatus();
+                $totalPaid = $payment->totalPaid();
+                $balance   = $payment->currentBalance();
+            @endphp
+
             <!-- Breadcrumb -->
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;font-size:13px;color:var(--muted);">
                 <a href="{{ route('admin.payments') }}" style="color:var(--muted);text-decoration:none;font-weight:600;">
@@ -31,10 +37,12 @@
                     <h1>{{ $payment->project->name ?? 'Payment Detail' }}</h1>
                     <p><span class="client-pill">{{ $payment->client }}</span> &nbsp;·&nbsp; {{ $payment->payment_terms }}</p>
                 </div>
+                @if($status !== 'Fully Paid')
                 <button class="add-btn" type="button" id="openRecordModal">
                     <i data-lucide="plus"></i>
                     Record Payment
                 </button>
+                @endif
             </div>
 
             @if(session('success'))
@@ -49,12 +57,6 @@
                 {{ session('error') }}
             </div>
             @endif
-
-            @php
-                $status    = $payment->computeStatus();
-                $totalPaid = $payment->totalPaid();
-                $balance   = $payment->currentBalance();
-            @endphp
 
             <!-- Summary Cards -->
             <div class="page-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 24px;">
@@ -92,7 +94,7 @@
 
             <!-- Payment Stages Breakdown -->
             <div class="table-card" style="margin-bottom:24px;padding-bottom:0;">
-                <div class="table-toolbar" style="padding-bottom:14px;border-bottom:1px solid var(--border);">
+                <div class="table-toolbar" style="padding-bottom:14px;margin-bottom:0;border-bottom:1px solid var(--border);">
                     <div>
                         <div style="font-weight:800;font-size:15px;color:var(--dark);">Payment Breakdown by Stage</div>
                         <div style="font-size:12px;color:var(--muted);margin-top:2px;">Expected vs actual payments per stage</div>
@@ -152,7 +154,7 @@
 
             <!-- Payment History -->
             <div class="table-card">
-                <div class="table-toolbar" style="padding-bottom:14px;border-bottom:1px solid var(--border);">
+                <div class="table-toolbar" style="padding-bottom:14px;margin-bottom:0;border-bottom:1px solid var(--border);">
                     <div>
                         <div style="font-weight:800;font-size:15px;color:var(--dark);">Payment History</div>
                         <div style="font-size:12px;color:var(--muted);margin-top:2px;">All recorded transactions for this project</div>
@@ -220,23 +222,48 @@
                 </button>
             </div>
 
-            <form method="POST" action="{{ route('admin.payments.record', $payment->id) }}">
+            <form method="POST" action="{{ route('admin.payments.record', $payment->id) }}" id="recordPaymentForm">
                 @csrf
                 <div class="form-grid">
                     <div class="form-group form-group-full">
                         <label>Payment Stage</label>
-                        <select name="payment_stage" required id="stageSelect">
-                            <option value="" disabled selected hidden>Select stage</option>
+                        <div class="stage-select" id="stageSelectWrap">
+                            <button type="button" class="stage-select-trigger placeholder" id="stageSelectTrigger">
+                                <span id="stageSelectLabel">Select stage</span>
+                                <i data-lucide="chevron-down"></i>
+                            </button>
+                            <div class="stage-select-menu" id="stageSelectMenu">
+                                @foreach($payment->stages() as $i => $stage)
+                                @php
+                                    $isPaid      = in_array($stage, $paidStages);
+                                    $priorStages = array_slice($payment->stages(), 0, $i);
+                                    $priorDone   = empty(array_diff($priorStages, $paidStages));
+                                    $isLocked    = !$isPaid && !$priorDone;
+                                    $isDisabled  = $isPaid || $isLocked;
+                                    $stageLabel  = \App\Models\PaymentTransaction::stageLabel($stage) . ' (₱' . number_format($stageAmounts[$stage] ?? 0, 2) . ')';
+                                @endphp
+                                <div class="stage-select-option{{ $isDisabled ? ' disabled' : '' }}"
+                                     data-value="{{ $stage }}"
+                                     data-expected="{{ $stageAmounts[$stage] ?? 0 }}"
+                                     data-label="{{ $stageLabel }}"
+                                     @if(!$isDisabled) onclick="selectStage(this)" @endif>
+                                    <span>{{ $stageLabel }}</span>
+                                    @if($isPaid)
+                                        <span class="stage-select-status" style="color:#16a34a;">✓ Paid</span>
+                                    @elseif($isLocked)
+                                        <span class="stage-select-status" style="color:#b91c1c;">Pay prior stage first</span>
+                                    @endif
+                                </div>
+                                @endforeach
+                            </div>
+                        </div>
+                        <select name="payment_stage" id="stageSelect" style="display:none;">
+                            <option value=""></option>
                             @foreach($payment->stages() as $stage)
-                            <option value="{{ $stage }}"
-                                data-expected="{{ $stageAmounts[$stage] ?? 0 }}"
-                                {{ in_array($stage, $paidStages) ? 'disabled' : '' }}>
-                                {{ \App\Models\PaymentTransaction::stageLabel($stage) }}
-                                (₱{{ number_format($stageAmounts[$stage] ?? 0, 2) }})
-                                {{ in_array($stage, $paidStages) ? '✓ Paid' : '' }}
-                            </option>
+                            <option value="{{ $stage }}"></option>
                             @endforeach
                         </select>
+                        <span id="stageSelectErr" style="display:none;color:#b91c1c;font-size:12px;font-weight:600;margin-top:6px;">Please select a payment stage.</span>
                     </div>
                     <div class="form-group">
                         <label>Amount Paid (₱)</label>
@@ -247,6 +274,7 @@
                     <div class="form-group">
                         <label>Payment Date</label>
                         <input type="date" name="payment_date" required
+                               min="{{ now()->format('Y-m-d') }}"
                                value="{{ now()->format('Y-m-d') }}">
                     </div>
 
@@ -297,9 +325,15 @@
     const closeBtn   = document.getElementById('closeRecordModal');
     const cancelBtn  = document.getElementById('cancelRecordModal');
     const modal      = document.getElementById('recordPaymentModal');
-    const stageSelect = document.getElementById('stageSelect');
+    const recordForm = document.getElementById('recordPaymentForm');
     const amountInput = document.getElementById('amountPaidInput');
     const expectedEl  = document.getElementById('expectedAmount');
+
+    const stageWrap    = document.getElementById('stageSelectWrap');
+    const stageTrigger = document.getElementById('stageSelectTrigger');
+    const stageLabelEl = document.getElementById('stageSelectLabel');
+    const stageSelect  = document.getElementById('stageSelect');
+    const stageErr     = document.getElementById('stageSelectErr');
 
     function openModal()  { modal.classList.add('show');    document.body.style.overflow = 'hidden'; }
     function closeModal() { modal.classList.remove('show'); document.body.style.overflow = ''; }
@@ -309,15 +343,38 @@
     cancelBtn.addEventListener('click', closeModal);
     modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
 
-    stageSelect.addEventListener('change', function () {
-        const opt = this.options[this.selectedIndex];
-        const expected = parseFloat(opt.dataset.expected || 0);
+    stageTrigger.addEventListener('click', function (e) {
+        e.stopPropagation();
+        stageWrap.classList.toggle('open');
+    });
+
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest('#stageSelectWrap')) stageWrap.classList.remove('open');
+    });
+
+    function selectStage(el) {
+        const expected = parseFloat(el.dataset.expected || 0);
+
+        stageSelect.value = el.dataset.value;
+        stageLabelEl.textContent = el.dataset.label;
+        stageTrigger.classList.remove('placeholder');
+        stageWrap.classList.remove('open');
+        stageErr.style.display = 'none';
+
         if (expected > 0) {
             expectedEl.textContent = '₱' + expected.toLocaleString('en-PH', { minimumFractionDigits: 2 });
             amountInput.value = expected.toFixed(2);
         } else {
             expectedEl.textContent = '—';
             amountInput.value = '';
+        }
+    }
+
+    recordForm.addEventListener('submit', function (e) {
+        if (!stageSelect.value) {
+            e.preventDefault();
+            stageErr.style.display = 'block';
+            stageTrigger.scrollIntoView({ block: 'center', behavior: 'smooth' });
         }
     });
 
@@ -334,6 +391,60 @@
     </script>
 
     <style>
+        .stage-select { position: relative; width: 100%; }
+        .stage-select-trigger {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 12px 14px;
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
+            background: var(--white);
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--dark);
+            cursor: pointer;
+            transition: border-color .15s;
+            text-align: left;
+        }
+        .stage-select-trigger.placeholder { color: var(--muted); font-weight: 600; }
+        .stage-select-trigger:hover { border-color: var(--dark); }
+        .stage-select-trigger i { width: 16px; height: 16px; color: var(--muted); flex-shrink: 0; transition: transform .15s; }
+        .stage-select.open .stage-select-trigger i { transform: rotate(180deg); }
+        .stage-select-menu {
+            display: none;
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            right: 0;
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 12px 32px rgba(0,0,0,.14);
+            z-index: 50;
+            overflow: hidden;
+            padding: 6px;
+        }
+        .stage-select.open .stage-select-menu { display: block; }
+        .stage-select-option {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 9px;
+            font-size: 13.5px;
+            font-weight: 700;
+            color: var(--dark);
+            cursor: pointer;
+        }
+        .stage-select-option:hover { background: var(--cream-soft); }
+        .stage-select-option.disabled { cursor: not-allowed; opacity: .75; }
+        .stage-select-option.disabled:hover { background: none; }
+        .stage-select-option .stage-select-status { font-size: 11.5px; font-weight: 800; white-space: nowrap; flex-shrink: 0; }
+
         .mop-option {
             display: flex;
             align-items: center;

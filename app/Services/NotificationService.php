@@ -24,13 +24,11 @@ class NotificationService
     const TYPE_MATERIAL_REMOVED   = 'material_removed';
     const TYPE_MATERIAL_REQUESTED = 'material_requested';
     const TYPE_MATERIAL_USAGE_LOGGED = 'material_usage_logged';
-    const TYPE_LABOR_ADDED        = 'labor_added';
     const TYPE_LABOR_UPDATED      = 'labor_updated';
     const TYPE_SHOP_DRAWING_SUBMITTED = 'shop_drawing_submitted';
     const TYPE_SHOP_DRAWING_APPROVED  = 'shop_drawing_approved';
     const TYPE_SHOP_DRAWING_REVISION  = 'shop_drawing_revision_requested';
     const TYPE_QUOTATION_SENT         = 'quotation_sent';
-    const TYPE_NEW_MESSAGE             = 'new_message';
     const TYPE_FUND_RELEASED            = 'fund_released';
     const TYPE_FUND_REPLENISHED         = 'fund_replenished';
 
@@ -140,22 +138,6 @@ class NotificationService
         if ($client) {
             self::send($client->id, 'client', $title, $message, $type, $priority, $project->id, $progressId, $actionUrl);
         }
-    }
-
-    /** New chat message received → notify the recipient (admin, employee, or client) */
-    public static function newMessage(string $recipientType, int $recipientId, string $senderName, string $preview, string $actionUrl): void
-    {
-        self::send(
-            $recipientId,
-            $recipientType,
-            'New Message',
-            "{$senderName} sent you a message.\n{$preview}",
-            self::TYPE_NEW_MESSAGE,
-            'info',
-            null,
-            null,
-            $actionUrl
-        );
     }
 
     // -------------------------------------------------------------------------
@@ -272,20 +254,6 @@ class NotificationService
             $message,
             self::TYPE_MATERIAL_REQUESTED,
             'warning',
-            $project->id,
-            null,
-            "/admin/project-materials/{$project->id}"
-        );
-    }
-
-    /** Labor entry added to a project → activity log for admins */
-    public static function laborAdded(Project $project, string $description, float $dailyRate): void
-    {
-        self::notifyAdmins(
-            'Labor Entry Added',
-            "Labor entry added to Project: {$project->name}.\nEmployee: {$description}\nDaily Rate: ₱" . number_format($dailyRate, 2),
-            self::TYPE_LABOR_ADDED,
-            'info',
             $project->id,
             null,
             "/admin/project-materials/{$project->id}"

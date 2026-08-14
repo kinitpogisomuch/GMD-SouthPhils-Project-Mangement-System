@@ -7,6 +7,12 @@
     <title>{{ $project->name }} — Materials | GMD South Phils</title>
     <link href="{{ asset('css/admin.css') }}" rel="stylesheet">
     <style>
+        .overview-grid-3 { grid-template-columns: repeat(3, 1fr); }
+        @media (max-width: 768px) { .overview-grid-3 { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 480px) { .overview-grid-3 { grid-template-columns: 1fr; } }
+        .overview-grid-3 .fd-ov-label { font-size: 10px; }
+        .overview-grid-3 .fd-ov-label + .fd-ov-label { font-size: 9px !important; }
+        .overview-grid-3 .fd-ov-val { font-size: 15px; }
         .mat-combo { position: relative; width: 100%; }
         .mat-combo-dropdown {
             display: none;
@@ -116,6 +122,7 @@
             color: var(--dark);
             font-size: 15px;
         }
+
     </style>
 </head>
 <body class="page-enter">
@@ -162,50 +169,45 @@
             @endif
 
 
-            {{-- Summary Cards --}}
-            <div class="page-grid" style="margin-bottom:16px;">
-                <div class="info-card blue">
-                    <div class="info-card-icon blue"><i data-lucide="package"></i></div>
-                    <h3>Total Materials</h3>
-                    <div class="value">{{ $totalMaterials }}</div>
-                    <div class="info-card-sub">Active material entries</div>
+            {{-- Project Overview --}}
+            <div class="fd-overview" style="margin-bottom:24px;">
+                <div class="fd-overview-title">
+                    <i data-lucide="layout-dashboard"></i>
+                    Project Overview
                 </div>
-                <div class="info-card purple">
-                    <div class="info-card-icon purple"><i data-lucide="layers"></i></div>
-                    <h3>Total Quantity</h3>
-                    <div class="value">{{ number_format($totalQuantity, 0) }}</div>
-                    <div class="info-card-sub">Combined units</div>
-                </div>
-                <div class="info-card green">
-                    <div class="info-card-icon green"><i data-lucide="banknote"></i></div>
-                    <h3>Material Cost</h3>
-                    <div class="value" style="font-size:1.4rem;">₱{{ number_format($estimatedCost, 2) }}</div>
-                    <div class="info-card-sub">Total material cost</div>
-                </div>
-            </div>
-
-            {{-- Labor Summary Cards --}}
-            <div class="page-grid" style="margin-bottom:24px;">
-                <div class="info-card orange">
-                    <div class="info-card-icon orange"><i data-lucide="hard-hat"></i></div>
-                    <h3>Labor Entries</h3>
-                    <div class="value">{{ $totalLaborEntries }}</div>
-                    <div class="info-card-sub">Total labor entries</div>
-                </div>
-                <div class="info-card teal">
-                    <div class="info-card-icon teal"><i data-lucide="calendar-days"></i></div>
-                    <h3>Estimated Working Days</h3>
-                    <div class="value">{{ number_format($project->estimated_working_days, 0) }} Days</div>
-                    <div class="info-card-sub">Applies to all employees</div>
-                </div>
-                <div class="info-card pink">
-                    <div class="info-card-icon pink"><i data-lucide="wallet"></i></div>
-                    <h3>Labor Cost</h3>
-                    <div class="value" style="font-size:1.4rem;">₱{{ number_format($totalLaborCost, 2) }}</div>
-                    <div class="info-card-sub">Total labor cost</div>
+                <div class="fd-overview-grid overview-grid-3">
+                    <div class="fd-ov-item">
+                        <span class="fd-ov-label">Total Materials</span>
+                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Active material entries</span>
+                        <span class="fd-ov-val">{{ $totalMaterials }}</span>
+                    </div>
+                    <div class="fd-ov-item">
+                        <span class="fd-ov-label">Total Quantity</span>
+                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Combined units</span>
+                        <span class="fd-ov-val">{{ number_format($totalQuantity, 0) }}</span>
+                    </div>
+                    <div class="fd-ov-item">
+                        <span class="fd-ov-label">Material Cost</span>
+                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Total material cost</span>
+                        <span class="fd-ov-val" style="color:#4ade80;">₱{{ number_format($estimatedCost, 2) }}</span>
+                    </div>
+                    <div class="fd-ov-item">
+                        <span class="fd-ov-label">Labor Entries</span>
+                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Total labor entries</span>
+                        <span class="fd-ov-val">{{ $totalLaborEntries }}</span>
+                    </div>
+                    <div class="fd-ov-item">
+                        <span class="fd-ov-label">Estimated Working Days</span>
+                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Applies to all employees</span>
+                        <span class="fd-ov-val">{{ number_format($project->estimated_working_days, 0) }} <small style="font-size:13px;">Days</small></span>
+                    </div>
+                    <div class="fd-ov-item">
+                        <span class="fd-ov-label">Labor Cost</span>
+                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Total labor cost</span>
+                        <span class="fd-ov-val" style="color:#4ade80;">₱{{ number_format($totalLaborCost, 2) }}</span>
+                    </div>
                 </div>
             </div>
-
             {{-- Materials Table --}}
             <div class="table-card">
                 <div class="table-toolbar">
@@ -1479,7 +1481,7 @@
         function buildLaborEmployeeOptions(selectedValue, usedNames) {
             usedNames = usedNames || [];
             selectedValue = selectedValue || '';
-            var html = '<option value="" disabled' + (selectedValue ? '' : ' selected') + ' hidden>Select employee</option>';
+            var html = '<option value="" disabled' + (selectedValue ? '' : ' selected') + ' hidden>Select Employee</option>';
             LABOR_EMPLOYEES.forEach(function(emp) {
                 var isUsed = usedNames.indexOf(emp.name) !== -1 && emp.name !== selectedValue;
                 html += '<option value="' + escapeHtml(emp.name) + '"' +
@@ -1542,7 +1544,7 @@
         }
 
         function buildLaborRoleOptions() {
-            var html = '<option value="" disabled selected hidden>Select role</option>';
+            var html = '<option value="" disabled selected hidden>Select Role</option>';
             KNOWN_LABOR_ROLES.forEach(function(role) {
                 html += '<option value="' + escapeHtml(role) + '">' + escapeHtml(role) + '</option>';
             });
@@ -1562,7 +1564,7 @@
                         buildLaborEmployeeOptions('', getUsedLaborEmployeeNames()) +
                     '</select>' +
                     '<input type="text" class="row-labor-name-custom" name="_emp_unused"' +
-                           ' placeholder="Employee name"' +
+                           ' placeholder="Employee Name"' +
                            ' style="display:none;margin-top:6px;width:100%;padding:8px 10px;border:1px solid rgba(0,0,0,0.14);border-radius:8px;font-size:13px;box-sizing:border-box;">' +
                 '</td>' +
                 '<td style="padding:8px 10px;vertical-align:top;">' +

@@ -81,11 +81,8 @@ class MonthlyExpenseController extends Controller
         $month = $exp->month_year;
         $exp->delete();
 
-        // Recompute allocations for that month
-        $this->recomputeAllocations($month);
-
         return redirect()->route('admin.monthly-expenses.index', ['month' => $month])
-            ->with('success', 'Expense deleted.');
+            ->with('success', 'Expense deleted. Click "Save Allocation" to re-split the updated overhead.');
     }
 
     /** POST /admin/monthly-expenses/allocate — save project selection & recompute split */
@@ -122,30 +119,5 @@ class MonthlyExpenseController extends Controller
 
         return redirect()->route('admin.monthly-expenses.index', ['month' => $month])
             ->with('success', 'Allocation saved — overhead split across ' . count($projectIds) . ' project(s).');
-    }
-
-    private function recomputeAllocations(string $month): void
-    {
-        $existing = DB::table('monthly_expense_projects')
-            ->where('month_year', $month)
-            ->pluck('project_id')
-            ->toArray();
-
-        if (empty($existing)) return;
-
-        $total = MonthlyExpense::totalForMonth($month);
-        $n = count($existing);
-        $per = floor($total * 100 / $n) / 100;
-        $remainder = round($total - $per * $n, 2);
-
-        foreach ($existing as $i => $pid) {
-            DB::table('monthly_expense_projects')
-                ->where('month_year', $month)
-                ->where('project_id', $pid)
-                ->update([
-                    'allocated_amount' => $per + ($i === $n - 1 ? $remainder : 0),
-                    'updated_at'       => now(),
-                ]);
-        }
     }
 }

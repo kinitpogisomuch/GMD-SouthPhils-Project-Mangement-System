@@ -60,7 +60,7 @@ class FundController extends Controller
             ->orderByDesc('id')
             ->get();
 
-        $projects = Project::where('status', '!=', 'archived')
+        $projects = Project::whereNotIn('status', ['completed', 'archived'])
             ->orderBy('name')
             ->get(['id', 'name']);
 

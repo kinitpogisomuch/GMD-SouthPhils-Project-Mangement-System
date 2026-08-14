@@ -6,6 +6,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Payments | GMD South Phils</title>
     <link href="{{ asset('css/admin.css') }}" rel="stylesheet">
+    <style>
+        #paymentsTableWrapper {
+            max-height: 800px;
+            overflow-y: auto;
+        }
+        #paymentsTableWrapper thead th {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+    </style>
 </head>
 <body class="page-enter">
 
@@ -94,7 +105,7 @@
                     </div>
                 </div>
 
-                <div class="table-wrapper">
+                <div class="table-wrapper" id="paymentsTableWrapper">
                     <table class="data-table" id="paymentsTable">
                         <thead>
                             <tr>

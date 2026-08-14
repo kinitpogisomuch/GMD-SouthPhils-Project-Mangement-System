@@ -109,7 +109,6 @@ document.addEventListener('DOMContentLoaded', function () {
         phase_advanced:     'layers',
         project_completed:  'award',
         pending_review:     'clock',
-        new_message:        'message-square',
     };
 
     const priorityClass = {

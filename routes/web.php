@@ -206,6 +206,7 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
 Route::prefix('client')->name('client.')->middleware(['role:client', 'profile.complete', 'no.back'])->group(function () {
     Route::get('/dashboard', [ClientController::class, 'dashboard'])->name('dashboard');
     Route::get('/messages', [MessageController::class, 'index'])->name('messages');
+    Route::get('/messages/contacts', [MessageController::class, 'contacts'])->name('messages.contacts');
     Route::get('/messages/thread/{type}/{id}', [MessageController::class, 'thread'])->name('messages.thread');
     Route::post('/messages/send', [MessageController::class, 'send'])->name('messages.send');
     Route::get('/messages/unread-count', [MessageController::class, 'unreadCount'])->name('messages.unread_count');
