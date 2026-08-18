@@ -149,6 +149,9 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::patch('/projects/{id}/archive', [ProjectController::class, 'archive'])->name('project.archive');
     Route::post('/projects/{id}/assign-employees', [ProjectController::class, 'assignEmployees'])->name('project.assign_employees');
 
+    // Project Templates (reusable tank specs)
+    Route::delete('/project-templates/{id}', [ProjectController::class, 'destroyTemplate'])->name('project_templates.destroy');
+
     // Client Settings (CRUD)
     Route::post('/clients', [ClientSettingsController::class, 'store'])->name('client.store');
     Route::put('/clients/{id}', [ClientSettingsController::class, 'update'])->name('client.update');

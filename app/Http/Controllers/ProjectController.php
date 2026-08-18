@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use App\Models\Project;
 use App\Models\ProjectTankItem;
+use App\Models\ProjectTemplate;
 use App\Models\ProjectUpdate;
 use App\Models\ProgressRequest;
 use App\Models\Client;
@@ -399,9 +400,52 @@ class ProjectController extends Controller
             ]);
         }
 
+        // Auto-save tank specs as a reusable template for custom (not from-template) projects,
+        // skipping it when an identical template already exists.
+        if (!$request->boolean('from_existing_template')) {
+            $normalizedItems = $this->normalizeTankItems($request->tank_items);
+
+            $isDuplicate = ProjectTemplate::all()->contains(
+                fn ($tpl) => $this->normalizeTankItems($tpl->tank_items) === $normalizedItems
+            );
+
+            if (!$isDuplicate) {
+                ProjectTemplate::create([
+                    'name'         => $name,
+                    'project_name' => $name,
+                    'tank_items'   => array_values($request->tank_items),
+                ]);
+            }
+        }
+
         NotificationService::projectCreated($project);
 
         return redirect()->route('admin.projects')->with('success', 'Project created successfully!');
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Project Templates (reusable tank specs)
+    |--------------------------------------------------------------------------
+    */
+    public function destroyTemplate($id)
+    {
+        ProjectTemplate::findOrFail($id)->delete();
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Reduce a tank_items array to just the fields that matter for duplicate detection.
+     */
+    private function normalizeTankItems($items)
+    {
+        return collect($items)->map(fn ($item) => [
+            'tank_type'  => $item['tank_type']  ?? null,
+            'capacity'   => $item['capacity']   ?? null,
+            'dimensions' => $item['dimensions'] ?? null,
+            'quantity'   => (int) ($item['quantity'] ?? 1),
+        ])->values()->toArray();
     }
 
     /*

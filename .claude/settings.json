@@ -6,7 +6,11 @@
       "PowerShell(Get-Process httpd -ErrorAction SilentlyContinue)",
       "WebSearch",
       "Bash(php -l app/Http/Controllers/AdminController.php)",
-      "Bash(php -l app/Models/SiteSetting.php)"
+      "Bash(php -l app/Models/SiteSetting.php)",
+      "Read(//c/Users/admin/AppData/Local/Temp/**)",
+      "Bash(php -r ' *)",
+      "Bash(php -l app/Http/Controllers/ProjectController.php)",
+      "Bash(awk 'NR==1859,/<\\\\/script>/' \"C:\\\\Users\\\\admin\\\\AppData\\\\Local\\\\Temp\\\\rendered_projects3.html\")"
     ]
   }
 }

@@ -218,6 +218,7 @@ class AdminController extends Controller
     public function projects()
     {
         $projects = Project::with('assignedEmployees', 'tankItems')->orderBy('created_at', 'desc')->get();
+        $projectTemplates = \App\Models\ProjectTemplate::orderBy('name')->get();
 
         // ── Financial Summary (Active projects only: not completed, archived, or cancelled) ──
         $activeStatuses = ['completed', 'archived', 'cancelled'];
@@ -244,6 +245,7 @@ class AdminController extends Controller
 
         return view('admin.projects', compact(
             'projects',
+            'projectTemplates',
             'activeProjectsCount',
             'totalRevenue',
             'actualMaterialCost',

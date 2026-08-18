@@ -262,8 +262,51 @@
             </div>
 
             <div class="modal-actions" style="margin-top:16px;">
-                <button type="button" class="cancel-btn" id="cancelSelectClient">Cancel</button>
                 <button type="button" class="save-btn" id="continueSelectClient">
+                    Continue <i data-lucide="arrow-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================== SELECT TEMPLATE MODAL ===================== -->
+    <div class="modal-overlay" id="selectTemplateModal">
+        <div class="modal-card" style="max-width:560px;">
+            <div class="modal-header">
+                <div>
+                    <h2>Choose a Starting Point</h2>
+                    <p>Reuse a saved template or start with a blank project.</p>
+                </div>
+                <button class="modal-close" type="button" id="closeSelectTemplateModal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+
+            <div class="search-box" style="margin:0 auto 14px;max-width:100%;">
+                <i data-lucide="search"></i>
+                <input type="text" id="templateSelectSearch" placeholder="Search templates...">
+            </div>
+
+            <div class="client-select-item" id="customTemplateOption" style="border-style:dashed;margin-bottom:14px;">
+                <div class="cs-avatar" style="background:var(--accent-soft);">
+                    <i data-lucide="file-plus-2" style="width:20px;height:20px;color:var(--dark);"></i>
+                </div>
+                <div class="cs-info">
+                    <div class="cs-name">Start from Scratch</div>
+                    <div style="font-size:12px;color:var(--muted);margin-top:2px;">Build a custom project with no preset tank specs</div>
+                </div>
+                <div class="cs-check">
+                    <i data-lucide="check-circle-2" style="width:20px;height:20px;color:var(--dark);"></i>
+                </div>
+            </div>
+
+            <div id="templateSelectList" class="cs-list">
+                <!-- rendered by JS -->
+            </div>
+
+            <div class="modal-actions" style="margin-top:16px;">
+                <button type="button" class="cancel-btn" id="backSelectTemplate"><i data-lucide="arrow-left"></i> Back</button>
+                <button type="button" class="save-btn" id="continueSelectTemplate">
                     Continue <i data-lucide="arrow-right"></i>
                 </button>
             </div>
@@ -330,6 +373,7 @@
                     <div id="tankItemsContainer">
                         <!-- Tank rows injected by JS -->
                     </div>
+                    <input type="hidden" name="from_existing_template" id="fromExistingTemplateHidden" value="0">
 
                     <!-- Schedule -->
                     <div class="form-section-label" style="margin-top:18px;">Schedule</div>
@@ -348,7 +392,7 @@
 
                 {{-- Fixed action buttons --}}
                 <div class="modal-actions" style="flex-shrink:0;border-top:1px solid var(--border);padding-top:16px;margin-top:0;">
-                    <button type="button" class="cancel-btn" id="cancelAddProject">Cancel</button>
+                    <button type="button" class="cancel-btn" id="backAddProject"><i data-lucide="arrow-left"></i> Back</button>
                     <button type="submit" class="save-btn" id="saveProjectBtn">
                         <i data-lucide="save"></i>
                         Save Project
@@ -521,6 +565,7 @@
         }
 
         var selectedClient = null;
+        var selectedTemplateId = 'custom';
 
         function renderClientSelectList(clients, filter) {
             var list = document.getElementById('clientSelectList');
@@ -992,6 +1037,46 @@
             return row;
         }
 
+        /* ── Project templates (reusable tank specs) ── */
+        @php
+            $templateOptionsForJs = $projectTemplates->map(function ($t) {
+                return [
+                    'id'           => $t->id,
+                    'name'         => $t->name,
+                    'project_name' => $t->project_name,
+                    'tank_items'   => $t->tank_items,
+                ];
+            })->values();
+        @endphp
+        var PROJECT_TEMPLATES = @json($templateOptionsForJs);
+
+        function loadTemplateIntoAddForm(templateId) {
+            var tpl = PROJECT_TEMPLATES.find(function(t) { return String(t.id) === String(templateId); });
+            if (!tpl) return;
+
+            document.getElementById('tankItemsContainer').innerHTML = '';
+            addTankIndex = 0;
+            (tpl.tank_items || []).forEach(function(item) { addTankRow(item); });
+            if (!tpl.tank_items || !tpl.tank_items.length) addTankRow();
+
+            if (tpl.project_name) {
+                var nameSelect = document.getElementById('projectNameSelect');
+                var nameOther  = document.getElementById('projectNameOther');
+                var nameHidden = document.getElementById('projectNameHidden');
+                var matches = Array.prototype.some.call(nameSelect.options, function(o) { return o.value === tpl.project_name; });
+                if (matches) {
+                    nameSelect.value = tpl.project_name;
+                    nameOther.style.display = 'none';
+                    nameOther.value = '';
+                } else {
+                    nameSelect.value = 'others';
+                    nameOther.style.display = 'block';
+                    nameOther.value = tpl.project_name;
+                }
+                nameHidden.value = tpl.project_name;
+            }
+        }
+
         var addTankIndex = 0;
         function addTankRow(item) {
             var container = document.getElementById('tankItemsContainer');
@@ -1127,10 +1212,8 @@
             var openBtn = document.getElementById('openAddProjectModal');
             if (openBtn) openBtn.addEventListener('click', openSelectClientModal);
 
-            ['closeSelectClientModal', 'cancelSelectClient'].forEach(function(id) {
-                var btn = document.getElementById(id);
-                if (btn) btn.addEventListener('click', function() { closeModal('selectClientModal'); });
-            });
+            var closeSelectClientBtn = document.getElementById('closeSelectClientModal');
+            if (closeSelectClientBtn) closeSelectClientBtn.addEventListener('click', function() { closeModal('selectClientModal'); });
 
             var continueBtn = document.getElementById('continueSelectClient');
             if (continueBtn) {
@@ -1138,12 +1221,7 @@
                     if (!selectedClient) { alert('Please select a client to continue.'); return; }
                     closeModal('selectClientModal');
                     populateClientFields(selectedClient);
-                    // Reset tank rows for fresh add
-                    document.getElementById('tankItemsContainer').innerHTML = '';
-                    addTankIndex = 0;
-                    addTankRow();
-                    openModal('addProjectModal');
-                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                    openSelectTemplateModal();
                 });
             }
 
@@ -1154,10 +1232,168 @@
                 });
             }
 
-            ['closeAddProjectModal', 'cancelAddProject'].forEach(function(id) {
-                var btn = document.getElementById(id);
-                if (btn) btn.addEventListener('click', function() { closeModal('addProjectModal'); });
-            });
+            var closeAddBtn = document.getElementById('closeAddProjectModal');
+            if (closeAddBtn) closeAddBtn.addEventListener('click', function() { closeModal('addProjectModal'); });
+
+            var backAddBtn = document.getElementById('backAddProject');
+            if (backAddBtn) {
+                backAddBtn.addEventListener('click', function() {
+                    closeModal('addProjectModal');
+                    openSelectTemplateModal();
+                });
+            }
+
+            // ── Select Template step (between client selection and the Add Project form) ──
+            function inferShapeLabel(dims) {
+                dims = dims || '';
+                if (/Ø[\d.]+m × L[\d.]+m/.test(dims))          return 'Cylindrical';
+                if (/L[\d.]+m × W[\d.]+m × H[\d.]+m/.test(dims)) return 'Rectangular';
+                if (/H[\d.]+m × W[\d.]+m/.test(dims))           return '3-Legged Pod';
+                if (/[\d.]+ linear m/.test(dims))               return 'Linear';
+                return '';
+            }
+
+            function templateSummary(tpl) {
+                var items = tpl.tank_items || [];
+                if (!items.length) return 'No tank specs saved';
+                return items.map(function(it) {
+                    var qty   = it.quantity && it.quantity > 1 ? ' ×' + it.quantity : '';
+                    var shape = it.shape || inferShapeLabel(it.dimensions);
+                    var parts = [(it.tank_type || 'Tank') + qty];
+                    if (shape)        parts.push(shape);
+                    if (it.dimensions) parts.push(it.dimensions);
+                    if (it.capacity)   parts.push(it.capacity);
+                    return parts.join(' · ');
+                }).join(', ');
+            }
+
+            function setCustomTemplateSelected(isSelected) {
+                var opt = document.getElementById('customTemplateOption');
+                opt.classList.toggle('selected', isSelected);
+                opt.querySelector('.cs-check').style.display = isSelected ? 'flex' : 'none';
+            }
+
+            function renderTemplateSelectList(filter) {
+                var list = document.getElementById('templateSelectList');
+                if (!list) return;
+                var q = (filter || '').toLowerCase();
+                var filtered = q
+                    ? PROJECT_TEMPLATES.filter(function(t) { return t.name.toLowerCase().indexOf(q) !== -1; })
+                    : PROJECT_TEMPLATES;
+
+                list.innerHTML = '';
+
+                if (!filtered.length) {
+                    list.innerHTML = '<p style="text-align:center;color:var(--muted);padding:20px 0;font-size:13px;">' +
+                        (PROJECT_TEMPLATES.length ? 'No templates match your search.' : 'No saved templates yet — check "Save as template" while adding a project to create one.') +
+                        '</p>';
+                    return;
+                }
+
+                filtered.forEach(function(tpl) {
+                    var isSelected = String(selectedTemplateId) === String(tpl.id);
+                    var item = document.createElement('div');
+                    item.className = 'client-select-item' + (isSelected ? ' selected' : '');
+                    item.innerHTML =
+                        '<div class="cs-info">' +
+                            '<div class="cs-name">' + tpl.name + '</div>' +
+                            '<div style="font-size:12px;color:var(--muted);margin-top:2px;">' + templateSummary(tpl) + '</div>' +
+                        '</div>' +
+                        '<button type="button" class="template-delete-btn" title="Delete template" ' +
+                            'style="flex-shrink:0;width:32px;height:32px;border:none;background:none;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;border-radius:8px;">' +
+                            '<i data-lucide="trash-2" style="width:15px;height:15px;"></i>' +
+                        '</button>' +
+                        '<div class="cs-check" style="display:' + (isSelected ? 'flex' : 'none') + ';">' +
+                            '<i data-lucide="check-circle-2" style="width:20px;height:20px;color:var(--dark);"></i>' +
+                        '</div>';
+
+                    item.addEventListener('click', function() {
+                        selectedTemplateId = tpl.id;
+                        setCustomTemplateSelected(false);
+                        renderTemplateSelectList(document.getElementById('templateSelectSearch').value);
+                    });
+                    item.querySelector('.template-delete-btn').addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        if (!confirm('Delete template "' + tpl.name + '"? This cannot be undone.')) return;
+                        var token = document.querySelector('#addProjectForm input[name="_token"]').value;
+                        fetch('{{ url("admin/project-templates") }}/' + tpl.id, {
+                            method: 'DELETE',
+                            headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json' }
+                        }).then(function(res) {
+                            if (!res.ok) throw new Error('Delete failed');
+                            PROJECT_TEMPLATES = PROJECT_TEMPLATES.filter(function(t) { return String(t.id) !== String(tpl.id); });
+                            if (String(selectedTemplateId) === String(tpl.id)) {
+                                selectedTemplateId = 'custom';
+                                setCustomTemplateSelected(true);
+                            }
+                            renderTemplateSelectList(document.getElementById('templateSelectSearch').value);
+                        }).catch(function() {
+                            alert('Could not delete template. Please try again.');
+                        });
+                    });
+                    list.appendChild(item);
+                });
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }
+
+            function openSelectTemplateModal() {
+                selectedTemplateId = 'custom';
+                setCustomTemplateSelected(true);
+                var si = document.getElementById('templateSelectSearch');
+                if (si) si.value = '';
+                renderTemplateSelectList('');
+                openModal('selectTemplateModal');
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }
+
+            var customTemplateOption = document.getElementById('customTemplateOption');
+            if (customTemplateOption) {
+                customTemplateOption.addEventListener('click', function() {
+                    selectedTemplateId = 'custom';
+                    setCustomTemplateSelected(true);
+                    renderTemplateSelectList(document.getElementById('templateSelectSearch').value);
+                });
+            }
+
+            var tSearch = document.getElementById('templateSelectSearch');
+            if (tSearch) {
+                tSearch.addEventListener('input', function() {
+                    renderTemplateSelectList(this.value);
+                });
+            }
+
+            var closeSelectTemplateBtn = document.getElementById('closeSelectTemplateModal');
+            if (closeSelectTemplateBtn) closeSelectTemplateBtn.addEventListener('click', function() { closeModal('selectTemplateModal'); });
+
+            var backSelectTemplateBtn = document.getElementById('backSelectTemplate');
+            if (backSelectTemplateBtn) {
+                backSelectTemplateBtn.addEventListener('click', function() {
+                    closeModal('selectTemplateModal');
+                    openSelectClientModal();
+                });
+            }
+
+            var continueTemplateBtn = document.getElementById('continueSelectTemplate');
+            if (continueTemplateBtn) {
+                continueTemplateBtn.addEventListener('click', function() {
+                    closeModal('selectTemplateModal');
+
+                    document.getElementById('tankItemsContainer').innerHTML = '';
+                    addTankIndex = 0;
+
+                    var usedExistingTemplate = !!(selectedTemplateId && selectedTemplateId !== 'custom');
+                    document.getElementById('fromExistingTemplateHidden').value = usedExistingTemplate ? '1' : '0';
+
+                    if (usedExistingTemplate) {
+                        loadTemplateIntoAddForm(selectedTemplateId);
+                    } else {
+                        addTankRow();
+                    }
+
+                    openModal('addProjectModal');
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                });
+            }
 
             document.querySelectorAll('.modal-overlay').forEach(function(modal) {
                 modal.addEventListener('click', function(e) {
