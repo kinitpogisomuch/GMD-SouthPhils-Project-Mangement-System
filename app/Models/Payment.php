@@ -42,7 +42,7 @@ class Payment extends Model
 
     public function totalPaid(): float
     {
-        return (float) $this->transactions()->sum('amount_paid');
+        return (float) $this->transactions->sum('amount_paid');
     }
 
     public function currentBalance(): float
@@ -80,7 +80,7 @@ class Payment extends Model
     /** Which stages have at least one recorded transaction */
     public function paidStages(): array
     {
-        return $this->transactions()
+        return $this->transactions
             ->pluck('payment_stage')
             ->unique()
             ->values()

@@ -13,7 +13,7 @@ class PaymentController extends Controller
 {
     public function index()
     {
-        $payments = Payment::with('project')->orderBy('created_at', 'desc')->get();
+        $payments = Payment::with(['project', 'transactions'])->orderBy('created_at', 'desc')->get();
 
         $totalContractValue = $payments->sum('contract_amount');
         $totalReceived      = $payments->sum(fn($p) => $p->totalPaid());

@@ -31,11 +31,21 @@ class AdminController extends Controller
             ->orderBy('created_at', 'desc')->take(6)->get();
 
         // Payment stats
-        $allPayments            = Payment::all();
+        $allPayments            = Payment::with('transactions')->get();
         $totalContractValue     = $allPayments->sum('contract_amount');
         $totalReceived          = PaymentTransaction::sum('amount_paid');
         $fullyPaidPayments      = $allPayments->filter(fn($p) => $p->computeStatus() === 'Fully Paid')->count();
         $pendingPayments        = $allPayments->filter(fn($p) => $p->computeStatus() === 'Pending Down Payment')->count();
+
+        // Pre-aggregate every month's revenue in a single grouped query instead of
+        // running a separate whereYear/whereMonth/sum query per month/year combo below.
+        $monthlySums = \DB::table('payment_transactions')
+            ->selectRaw('EXTRACT(YEAR FROM payment_date)::int as yr, EXTRACT(MONTH FROM payment_date)::int as mo, SUM(amount_paid) as total')
+            ->whereNotNull('payment_date')
+            ->groupBy('yr', 'mo')
+            ->get()
+            ->keyBy(fn($row) => $row->yr . '-' . $row->mo);
+        $sumForMonth = fn($y, $m) => (float) ($monthlySums->get($y . '-' . $m)->total ?? 0);
 
         // Monthly revenue for the last 12 months (used by all chart filters)
         $monthlyRevenue = [];
@@ -43,9 +53,7 @@ class AdminController extends Controller
             $month = now()->subMonths($i);
             $monthlyRevenue[] = [
                 'label'  => $month->format('M Y'),
-                'amount' => (float) PaymentTransaction::whereYear('payment_date', $month->year)
-                    ->whereMonth('payment_date', $month->month)
-                    ->sum('amount_paid'),
+                'amount' => $sumForMonth($month->year, $month->month),
             ];
         }
 
@@ -54,27 +62,33 @@ class AdminController extends Controller
         for ($m = 1; $m <= 12; $m++) {
             $yearlyRevenue[] = [
                 'label'  => \Carbon\Carbon::create(now()->year, $m)->format('M Y'),
-                'amount' => (float) PaymentTransaction::whereYear('payment_date', now()->year)
-                    ->whereMonth('payment_date', $m)
-                    ->sum('amount_paid'),
+                'amount' => $sumForMonth(now()->year, $m),
             ];
         }
 
-        // Weekly breakdown for the current month
+        // Weekly breakdown for the current month — one grouped query for daily
+        // totals, then bucketed into weeks in PHP.
+        $monthDailySums = \DB::table('payment_transactions')
+            ->whereBetween('payment_date', [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()])
+            ->selectRaw('payment_date::date as d, SUM(amount_paid) as total')
+            ->groupBy('d')
+            ->pluck('total', 'd');
+
         $weeklyRevenue   = [];
         $weekStart       = now()->startOfMonth()->copy();
         $monthEnd        = now()->endOfMonth()->copy();
         $weekNum         = 1;
         while ($weekStart->lte(now())) {
             $weekEnd = $weekStart->copy()->addDays(6)->min($monthEnd)->min(now());
+            $weekSum = 0.0;
+            for ($d = $weekStart->copy(); $d->lte($weekEnd); $d->addDay()) {
+                $weekSum += (float) ($monthDailySums[$d->toDateString()] ?? 0);
+            }
             $weeklyRevenue[] = [
                 'label'  => 'Wk ' . $weekNum
                             . ' (' . $weekStart->format('M j')
                             . '–' . $weekEnd->format('j') . ')',
-                'amount' => (float) PaymentTransaction::whereBetween(
-                    'payment_date',
-                    [$weekStart->toDateString(), $weekEnd->toDateString()]
-                )->sum('amount_paid'),
+                'amount' => $weekSum,
             ];
             $weekStart = $weekEnd->copy()->addDay();
             $weekNum++;
@@ -105,14 +119,15 @@ class AdminController extends Controller
                 ->first();
 
             if ($topYearClient) {
-                $yProjects    = Project::where('client', $topYearClient->client)->whereYear('created_at', $y)->get();
-                $yProjectIds  = $yProjects->pluck('id');
-                $yPaymentIds  = Payment::whereIn('project_id', $yProjectIds)->pluck('id');
+                $yProjectIds  = Project::where('client', $topYearClient->client)->whereYear('created_at', $y)->pluck('id');
                 $yCompleted   = Project::where('client', $topYearClient->client)
                     ->where('status', 'completed')->whereYear('updated_at', $y)->count();
                 // Total received = sum of ALL payment transactions for each project (no date filter)
                 // matches what the financial overview shows per project
-                $yReceived    = (float) PaymentTransaction::whereIn('payment_id', $yPaymentIds)->sum('amount_paid');
+                $yReceived    = (float) PaymentTransaction::whereIn(
+                    'payment_id',
+                    Payment::whereIn('project_id', $yProjectIds)->select('id')
+                )->sum('amount_paid');
 
                 $topClientByYear[$y] = [
                     'name'      => $topYearClient->client,
@@ -150,14 +165,14 @@ class AdminController extends Controller
         $topSupplier = $topSupplierByYear[$currentYear] ?? ($topSupplierByYear[max($availableYears)] ?? null);
 
         // Peak months — monthly revenue per year for all available years
+        // (reuses $monthlySums, computed once above, instead of re-querying per month/year)
         $peakMonthsData = [];
         foreach ($availableYears as $y) {
             $months = [];
             for ($m = 1; $m <= 12; $m++) {
                 $months[] = [
                     'label'  => \Carbon\Carbon::create($y, $m)->format('M'),
-                    'amount' => (float) PaymentTransaction::whereYear('payment_date', $y)
-                        ->whereMonth('payment_date', $m)->sum('amount_paid'),
+                    'amount' => $sumForMonth($y, $m),
                 ];
             }
             $peakMonthsData[$y] = $months;
@@ -471,37 +486,74 @@ class AdminController extends Controller
         }
         $completedList = $query->get();
 
-        $projectKpis = $completedList->values()->map(function ($project, $index) {
-            $payment  = Payment::where('project_id', $project->id)->first();
+        // ── Batch-prefetch every per-project sum used below in one query each,
+        // instead of running ~7 queries per completed project inside the map(). ──
+        $projectIds = $completedList->pluck('id');
+
+        $paymentsByProject = Payment::whereIn('project_id', $projectIds)->get()->keyBy('project_id');
+        $paymentIds        = $paymentsByProject->pluck('id');
+
+        $receivedByPayment = PaymentTransaction::whereIn('payment_id', $paymentIds)
+            ->selectRaw('payment_id, SUM(amount_paid) as total')
+            ->groupBy('payment_id')
+            ->pluck('total', 'payment_id');
+
+        $matSpendByProject = \App\Models\MaterialPurchase::whereIn('project_id', $projectIds)
+            ->selectRaw('project_id, SUM(total_paid) as total')
+            ->groupBy('project_id')
+            ->pluck('total', 'project_id');
+
+        $bomMatCostByProject = ProjectMaterial::whereIn('project_id', $projectIds)
+            ->where('status', 'active')
+            ->selectRaw('project_id, SUM(total_cost) as total')
+            ->groupBy('project_id')
+            ->pluck('total', 'project_id');
+
+        $laborPivotByProject = \DB::table('salary_record_project')
+            ->whereIn('project_id', $projectIds)
+            ->selectRaw('project_id, SUM(allocated_pay) as total')
+            ->groupBy('project_id')
+            ->pluck('total', 'project_id');
+
+        $activeLaborByProject = \App\Models\ProjectLabor::whereIn('project_id', $projectIds)
+            ->where('status', 'active')
+            ->selectRaw('project_id, SUM(total_cost) as total')
+            ->groupBy('project_id')
+            ->pluck('total', 'project_id');
+
+        $bomLaborByProject = \App\Models\ProjectLabor::whereIn('project_id', $projectIds)
+            ->selectRaw('project_id, SUM(total_cost) as total')
+            ->groupBy('project_id')
+            ->pluck('total', 'project_id');
+
+        $projectKpis = $completedList->values()->map(function ($project, $index) use (
+            $paymentsByProject, $receivedByPayment, $matSpendByProject,
+            $bomMatCostByProject, $laborPivotByProject, $activeLaborByProject, $bomLaborByProject
+        ) {
+            $payment  = $paymentsByProject->get($project->id);
             $received = $payment
-                ? (float) PaymentTransaction::where('payment_id', $payment->id)->sum('amount_paid')
+                ? (float) ($receivedByPayment[$payment->id] ?? 0)
                 : 0;
             $contractValue = $payment ? (float) $payment->contract_amount : 0;
 
             // ── Actual material spend (from real purchases, not BOM estimate) ──
-            $actualMatSpend = (float) \App\Models\MaterialPurchase::where('project_id', $project->id)
-                ->sum('total_paid');
+            $actualMatSpend = (float) ($matSpendByProject[$project->id] ?? 0);
 
             // ── BOM estimated material cost (budgeted) ──
-            $bomMatCost = (float) ProjectMaterial::where('project_id', $project->id)
-                ->where('status', 'active')->sum('total_cost');
+            $bomMatCost = (float) ($bomMatCostByProject[$project->id] ?? 0);
 
             // ── Actual labor cost = allocated_pay from salary_record_project pivot (equal split) ──
-            $actualLaborCost = (float) \DB::table('salary_record_project')
-                ->where('project_id', $project->id)
-                ->sum('allocated_pay');
+            $actualLaborCost = (float) ($laborPivotByProject[$project->id] ?? 0);
             // Fallback to project_labor total if no salary pivot records exist
             if ($actualLaborCost == 0) {
-                $actualLaborCost = (float) \App\Models\ProjectLabor::where('project_id', $project->id)
-                    ->where('status', 'active')->sum('total_cost');
+                $actualLaborCost = (float) ($activeLaborByProject[$project->id] ?? 0);
             }
 
             // ── Total actual spend (materials + labor) ──
             $totalActualSpend = $actualMatSpend + $actualLaborCost;
 
             // ── BOM total budget (materials + labor estimate) ──
-            $bomLaborCost = (float) \App\Models\ProjectLabor::where('project_id', $project->id)
-                ->sum('total_cost');
+            $bomLaborCost = (float) ($bomLaborByProject[$project->id] ?? 0);
             $bomTotalBudget = $bomMatCost + $bomLaborCost;
 
             // ── Profit Margin = (Revenue received - Actual total spend) / Revenue ──

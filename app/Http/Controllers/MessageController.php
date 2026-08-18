@@ -153,22 +153,37 @@ class MessageController extends Controller
                 ->concat($this->adminContacts());
         }
 
-        $contacts = $contacts->map(function (array $c) use ($type, $id) {
-            $last = Message::betweenActors($type, $id, $c['type'], $c['id'])
-                ->orderByDesc('created_at')
-                ->first();
+        // Every contact's "between actor" thread shares the same "me" side (type/id),
+        // so fetch all of this actor's messages once and group by counterpart in PHP
+        // instead of running a last-message + unread-count query per contact.
+        $allMessages = Message::where(function ($q) use ($type, $id) {
+                $q->where('sender_type', $type)->where('sender_id', $id);
+            })
+            ->orWhere(function ($q) use ($type, $id) {
+                $q->where('recipient_type', $type)->where('recipient_id', $id);
+            })
+            ->orderByDesc('created_at')
+            ->get();
+
+        $byCounterpart = $allMessages->groupBy(function (Message $m) use ($type, $id) {
+            $isMine = $m->sender_type === $type && (int) $m->sender_id === $id;
+            return $isMine
+                ? $m->recipient_type . ':' . $m->recipient_id
+                : $m->sender_type . ':' . $m->sender_id;
+        });
+
+        $contacts = $contacts->map(function (array $c) use ($type, $id, $byCounterpart) {
+            $thread = $byCounterpart->get($c['type'] . ':' . $c['id'], collect());
+            $last   = $thread->first(); // already ordered desc via the query above
 
             $c['last_message'] = $last
                 ? ($last->body !== '' ? $last->body : ($last->attachments ? 'Sent an attachment' : ''))
                 : null;
             $c['last_time']    = $last ? $this->formatTimestamp($last->created_at) : null;
             $c['last_at']      = $last?->created_at?->timestamp ?? 0;
-            $c['unread']       = Message::where('sender_type', $c['type'])
-                ->where('sender_id', $c['id'])
-                ->where('recipient_type', $type)
-                ->where('recipient_id', $id)
-                ->unread()
-                ->count();
+            $c['unread']       = $thread->filter(fn (Message $m) =>
+                $m->sender_type === $c['type'] && (int) $m->sender_id === $c['id'] && !$m->is_read
+            )->count();
 
             return $c;
         });

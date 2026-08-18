@@ -274,11 +274,10 @@ class ProjectMaterialController extends Controller
         }
 
         // Keep all existing entries' totals in sync with the (possibly updated) estimated working days
-        ProjectLabor::where('project_id', $projectId)->get()->each(function ($entry) use ($project) {
-            $entry->update([
-                'total_cost' => round($entry->daily_rate * $project->estimated_working_days, 2),
-            ]);
-        });
+        \DB::statement(
+            'UPDATE project_labor SET total_cost = ROUND((daily_rate * ?)::numeric, 2) WHERE project_id = ?',
+            [$project->estimated_working_days, $projectId]
+        );
 
         $count = count($names);
         $label = $count === 1 ? "1 labor entry" : "{$count} labor entries";
@@ -319,11 +318,10 @@ class ProjectMaterialController extends Controller
 
         $project->update($validated);
 
-        ProjectLabor::where('project_id', $projectId)->get()->each(function ($entry) use ($project) {
-            $entry->update([
-                'total_cost' => round($entry->daily_rate * $project->estimated_working_days, 2),
-            ]);
-        });
+        \DB::statement(
+            'UPDATE project_labor SET total_cost = ROUND((daily_rate * ?)::numeric, 2) WHERE project_id = ?',
+            [$project->estimated_working_days, $projectId]
+        );
 
         return redirect()
             ->route('admin.project_materials.detail', $projectId)

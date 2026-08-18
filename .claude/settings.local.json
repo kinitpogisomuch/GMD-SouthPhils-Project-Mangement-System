@@ -16,7 +16,8 @@
       "Bash(php -l app/Models/Client.php)",
       "Bash(grep -v \"/\\\\*\")",
       "Bash(php -r 'require '\\\\''vendor/autoload.php'\\\\''; $app = require '\\\\''bootstrap/app.php'\\\\''; $kernel = $app->make\\(Illuminate\\\\Contracts\\\\Http\\\\Kernel::class\\); echo '\\\\''OK'\\\\'';')",
-      "Bash(php -l database/migrations/2026_06_06_105935_add_first_last_name_to_employees_table.php)"
+      "Bash(php -l database/migrations/2026_06_06_105935_add_first_last_name_to_employees_table.php)",
+      "Bash(php --ini)"
     ]
   }
 }
