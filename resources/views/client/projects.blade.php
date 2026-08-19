@@ -36,16 +36,26 @@
             @endif
 
             @if($projects->isNotEmpty())
-            <div class="emp-tabs" style="margin-bottom:20px;">
-                <button class="emp-tab active" data-filter="all" onclick="filterProjects('all', this)">All Projects</button>
-                <button class="emp-tab" data-filter="active" onclick="filterProjects('active', this)">Active</button>
-                <button class="emp-tab" data-filter="completed" onclick="filterProjects('completed', this)">Completed</button>
+            <div class="filter-tabs" style="margin-bottom:20px;width:fit-content;">
+                <button type="button" class="filter-tab active" data-filter="all" onclick="filterProjects('all', this)">
+                    All Projects
+                    <span class="filter-count">{{ $projects->count() }}</span>
+                </button>
+                <button type="button" class="filter-tab" data-filter="active" onclick="filterProjects('active', this)">
+                    Active
+                    <span class="filter-count">{{ $projects->where('status', '!=', 'completed')->count() }}</span>
+                </button>
+                <button type="button" class="filter-tab" data-filter="completed" onclick="filterProjects('completed', this)">
+                    Completed
+                    <span class="filter-count">{{ $projects->where('status', 'completed')->count() }}</span>
+                </button>
             </div>
             @endif
 
-            @forelse($projects as $project)
+            @if($projects->isNotEmpty())
+            <div class="project-scroll-wrap" style="max-height:640px;overflow-y:auto;padding:4px 4px 0;margin:0 -4px;">
+            @foreach($projects as $project)
             @php
-                $phases = ['planning','procurement','matl_prep','fabrication','inspection','painting','completion','delivery'];
                 $phaseLabels = [
                     'planning'    => 'Planning',
                     'procurement' => 'Procurement',
@@ -56,19 +66,18 @@
                     'completion'  => 'Completion',
                     'delivery'    => 'Delivery',
                 ];
-                $currentIndex = array_search($project->current_phase, $phases);
             @endphp
-            <div class="card" style="margin-bottom:20px;" data-status="{{ $project->status }}">
-                <div class="card-header project-card-header">
+            <div class="card" style="margin-bottom:12px;" data-status="{{ $project->status }}">
+                <div class="card-header project-card-header" style="padding:14px 18px 12px;">
                     <div>
-                        <div class="card-title" style="font-size:17px;font-weight:900;">{{ $project->name }}</div>
-                        <div style="font-size:12.5px;color:var(--muted);margin-top:4px;display:flex;gap:16px;flex-wrap:wrap;">
+                        <div class="card-title" style="font-size:14.5px;font-weight:900;">{{ $project->name }}</div>
+                        <div style="font-size:11.5px;color:var(--muted);margin-top:3px;display:flex;gap:14px;flex-wrap:wrap;">
                             <span><strong>Type:</strong> {{ $project->tank_type }}</span>
                             <span><strong>Capacity:</strong> {{ $project->capacity }}</span>
                             <span><strong>Created:</strong> {{ $project->created_at->format('M d, Y') }}</span>
                         </div>
                     </div>
-                    <div class="project-card-actions" style="display:flex;align-items:center;gap:10px;">
+                    <div class="project-card-actions" style="display:flex;align-items:center;gap:8px;">
                         @if($project->status === 'completed')
                             <span class="status-badge completed">Completed</span>
                         @elseif($project->status === 'ongoing')
@@ -78,22 +87,21 @@
                         @else
                             <span class="status-badge planning">Planning</span>
                         @endif
-                        <a href="{{ route('client.project_view', $project->id) }}" class="btn btn-sm" style="background:var(--dark);color:var(--white);font-weight:700;padding:8px 18px;border-radius:12px;font-size:13px;display:flex;align-items:center;gap:6px;text-decoration:none;">
-                            <i data-lucide="eye" style="width:14px;height:14px;"></i> View Details
+                        <a href="{{ route('client.project_view', $project->id) }}" class="btn btn-outline btn-sm">
+                            <i data-lucide="external-link" style="width:13px;height:13px;"></i> View Details
                         </a>
                     </div>
                 </div>
 
-                <div class="card-body">
-                    <div class="project-card-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start;">
-                        <!-- Progress -->
+                <div class="card-body" style="padding:16px 18px;">
+                    <div class="project-progress-container">
                         <div>
                             <div class="progress-wrap" style="margin-bottom:0;">
                                 <div class="progress-label">
-                                    <span style="font-weight:700;font-size:13px;">Project Progress</span>
-                                    <span style="font-weight:900;color:var(--dark);">{{ $project->progress }}%</span>
+                                    <span style="font-weight:700;font-size:12px;">Project Progress</span>
+                                    <span style="font-weight:900;color:var(--dark);font-size:12px;">{{ $project->progress }}%</span>
                                 </div>
-                                <div class="progress-bar" style="height:10px;">
+                                <div class="progress-bar" style="height:7px;">
                                     <div class="progress-fill"
                                          style="width:{{ $project->progress }}%;
                                          background:{{ $project->status === 'completed' ? 'var(--success)' : 'var(--accent)' }};
@@ -102,61 +110,50 @@
                             </div>
                         </div>
 
-                        <!-- Info grid -->
-                        <div class="project-info-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-                            <div style="background:var(--cream-soft);border-radius:12px;padding:12px 14px;">
-                                <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Current Phase</div>
-                                <div style="font-size:13px;font-weight:800;color:var(--accent);">{{ $phaseLabels[$project->current_phase] ?? ucfirst(str_replace('_', ' ', $project->current_phase)) }}</div>
+                        <div class="project-progress-info">
+                            <div class="project-info-item">
+                                <div class="project-info-label">Start Date</div>
+                                <div class="project-info-value">{{ $project->start_date->format('M d, Y') }}</div>
                             </div>
-                            <div style="background:var(--cream-soft);border-radius:12px;padding:12px 14px;">
-                                <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Timeline</div>
-                                <div style="font-size:12px;font-weight:700;color:var(--dark);">
-                                    {{ $project->start_date->format('M d, Y') }} → {{ $project->end_date->format('M d, Y') }}
+                            <div class="project-info-item">
+                                <div class="project-info-label">End Date</div>
+                                <div class="project-info-value">{{ $project->end_date->format('M d, Y') }}</div>
+                            </div>
+                            <div class="project-info-item">
+                                <div class="project-info-label">Current Phase</div>
+                                <div class="project-info-value project-phase-current">
+                                    {{ $phaseLabels[$project->current_phase] ?? ucfirst(str_replace('_', ' ', $project->current_phase)) }}
                                 </div>
                             </div>
                         </div>
-                    </div>
-
-                    <!-- Mini phase tracker -->
-                    <div class="phase-tracker" style="margin-top:20px;display:flex;gap:0;overflow:hidden;border-radius:12px;border:1px solid var(--border);">
-                        @foreach($phases as $i => $phase)
-                        @php
-                            $isDone    = $i < $currentIndex;
-                            $isCurrent = $i === $currentIndex;
-                            $bg    = $isDone ? 'var(--success)' : ($isCurrent ? 'var(--accent)' : 'var(--cream-soft)');
-                            $color = ($isDone || $isCurrent) ? '#fff' : 'var(--muted)';
-                            $fw    = $isCurrent ? '800' : '600';
-                        @endphp
-                        <div class="phase-tracker-item" style="flex:1;text-align:center;padding:8px 4px;background:{{ $bg }};color:{{ $color }};font-size:10px;font-weight:{{ $fw }};border-right:{{ $i < count($phases)-1 ? '1px solid rgba(0,0,0,.06)' : 'none' }};">
-                            {{ $phaseLabels[$phase] ?? $phase }}
-                        </div>
-                        @endforeach
                     </div>
 
                     @if($project->status === 'completed')
                     @php $review = $reviews->get($project->id); @endphp
-                    <div class="project-review-row" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+                    <div class="project-review-row" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
                         @if($review)
                             <div>
                                 <div style="display:flex;gap:2px;margin-bottom:4px;">
                                     @for($i=1;$i<=5;$i++)
-                                        <i data-lucide="star" style="width:14px;height:14px;color:{{ $i <= $review->rating ? 'var(--accent)' : 'var(--border)' }};{{ $i <= $review->rating ? 'fill:var(--accent);' : '' }}"></i>
+                                        <i data-lucide="star" style="width:13px;height:13px;color:{{ $i <= $review->rating ? '#F59E0B' : 'var(--border)' }};{{ $i <= $review->rating ? 'fill:#F59E0B;' : '' }}"></i>
                                     @endfor
                                 </div>
-                                <p style="font-size:12.5px;color:var(--muted);max-width:480px;margin:0;">{{ $review->comment }}</p>
+                                <p style="font-size:11.5px;color:var(--muted);max-width:480px;margin:0;">{{ $review->comment }}</p>
                             </div>
                         @else
-                            <span style="font-size:12.5px;color:var(--muted);">Share your experience with this project.</span>
+                            <span style="font-size:11.5px;color:var(--muted);">Share your experience with this project.</span>
                         @endif
-                        <button type="button" class="btn btn-sm" style="background:var(--accent);color:#fff;font-weight:700;padding:8px 18px;border-radius:12px;font-size:13px;display:flex;align-items:center;gap:6px;border:none;cursor:pointer;"
+                        <button type="button" class="btn btn-sm" style="background:#F59E0B;color:#fff;font-weight:700;padding:6px 14px;border-radius:10px;font-size:12px;display:flex;align-items:center;gap:5px;border:none;cursor:pointer;"
                             onclick="openReviewModal({{ $project->id }}, {{ \Illuminate\Support\Js::from($project->name) }}, {{ $review->rating ?? 0 }}, {{ \Illuminate\Support\Js::from($review->comment ?? '') }})">
-                            <i data-lucide="star" style="width:14px;height:14px;"></i> {{ $review ? 'Edit Review' : 'Leave a Review' }}
+                            <i data-lucide="star" style="width:13px;height:13px;"></i> {{ $review ? 'Edit Review' : 'Leave a Review' }}
                         </button>
                     </div>
                     @endif
                 </div>
             </div>
-            @empty
+            @endforeach
+            </div>
+            @else
             <div class="card" style="text-align:center;padding:64px 32px;">
                 <div style="margin-bottom:20px;">
                     <i data-lucide="folder-x" style="width:56px;height:56px;color:var(--border);display:inline-block;"></i>
@@ -167,7 +164,39 @@
                     Once the administrator creates and assigns a project to your account, it will appear here.
                 </p>
             </div>
-            @endforelse
+            @endif
+
+            @if($projects->isNotEmpty())
+            <div class="card" id="noFilteredProjects" style="display:none;text-align:center;padding:64px 32px;">
+                <div style="margin-bottom:20px;">
+                    <i data-lucide="search-x" style="width:56px;height:56px;color:var(--border);display:inline-block;"></i>
+                </div>
+                <h2 style="font-size:20px;font-weight:900;color:var(--dark);margin-bottom:10px;" id="noFilteredProjectsTitle">No Projects Found</h2>
+                <p style="font-size:14px;color:var(--muted);max-width:420px;margin:0 auto;line-height:1.6;" id="noFilteredProjectsMsg">
+                    No projects match this filter.
+                </p>
+            </div>
+            @endif
+
+            <style>
+                .project-scroll-wrap .card {
+                    transition: transform 0.2s ease, box-shadow 0.2s ease;
+                }
+                .project-scroll-wrap .card:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 16px 34px rgba(0,0,0,.10);
+                }
+                .project-scroll-wrap::-webkit-scrollbar {
+                    width: 8px;
+                }
+                .project-scroll-wrap::-webkit-scrollbar-thumb {
+                    background: var(--border);
+                    border-radius: 999px;
+                }
+                .project-scroll-wrap::-webkit-scrollbar-track {
+                    background: transparent;
+                }
+            </style>
 
     </main>
 
@@ -249,18 +278,42 @@
         }
 
         function filterProjects(filter, btn) {
-            document.querySelectorAll('.emp-tab[data-filter]').forEach(function (tab) {
+            document.querySelectorAll('.filter-tab[data-filter]').forEach(function (tab) {
                 tab.classList.remove('active');
             });
             btn.classList.add('active');
 
+            var visible = 0;
             document.querySelectorAll('.card[data-status]').forEach(function (card) {
                 var status = card.dataset.status;
                 var show = filter === 'all'
                     || (filter === 'completed' && status === 'completed')
                     || (filter === 'active' && status !== 'completed');
                 card.style.display = show ? '' : 'none';
+                if (show) visible++;
             });
+
+            var emptyState = document.getElementById('noFilteredProjects');
+            if (emptyState) {
+                if (visible === 0) {
+                    var titleEl = document.getElementById('noFilteredProjectsTitle');
+                    var msgEl   = document.getElementById('noFilteredProjectsMsg');
+                    if (filter === 'active') {
+                        titleEl.textContent = 'No Active Projects';
+                        msgEl.textContent   = 'You don\'t have any active projects right now.';
+                    } else if (filter === 'completed') {
+                        titleEl.textContent = 'No Completed Projects';
+                        msgEl.textContent   = 'None of your projects have been completed yet.';
+                    } else {
+                        titleEl.textContent = 'No Projects Found';
+                        msgEl.textContent   = 'No projects match this filter.';
+                    }
+                    emptyState.style.display = '';
+                    if (window.lucide) lucide.createIcons();
+                } else {
+                    emptyState.style.display = 'none';
+                }
+            }
         }
     </script>
 </body>

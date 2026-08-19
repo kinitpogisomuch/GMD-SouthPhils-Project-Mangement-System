@@ -64,7 +64,7 @@ body {
 .employee-header {
     width: 100%;
     height: var(--header-height);
-    background: linear-gradient(180deg, #333333 0%, #2a2a2a 100%);
+    background: linear-gradient(135deg, var(--dark) 0%, var(--dark-deep) 100%);
     color: var(--white);
     display: grid;
     grid-template-columns: auto 1fr auto;
@@ -112,7 +112,7 @@ body {
     align-items: center;
     gap: 8px;
     padding: 9px 16px;
-    border-radius: 12px;
+    border-radius: 999px;
     color: rgba(255, 255, 255, 0.62);
     text-decoration: none;
     font-size: 13px;
@@ -157,7 +157,7 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.18);
     background-color: rgba(255, 255, 255, 0.10);
     color: var(--white);
-    border-radius: 16px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -448,7 +448,7 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.18);
     background-color: rgba(255, 255, 255, 0.10);
     color: var(--white);
-    border-radius: 18px;
+    border-radius: 999px;
     padding: 5px 10px;
     display: flex;
     align-items: center;
@@ -908,38 +908,56 @@ body {
 .filter-tabs {
     display: flex;
     align-items: center;
-    gap: 8px;
-    background-color: var(--cream-soft);
+    gap: 2px;
+    background: var(--cream-soft);
     border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 5px;
+    border-radius: 999px;
+    padding: 3px;
 }
 
 .filter-tab {
-    height: 38px;
-    padding: 0 18px;
+    height: 32px;
+    padding: 0 14px;
     border: none;
-    border-radius: 10px;
-    background-color: transparent;
+    border-radius: 999px;
+    background: transparent;
     color: var(--muted);
     font-size: 13px;
-    font-weight: 800;
+    font-weight: 600;
     cursor: pointer;
     text-decoration: none;
     display: inline-flex;
     align-items: center;
+    gap: 7px;
     justify-content: center;
     transition: 0.22s ease;
 }
 
+.filter-count {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: var(--border);
+    color: var(--muted);
+    line-height: 1.6;
+    transition: background 0.15s, color 0.15s;
+}
+
 .filter-tab:hover {
     color: var(--dark);
+    background: rgba(0, 0, 0, 0.04);
 }
 
 .filter-tab.active {
-    background-color: var(--dark);
-    color: var(--white);
-    box-shadow: 0 6px 16px var(--shadow);
+    background: #fff;
+    color: var(--dark);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.10);
+}
+
+.filter-tab.active .filter-count {
+    background: var(--dark);
+    color: #fff;
 }
 
 /* ================= PAGINATION ================= */
@@ -2699,6 +2717,7 @@ body {
 
 .project-card {
     margin-bottom: 0;
+    flex-shrink: 0;
 }
 
 .project-card-header {

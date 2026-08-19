@@ -61,7 +61,7 @@ body {
 .client-header {
     width: 100%;
     height: var(--header-height);
-    background: linear-gradient(180deg, #333333 0%, #2a2a2a 100%);
+    background: linear-gradient(135deg, var(--dark) 0%, var(--dark-deep) 100%);
     color: var(--white);
     display: grid;
     grid-template-columns: auto 1fr auto;
@@ -108,7 +108,7 @@ body {
     align-items: center;
     gap: 8px;
     padding: 9px 16px;
-    border-radius: 12px;
+    border-radius: 999px;
     color: rgba(255, 255, 255, 0.62);
     text-decoration: none;
     font-size: 13px;
@@ -153,7 +153,7 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.18);
     background-color: rgba(255, 255, 255, 0.10);
     color: var(--white);
-    border-radius: 16px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -439,37 +439,56 @@ body {
 .filter-tabs {
     display: flex;
     align-items: center;
-    gap: 8px;
-    background-color: var(--cream-soft);
+    gap: 2px;
+    background: var(--cream-soft);
     border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 5px;
+    border-radius: 999px;
+    padding: 3px;
 }
 
 .filter-tab {
-    height: 38px;
-    padding: 0 18px;
+    height: 32px;
+    padding: 0 14px;
     border: none;
-    border-radius: 10px;
-    background-color: transparent;
+    border-radius: 999px;
+    background: transparent;
     color: var(--muted);
     font-size: 13px;
-    font-weight: 800;
+    font-weight: 600;
     cursor: pointer;
     text-decoration: none;
     display: inline-flex;
     align-items: center;
+    gap: 7px;
+    justify-content: center;
     transition: 0.22s ease;
+}
+
+.filter-count {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: var(--border);
+    color: var(--muted);
+    line-height: 1.6;
+    transition: background 0.15s, color 0.15s;
 }
 
 .filter-tab:hover {
     color: var(--dark);
+    background: rgba(0, 0, 0, 0.04);
 }
 
 .filter-tab.active {
-    background-color: var(--dark);
-    color: var(--white);
-    box-shadow: 0 6px 16px var(--shadow);
+    background: #fff;
+    color: var(--dark);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.10);
+}
+
+.filter-tab.active .filter-count {
+    background: var(--dark);
+    color: #fff;
 }
 
 /* ================= PAGINATION ================= */
@@ -671,7 +690,7 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.18);
     background-color: rgba(255, 255, 255, 0.10);
     color: var(--white);
-    border-radius: 18px;
+    border-radius: 999px;
     padding: 5px 10px;
     display: flex;
     align-items: center;
@@ -977,6 +996,61 @@ body {
 .stat-change.up   { color: #207A3A; }
 .stat-change.down { color: #B42318; }
 
+/* ================= FINANCIAL OVERVIEW (dark, admin-style reference) ================= */
+
+.fd-overview {
+    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+    border-radius: 16px;
+    padding: 20px 24px;
+}
+.fd-overview-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 800;
+    color: rgba(255,255,255,0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 16px;
+}
+.fd-overview-title i { width: 15px; height: 15px; }
+.fd-overview-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+.fd-ov-item {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    background: rgba(255,255,255,0.07);
+    border-radius: 10px;
+    padding: 12px 14px;
+}
+.fd-ov-highlight {
+    background: rgba(255,255,255,0.12);
+}
+.fd-ov-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: rgba(255,255,255,0.45);
+}
+.fd-ov-val {
+    font-size: 15px;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: -0.3px;
+}
+@media (max-width: 992px) {
+    .fd-overview-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 480px) {
+    .fd-overview-grid { grid-template-columns: 1fr; }
+}
+
 /* ================= GENERAL CARDS ================= */
 
 .card {
@@ -1002,6 +1076,44 @@ body {
 }
 
 .card-body { padding: 24px; }
+
+/* ================= PROJECT CARD (list) ================= */
+
+.project-progress-container {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 24px;
+    align-items: center;
+}
+
+.project-progress-info {
+    display: flex;
+    gap: 24px;
+}
+
+.project-info-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.project-info-label {
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.project-info-value {
+    font-weight: 800;
+    font-size: 14px;
+    color: var(--dark);
+    margin-top: 2px;
+}
+
+.project-phase-current {
+    color: var(--accent);
+}
 
 /* ================= DASHBOARD PROJECT ROW ================= */
 
@@ -2222,8 +2334,8 @@ tbody tr:last-child td { border-bottom: none; }
     transition: color 0.1s ease;
 }
 .star-rating button.filled svg {
-    color: var(--accent);
-    fill: var(--accent);
+    color: #F59E0B;
+    fill: #F59E0B;
 }
 
 @media (max-width: 900px) {

@@ -12,13 +12,96 @@
     @include('partials.client.header')
 
     <main class="admin-content">
+            @php
+                $clientFullName = session('full_name', 'Client');
+                if (str_contains($clientFullName, ', ')) {
+                    $clientFirstName = trim(explode(', ', $clientFullName, 2)[1]);
+                } else {
+                    $clientFirstName = trim($clientFullName);
+                }
+                $clientFirstName = $clientFirstName ? explode(' ', $clientFirstName)[0] : 'Client';
 
-            <div class="page-header" style="margin-bottom:24px;">
-                <div>
-                    <h1 class="page-title">Welcome back, {{ session('full_name', 'Client') }}</h1>
-                    <p class="page-subtitle">Here's an overview of your projects and payments.</p>
+                $hour = (int) now()->timezone('Asia/Manila')->format('G');
+                $greeting = $hour < 12 ? 'Good morning' : ($hour < 18 ? 'Good afternoon' : 'Good evening');
+                $greetingIcon = $hour < 12 ? 'sunrise' : ($hour < 18 ? 'sun' : 'moon-star');
+            @endphp
+
+            <!-- ── Hero greeting ── -->
+            <div class="db-hero">
+                <div class="db-hero-left">
+                    <div class="db-greeting-icon"><i data-lucide="{{ $greetingIcon }}"></i></div>
+                    <div>
+                        <div class="db-greeting">{{ $greeting }}, {{ $clientFirstName }}</div>
+                        <div class="db-subgreeting">Here's an overview of your projects and payments.</div>
+                    </div>
+                </div>
+                <div class="db-hero-meta">
+                    <div class="db-hero-date">
+                        <i data-lucide="calendar-days"></i>
+                        {{ now()->format('l, F j, Y') }}
+                    </div>
                 </div>
             </div>
+
+            <style>
+                .db-hero {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    padding: 4px 4px 24px;
+                    margin-bottom: 20px;
+                    border-bottom: 1px solid var(--border);
+                    gap: 16px;
+                }
+                .db-hero-left {
+                    display: flex;
+                    align-items: center;
+                    gap: 16px;
+                }
+                .db-greeting-icon {
+                    width: 48px;
+                    height: 48px;
+                    min-width: 48px;
+                    border-radius: 50%;
+                    background: linear-gradient(135deg, var(--dark) 0%, var(--dark-deep) 100%);
+                    color: #fff;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    box-shadow: 0 8px 18px rgba(0,0,0,.16);
+                }
+                .db-greeting-icon i { width: 22px; height: 22px; }
+                .db-greeting {
+                    font-size: 24px;
+                    font-weight: 900;
+                    color: var(--dark);
+                    letter-spacing: -0.3px;
+                }
+                .db-subgreeting {
+                    font-size: 13px;
+                    color: var(--muted);
+                    margin-top: 4px;
+                    font-weight: 500;
+                }
+                .db-hero-date {
+                    display: flex;
+                    align-items: center;
+                    gap: 7px;
+                    font-size: 13px;
+                    font-weight: 600;
+                    color: var(--muted);
+                    background: var(--white);
+                    border: 1px solid var(--border);
+                    border-radius: 999px;
+                    padding: 7px 14px;
+                    white-space: nowrap;
+                    box-shadow: 0 4px 12px rgba(0,0,0,.05);
+                }
+                .db-hero-date i { width: 14px; height: 14px; }
+                @media (max-width: 768px) {
+                    .db-hero { flex-direction: column; align-items: flex-start; padding: 4px 4px 20px; gap: 12px; }
+                }
+            </style>
 
             <div class="stats-grid">
                 <div class="stat-card teal">

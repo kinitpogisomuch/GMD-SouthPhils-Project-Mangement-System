@@ -21,11 +21,17 @@
             </div>
 
             <div class="filter-tabs" id="projectFilterTabs" style="margin-bottom:20px;margin-left:auto;width:fit-content;">
-                <button type="button" class="filter-tab active" data-filter="active">Active</button>
-                <button type="button" class="filter-tab" data-filter="completed">Completed</button>
+                <button type="button" class="filter-tab active" data-filter="active">
+                    Active
+                    <span class="filter-count">{{ $projects->where('status', '!=', 'completed')->count() }}</span>
+                </button>
+                <button type="button" class="filter-tab" data-filter="completed">
+                    Completed
+                    <span class="filter-count">{{ $projects->where('status', 'completed')->count() }}</span>
+                </button>
             </div>
 
-            <div class="project-list" id="projectList">
+            <div class="project-list" id="projectList" style="max-height:640px;overflow-y:auto;padding:4px 4px 0;margin:0 -4px;">
 
                 @forelse($projects as $project)
                 <div class="card project-card" data-status="{{ $project->status }}">
@@ -33,7 +39,7 @@
                         <div class="project-info">
                             <div class="project-title">{{ $project->name }}</div>
                             <div class="project-meta">
-                                {{ $project->client }} &nbsp;·&nbsp;
+                                Client: <strong class="project-meta-strong">{{ $project->client }}</strong> &nbsp;·&nbsp;
                                 Tank Type: <strong class="project-meta-strong">{{ $project->tank_type }}</strong>
                                 &nbsp;·&nbsp; Capacity: <strong class="project-meta-strong">{{ $project->capacity }}</strong>
                             </div>

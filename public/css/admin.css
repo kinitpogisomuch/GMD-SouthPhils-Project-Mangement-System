@@ -66,7 +66,7 @@ body {
 .admin-header {
     width: 100%;
     height: var(--header-height);
-    background: linear-gradient(180deg, #333333 0%, #2a2a2a 100%);
+    background: linear-gradient(135deg, var(--dark) 0%, var(--dark-deep) 100%);
     color: var(--white);
     display: grid;
     grid-template-columns: 1fr auto;
@@ -145,7 +145,7 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.18);
     background-color: rgba(255, 255, 255, 0.10);
     color: var(--white);
-    border-radius: 16px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -438,7 +438,7 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.18);
     background-color: rgba(255, 255, 255, 0.10);
     color: var(--white);
-    border-radius: 18px;
+    border-radius: 999px;
     padding: 6px 10px;
     display: flex;
     align-items: center;
@@ -536,9 +536,20 @@ body {
     color: var(--white);
 }
 
+.admin-dropdown-menu a.danger:hover {
+    background-color: #FEE4E2;
+    color: #B42318;
+}
+
 .admin-dropdown-menu svg {
     width: 17px;
     height: 17px;
+}
+
+.admin-dropdown-divider {
+    height: 1px;
+    background-color: var(--border);
+    margin: 6px 4px;
 }
 
 /* ================= MAIN LAYOUT ================= */
@@ -666,8 +677,8 @@ body {
 }
 
 .sidebar-icon svg {
-    width: 15px;
-    height: 15px;
+    width: 17px;
+    height: 17px;
     display: block;
     transition: transform 0.22s ease;
 }

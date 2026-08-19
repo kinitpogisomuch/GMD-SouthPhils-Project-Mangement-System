@@ -75,14 +75,6 @@
             <span>Clients</span>
         </a>
 
-        <div class="sidebar-section-label">Account</div>
-        <a href="{{ route('admin.settings') }}"
-           class="{{ request()->routeIs('admin.settings') ? 'active' : '' }}"
-           title="Settings">
-            <div class="sidebar-icon"><i data-lucide="settings"></i></div>
-            <span>Settings</span>
-        </a>
-
     </nav>
 </aside>
 <div class="sidebar-overlay"></div>

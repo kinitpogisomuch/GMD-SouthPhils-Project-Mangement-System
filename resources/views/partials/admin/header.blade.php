@@ -111,7 +111,12 @@
             </button>
 
             <div class="admin-dropdown-menu" id="adminDropdownMenu">
-                <a href="{{ route('logout') }}"
+                <a href="{{ route('admin.settings') }}">
+                    <i data-lucide="settings"></i>
+                    <span>Settings</span>
+                </a>
+                <div class="admin-dropdown-divider"></div>
+                <a href="{{ route('logout') }}" class="danger"
                    onclick="event.preventDefault(); document.getElementById('adminLogoutModal').classList.add('show');">
                     <i data-lucide="log-out"></i>
                     <span>Logout</span>

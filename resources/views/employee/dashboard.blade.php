@@ -12,13 +12,88 @@
     @include('partials.employee.header')
 
     <main class="admin-content">
+            @php
+                $hour = (int) now()->timezone('Asia/Manila')->format('G');
+                $greeting = $hour < 12 ? 'Good morning' : ($hour < 18 ? 'Good afternoon' : 'Good evening');
+                $greetingIcon = $hour < 12 ? 'sunrise' : ($hour < 18 ? 'sun' : 'moon-star');
+            @endphp
 
-            <div class="pv-page-header">
-                <div>
-                    <h1>Welcome back, {{ $employee->first_name }}</h1>
-                    <p>{{ $employee->role }} &nbsp;·&nbsp; Here's what's happening with your work today.</p>
+            <!-- ── Hero greeting ── -->
+            <div class="db-hero">
+                <div class="db-hero-left">
+                    <div class="db-greeting-icon"><i data-lucide="{{ $greetingIcon }}"></i></div>
+                    <div>
+                        <div class="db-greeting">{{ $greeting }}, {{ $employee->first_name }}</div>
+                        <div class="db-subgreeting">{{ $employee->role }} &nbsp;·&nbsp; Here's what's happening with your work today.</div>
+                    </div>
+                </div>
+                <div class="db-hero-meta">
+                    <div class="db-hero-date">
+                        <i data-lucide="calendar-days"></i>
+                        {{ now()->format('l, F j, Y') }}
+                    </div>
                 </div>
             </div>
+
+            <style>
+                .db-hero {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    padding: 4px 4px 24px;
+                    margin-bottom: 20px;
+                    border-bottom: 1px solid var(--border);
+                    gap: 16px;
+                }
+                .db-hero-left {
+                    display: flex;
+                    align-items: center;
+                    gap: 16px;
+                }
+                .db-greeting-icon {
+                    width: 48px;
+                    height: 48px;
+                    min-width: 48px;
+                    border-radius: 50%;
+                    background: linear-gradient(135deg, var(--dark) 0%, var(--dark-deep) 100%);
+                    color: #fff;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    box-shadow: 0 8px 18px rgba(0,0,0,.16);
+                }
+                .db-greeting-icon i { width: 22px; height: 22px; }
+                .db-greeting {
+                    font-size: 24px;
+                    font-weight: 900;
+                    color: var(--dark);
+                    letter-spacing: -0.3px;
+                }
+                .db-subgreeting {
+                    font-size: 13px;
+                    color: var(--muted);
+                    margin-top: 4px;
+                    font-weight: 500;
+                }
+                .db-hero-date {
+                    display: flex;
+                    align-items: center;
+                    gap: 7px;
+                    font-size: 13px;
+                    font-weight: 600;
+                    color: var(--muted);
+                    background: var(--white);
+                    border: 1px solid var(--border);
+                    border-radius: 999px;
+                    padding: 7px 14px;
+                    white-space: nowrap;
+                    box-shadow: 0 4px 12px rgba(0,0,0,.05);
+                }
+                .db-hero-date i { width: 14px; height: 14px; }
+                @media (max-width: 768px) {
+                    .db-hero { flex-direction: column; align-items: flex-start; padding: 4px 4px 20px; gap: 12px; }
+                }
+            </style>
 
             <div class="stats-grid">
                 <div class="stat-card blue">
@@ -56,9 +131,10 @@
                     <span class="card-title">My Assigned Projects</span>
                     <a href="{{ route('employee.projects') }}" class="view-all-link">View Projects <i data-lucide="arrow-right"></i></a>
                 </div>
-                <div class="table-wrap">
+                <div style="position:relative;">
+                <div class="table-wrap" style="max-height:340px;overflow-y:auto;">
                     <table class="data-table">
-                        <thead>
+                        <thead style="position:sticky;top:0;z-index:2;">
                             <tr>
                                 <th>Project</th>
                                 <th>My Role</th>
@@ -70,10 +146,29 @@
                         </thead>
                         <tbody>
                             @forelse($projects as $project)
+                            @php
+                                $phase = strtolower($project->current_phase ?? 'planning');
+                                $phaseColors = [
+                                    'planning'    => ['bg'=>'#FEF3C7','color'=>'#92400E'],
+                                    'procurement' => ['bg'=>'#EDE9FE','color'=>'#5B21B6'],
+                                    'matl_prep'   => ['bg'=>'#CFFAFE','color'=>'#0E7490'],
+                                    'fabrication' => ['bg'=>'#2563EB','color'=>'#fff'],
+                                    'inspection'  => ['bg'=>'#EC4899','color'=>'#fff'],
+                                    'painting'    => ['bg'=>'#14B8A6','color'=>'#fff'],
+                                    'completion'  => ['bg'=>'#10B981','color'=>'#fff'],
+                                    'delivery'    => ['bg'=>'#059669','color'=>'#fff'],
+                                    'delayed'     => ['bg'=>'#EF4444','color'=>'#fff'],
+                                ];
+                                $pc = $phaseColors[$phase] ?? ['bg'=>'#F3F4F6','color'=>'#6B7280'];
+                            @endphp
                             <tr>
                                 <td><strong>{{ $project->name }}</strong></td>
                                 <td>{{ $employee->role }}</td>
-                                <td>{{ ucfirst(str_replace('_', ' ', $project->current_phase ?? 'Planning')) }}</td>
+                                <td>
+                                    <span class="status-badge" style="background:{{ $pc['bg'] }};color:{{ $pc['color'] }};">
+                                        {{ ucfirst(str_replace('_', ' ', $phase)) }}
+                                    </span>
+                                </td>
                                 <td>
                                     <div class="flex-center gap-8">
                                         <div class="progress-bar width-100px">
@@ -109,6 +204,8 @@
                             @endforelse
                         </tbody>
                     </table>
+                </div>
+                <div style="position:absolute;bottom:0;left:0;right:0;height:28px;background:linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.9) 100%);pointer-events:none;border-radius:0 0 22px 22px;"></div>
                 </div>
             </div>
 

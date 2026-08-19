@@ -26,33 +26,33 @@
                 $totalBalance       = $payments->sum(fn($p) => $p->currentBalance());
             @endphp
 
-            <div class="stats-grid">
-                <div class="stat-card teal">
-                    <div class="stat-icon teal"><i data-lucide="receipt"></i></div>
-                    <div class="stat-info">
-                        <div class="stat-value">₱{{ number_format($totalContractValue, 0) }}</div>
-                        <div class="stat-label">Total Contract Value</div>
-                    </div>
+            <div class="fd-overview" style="margin-bottom:24px;">
+                <div class="fd-overview-title">
+                    <i data-lucide="bar-chart-2"></i>
+                    Payments Overview
                 </div>
-                <div class="stat-card green">
-                    <div class="stat-icon green"><i data-lucide="check-circle"></i></div>
-                    <div class="stat-info">
-                        <div class="stat-value">₱{{ number_format($totalReceived, 0) }}</div>
-                        <div class="stat-label">Total Paid</div>
+                <div class="fd-overview-grid">
+                    <div class="fd-ov-item">
+                        <span class="fd-ov-label">Contract Value</span>
+                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Across all projects</span>
+                        <span class="fd-ov-val">₱{{ number_format($totalContractValue, 2) }}</span>
                     </div>
-                </div>
-                <div class="stat-card blue">
-                    <div class="stat-icon blue"><i data-lucide="wallet"></i></div>
-                    <div class="stat-info">
-                        <div class="stat-value">₱{{ number_format($totalBalance, 0) }}</div>
-                        <div class="stat-label">Remaining Balance</div>
+                    <div class="fd-ov-item">
+                        <span class="fd-ov-label">Total Paid</span>
+                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Amount received</span>
+                        <span class="fd-ov-val" style="color:#4ade80;">₱{{ number_format($totalReceived, 2) }}</span>
                     </div>
-                </div>
-                <div class="stat-card orange">
-                    <div class="stat-icon orange"><i data-lucide="layers"></i></div>
-                    <div class="stat-info">
-                        <div class="stat-value">{{ $payments->count() }}</div>
-                        <div class="stat-label">Total Projects</div>
+                    <div class="fd-ov-item">
+                        <span class="fd-ov-label">Remaining Balance</span>
+                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Still due</span>
+                        <span class="fd-ov-val" style="color:{{ $totalBalance > 0 ? '#facc15' : 'rgba(255,255,255,0.35)' }};">
+                            {{ $totalBalance > 0 ? '₱'.number_format($totalBalance, 2) : '—' }}
+                        </span>
+                    </div>
+                    <div class="fd-ov-item fd-ov-highlight">
+                        <span class="fd-ov-label">Total Projects</span>
+                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">With payment records</span>
+                        <span class="fd-ov-val">{{ $payments->count() }}</span>
                     </div>
                 </div>
             </div>
@@ -65,52 +65,53 @@
                     $pct       = $payment->contract_amount > 0
                         ? round(($totalPaid / $payment->contract_amount) * 100, 1)
                         : 0;
+                    $isBigProject   = $payment->payment_term_type === 'big_project';
+                    $phasePercents  = $isBigProject ? ['50%', '30%', '20%'] : ['50%', '50%'];
+                    $phaseTermsText = count($phasePercents) . ' Phases (' . implode(' / ', $phasePercents) . ')';
                 @endphp
                 <div class="card">
                     <div class="card-header">
                         <div>
                             <div class="card-title">{{ $payment->project->name ?? '—' }}</div>
                             <div style="font-size:12.5px;color:var(--muted);margin-top:4px;">
-                                {{ $payment->payment_terms ?? '—' }}
+                                {{ $phaseTermsText }}
                             </div>
                         </div>
                         <div style="display:flex;align-items:center;gap:10px;">
                             <span class="status-badge {{ \App\Models\Payment::statusBadgeClass($status) }}">
                                 {{ $status }}
                             </span>
-                            <a href="{{ route('client.payments.show', $payment->id) }}" class="btn btn-sm btn-primary">
-                                <i data-lucide="eye"></i> View Details
+                            <a href="{{ route('client.payments.show', $payment->id) }}" class="btn btn-outline btn-sm">
+                                <i data-lucide="external-link"></i> View Details
                             </a>
                         </div>
                     </div>
                     <div class="card-body">
-                        <div class="progress-wrap" style="margin-bottom:20px;">
-                            <div class="progress-label">
-                                <span>Payment Progress</span>
-                                <span style="font-weight:900;color:var(--dark);">{{ $pct }}%</span>
+                        <div style="display:flex;flex-wrap:wrap;align-items:center;">
+                            <div class="project-info-item" style="padding-right:24px;">
+                                <div class="project-info-label">Contract Amount</div>
+                                <div class="project-info-value">₱{{ number_format($payment->contract_amount, 2) }}</div>
                             </div>
-                            <div class="progress-bar" style="height:10px;">
-                                <div class="progress-fill"
-                                     style="width:{{ $pct }}%;
-                                     background:{{ $status === 'Fully Paid' ? 'var(--success)' : 'var(--accent)' }};"></div>
+                            <div class="project-info-item" style="border-left:1px solid var(--border);padding:0 24px;">
+                                <div class="project-info-label">Total Paid</div>
+                                <div class="project-info-value" style="color:var(--success);">₱{{ number_format($totalPaid, 2) }}</div>
                             </div>
-                        </div>
-                        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));gap:12px;">
-                            <div class="info-mini">
-                                <div class="info-mini-label">Contract Amount</div>
-                                <div class="info-mini-value">₱{{ number_format($payment->contract_amount, 2) }}</div>
+                            <div class="project-info-item" style="border-left:1px solid var(--border);padding:0 24px;">
+                                <div class="project-info-label">Remaining Balance</div>
+                                <div class="project-info-value" style="color:var(--danger);">₱{{ number_format($balance, 2) }}</div>
                             </div>
-                            <div class="info-mini">
-                                <div class="info-mini-label">Total Paid</div>
-                                <div class="info-mini-value" style="color:var(--success);">₱{{ number_format($totalPaid, 2) }}</div>
+                            <div class="project-info-item" style="border-left:1px solid var(--border);padding:0 24px;">
+                                <div class="project-info-label">Payment Terms</div>
+                                <div class="project-info-value">{{ $phaseTermsText }}</div>
                             </div>
-                            <div class="info-mini">
-                                <div class="info-mini-label">Remaining Balance</div>
-                                <div class="info-mini-value" style="color:var(--danger);">₱{{ number_format($balance, 2) }}</div>
-                            </div>
-                            <div class="info-mini">
-                                <div class="info-mini-label">Payment Terms</div>
-                                <div class="info-mini-value">{{ $payment->payment_terms ?? '—' }}</div>
+                            <div style="flex:1;min-width:180px;display:flex;align-items:center;gap:14px;margin-left:auto;border-left:1px solid var(--border);padding-left:24px;">
+                                <span style="font-weight:700;font-size:13px;white-space:nowrap;">Payment Progress</span>
+                                <div class="progress-bar" style="height:10px;flex:1;">
+                                    <div class="progress-fill"
+                                         style="width:{{ $pct }}%;
+                                         background:{{ $status === 'Fully Paid' ? 'var(--success)' : 'var(--accent)' }};"></div>
+                                </div>
+                                <span style="font-weight:900;color:var(--dark);white-space:nowrap;">{{ $pct }}%</span>
                             </div>
                         </div>
                     </div>
