@@ -1,60 +1,30 @@
 <header class="client-header">
     <div class="client-header-left">
-        <button class="sidebar-toggle-btn" type="button" id="sidebarToggleBtn" title="Toggle menu">
-            <i data-lucide="menu"></i>
-        </button>
         <div>
             <div class="system-title">GMD South Phils</div>
             <div class="system-subtitle">CLIENT PORTAL</div>
         </div>
     </div>
+
+    <nav class="client-header-nav">
+        <a href="{{ route('client.dashboard') }}"
+           class="{{ request()->routeIs('client.dashboard') ? 'active' : '' }}">
+            <i data-lucide="layout-dashboard"></i>
+            <span>Dashboard</span>
+        </a>
+        <a href="{{ url('/client/projects') }}"
+           class="{{ request()->routeIs('client.projects') ? 'active' : '' }}">
+            <i data-lucide="folder-kanban"></i>
+            <span>My Projects</span>
+        </a>
+        <a href="{{ route('client.payments') }}"
+           class="{{ request()->routeIs('client.payments') ? 'active' : '' }}">
+            <i data-lucide="credit-card"></i>
+            <span>Payments</span>
+        </a>
+    </nav>
+
     <div class="client-header-right">
-
-        <!-- Chat popup trigger -->
-        <div style="position:relative;" id="chatPopupWrap">
-            <button class="notification-btn" type="button" id="chatPopupBtn" title="Messages" style="position:relative;">
-                <i data-lucide="message-square"></i>
-                <span id="headerMessagesBadge" class="notification-count-badge" style="display:none;"></span>
-            </button>
-
-            {{-- Chat list dropdown --}}
-            <div id="chatPopupDropdown" style="display:none;position:absolute;top:62px;right:-54px;width:360px;background:linear-gradient(180deg, var(--white) 0%, #fafafa 100%);border:1px solid var(--border);border-radius:20px;box-shadow:0 18px 40px rgba(0,0,0,0.14);z-index:600;overflow:hidden;">
-
-                {{-- Header --}}
-                <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 16px 12px;border-bottom:1px solid var(--border);">
-                    <div style="display:flex;align-items:center;gap:8px;">
-                        <div style="width:32px;height:32px;background:var(--dark);border-radius:10px;display:flex;align-items:center;justify-content:center;">
-                            <i data-lucide="message-square" style="width:16px;height:16px;color:#fff;"></i>
-                        </div>
-                        <span style="font-size:15px;font-weight:800;color:var(--dark);">Messages</span>
-                    </div>
-                    <a href="{{ route('client.messages') }}" style="font-size:12px;font-weight:700;color:var(--dark);text-decoration:none;background:var(--cream-soft);padding:5px 12px;border-radius:999px;border:1px solid var(--border);">See all</a>
-                </div>
-
-                {{-- Search --}}
-                <div style="padding:12px 14px;">
-                    <div style="display:flex;align-items:center;gap:8px;background:var(--cream-soft);border-radius:12px;padding:8px 14px;border:1px solid var(--border);">
-                        <i data-lucide="search" style="width:14px;height:14px;color:var(--muted);flex-shrink:0;"></i>
-                        <input id="chatContactSearch" type="text" placeholder="Search contact..."
-                            style="flex:1;border:none;background:transparent;font-size:13px;outline:none;color:var(--dark);"
-                            oninput="filterChatContacts(this.value)">
-                    </div>
-                </div>
-
-                {{-- Contact list --}}
-                <div id="chatContactList" style="max-height:320px;overflow-y:auto;">
-                    <div style="text-align:center;padding:32px;color:var(--muted);font-size:13px;">Loading...</div>
-                </div>
-
-                {{-- Footer --}}
-                <div style="padding:10px 14px;border-top:1px solid var(--border);background:var(--cream-soft);">
-                    <a href="{{ route('client.messages') }}" style="display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;font-weight:700;color:var(--dark);text-decoration:none;">
-                        <i data-lucide="external-link" style="width:13px;height:13px;"></i>
-                        Open full messages
-                    </a>
-                </div>
-            </div>
-        </div>
 
         <!-- Notification Dropdown -->
         <div class="notification-dropdown" id="notificationDropdown">
@@ -96,17 +66,37 @@
                         </span>
                     @endif
                 </div>
-                <div class="client-details">
-                    <div class="client-name">{{ session('full_name', 'Client') }}</div>
-                    <div class="client-role">Client</div>
-                </div>
                 <i data-lucide="chevron-down" class="dropdown-arrow"></i>
             </button>
             <div class="client-dropdown-menu">
-                <a href="{{ route('logout') }}"
+                <div class="client-dropdown-profile">
+                    <div class="client-dropdown-profile-avatar">
+                        @if(session('profile_photo'))
+                            <img src="{{ session('profile_photo') }}" alt="Profile">
+                        @else
+                            <span>{{ strtoupper(substr(session('name', 'C'), 0, 1)) }}</span>
+                        @endif
+                    </div>
+                    <div>
+                        <div class="client-dropdown-profile-name">{{ session('full_name', 'Client') }}</div>
+                        <div class="client-dropdown-profile-role">Client</div>
+                    </div>
+                </div>
+
+                <div class="client-dropdown-divider"></div>
+
+                <a href="{{ route('client.settings') }}" class="client-dropdown-item">
+                    <span class="client-dropdown-icon"><i data-lucide="settings"></i></span>
+                    <span class="client-dropdown-label">Settings</span>
+                    <i data-lucide="chevron-right" class="client-dropdown-chevron"></i>
+                </a>
+
+                <div class="client-dropdown-divider"></div>
+
+                <a href="{{ route('logout') }}" class="client-dropdown-item danger"
                    onclick="event.preventDefault(); document.getElementById('clientLogoutModal').classList.add('show');">
-                    <i data-lucide="log-out"></i>
-                    <span>Logout</span>
+                    <span class="client-dropdown-icon"><i data-lucide="log-out"></i></span>
+                    <span class="client-dropdown-label">Log out</span>
                 </a>
                 <form id="client-logout-form" action="{{ route('logout') }}" method="POST" style="display:none;">
                     @csrf
@@ -116,6 +106,54 @@
 
     </div>
 </header>
+
+{{-- Floating chat launcher --}}
+<div style="position:fixed;bottom:24px;right:24px;z-index:9997;" id="chatPopupWrap">
+    <button type="button" id="chatPopupBtn" title="Messages"
+        style="position:relative;width:52px;height:52px;border-radius:50%;background:var(--dark);color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 26px rgba(0,0,0,.28);transition:transform .18s ease;"
+        onmouseover="this.style.transform='scale(1.06)'" onmouseout="this.style.transform='scale(1)'">
+        <i data-lucide="message-square" style="width:22px;height:22px;"></i>
+        <span id="headerMessagesBadge" class="notification-count-badge" style="display:none;"></span>
+    </button>
+
+    {{-- Chat list dropdown --}}
+    <div id="chatPopupDropdown" style="display:none;position:absolute;bottom:64px;right:0;width:360px;max-width:calc(100vw - 48px);background:linear-gradient(180deg, var(--white) 0%, #fafafa 100%);border:1px solid var(--border);border-radius:20px;box-shadow:0 18px 40px rgba(0,0,0,0.14);z-index:600;overflow:hidden;">
+
+        {{-- Header --}}
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 16px 12px;border-bottom:1px solid var(--border);">
+            <div style="display:flex;align-items:center;gap:8px;">
+                <div style="width:32px;height:32px;background:var(--dark);border-radius:10px;display:flex;align-items:center;justify-content:center;">
+                    <i data-lucide="message-square" style="width:16px;height:16px;color:#fff;"></i>
+                </div>
+                <span style="font-size:15px;font-weight:800;color:var(--dark);">Messages</span>
+            </div>
+            <a href="{{ route('client.messages') }}" style="font-size:12px;font-weight:700;color:var(--dark);text-decoration:none;background:var(--cream-soft);padding:5px 12px;border-radius:999px;border:1px solid var(--border);">See all</a>
+        </div>
+
+        {{-- Search --}}
+        <div style="padding:12px 14px;">
+            <div style="display:flex;align-items:center;gap:8px;background:var(--cream-soft);border-radius:12px;padding:8px 14px;border:1px solid var(--border);">
+                <i data-lucide="search" style="width:14px;height:14px;color:var(--muted);flex-shrink:0;"></i>
+                <input id="chatContactSearch" type="text" placeholder="Search contact..."
+                    style="flex:1;border:none;background:transparent;font-size:13px;outline:none;color:var(--dark);"
+                    oninput="filterChatContacts(this.value)">
+            </div>
+        </div>
+
+        {{-- Contact list --}}
+        <div id="chatContactList" style="max-height:320px;overflow-y:auto;">
+            <div style="text-align:center;padding:32px;color:var(--muted);font-size:13px;">Loading...</div>
+        </div>
+
+        {{-- Footer --}}
+        <div style="padding:10px 14px;border-top:1px solid var(--border);background:var(--cream-soft);">
+            <a href="{{ route('client.messages') }}" style="display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;font-weight:700;color:var(--dark);text-decoration:none;">
+                <i data-lucide="external-link" style="width:13px;height:13px;"></i>
+                Open full messages
+            </a>
+        </div>
+    </div>
+</div>
 
 {{-- Floating chat window — matches full message thread UI --}}
 <div id="chatFloatWindow" style="display:none;position:fixed;bottom:0;right:24px;width:360px;height:480px;border-radius:14px 14px 0 0;box-shadow:0 -2px 30px rgba(0,0,0,.18),0 0 0 1px rgba(0,0,0,.08);z-index:9999;flex-direction:column;overflow:hidden;background:#fff;">
@@ -209,28 +247,6 @@
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-    var toggleBtn = document.getElementById('sidebarToggleBtn');
-    var sidebar   = document.querySelector('.client-sidebar');
-    var overlay   = document.querySelector('.sidebar-overlay');
-    if (toggleBtn && sidebar) {
-        toggleBtn.addEventListener('click', function (e) {
-            e.stopPropagation();
-            sidebar.classList.toggle('open');
-        });
-        if (overlay) {
-            overlay.addEventListener('click', function () {
-                sidebar.classList.remove('open');
-            });
-        }
-        document.addEventListener('click', function (e) {
-            if (sidebar.classList.contains('open') && !sidebar.contains(e.target) && !toggleBtn.contains(e.target)) {
-                sidebar.classList.remove('open');
-            }
-        });
-    }
-});
-
 (function () {
     const RECENT_URL   = '{{ route("client.notifications.recent") }}';
     const READ_ALL_URL = '{{ route("client.notifications.read-all") }}';
@@ -410,6 +426,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var chatContact = null; // { type, id, name }
     var popupOpen   = false;
 
+    var wrap     = document.getElementById('chatPopupWrap');
     var btn      = document.getElementById('chatPopupBtn');
     var dropdown = document.getElementById('chatPopupDropdown');
     var window_  = document.getElementById('chatFloatWindow');
@@ -511,6 +528,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('chatWinRole').textContent = type.charAt(0).toUpperCase() + type.slice(1);
         document.getElementById('chatWinAvatar').textContent = name.charAt(0).toUpperCase();
         window_.style.display = 'flex';
+        if (wrap) wrap.style.display = 'none';
         if (window.lucide) lucide.createIcons();
         msgList.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px;">Loading...</div>';
 
@@ -657,6 +675,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     window.closeChatWindow = function() {
         window_.style.display = 'none';
+        if (wrap) wrap.style.display = '';
         chatContact = null;
         try { localStorage.removeItem('gmd_client_open_chat'); } catch (e) {}
         if (window.lucide) lucide.createIcons();

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <link rel="icon" type="image/svg+xml" href="{{ asset('images/gmdlogo-circle.svg') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GMD South Phils — Precision Storage Tank Fabrication</title>
+    <title>GMD South Phils</title>
     <meta name="description" content="GMD South Phils specializes in custom steel storage tank fabrication — fuel, water, chemical, and oil tanks — delivered with precision across South Philippines.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -449,12 +449,21 @@
                 <h2 class="section-title">Start Your Project Today</h2>
                 <p class="section-sub">Have a project in mind? Reach out and our team will get back to you with a consultation and timeline estimate.</p>
 
+                @php
+                    $ciAddress = $contactInfo->address ?: 'Brgy. Masiit, Calauan, Philippines, 4012';
+                    $ciPhone   = $contactInfo->phone ?: '0917 652 5201';
+                    $ciPhoneDigits = ltrim(preg_replace('/\D/', '', $ciPhone), '0');
+                    $ciEmail   = $contactInfo->email ?: 'gmdsouthphils@gmail.com';
+                    $ciHours   = $contactInfo->business_hours ?: 'Monday – Saturday, 8:00 AM – 5:00 PM';
+                    $ciFbUrl   = $contactInfo->facebook ?: 'https://www.facebook.com/gmdsouthphils';
+                    $ciFbLabel = preg_replace('#^https?://(www\.)?#', '', rtrim($ciFbUrl, '/'));
+                @endphp
                 <div class="contact-items">
                     <div class="ci-row">
                         <div class="ci-icon"><i data-lucide="map-pin"></i></div>
                         <div>
                             <div class="ci-label">Location</div>
-                            <div class="ci-value">Brgy. Masiit, Calauan, Philippines, 4012</div>
+                            <div class="ci-value">{{ $ciAddress }}</div>
                         </div>
                     </div>
                     <div class="ci-row">
@@ -462,7 +471,7 @@
                         <div>
                             <div class="ci-label">Phone</div>
                             <div class="ci-value">
-                                <a href="tel:+639176525201">0917 652 5201</a>
+                                <a href="tel:+63{{ $ciPhoneDigits }}">{{ $ciPhone }}</a>
                             </div>
                         </div>
                     </div>
@@ -471,7 +480,7 @@
                         <div>
                             <div class="ci-label">Email</div>
                             <div class="ci-value">
-                                <a href="mailto:gmdsouthphils@gmail.com">gmdsouthphils@gmail.com</a>
+                                <a href="mailto:{{ $ciEmail }}">{{ $ciEmail }}</a>
                             </div>
                         </div>
                     </div>
@@ -482,7 +491,7 @@
                         <div>
                             <div class="ci-label">Facebook</div>
                             <div class="ci-value">
-                                <a href="https://www.facebook.com/gmdsouthphils" target="_blank" rel="noopener">facebook.com/gmdsouthphils</a>
+                                <a href="{{ $ciFbUrl }}" target="_blank" rel="noopener">{{ $ciFbLabel }}</a>
                             </div>
                         </div>
                     </div>
@@ -490,7 +499,7 @@
                         <div class="ci-icon"><i data-lucide="clock"></i></div>
                         <div>
                             <div class="ci-label">Business Hours</div>
-                            <div class="ci-value">Monday – Saturday, 8:00 AM – 5:00 PM</div>
+                            <div class="ci-value">{{ $ciHours }}</div>
                         </div>
                     </div>
                 </div>

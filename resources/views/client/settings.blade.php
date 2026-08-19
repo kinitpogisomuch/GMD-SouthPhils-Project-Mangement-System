@@ -11,10 +11,7 @@
 
     @include('partials.client.header')
 
-    <div class="admin-layout">
-        @include('partials.client.sidebar')
-
-        <main class="admin-content">
+    <main class="admin-content">
 
             <div class="page-header">
                 <div>
@@ -259,8 +256,7 @@
                 </div>
             </div>
 
-        </main>
-    </div>
+    </main>
 
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>

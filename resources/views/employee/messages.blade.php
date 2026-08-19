@@ -11,10 +11,7 @@
 
     @include('partials.employee.header')
 
-    <div class="admin-layout">
-        @include('partials.employee.sidebar')
-
-        <main class="admin-content">
+    <main class="admin-content">
 
             <div class="page-header">
                 <div>
@@ -126,8 +123,7 @@
                 </div>
             </div>
 
-        </main>
-    </div>
+    </main>
 
     <div class="modal-overlay" id="cameraModal">
         <div class="modal-card" style="max-width:480px;">

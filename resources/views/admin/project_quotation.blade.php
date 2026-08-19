@@ -36,7 +36,7 @@
             </div>
             @endif
 
-            <div class="table-card">
+            <div class="table-card" style="padding-bottom:0;">
                 <div class="table-toolbar">
                     <div class="search-box">
                         <i data-lucide="search"></i>

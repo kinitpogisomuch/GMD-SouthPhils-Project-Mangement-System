@@ -16,8 +16,9 @@ class AuthController extends Controller
 
         $portfolioItems = \App\Models\PortfolioItem::active()->orderBy('sort_order')->get();
         $reviews = \App\Models\Review::active()->with('project')->latest()->take(6)->get();
+        $contactInfo = \App\Models\SiteSetting::instance();
 
-        return view('landing', compact('portfolioItems', 'reviews'));
+        return view('landing', compact('portfolioItems', 'reviews', 'contactInfo'));
     }
 
     public function showLogin()

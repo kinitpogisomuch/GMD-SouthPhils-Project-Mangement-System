@@ -11,10 +11,7 @@
 
     @include('partials.employee.header')
 
-    <div class="admin-layout">
-        @include('partials.employee.sidebar')
-
-        <main class="admin-content">
+    <main class="admin-content">
 
             {{-- Breadcrumb --}}
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;font-size:13px;color:var(--muted);">
@@ -141,8 +138,7 @@
                     </table>
                 </div>
             </div>
-        </main>
-    </div>
+    </main>
 
     {{-- ===================== REQUEST MATERIAL MODAL ===================== --}}
     <div class="modal-overlay" id="requestMaterialModal">

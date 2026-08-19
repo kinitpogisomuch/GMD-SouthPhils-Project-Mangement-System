@@ -11,10 +11,7 @@
 
     @include('partials.client.header')
 
-    <div class="admin-layout">
-        @include('partials.client.sidebar')
-
-        <main class="admin-content">
+    <main class="admin-content">
 
             <div class="page-header" style="margin-bottom:24px;">
                 <div>
@@ -91,8 +88,7 @@
                 {{ $notifications->links('vendor.pagination.custom') }}
             </div>
 
-        </main>
-    </div>
+    </main>
 
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>

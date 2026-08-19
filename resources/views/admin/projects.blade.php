@@ -78,7 +78,7 @@
                 </div>
             </div>
 
-            <div class="table-card">
+            <div class="table-card" style="padding-bottom:0;">
                 <div class="table-toolbar">
                     <div class="search-box">
                         <i data-lucide="search"></i>
@@ -1255,16 +1255,21 @@
 
             function templateSummary(tpl) {
                 var items = tpl.tank_items || [];
-                if (!items.length) return 'No tank specs saved';
+                if (!items.length) return '<span style="font-size:12px;color:var(--muted);">No tank specs saved</span>';
+                var pillStyle = 'display:inline-flex;align-items:center;padding:2px 7px;border-radius:999px;font-size:10px;font-weight:600;margin-right:4px;white-space:nowrap;';
                 return items.map(function(it) {
                     var qty   = it.quantity && it.quantity > 1 ? ' ×' + it.quantity : '';
                     var shape = it.shape || inferShapeLabel(it.dimensions);
-                    var parts = [(it.tank_type || 'Tank') + qty];
-                    if (shape)        parts.push(shape);
-                    if (it.dimensions) parts.push(it.dimensions);
-                    if (it.capacity)   parts.push(it.capacity);
-                    return parts.join(' · ');
-                }).join(', ');
+                    var specParts = [];
+                    if (it.dimensions) specParts.push(it.dimensions);
+                    if (it.capacity)   specParts.push(it.capacity);
+
+                    var row =
+                        '<span style="' + pillStyle + 'background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;">' + (it.tank_type || 'Tank') + qty + '</span>' +
+                        (shape ? '<span style="' + pillStyle + 'background:#F0FDF4;color:#15803D;border:1px solid #BBF7D0;">' + shape + '</span>' : '') +
+                        (specParts.length ? '<span style="' + pillStyle + 'background:#FEF9C3;color:#A16207;border:1px solid #FDE68A;">' + specParts.join(' · ') + '</span>' : '');
+                    return '<div style="display:flex;flex-wrap:nowrap;overflow-x:auto;">' + row + '</div>';
+                }).join('');
             }
 
             function setCustomTemplateSelected(isSelected) {
@@ -1297,7 +1302,7 @@
                     item.innerHTML =
                         '<div class="cs-info">' +
                             '<div class="cs-name">' + tpl.name + '</div>' +
-                            '<div style="font-size:12px;color:var(--muted);margin-top:2px;">' + templateSummary(tpl) + '</div>' +
+                            '<div style="margin-top:4px;">' + templateSummary(tpl) + '</div>' +
                         '</div>' +
                         '<button type="button" class="template-delete-btn" title="Delete template" ' +
                             'style="flex-shrink:0;width:32px;height:32px;border:none;background:none;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;border-radius:8px;">' +

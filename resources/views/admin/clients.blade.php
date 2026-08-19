@@ -34,24 +34,25 @@
             </div>
             @endif
 
-            <div class="table-card">
+            <div class="table-card" style="padding-bottom:0;">
                 <div class="table-toolbar">
                     <div class="search-box">
                         <i data-lucide="search"></i>
                         <input type="text" id="clientSearch" placeholder="Search name or username...">
                     </div>
-                    <div class="filter-group">
-                        <select id="clientStatusFilter" class="filter-select">
-                            <option value="">All</option>
-                            <option value="Active">Active</option>
-                            <option value="Inactive">Archived</option>
-                        </select>
-                        <select id="clientSortFilter" class="filter-select">
-                            <option value="date-desc">Date Added (Newest First)</option>
-                            <option value="date-asc">Date Added (Oldest First)</option>
-                            <option value="name-asc">Name (A-Z)</option>
-                            <option value="name-desc">Name (Z-A)</option>
-                        </select>
+                    <div class="filter-tabs" id="clientStatusTabs">
+                        <button type="button" class="filter-tab active" data-filter="">
+                            All
+                            <span class="filter-count">{{ $clients->count() }}</span>
+                        </button>
+                        <button type="button" class="filter-tab" data-filter="Active">
+                            Active
+                            <span class="filter-count">{{ $clients->where('status', 'Active')->count() }}</span>
+                        </button>
+                        <button type="button" class="filter-tab" data-filter="Inactive">
+                            Archived
+                            <span class="filter-count">{{ $clients->where('status', 'Inactive')->count() }}</span>
+                        </button>
                     </div>
                 </div>
                 <div style="max-height:570px;overflow-y:auto;">
@@ -62,7 +63,6 @@
                                 <th>Username</th>
                                 <th>Email Address</th>
                                 <th>Contact Number</th>
-                                <th>Address</th>
                                 <th>No. of Projects</th>
                                 <th>Status</th>
                                 <th>Actions</th>
@@ -73,8 +73,7 @@
                             <tr
                                 data-status="{{ $client->status }}"
                                 data-name="{{ strtolower($client->full_name) }}"
-                                data-username="{{ strtolower($client->username ?? '') }}"
-                                data-created="{{ $client->created_at->timestamp }}">
+                                data-username="{{ strtolower($client->username ?? '') }}">
                                 <td>
                                     {{ $client->full_name }}
                                 </td>
@@ -85,14 +84,6 @@
                                 </td>
                                 <td>{{ $client->email ?? '—' }}</td>
                                 <td>{{ $client->contact ?? '—' }}</td>
-                                <td style="font-size:13px;color:var(--text-secondary);max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"
-                                    title="{{ $client->address ?? '' }}">
-                                    @if($client->province && $client->city)
-                                        {{ $client->province }}, {{ $client->city }}
-                                    @else
-                                        {{ $client->address ?? '—' }}
-                                    @endif
-                                </td>
                                 <td style="text-align:center;">
                                     <span style="font-weight:600;color:var(--text-primary);">{{ $client->projects_count ?? 0 }}</span>
                                 </td>
@@ -107,8 +98,7 @@
                                     <button class="action-btn view edit-client-btn" type="button"
                                             title="Edit Client Information"
                                             data-id="{{ $client->id }}"
-                                            data-first-name="{{ $client->first_name }}"
-                                            data-last-name="{{ $client->last_name }}"
+                                            data-name="{{ $client->full_name }}"
                                             data-contact="{{ $client->contact }}"
                                             data-email="{{ $client->email }}"
                                             data-region="{{ $client->region }}"
@@ -129,13 +119,13 @@
                             </tr>
                             @empty
                             <tr id="clientBladeEmpty">
-                                <td colspan="9" style="text-align:center;padding:40px;color:var(--muted);">
+                                <td colspan="7" style="text-align:center;padding:40px;color:var(--muted);">
                                     No clients found. Click <strong>Add Client</strong> to get started.
                                 </td>
                             </tr>
                             @endforelse
                             <tr id="clientEmptyState" style="display:none;">
-                                <td colspan="8" style="text-align:center;padding:48px 20px;">
+                                <td colspan="7" style="text-align:center;padding:48px 20px;">
                                     <div style="display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--muted);">
                                         <i data-lucide="inbox" style="width:36px;height:36px;opacity:0.4;"></i>
                                         <span id="clientEmptyMsg" style="font-size:14px;font-weight:600;">No clients found.</span>
@@ -302,15 +292,10 @@
                 @csrf
                 @method('PUT')
                 <div class="form-grid">
-                    <div class="form-group">
-                        <label>First Name </label>
-                        <input type="text" name="first_name" id="editClientFirstName" required placeholder="First name"
-                               oninput="clientStripDigits(this); clientCapName(this)">
-                    </div>
-                    <div class="form-group">
-                        <label>Last Name </label>
-                        <input type="text" name="last_name" id="editClientLastName" required placeholder="Last name"
-                               oninput="clientStripDigits(this); clientCapName(this)">
+                    <div class="form-group form-group-full">
+                        <label>Full Name / Company Name </label>
+                        <input type="text" name="full_name" id="editClientFullName" required
+                               placeholder="e.g. Juan Dela Cruz or ABC Construction Co.">
                     </div>
                     <div class="form-group">
                         <label>Contact Number </label>
@@ -408,16 +393,14 @@
             // ---- Edit Client Modal ----
             document.querySelectorAll('.edit-client-btn').forEach(function (btn) {
                 btn.addEventListener('click', function () {
-                    document.getElementById('editClientFirstName').value    = this.dataset.firstName || '';
-                    document.getElementById('editClientLastName').value     = this.dataset.lastName || '';
+                    document.getElementById('editClientFullName').value     = this.dataset.name || '';
                     document.getElementById('editClientContact').value      = this.dataset.contact || '';
                     document.getElementById('editClientEmail').value        = this.dataset.email || '';
                     document.getElementById('editClientProvince').value     = this.dataset.province || '';
                     document.getElementById('editClientCity').value         = this.dataset.city || '';
                     document.getElementById('editClientRegion').value       = this.dataset.region || '';
                     document.getElementById('editClientStreetAddress').value = this.dataset.streetAddress || '';
-                    var fullName = (this.dataset.lastName || '') + (this.dataset.firstName ? ', ' + this.dataset.firstName : '');
-                    document.getElementById('editClientSubtitle').textContent = 'Editing: ' + fullName;
+                    document.getElementById('editClientSubtitle').textContent = 'Editing: ' + (this.dataset.name || '');
                     document.getElementById('editClientForm').action = '/admin/clients/' + this.dataset.id;
                     openModal('editClientModal');
                 });
@@ -462,9 +445,11 @@
             });
 
             // ---- Search, Filter & Sort ----
+            var currentClientStatusFilter = '';
+
             function filterClients() {
                 var q      = document.getElementById('clientSearch').value.toLowerCase();
-                var status = document.getElementById('clientStatusFilter').value;
+                var status = currentClientStatusFilter;
                 var visible = 0;
                 document.querySelectorAll('#clientsTable tbody tr[data-name]').forEach(function (row) {
                     var matchQ      = !q || row.dataset.name.includes(q) || row.dataset.username.includes(q);
@@ -493,28 +478,16 @@
                 }
             }
 
-            function sortClients() {
-                var sort  = document.getElementById('clientSortFilter').value;
-                var tbody = document.querySelector('#clientsTable tbody');
-                var rows  = Array.from(tbody.querySelectorAll('tr[data-name]'));
-                rows.sort(function (a, b) {
-                    if (sort === 'date-desc') return Number(b.dataset.created) - Number(a.dataset.created);
-                    if (sort === 'date-asc')  return Number(a.dataset.created) - Number(b.dataset.created);
-                    if (sort === 'name-asc')  return a.dataset.name.localeCompare(b.dataset.name);
-                    if (sort === 'name-desc') return b.dataset.name.localeCompare(a.dataset.name);
-                    return 0;
-                });
-                rows.forEach(function (row) { tbody.appendChild(row); });
-            }
-
             document.getElementById('clientSearch').addEventListener('keyup', filterClients);
-            document.getElementById('clientStatusFilter').addEventListener('change', filterClients);
-            document.getElementById('clientSortFilter').addEventListener('change', function () {
-                sortClients();
-                filterClients();
+            document.querySelectorAll('#clientStatusTabs .filter-tab').forEach(function (tab) {
+                tab.addEventListener('click', function () {
+                    document.querySelectorAll('#clientStatusTabs .filter-tab').forEach(function (t) { t.classList.remove('active'); });
+                    this.classList.add('active');
+                    currentClientStatusFilter = this.dataset.filter;
+                    filterClients();
+                });
             });
-            // Apply default sort (newest first) then filter (Active only) on load
-            sortClients();
+            // Apply default filter (All) on load
             filterClients();
 
             // ---- Credential preview (Add Client modal) ----

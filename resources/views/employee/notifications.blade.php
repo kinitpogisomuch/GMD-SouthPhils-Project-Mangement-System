@@ -11,10 +11,7 @@
 
     @include('partials.employee.header')
 
-    <div class="admin-layout">
-        @include('partials.employee.sidebar')
-
-        <main class="admin-content">
+    <main class="admin-content">
 
             <div class="pv-page-header" style="margin-bottom:24px;">
                 <div>
@@ -91,8 +88,7 @@
                 {{ $notifications->links('vendor.pagination.custom') }}
             </div>
 
-        </main>
-    </div>
+    </main>
 
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>
@@ -109,10 +105,6 @@
                 if (url && url !== '#' && url !== '') window.location.href = url;
                 else window.location.reload();
             });
-        }
-
-        function toggleSidebar() {
-            document.querySelector('.employee-sidebar').classList.toggle('open');
         }
 
     </script>

@@ -349,12 +349,10 @@ class AdminController extends Controller
     {
         $validated = $request->validate([
             'phone'          => 'nullable|string|max:20',
-            'mobile'         => 'nullable|string|max:20',
             'email'          => 'nullable|email|max:255',
             'address'        => 'nullable|string|max:500',
             'facebook'       => 'nullable|string|max:255',
             'business_hours' => 'nullable|string|max:255',
-            'description'    => 'nullable|string|max:1000',
         ]);
 
         SiteSetting::instance()->update($validated);

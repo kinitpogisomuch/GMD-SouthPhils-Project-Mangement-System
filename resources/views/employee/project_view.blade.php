@@ -11,10 +11,7 @@
 
     @include('partials.employee.header')
 
-    <div class="admin-layout">
-        @include('partials.employee.sidebar')
-
-        <main class="admin-content">
+    <main class="admin-content">
 
             <!-- Breadcrumb -->
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;font-size:13px;color:var(--muted);">
@@ -417,8 +414,7 @@
                 </div>
             </div>
 
-        </main>
-    </div>
+    </main>
 
     <!-- ===== UPDATE DETAIL MODAL ===== -->
     <div class="modal-overlay" id="updateDetailModal">
@@ -592,10 +588,6 @@
             const input = document.querySelector('#revisionPhotoPreview').closest('.form-group').querySelector('input[type=file]');
             syncInput(input, empRevisionFiles);
             buildPhotoPreview(empRevisionFiles, 'revisionPhotoPreview', 'removeRevisionPhoto');
-        }
-
-        function toggleSidebar() {
-            document.querySelector('.employee-sidebar').classList.toggle('open');
         }
 
         function getFileIconName(filename) {

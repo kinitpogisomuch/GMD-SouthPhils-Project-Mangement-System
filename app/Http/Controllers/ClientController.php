@@ -25,7 +25,7 @@ class ClientController extends Controller
             : collect();
 
         $payments = $clientName
-            ? Payment::where('client', $clientName)->orderBy('created_at', 'desc')->take(3)->get()
+            ? Payment::with('project')->where('client', $clientName)->orderBy('created_at', 'desc')->take(3)->get()
             : collect();
 
         return view('client.dashboard', compact('projects', 'payments'));

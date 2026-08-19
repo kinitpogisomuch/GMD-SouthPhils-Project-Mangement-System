@@ -30,6 +30,15 @@
             </div>
             @endif
 
+            @if($errors->hasBag('portfolioEdit'))
+            <div class="alert-banner error">
+                <i data-lucide="alert-circle"></i>
+                @foreach($errors->getBag('portfolioEdit')->all() as $error)
+                    {{ $error }}
+                @endforeach
+            </div>
+            @endif
+
             <!-- Settings Tabs -->
             <div class="emp-tabs">
                 <button class="emp-tab" data-tab="profile">
@@ -279,34 +288,22 @@
                         @method('PUT')
                         <div class="form-grid">
                             <div class="form-group">
+                                <label>Location</label>
+                                <input type="text" name="address" class="contact-field"
+                                       value="{{ old('address', $contactInfo->address) }}"
+                                       placeholder="e.g. Brgy. Masiit, Calauan, Philippines, 4012" maxlength="500" disabled>
+                            </div>
+                            <div class="form-group">
                                 <label>Phone</label>
                                 <input type="text" name="phone" class="contact-field"
                                        value="{{ old('phone', $contactInfo->phone) }}"
-                                       placeholder="e.g. (082) 123-4567" maxlength="20" disabled>
-                            </div>
-                            <div class="form-group">
-                                <label>Mobile</label>
-                                <input type="text" name="mobile" class="contact-field"
-                                       value="{{ old('mobile', $contactInfo->mobile) }}"
-                                       placeholder="e.g. 09XX XXX XXXX" maxlength="20" disabled>
+                                       placeholder="e.g. 0917 652 5201" maxlength="20" disabled>
                             </div>
                             <div class="form-group">
                                 <label>Email</label>
                                 <input type="email" name="email" class="contact-field"
                                        value="{{ old('email', $contactInfo->email) }}"
-                                       placeholder="e.g. info@gmdsouthphils.com" maxlength="255" disabled>
-                            </div>
-                            <div class="form-group">
-                                <label>Business Hours</label>
-                                <input type="text" name="business_hours" class="contact-field"
-                                       value="{{ old('business_hours', $contactInfo->business_hours) }}"
-                                       placeholder="e.g. Mon–Fri: 8AM–5PM" maxlength="255" disabled>
-                            </div>
-                            <div class="form-group">
-                                <label>Address</label>
-                                <input type="text" name="address" class="contact-field"
-                                       value="{{ old('address', $contactInfo->address) }}"
-                                       placeholder="e.g. 123 Main Street, Davao City, Philippines" maxlength="500" disabled>
+                                       placeholder="e.g. gmdsouthphils@gmail.com" maxlength="255" disabled>
                             </div>
                             <div class="form-group">
                                 <label>Facebook Page URL</label>
@@ -315,9 +312,10 @@
                                        placeholder="e.g. https://facebook.com/gmdsouthphils" maxlength="255" disabled>
                             </div>
                             <div class="form-group form-group-full">
-                                <label>Company Description</label>
-                                <textarea name="description" class="contact-field" rows="4" maxlength="1000"
-                                          placeholder="Brief description about GMD South Phils displayed on the landing page..." disabled>{{ old('description', $contactInfo->description) }}</textarea>
+                                <label>Business Hours</label>
+                                <input type="text" name="business_hours" class="contact-field"
+                                       value="{{ old('business_hours', $contactInfo->business_hours) }}"
+                                       placeholder="e.g. Monday – Saturday, 8:00 AM – 5:00 PM" maxlength="255" disabled>
                             </div>
                         </div>
                     </form>
@@ -336,7 +334,7 @@
                             <thead>
                                 <tr>
                                     <th>Preview</th>
-                                    <th>Spec</th>
+                                    <th>Capacity</th>
                                     <th>Tag</th>
                                     <th>Title</th>
                                     <th>Description</th>
@@ -379,26 +377,22 @@
                                                 data-tag="{{ $item->tag }}"
                                                 data-title="{{ $item->title }}"
                                                 data-description="{{ $item->description }}"
-                                                data-sort-order="{{ $item->sort_order }}"
                                                 title="Edit">
                                             <i data-lucide="pencil"></i>
                                         </button>
-                                        <form method="POST" action="{{ route('admin.portfolio.archive', $item->id) }}" style="display:inline;"
-                                              onsubmit="return confirm('{{ $item->status === 'archived' ? 'Show this item on the landing page again?' : 'Hide this item from the landing page?' }}');">
-                                            @csrf
-                                            @method('PATCH')
-                                            <button class="action-btn view" type="submit" title="{{ $item->status === 'archived' ? 'Show on landing page' : 'Hide from landing page' }}">
-                                                <i data-lucide="{{ $item->status === 'archived' ? 'eye' : 'eye-off' }}"></i>
-                                            </button>
-                                        </form>
-                                        <form method="POST" action="{{ route('admin.portfolio.destroy', $item->id) }}" style="display:inline;"
-                                              onsubmit="return confirm('Permanently delete this portfolio item?');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button class="action-btn view" type="submit" title="Delete">
-                                                <i data-lucide="trash-2"></i>
-                                            </button>
-                                        </form>
+                                        <button class="action-btn view toggle-visibility-btn" type="button"
+                                                data-archive-url="{{ route('admin.portfolio.archive', $item->id) }}"
+                                                data-hidden="{{ $item->status === 'archived' ? '1' : '0' }}"
+                                                data-name="{{ $item->title }}"
+                                                title="{{ $item->status === 'archived' ? 'Show on landing page' : 'Hide from landing page' }}">
+                                            <i data-lucide="{{ $item->status === 'archived' ? 'eye' : 'eye-off' }}"></i>
+                                        </button>
+                                        <button class="action-btn view delete-item-btn" type="button"
+                                                data-delete-url="{{ route('admin.portfolio.destroy', $item->id) }}"
+                                                data-name="{{ $item->title }}"
+                                                title="Delete">
+                                            <i data-lucide="trash-2"></i>
+                                        </button>
                                     </td>
                                 </tr>
                                 @empty
@@ -456,22 +450,19 @@
                                         </span>
                                     </td>
                                     <td class="action-cell">
-                                        <form method="POST" action="{{ route('admin.reviews.archive', $review->id) }}" style="display:inline;"
-                                              onsubmit="return confirm('{{ $review->status === 'archived' ? 'Show this review on the landing page again?' : 'Hide this review from the landing page?' }}');">
-                                            @csrf
-                                            @method('PATCH')
-                                            <button class="action-btn view" type="submit" title="{{ $review->status === 'archived' ? 'Show on landing page' : 'Hide from landing page' }}">
-                                                <i data-lucide="{{ $review->status === 'archived' ? 'eye' : 'eye-off' }}"></i>
-                                            </button>
-                                        </form>
-                                        <form method="POST" action="{{ route('admin.reviews.destroy', $review->id) }}" style="display:inline;"
-                                              onsubmit="return confirm('Permanently delete this review?');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button class="action-btn view" type="submit" title="Delete">
-                                                <i data-lucide="trash-2"></i>
-                                            </button>
-                                        </form>
+                                        <button class="action-btn view toggle-visibility-btn" type="button"
+                                                data-archive-url="{{ route('admin.reviews.archive', $review->id) }}"
+                                                data-hidden="{{ $review->status === 'archived' ? '1' : '0' }}"
+                                                data-name="{{ $review->client_name }}'s review"
+                                                title="{{ $review->status === 'archived' ? 'Show on landing page' : 'Hide from landing page' }}">
+                                            <i data-lucide="{{ $review->status === 'archived' ? 'eye' : 'eye-off' }}"></i>
+                                        </button>
+                                        <button class="action-btn view delete-item-btn" type="button"
+                                                data-delete-url="{{ route('admin.reviews.destroy', $review->id) }}"
+                                                data-name="{{ $review->client_name }}'s review"
+                                                title="Delete">
+                                            <i data-lucide="trash-2"></i>
+                                        </button>
                                     </td>
                                 </tr>
                                 @empty
@@ -511,8 +502,8 @@
                         <input type="file" name="image" accept="image/*">
                     </div>
                     <div class="form-group">
-                        <label>Spec / Badge </label>
-                        <input type="text" name="spec" required placeholder="e.g. 10,000 L">
+                        <label>Capacity / Badge </label>
+                        <input type="text" name="spec" required value="{{ old('spec') }}" placeholder="e.g. 10,000 L">
                     </div>
                     <div class="form-group">
                         <label>Category Tag</label>
@@ -530,17 +521,22 @@
                     </div>
                     <div class="form-group form-group-full">
                         <label>Title </label>
-                        <input type="text" name="title" required placeholder="e.g. Diesel Storage Tank — Distribution Depot">
+                        <input type="text" name="title" required value="{{ old('title') }}" placeholder="e.g. Diesel Storage Tank — Distribution Depot">
                     </div>
                     <div class="form-group form-group-full">
                         <label>Description </label>
-                        <textarea name="description" rows="3" required placeholder="Short description of the project"></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label>Display Order <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
-                        <input type="number" name="sort_order" min="0" step="1" onwheel="this.blur()" placeholder="0">
+                        <textarea name="description" rows="4" required style="resize:none;" placeholder="Short description of the project">{{ old('description') }}</textarea>
                     </div>
                 </div>
+
+                @if($errors->hasBag('portfolio'))
+                <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:12px;margin-top:4px;color:#dc2626;font-size:13px;">
+                    @foreach($errors->getBag('portfolio')->all() as $error)
+                        <div>• {{ $error }}</div>
+                    @endforeach
+                </div>
+                @endif
+
                 <div class="modal-actions">
                     <button type="button" class="cancel-btn" id="cancelAddPortfolio">Cancel</button>
                     <button type="submit" class="save-btn">
@@ -569,26 +565,19 @@
                 @method('PUT')
 
                 {{-- Image section --}}
-                <div id="editPortfolioImagePreviewWrap" style="display:none;margin-bottom:16px;">
-                    <label id="editPortfolioImagePreviewLabel" style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);display:block;margin-bottom:8px;">Current Image</label>
-                    <div style="display:flex;align-items:center;gap:16px;">
+                <div class="form-group form-group-full" style="margin-bottom:14px;">
+                    <label>Image <span style="font-weight:400;color:var(--muted);">(optional — choosing a new file replaces the current one)</span></label>
+                    <div style="display:flex;align-items:center;gap:14px;">
                         <img id="editPortfolioImagePreview" src="" alt=""
-                             style="width:90px;height:70px;object-fit:cover;border-radius:10px;border:1px solid var(--border);">
-                        <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--danger);cursor:pointer;">
-                            <input type="checkbox" name="remove_image" id="editPortfolioRemoveImage" value="1" style="width:16px;height:16px;accent-color:var(--danger);">
-                            Remove current image
-                        </label>
+                             style="display:none;width:70px;height:56px;object-fit:cover;border-radius:10px;border:1px solid var(--border);flex-shrink:0;">
+                        <input type="file" name="image" id="editPortfolioImageInput" accept="image/*" style="flex:1;min-width:0;">
                     </div>
                 </div>
 
                 {{-- Two-column layout --}}
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
                     <div class="form-group">
-                        <label>Replace Image <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
-                        <input type="file" name="image" id="editPortfolioImageInput" accept="image/*">
-                    </div>
-                    <div class="form-group">
-                        <label>Spec / Badge</label>
+                        <label>Capacity / Badge</label>
                         <input type="text" name="spec" id="editPortfolioSpec" required placeholder="e.g. 10,000 L">
                     </div>
                     <div class="form-group">
@@ -614,13 +603,9 @@
 
                 <div class="form-group" style="margin-bottom:14px;">
                     <label>Description</label>
-                    <textarea name="description" id="editPortfolioDescription" rows="3" required
+                    <textarea name="description" id="editPortfolioDescription" rows="4" required
+                              style="resize:none;"
                               placeholder="Short description of the project..."></textarea>
-                </div>
-
-                <div class="form-group" style="margin-bottom:0;width:160px;">
-                    <label>Display Order <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
-                    <input type="number" name="sort_order" id="editPortfolioSortOrder" min="0" step="1" onwheel="this.blur()" placeholder="0">
                 </div>
 
                 <div class="modal-actions" style="margin-top:20px;">
@@ -628,6 +613,64 @@
                     <button type="submit" class="save-btn">
                         <i data-lucide="save" style="width:15px;height:15px;"></i>
                         Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ===== TOGGLE VISIBILITY (HIDE/SHOW) MODAL ===== -->
+    <div class="modal-overlay" id="visibilityModal">
+        <div class="modal-card" style="max-width:460px;">
+            <div class="modal-header">
+                <div>
+                    <h2 id="visibilityModalTitle">Hide Item</h2>
+                    <p id="visibilityModalSubtitle">This will remove it from the landing page.</p>
+                </div>
+                <button class="modal-close" type="button" id="closeVisibilityModal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="delete-confirm-body">
+                <div class="delete-confirm-icon"><i data-lucide="eye-off" id="visibilityModalIcon"></i></div>
+                <p id="visibilityModalMsg">Are you sure you want to hide this item?</p>
+            </div>
+            <form method="POST" id="visibilityModalForm">
+                @csrf
+                @method('PATCH')
+                <div class="modal-actions">
+                    <button type="button" class="cancel-btn" id="cancelVisibilityModal">Cancel</button>
+                    <button type="submit" class="save-btn" id="visibilityModalConfirmBtn">
+                        <i data-lucide="eye-off"></i> Hide
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ===== DELETE ITEM MODAL ===== -->
+    <div class="modal-overlay" id="deleteItemModal">
+        <div class="modal-card" style="max-width:460px;">
+            <div class="modal-header">
+                <div>
+                    <h2>Delete Item</h2>
+                    <p>This action cannot be undone.</p>
+                </div>
+                <button class="modal-close" type="button" id="closeDeleteItemModal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="delete-confirm-body">
+                <div class="delete-confirm-icon"><i data-lucide="trash-2"></i></div>
+                <p id="deleteItemMsg">Permanently delete this item?</p>
+            </div>
+            <form method="POST" id="deleteItemForm">
+                @csrf
+                @method('DELETE')
+                <div class="modal-actions">
+                    <button type="button" class="cancel-btn" id="cancelDeleteItem">Cancel</button>
+                    <button type="submit" class="delete-btn">
+                        <i data-lucide="trash-2"></i> Delete
                     </button>
                 </div>
             </form>
@@ -663,6 +706,11 @@
         // If validation errors exist on profile, open in edit mode
         @if($errors->hasBag('profile') && $errors->getBag('profile')->any())
         enableEdit();
+        @endif
+
+        // If validation errors exist on Add Portfolio Item, reopen that modal
+        @if($errors->hasBag('portfolio'))
+        openModal('addPortfolioModal');
         @endif
 
         // Save profile — validate then enable all fields and submit
@@ -706,7 +754,6 @@
         document.querySelectorAll('.edit-portfolio-btn').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 document.getElementById('editPortfolioForm').action = '/admin/portfolio-items/' + this.dataset.id;
-                document.getElementById('editPortfolioIcon').value = this.dataset.icon || '';
                 document.getElementById('editPortfolioSpec').value = this.dataset.spec || '';
                 // Set tag dropdown — if value not in list, select Others + show custom input
                 var tagVal = this.dataset.tag || '';
@@ -724,23 +771,17 @@
                 }
                 document.getElementById('editPortfolioTitle').value = this.dataset.title || '';
                 document.getElementById('editPortfolioDescription').value = this.dataset.description || '';
-                document.getElementById('editPortfolioSortOrder').value = this.dataset.sortOrder || '';
-                document.getElementById('editPortfolioRemoveImage').checked = false;
 
                 var imageInput = document.getElementById('editPortfolioImageInput');
                 imageInput.value = '';
 
-                var previewLabel = document.getElementById('editPortfolioImagePreviewLabel');
-                if (previewLabel) previewLabel.textContent = 'Current Image';
-
                 var preview = document.getElementById('editPortfolioImagePreview');
-                var previewWrap = document.getElementById('editPortfolioImagePreviewWrap');
                 if (this.dataset.image) {
                     preview.src = this.dataset.image;
-                    previewWrap.style.display = '';
+                    preview.style.display = '';
                 } else {
                     preview.src = '';
-                    previewWrap.style.display = 'none';
+                    preview.style.display = 'none';
                 }
 
                 openModal('editPortfolioModal');
@@ -751,27 +792,60 @@
         document.getElementById('cancelEditPortfolio')
             .addEventListener('click', function () { closeModal('editPortfolioModal'); });
 
+        // ---- Toggle Visibility (Hide/Show) Modal — shared by Portfolio Items & Reviews ----
+        document.querySelectorAll('.toggle-visibility-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var isHidden = this.dataset.hidden === '1';
+                var name = this.dataset.name || 'this item';
+
+                document.getElementById('visibilityModalTitle').textContent = isHidden ? 'Show Item' : 'Hide Item';
+                document.getElementById('visibilityModalSubtitle').textContent = isHidden
+                    ? 'This will make it visible on the landing page again.'
+                    : 'This will remove it from the landing page.';
+                document.getElementById('visibilityModalMsg').textContent = isHidden
+                    ? 'Show "' + name + '" on the landing page again?'
+                    : 'Hide "' + name + '" from the landing page?';
+                document.getElementById('visibilityModalIcon').setAttribute('data-lucide', isHidden ? 'eye' : 'eye-off');
+                document.getElementById('visibilityModalConfirmBtn').innerHTML = isHidden
+                    ? '<i data-lucide="eye"></i> Show'
+                    : '<i data-lucide="eye-off"></i> Hide';
+                document.getElementById('visibilityModalForm').action = this.dataset.archiveUrl;
+
+                openModal('visibilityModal');
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            });
+        });
+        document.getElementById('closeVisibilityModal')
+            .addEventListener('click', function () { closeModal('visibilityModal'); });
+        document.getElementById('cancelVisibilityModal')
+            .addEventListener('click', function () { closeModal('visibilityModal'); });
+
+        // ---- Delete Item Modal — shared by Portfolio Items & Reviews ----
+        document.querySelectorAll('.delete-item-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var name = this.dataset.name || 'this item';
+                document.getElementById('deleteItemMsg').textContent = 'Permanently delete "' + name + '"? This cannot be undone.';
+                document.getElementById('deleteItemForm').action = this.dataset.deleteUrl;
+                openModal('deleteItemModal');
+            });
+        });
+        document.getElementById('closeDeleteItemModal')
+            .addEventListener('click', function () { closeModal('deleteItemModal'); });
+        document.getElementById('cancelDeleteItem')
+            .addEventListener('click', function () { closeModal('deleteItemModal'); });
+
         // ---- Live preview when replacing the portfolio image ----
         document.getElementById('editPortfolioImageInput')?.addEventListener('change', function () {
             var file = this.files && this.files[0];
             if (!file) return;
 
             var preview = document.getElementById('editPortfolioImagePreview');
-            var previewWrap = document.getElementById('editPortfolioImagePreviewWrap');
-            var removeCheckbox = document.getElementById('editPortfolioRemoveImage');
-
-            var label = document.getElementById('editPortfolioImagePreviewLabel');
-
             var reader = new FileReader();
             reader.onload = function (e) {
                 preview.src = e.target.result;
-                previewWrap.style.display = '';
-                if (label) label.textContent = 'New Image Preview';
+                preview.style.display = '';
             };
             reader.readAsDataURL(file);
-
-            // Picking a new file overrides "remove image"
-            if (removeCheckbox) removeCheckbox.checked = false;
         });
 
         // ---- Overlay click to close ----

@@ -11,10 +11,7 @@
 
     @include('partials.employee.header')
 
-    <div class="admin-layout">
-        @include('partials.employee.sidebar')
-
-        <main class="admin-content">
+    <main class="admin-content">
             <div class="pv-page-header">
                 <div>
                     <h1>Usage Log</h1>
@@ -101,8 +98,7 @@
                 </div>
             </div>
 
-        </main>
-    </div>
+    </main>
 
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="{{ asset('js/employee.js') }}"></script>

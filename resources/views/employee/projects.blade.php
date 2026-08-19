@@ -11,10 +11,7 @@
 
     @include('partials.employee.header')
 
-    <div class="admin-layout">
-        @include('partials.employee.sidebar')
-
-        <main class="admin-content">
+    <main class="admin-content">
 
             <div class="pv-page-header">
                 <div>
@@ -102,16 +99,11 @@
                 No projects found in this filter.
             </div>
 
-        </main>
-    </div>
+    </main>
 
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>
         lucide.createIcons();
-
-        function toggleSidebar() {
-            document.querySelector('.employee-sidebar').classList.toggle('open');
-        }
 
         (function() {
             var tabs = document.querySelectorAll('#projectFilterTabs .filter-tab');

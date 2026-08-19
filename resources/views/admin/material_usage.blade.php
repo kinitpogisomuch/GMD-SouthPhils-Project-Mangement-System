@@ -72,9 +72,9 @@
                             @foreach($suppliers as $sup)
                             <tr data-sup-name="{{ strtolower($sup->name) }}" data-sup-phone="{{ $sup->phone }}" data-sup-addr="{{ strtolower($sup->address ?? '') }}">
                                 <td style="font-size:14px;font-weight:700;color:var(--dark);">{{ $sup->name }}</td>
-                                <td style="font-size:14px;font-weight:400;color:var(--dark);">{{ $sup->phone ?? '—' }}</td>
-                                <td style="font-size:14px;font-weight:400;color:var(--dark);">{{ $sup->email ?? '—' }}</td>
-                                <td style="font-size:14px;font-weight:400;color:var(--dark);">{{ $sup->address ?? '—' }}</td>
+                                <td style="font-size:14px;font-weight:700;color:var(--dark);">{{ $sup->phone ?? '—' }}</td>
+                                <td style="font-size:14px;font-weight:700;color:var(--dark);">{{ $sup->email ?? '—' }}</td>
+                                <td style="font-size:14px;font-weight:700;color:var(--dark);">{{ $sup->address ?? '—' }}</td>
                                 <td class="action-cell">
                                     <button class="action-btn edit" title="Edit"
                                         onclick="openEditSupplier({{ $sup->id }}, {{ json_encode($sup->name) }}, {{ json_encode($sup->company) }}, {{ json_encode($sup->phone) }}, {{ json_encode($sup->email) }}, {{ json_encode($sup->address) }})">
@@ -123,7 +123,7 @@
                     </div>
                 </div>
 
-                <div style="max-height:399px;overflow-y:auto;">
+                <div style="max-height:399px;overflow-y:auto;overflow-x:auto;">
                     <table class="data-table" id="usageTable" style="margin:0;">
                         <thead style="position:sticky;top:0;z-index:2;">
                             <tr>

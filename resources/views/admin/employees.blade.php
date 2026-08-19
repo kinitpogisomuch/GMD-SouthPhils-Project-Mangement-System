@@ -64,7 +64,7 @@
 
             <!-- ===== TAB: EMPLOYEES ===== -->
             <div class="emp-tab-content active" id="tab-employees">
-                <div class="table-card">
+                <div class="table-card" style="padding-bottom:0;">
                     <div class="table-toolbar">
                         <div class="search-box">
                             <i data-lucide="search"></i>
@@ -203,7 +203,7 @@
 
             <!-- ===== TAB: SALARY ===== -->
             <div class="emp-tab-content" id="tab-salary">
-                <div class="table-card">
+                <div class="table-card" style="padding-bottom:0;">
                     <div class="table-toolbar">
                         <div class="search-box">
                             <i data-lucide="search"></i>
@@ -274,7 +274,7 @@
 
                     <!-- Payroll Summary -->
                     <div class="payroll-summary" id="payrollSummary">
-                        <div class="payroll-summary-item">
+                        <div class="payroll-summary-item highlight">
                             <span>Total Gross</span>
                             <strong id="summaryGross">—</strong>
                         </div>
@@ -723,7 +723,7 @@
             </div>
 
             <!-- STEP 2: Salary Form (redesigned) -->
-            <form id="recordPaymentForm" style="display:none;max-height:82vh;overflow-y:auto;padding-right:2px;">
+            <form id="recordPaymentForm" style="display:none;">
                 <input type="hidden" id="rpRecordId">
                 <input type="hidden" id="rpEmployee">
                 <input type="hidden" id="rpPeriod">

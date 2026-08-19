@@ -10,8 +10,8 @@ class PortfolioItemController extends Controller
 {
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'image'       => 'nullable|image|max:5120',
+        $data = $request->validateWithBag('portfolio', [
+            'image'       => 'nullable|image|max:10240',
             'icon'        => 'nullable|string|max:50',
             'spec'        => 'required|string|max:50',
             'tag'         => 'required|string|max:50',
@@ -42,24 +42,19 @@ class PortfolioItemController extends Controller
     {
         $item = PortfolioItem::findOrFail($id);
 
-        $data = $request->validate([
-            'image'        => 'nullable|image|max:5120',
+        $data = $request->validateWithBag('portfolioEdit', [
+            'image'        => 'nullable|image|max:10240',
             'icon'         => 'nullable|string|max:50',
             'spec'         => 'required|string|max:50',
             'tag'          => 'required|string|max:50',
             'title'        => 'required|string|max:255',
             'description'  => 'required|string|max:1000',
             'sort_order'   => 'nullable|integer|min:0',
-            'remove_image' => 'nullable|boolean',
         ]);
 
         if ($request->hasFile('image')) {
             $data['image_url'] = app(SupabaseStorageService::class)->upload($request->file('image'), 'portfolio');
-        } elseif ($request->boolean('remove_image')) {
-            $data['image_url'] = null;
         }
-
-        unset($data['remove_image']);
 
         if (empty($data['sort_order'])) {
             $data['sort_order'] = $item->sort_order;

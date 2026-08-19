@@ -11,10 +11,7 @@
 
     @include('partials.client.header')
 
-    <div class="admin-layout">
-        @include('partials.client.sidebar')
-
-        <main class="admin-content">
+    <main class="admin-content">
 
             <!-- Page Header -->
             <div class="page-header" style="margin-bottom:28px;">
@@ -172,8 +169,7 @@
             </div>
             @endforelse
 
-        </main>
-    </div>
+    </main>
 
     {{-- ===================== REVIEW MODAL ===================== --}}
     <div class="modal-overlay" id="reviewModal">

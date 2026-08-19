@@ -11,10 +11,7 @@
 
     @include('partials.client.header')
 
-    <div class="admin-layout">
-        @include('partials.client.sidebar')
-
-        <main class="admin-content">
+    <main class="admin-content">
 
             @php
                 $status    = $payment->computeStatus();
@@ -181,8 +178,7 @@
                 @endif
             </div>
 
-        </main>
-    </div>
+    </main>
 
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="{{ asset('js/client.js') }}"></script>

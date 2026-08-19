@@ -114,8 +114,7 @@ class ClientSettingsController extends Controller
     public function update(Request $request, $id)
     {
         $request->validate([
-            'first_name'     => ['required', 'string', 'max:255', 'regex:/^[^0-9]+$/u'],
-            'last_name'      => ['required', 'string', 'max:255', 'regex:/^[^0-9]+$/u'],
+            'full_name'      => 'required|string|max:255',
             'contact'        => 'required|string',
             'email'          => 'nullable|email',
             'province'       => ['nullable', 'string', 'max:255', 'regex:/^[^0-9]*$/u'],
@@ -135,14 +134,10 @@ class ClientSettingsController extends Controller
             ]));
         }
 
-        $firstName     = ucwords(strtolower(trim($request->first_name)));
-        $lastName      = ucwords(strtolower(trim($request->last_name)));
-        $combinedName  = trim($lastName . ', ' . $firstName);
-
         Client::findOrFail($id)->update([
-            'name'           => $combinedName,
-            'first_name'     => $firstName,
-            'last_name'      => $lastName,
+            'name'           => trim($request->full_name),
+            'first_name'     => null,
+            'last_name'      => null,
             'address'        => $fullAddress,
             'region'         => ucwords(strtolower(trim($request->region ?? ''))),
             'province'       => ucwords(strtolower(trim($request->province ?? ''))),

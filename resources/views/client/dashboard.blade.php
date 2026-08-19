@@ -11,10 +11,14 @@
 
     @include('partials.client.header')
 
-    <div class="admin-layout">
-        @include('partials.client.sidebar')
+    <main class="admin-content">
 
-        <main class="admin-content">
+            <div class="page-header" style="margin-bottom:24px;">
+                <div>
+                    <h1 class="page-title">Welcome back, {{ session('full_name', 'Client') }}</h1>
+                    <p class="page-subtitle">Here's an overview of your projects and payments.</p>
+                </div>
+            </div>
 
             <div class="stats-grid">
                 <div class="stat-card teal">
@@ -62,7 +66,14 @@
                     </div>
                     <div class="card-body">
                         @forelse($projects as $project)
-                        <div style="margin-bottom:22px;">
+                        @php
+                            $fillColor = match($project->status) {
+                                'completed' => '#207A3A',
+                                'delayed'   => '#B42318',
+                                default     => 'var(--dark)',
+                            };
+                        @endphp
+                        <a href="{{ route('client.project_view', $project->id) }}" class="dash-project-row">
                             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                                 <div>
                                     <div style="font-weight:600; font-size:14px;">{{ $project->name }}</div>
@@ -84,10 +95,10 @@
                                     <span>{{ $project->progress }}%</span>
                                 </div>
                                 <div class="progress-bar">
-                                    <div class="progress-fill" style="width:{{ $project->progress }}%"></div>
+                                    <div class="progress-fill" style="width:{{ $project->progress }}%;background:{{ $fillColor }};"></div>
                                 </div>
                             </div>
-                        </div>
+                        </a>
                         @empty
                         <p style="color:var(--text-secondary);font-size:13.5px;">No projects found.</p>
                         @endforelse
@@ -107,23 +118,19 @@
                             <thead>
                                 <tr>
                                     <th>Project</th>
-                                    <th>Amount</th>
+                                    <th style="text-align:right;">Amount</th>
                                     <th>Status</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @forelse($payments as $payment)
                                 <tr>
-                                    <td><strong>{{ $payment->client }}</strong></td>
-                                    <td><strong>₱{{ number_format($payment->contract_amount) }}</strong></td>
+                                    <td><strong>{{ $payment->project->name ?? '—' }}</strong></td>
+                                    <td style="text-align:right;"><strong>₱{{ number_format($payment->contract_amount) }}</strong></td>
                                     <td>
-                                        @if($payment->status === 'Paid')
-                                            <span class="badge badge-success">Paid</span>
-                                        @elseif($payment->status === 'Partial')
-                                            <span class="badge badge-info">Partial</span>
-                                        @else
-                                            <span class="badge badge-warning">Pending</span>
-                                        @endif
+                                        <span class="status-badge {{ \App\Models\Payment::statusBadgeClass($payment->status) }}">
+                                            {{ $payment->status }}
+                                        </span>
                                     </td>
                                 </tr>
                                 @empty
@@ -137,8 +144,7 @@
                 </div>
             </div>
 
-        </main>
-    </div>
+    </main>
 
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="{{ asset('js/client.js') }}"></script>

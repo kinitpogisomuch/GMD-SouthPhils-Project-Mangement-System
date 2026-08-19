@@ -11,10 +11,7 @@
 
     @include('partials.client.header')
 
-    <div class="admin-layout">
-        @include('partials.client.sidebar')
-
-        <main class="admin-content">
+    <main class="admin-content">
 
             @php
                 $phases = ['planning','procurement','matl_prep','fabrication','inspection','painting','completion','delivery'];
@@ -450,8 +447,7 @@
 
             </div><!-- /.pv-grid -->
 
-        </main>
-    </div>
+    </main>
 
     @if(($sdStatus ?? null) === 'pending_approval')
     <div class="modal-overlay" id="revisionModal">
