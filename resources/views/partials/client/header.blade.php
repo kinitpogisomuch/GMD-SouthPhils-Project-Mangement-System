@@ -252,16 +252,29 @@
     const READ_ALL_URL = '{{ route("client.notifications.read-all") }}';
     const CSRF         = '{{ csrf_token() }}';
 
+    // Kept in sync with Notification::ICON_MAP (app/Models/Notification.php)
     const iconMap = {
-        project_created:    'folder-kanban',
-        progress_requested: 'bell',
-        progress_submitted: 'send',
-        revision_requested: 'alert-triangle',
-        revision_submitted: 'refresh-cw',
-        progress_approved:  'check-circle',
-        phase_advanced:     'layers',
-        project_completed:  'award',
-        pending_review:     'clock',
+        project_created:                 'folder-kanban',
+        progress_requested:              'bell',
+        progress_submitted:              'send',
+        revision_requested:              'alert-triangle',
+        revision_submitted:              'refresh-cw',
+        progress_approved:               'check-circle',
+        phase_advanced:                  'layers',
+        project_completed:               'award',
+        pending_review:                  'clock',
+        material_added:                  'package-plus',
+        material_updated:                'package',
+        material_removed:                'package-minus',
+        material_requested:              'package-x',
+        material_usage_logged:           'clipboard-check',
+        labor_updated:                   'users',
+        shop_drawing_submitted:          'file-text',
+        shop_drawing_approved:           'check-circle',
+        shop_drawing_revision_requested: 'alert-triangle',
+        quotation_sent:                  'receipt',
+        fund_released:                   'credit-card',
+        fund_replenished:                'refresh-cw',
     };
 
     const priorityClass = {

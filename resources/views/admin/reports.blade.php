@@ -18,21 +18,21 @@
         <main class="admin-content">
 
             {{-- ── Page Header ── --}}
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+            <div class="page-header">
                 <div>
-                    <h1 style="font-size:22px;font-weight:900;margin:0 0 4px;">KPI &amp; Analytics</h1>
-                    <p style="font-size:13px;color:var(--muted);margin:0;">
+                    <h1 class="page-title">KPI &amp; Analytics</h1>
+                    <p class="page-subtitle">
                         GMD South Phils &nbsp;·&nbsp; {{ $currentQuarterLabel }} &nbsp;·&nbsp; {{ now()->year }}
                         @if($activeProjects > 0)
-                            &nbsp;·&nbsp; <span style="color:#2563eb;font-weight:700;">{{ $activeProjects }} project{{ $activeProjects !== 1 ? 's' : '' }} active</span>
+                            &nbsp;·&nbsp; <span style="color:var(--info);font-weight:700;">{{ $activeProjects }} project{{ $activeProjects !== 1 ? 's' : '' }} active</span>
                         @endif
                     </p>
                 </div>
             </div>
 
             {{-- ── Filters ── --}}
-            <div style="background:var(--white);border:1px solid var(--border);border-radius:14px;padding:14px 18px;margin-bottom:24px;">
-                <form method="GET" action="{{ route('admin.reports') }}" style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;">
+            <div class="card" style="margin-bottom:24px;">
+                <form method="GET" action="{{ route('admin.reports') }}" style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;padding:16px 20px;">
                     <div>
                         <label style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);display:block;margin-bottom:5px;">Timeline</label>
                         <div style="position:relative;">
@@ -79,9 +79,9 @@
             </div>
 
             @if($count === 0)
-            <div style="text-align:center;padding:80px 20px;color:var(--muted);">
+            <div class="card" style="text-align:center;padding:80px 20px;color:var(--muted);">
                 <i data-lucide="bar-chart-2" style="width:48px;height:48px;opacity:.3;display:block;margin:0 auto 16px;"></i>
-                <p style="font-size:16px;font-weight:700;">No completed projects match the selected filters.</p>
+                <p style="font-size:16px;font-weight:700;color:var(--dark);">No completed projects match the selected filters.</p>
                 <p style="font-size:13px;">Try selecting a different timeline or project.</p>
             </div>
             @else
@@ -106,33 +106,33 @@
             @endphp
 
             {{-- ── FINANCIAL SUMMARY STRIP ── --}}
-            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:24px;">
+            <div class="pf-summary-grid" style="grid-template-columns:repeat(5,1fr);gap:12px;">
                 @php
                     $strips = [
-                        ['label'=>'Total Revenue',    'value'=>'₱'.number_format($totalRevenue),       'color'=>'#16a34a', 'icon'=>'trending-up'],
-                        ['label'=>'Total Net Profit', 'value'=>'₱'.number_format($totalNetProfit),     'color'=>'#2563eb', 'icon'=>'banknote'],
-                        ['label'=>'Avg Profit Margin','value'=>$overallMargin.'%',                     'color'=>$overallMargin>=20?'#16a34a':'#f59e0b', 'icon'=>'percent'],
-                        ['label'=>'Completed Projects','value'=>$count.' projects',                    'color'=>'#7c3aed', 'icon'=>'check-circle-2'],
-                        ['label'=>'On-Time Delivery', 'value'=>$onTimeRate.'%',                        'color'=>$onTimeRate>=90?'#16a34a':'#ef4444', 'icon'=>'clock'],
+                        ['label'=>'Total Revenue',     'value'=>'₱'.number_format($totalRevenue),   'icon'=>'trending-up'],
+                        ['label'=>'Total Net Profit',  'value'=>'₱'.number_format($totalNetProfit), 'icon'=>'banknote'],
+                        ['label'=>'Avg Profit Margin', 'value'=>$overallMargin.'%',                 'icon'=>'percent'],
+                        ['label'=>'Completed Projects','value'=>$count.' projects',                 'icon'=>'check-circle-2'],
+                        ['label'=>'On-Time Delivery',  'value'=>$onTimeRate.'%',                    'icon'=>'clock'],
                     ];
                 @endphp
                 @foreach($strips as $s)
-                <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:12px;">
-                    <div style="width:36px;height:36px;border-radius:10px;background:{{ $s['color'] }}18;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                        <i data-lucide="{{ $s['icon'] }}" style="width:17px;height:17px;color:{{ $s['color'] }};"></i>
+                <div class="pf-summary-card" style="padding:14px 16px;gap:12px;background:linear-gradient(135deg, var(--dark) 0%, var(--dark-deep) 100%);border-color:transparent;">
+                    <div class="pf-summary-icon" style="width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.14);color:var(--white);">
+                        <i data-lucide="{{ $s['icon'] }}" style="width:17px;height:17px;"></i>
                     </div>
-                    <div style="min-width:0;">
-                        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;">{{ $s['label'] }}</div>
-                        <div style="font-size:15px;font-weight:900;color:var(--dark);margin-top:2px;white-space:nowrap;">{{ $s['value'] }}</div>
+                    <div class="pf-summary-body">
+                        <div class="pf-summary-label" style="white-space:nowrap;color:rgba(255,255,255,.65);">{{ $s['label'] }}</div>
+                        <div class="pf-summary-value" style="font-size:15px;white-space:nowrap;color:var(--white);">{{ $s['value'] }}</div>
                     </div>
                 </div>
                 @endforeach
             </div>
 
             {{-- ── NARRATIVE REPORT SUMMARY ── --}}
-            <div style="background:linear-gradient(135deg,var(--cream-soft),var(--white));border:1px solid var(--border);border-radius:14px;padding:18px 22px;margin-bottom:24px;display:flex;gap:14px;align-items:flex-start;">
-                <div style="width:34px;height:34px;border-radius:10px;background:#2563eb18;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                    <i data-lucide="file-text" style="width:17px;height:17px;color:#2563eb;"></i>
+            <div style="background:linear-gradient(135deg,var(--cream-soft),var(--white));border:1px solid var(--border);border-radius:16px;padding:18px 22px;margin-bottom:24px;display:flex;gap:14px;align-items:flex-start;">
+                <div class="pf-summary-icon icon-chip-info" style="width:34px;height:34px;border-radius:10px;">
+                    <i data-lucide="file-text" style="width:17px;height:17px;"></i>
                 </div>
                 <div>
                     <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:6px;">Performance Report — {{ $currentQuarterLabel }}</div>
@@ -172,22 +172,22 @@
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:28px;">
 
                 {{-- Profit Margin --}}
-                <div style="background:var(--white);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.05);">
-                    <div style="background:linear-gradient(135deg,#fffbeb,#fef3c7);padding:16px 18px;border-bottom:1px solid #fde68a;">
+                <div class="card" style="margin-bottom:0;overflow:hidden;">
+                    <div style="background:var(--cream-soft);padding:16px 18px;border-bottom:1px solid var(--border);">
                         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-                            <span style="font-size:13px;font-weight:800;color:#92400e;">Profit Margin</span>
+                            <span style="font-size:13px;font-weight:800;color:var(--dark);">Profit Margin</span>
                             @php
                                 $pmLabel = $pmDiff < 0 ? 'Below target' : ($pmDiff <= 5 ? 'On target' : 'Excellent');
-                                $pmBadgeClr = $pmDiff < 0 ? '#F59E0B' : '#10B981';
+                                $pmChip  = $pmDiff < 0 ? 'icon-chip-warning' : 'icon-chip-success';
                             @endphp
-                            <span style="font-size:11px;font-weight:700;padding:2px 10px;border-radius:999px;background:{{ $pmBadgeClr }};color:#fff;">
+                            <span class="{{ $pmChip }}" style="font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">
                                 {{ $pmLabel }}
                             </span>
                         </div>
                         <div style="display:flex;align-items:flex-end;gap:12px;">
                             <div>
-                                <div style="font-size:36px;font-weight:900;color:#78350f;line-height:1;">{{ $avgProfitMargin }}%</div>
-                                <div style="font-size:11px;color:#92400e;margin-top:3px;">
+                                <div style="font-size:36px;font-weight:900;color:var(--dark);line-height:1;">{{ $avgProfitMargin }}%</div>
+                                <div style="font-size:11px;color:var(--muted);margin-top:3px;">
                                     {{ $pmDiff >= 0 ? '+' : '' }}{{ $pmDiff }}% vs {{ $pmTarget }}% target
                                 </div>
                             </div>
@@ -197,38 +197,38 @@
                     <div style="padding:14px 18px;display:flex;flex-direction:column;gap:8px;">
                         @foreach([
                             ['Revenue received', '₱'.number_format($totalRevenue), null],
-                            ['Material cost',    '₱'.number_format($totalMatCost), '#dc2626'],
-                            ['Labor cost',       '₱'.number_format($totalLaborCost), '#7c3aed'],
-                            ['Net profit',       '₱'.number_format($totalNetProfit), '#16a34a'],
+                            ['Material cost',    '₱'.number_format($totalMatCost), null],
+                            ['Labor cost',       '₱'.number_format($totalLaborCost), null],
+                            ['Net profit',       '₱'.number_format($totalNetProfit), 'var(--success)'],
                         ] as $row)
                         <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;padding-bottom:8px;border-bottom:1px solid var(--border);">
                             <span style="color:var(--muted);">{{ $row[0] }}</span>
                             <strong style="color:{{ $row[2] ?? 'var(--dark)' }};">{{ $row[1] }}</strong>
                         </div>
                         @endforeach
-                        <div style="height:4px;background:#fde68a;border-radius:999px;margin-top:4px;">
-                            <div style="height:100%;width:{{ min(100,$avgProfitMargin) }}%;background:{{ $pmDiff >= 0 ? '#10B981' : '#F59E0B' }};border-radius:999px;"></div>
+                        <div style="height:4px;background:var(--cream-deep);border-radius:999px;margin-top:4px;">
+                            <div style="height:100%;width:{{ min(100,$avgProfitMargin) }}%;background:{{ $pmDiff >= 0 ? 'var(--success)' : 'var(--warning)' }};border-radius:999px;"></div>
                         </div>
                     </div>
                 </div>
 
                 {{-- On-Time Delivery --}}
-                @php $otColor = $otDiff >= 0 ? '#10B981' : '#EF4444'; $otBg = $otDiff >= 0 ? '#dcfce7' : '#fee2e2'; $otText = $otDiff >= 0 ? '#15803d' : '#991b1b'; @endphp
-                <div style="background:var(--white);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.05);">
-                    <div style="background:linear-gradient(135deg,{{ $otBg }},{{ $otBg }});padding:16px 18px;border-bottom:1px solid {{ $otDiff >= 0 ? '#bbf7d0' : '#fecaca' }};">
+                @php $otChip = $otDiff >= 0 ? 'icon-chip-success' : 'icon-chip-danger'; $otColor = $otDiff >= 0 ? 'var(--success)' : 'var(--danger)'; @endphp
+                <div class="card" style="margin-bottom:0;overflow:hidden;">
+                    <div style="background:var(--cream-soft);padding:16px 18px;border-bottom:1px solid var(--border);">
                         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-                            <span style="font-size:13px;font-weight:800;color:{{ $otText }};">On-Time Delivery</span>
+                            <span style="font-size:13px;font-weight:800;color:var(--dark);">On-Time Delivery</span>
                             @php
                                 $otLabel = $otDiff < 0 ? 'Below target' : ($otDiff <= 5 ? 'On target' : 'Excellent');
                             @endphp
-                            <span style="font-size:11px;font-weight:700;padding:2px 10px;border-radius:999px;background:{{ $otColor }};color:#fff;">
+                            <span class="{{ $otChip }}" style="font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">
                                 {{ $otLabel }}
                             </span>
                         </div>
                         <div style="display:flex;align-items:flex-end;gap:12px;">
                             <div>
-                                <div style="font-size:36px;font-weight:900;color:{{ $otText }};line-height:1;">{{ $onTimeRate }}%</div>
-                                <div style="font-size:11px;color:{{ $otText }};margin-top:3px;">
+                                <div style="font-size:36px;font-weight:900;color:var(--dark);line-height:1;">{{ $onTimeRate }}%</div>
+                                <div style="font-size:11px;color:var(--muted);margin-top:3px;">
                                     {{ $otDiff >= 0 ? '+' : '' }}{{ abs($otDiff) }}% vs {{ $otTarget }}% target
                                 </div>
                             </div>
@@ -238,16 +238,16 @@
                     <div style="padding:14px 18px;display:flex;flex-direction:column;gap:8px;">
                         @foreach([
                             ['Total projects',  $count.' projects', null],
-                            ['Delivered on time', $onTimeCount.' projects', '#16a34a'],
-                            ['Delayed',         $delayedCount.' project'.($delayedCount!==1?'s':''), $delayedCount>0?'#ef4444':null],
-                            ['Avg delay (delayed)', $avgDelayDays > 0 ? '~'.$avgDelayDays.' days' : '—', $avgDelayDays>0?'#f59e0b':null],
+                            ['Delivered on time', $onTimeCount.' projects', 'var(--success)'],
+                            ['Delayed',         $delayedCount.' project'.($delayedCount!==1?'s':''), $delayedCount>0?'var(--danger)':null],
+                            ['Avg delay (delayed)', $avgDelayDays > 0 ? '~'.$avgDelayDays.' days' : '—', $avgDelayDays>0?'var(--warning)':null],
                         ] as $row)
                         <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;padding-bottom:8px;border-bottom:1px solid var(--border);">
                             <span style="color:var(--muted);">{{ $row[0] }}</span>
                             <strong style="color:{{ $row[2] ?? 'var(--dark)' }};">{{ $row[1] }}</strong>
                         </div>
                         @endforeach
-                        <div style="height:4px;background:{{ $otBg }};border-radius:999px;margin-top:4px;">
+                        <div style="height:4px;background:var(--cream-deep);border-radius:999px;margin-top:4px;">
                             <div style="height:100%;width:{{ min(100,$onTimeRate) }}%;background:{{ $otColor }};border-radius:999px;"></div>
                         </div>
                     </div>
@@ -256,20 +256,21 @@
                 {{-- Budget Adherence --}}
                 @php
                     $baLabel = $baDiff < 0 ? 'Below target' : ($baDiff <= 5 ? 'On target' : 'Exceeding');
-                    $baColor = $baDiff < 0 ? '#ef4444' : ($baDiff <= 5 ? '#10B981' : '#2563EB');
+                    $baChip  = $baDiff < 0 ? 'icon-chip-danger' : ($baDiff <= 5 ? 'icon-chip-success' : 'icon-chip-info');
+                    $baColor = $baDiff < 0 ? 'var(--danger)' : ($baDiff <= 5 ? 'var(--success)' : 'var(--info)');
                 @endphp
-                <div style="background:var(--white);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.05);">
-                    <div style="background:linear-gradient(135deg,#eff6ff,#dbeafe);padding:16px 18px;border-bottom:1px solid #bfdbfe;">
+                <div class="card" style="margin-bottom:0;overflow:hidden;">
+                    <div style="background:var(--cream-soft);padding:16px 18px;border-bottom:1px solid var(--border);">
                         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-                            <span style="font-size:13px;font-weight:800;color:#1e40af;">Budget Adherence</span>
-                            <span style="font-size:11px;font-weight:700;padding:2px 10px;border-radius:999px;background:{{ $baColor }};color:#fff;">
+                            <span style="font-size:13px;font-weight:800;color:var(--dark);">Budget Adherence</span>
+                            <span class="{{ $baChip }}" style="font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">
                                 {{ $baLabel }}
                             </span>
                         </div>
                         <div style="display:flex;align-items:flex-end;gap:12px;">
                             <div>
-                                <div style="font-size:36px;font-weight:900;color:#1e3a8a;line-height:1;">{{ $avgBudgetAdherence }}%</div>
-                                <div style="font-size:11px;color:#1e40af;margin-top:3px;">
+                                <div style="font-size:36px;font-weight:900;color:var(--dark);line-height:1;">{{ $avgBudgetAdherence }}%</div>
+                                <div style="font-size:11px;color:var(--muted);margin-top:3px;">
                                     {{ $baDiff < 0 ? 'Below' : ($baDiff <= 5 ? 'Meets' : 'Exceeds') }} {{ $baTarget }}% target
                                 </div>
                             </div>
@@ -280,8 +281,8 @@
                         @php $saved = max(0,$totalContracted-$totalActualSpend); @endphp
                         @foreach([
                             ['Total contracted',   '₱'.number_format($totalContracted), null],
-                            ['Actual spend',       '₱'.number_format($totalActualSpend), '#d97706'],
-                            ['Net savings',        '₱'.number_format($saved), $saved>0?'#16a34a':'#ef4444'],
+                            ['Actual spend',       '₱'.number_format($totalActualSpend), null],
+                            ['Net savings',        '₱'.number_format($saved), $saved>0?'var(--success)':'var(--danger)'],
                             ['Projects over budget', $projectKpis->where('budget_adherence','<',100)->count().' of '.$count, null],
                         ] as $row)
                         <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;padding-bottom:8px;border-bottom:1px solid var(--border);">
@@ -289,7 +290,7 @@
                             <strong style="color:{{ $row[2] ?? 'var(--dark)' }};">{{ $row[1] }}</strong>
                         </div>
                         @endforeach
-                        <div style="height:4px;background:#bfdbfe;border-radius:999px;margin-top:4px;">
+                        <div style="height:4px;background:var(--cream-deep);border-radius:999px;margin-top:4px;">
                             <div style="height:100%;width:{{ min(100,$avgBudgetAdherence) }}%;background:{{ $baColor }};border-radius:999px;"></div>
                         </div>
                     </div>
@@ -300,7 +301,7 @@
             <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:28px;">
 
                 {{-- Revenue vs Spend chart --}}
-                <div style="background:var(--white);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.05);">
+                <div class="card" style="margin-bottom:0;overflow:hidden;">
                     {{-- Header --}}
                     <div style="padding:18px 20px 14px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
                         <div>
@@ -308,7 +309,7 @@
                             <div style="font-size:11px;color:var(--muted);">Per project · Showing {{ min($count,15) }} of {{ $count }} completed</div>
                         </div>
                         <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
-                            @foreach([['#10B981','Revenue'],['#f87171','Actual Spend'],['#2563eb','Net Profit']] as $leg)
+                            @foreach([['var(--success)','Revenue'],['var(--danger)','Actual Spend'],['var(--info)','Net Profit']] as $leg)
                             <div style="display:flex;align-items:center;gap:5px;">
                                 <div style="width:10px;height:10px;border-radius:3px;background:{{ $leg[0] }};flex-shrink:0;"></div>
                                 <span style="font-size:11px;color:var(--muted);font-weight:600;">{{ $leg[1] }}</span>
@@ -333,9 +334,8 @@
                         ];
                     })->sortByDesc('revenue')->values()->take(6);
                     $maxRev = $clientRevenue->max('revenue') ?: 1;
-                    $clrPalette = ['#2563eb','#10B981','#f59e0b','#7c3aed','#ef4444','#14b8a6'];
                 @endphp
-                <div style="background:var(--white);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.05);display:flex;flex-direction:column;">
+                <div class="card" style="margin-bottom:0;overflow:hidden;display:flex;flex-direction:column;">
                     {{-- Header --}}
                     <div style="padding:18px 20px 14px;border-bottom:1px solid var(--border);">
                         <div style="font-size:14px;font-weight:800;color:var(--dark);margin-bottom:2px;">Top Clients by Revenue</div>
@@ -344,15 +344,12 @@
                     {{-- Client list --}}
                     <div style="padding:12px 20px;display:flex;flex-direction:column;gap:0;flex:1;">
                         @foreach($clientRevenue as $i => $cr)
-                        @php
-                            $pct = round(($cr['revenue'] / $maxRev) * 100);
-                            $clr = $clrPalette[$i % count($clrPalette)];
-                        @endphp
+                        @php $pct = round(($cr['revenue'] / $maxRev) * 100); @endphp
                         <div style="padding:10px 0;{{ !$loop->last ? 'border-bottom:1px solid var(--border);' : '' }}">
                             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
                                 <div style="display:flex;align-items:center;gap:8px;min-width:0;">
-                                    <div style="width:26px;height:26px;border-radius:8px;background:{{ $clr }}18;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                                        <span style="font-size:11px;font-weight:900;color:{{ $clr }};">{{ $i + 1 }}</span>
+                                    <div class="icon-chip-info" style="width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                                        <span style="font-size:11px;font-weight:900;">{{ $i + 1 }}</span>
                                     </div>
                                     <div style="min-width:0;">
                                         <div style="font-size:12px;font-weight:700;color:var(--dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px;">{{ $cr['client'] }}</div>
@@ -361,11 +358,11 @@
                                 </div>
                                 <div style="text-align:right;flex-shrink:0;">
                                     <div style="font-size:13px;font-weight:900;color:var(--dark);">₱{{ number_format($cr['revenue']) }}</div>
-                                    <div style="font-size:10px;color:#16a34a;font-weight:700;">+₱{{ number_format($cr['profit']) }} profit</div>
+                                    <div style="font-size:10px;color:var(--success);font-weight:700;">+₱{{ number_format($cr['profit']) }} profit</div>
                                 </div>
                             </div>
                             <div style="height:5px;background:var(--cream-deep);border-radius:999px;overflow:hidden;">
-                                <div style="height:100%;width:{{ $pct }}%;background:{{ $clr }};border-radius:999px;transition:width .6s ease;"></div>
+                                <div style="height:100%;width:{{ $pct }}%;background:var(--info);border-radius:999px;transition:width .6s ease;"></div>
                             </div>
                         </div>
                         @endforeach
@@ -379,20 +376,20 @@
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:28px;">
                 {{-- Revenue & profit margin forecast --}}
-                <div style="background:var(--white);border:1px solid var(--border);border-radius:14px;padding:20px;grid-column:span 2;">
+                <div class="card" style="margin-bottom:0;padding:20px;grid-column:span 2;">
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-                        <div style="font-size:14px;font-weight:800;">Revenue &amp; Profit Margin Forecast</div>
+                        <div style="font-size:14px;font-weight:800;color:var(--dark);">Revenue &amp; Profit Margin Forecast</div>
                         <div style="display:flex;gap:12px;font-size:11px;color:var(--muted);">
-                            <span><span style="display:inline-block;width:12px;height:3px;background:#10B981;vertical-align:middle;margin-right:3px;border-radius:2px;"></span>Revenue (actual)</span>
-                            <span><span style="display:inline-block;width:12px;height:2px;border-top:2px dashed #10B981;vertical-align:middle;margin-right:3px;"></span>Revenue (forecast)</span>
-                            <span><span style="display:inline-block;width:8px;height:8px;background:#2563EB;border-radius:50%;vertical-align:middle;margin-right:3px;"></span>Margin %</span>
+                            <span><span style="display:inline-block;width:12px;height:3px;background:var(--success);vertical-align:middle;margin-right:3px;border-radius:2px;"></span>Revenue (actual)</span>
+                            <span><span style="display:inline-block;width:12px;height:2px;border-top:2px dashed var(--success);vertical-align:middle;margin-right:3px;"></span>Revenue (forecast)</span>
+                            <span><span style="display:inline-block;width:8px;height:8px;background:var(--info);border-radius:50%;vertical-align:middle;margin-right:3px;"></span>Margin %</span>
                         </div>
                     </div>
                     <canvas id="revForecastChart" height="120"></canvas>
                 </div>
 
                 {{-- Forecast summary table --}}
-                <div style="background:var(--white);border:1px solid var(--border);border-radius:14px;padding:18px;display:flex;flex-direction:column;">
+                <div class="card" style="margin-bottom:0;padding:18px;display:flex;flex-direction:column;">
                     <div style="font-size:13px;font-weight:800;margin-bottom:12px;">Next 3 Projects — Est.</div>
                     <table style="width:100%;border-collapse:collapse;font-size:12px;flex:1;">
                         <thead>
@@ -419,7 +416,7 @@
                             @endforeach
                         </tbody>
                     </table>
-                    <div style="margin-top:12px;padding:8px 10px;background:#eff6ff;border-radius:8px;font-size:11px;color:#1d4ed8;line-height:1.5;">
+                    <div class="icon-chip-info" style="margin-top:12px;padding:8px 10px;border-radius:8px;font-size:11px;line-height:1.5;">
                         WMA model &nbsp;·&nbsp; Weighted on last 3 projects &nbsp;·&nbsp; Updates with each filter.
                     </div>
                 </div>
@@ -427,47 +424,47 @@
 
             {{-- ── OTD & BUDGET FORECAST + INSIGHTS ── --}}
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:28px;">
-                <div style="background:var(--white);border:1px solid var(--border);border-radius:14px;padding:20px;">
-                    <div style="font-size:13px;font-weight:800;margin-bottom:8px;">OTD Rate Forecast</div>
+                <div class="card" style="margin-bottom:0;padding:20px;">
+                    <div style="font-size:13px;font-weight:800;color:var(--dark);margin-bottom:8px;">OTD Rate Forecast</div>
                     <div style="display:flex;gap:10px;font-size:11px;color:var(--muted);margin-bottom:10px;">
-                        <span><span style="display:inline-block;width:8px;height:8px;background:#F59E0B;border-radius:50%;vertical-align:middle;margin-right:3px;"></span>Actual</span>
-                        <span><span style="display:inline-block;width:10px;height:2px;border-top:2px dashed #F59E0B;vertical-align:middle;margin-right:3px;"></span>Forecast</span>
-                        <span><span style="display:inline-block;width:10px;height:2px;background:#fca5a5;vertical-align:middle;margin-right:3px;"></span>90% target</span>
+                        <span><span style="display:inline-block;width:8px;height:8px;background:var(--warning);border-radius:50%;vertical-align:middle;margin-right:3px;"></span>Actual</span>
+                        <span><span style="display:inline-block;width:10px;height:2px;border-top:2px dashed var(--warning);vertical-align:middle;margin-right:3px;"></span>Forecast</span>
+                        <span><span style="display:inline-block;width:10px;height:2px;background:var(--danger);opacity:.45;vertical-align:middle;margin-right:3px;"></span>90% target</span>
                     </div>
                     <canvas id="otForecastChart" height="120"></canvas>
                 </div>
-                <div style="background:var(--white);border:1px solid var(--border);border-radius:14px;padding:20px;">
-                    <div style="font-size:13px;font-weight:800;margin-bottom:8px;">Budget Adherence Forecast</div>
+                <div class="card" style="margin-bottom:0;padding:20px;">
+                    <div style="font-size:13px;font-weight:800;color:var(--dark);margin-bottom:8px;">Budget Adherence Forecast</div>
                     <div style="display:flex;gap:10px;font-size:11px;color:var(--muted);margin-bottom:10px;">
-                        <span><span style="display:inline-block;width:8px;height:8px;background:#2563EB;border-radius:2px;vertical-align:middle;margin-right:3px;"></span>Actual</span>
-                        <span><span style="display:inline-block;width:8px;height:8px;background:#bfdbfe;border-radius:2px;vertical-align:middle;margin-right:3px;"></span>Forecast</span>
+                        <span><span style="display:inline-block;width:8px;height:8px;background:var(--info);border-radius:2px;vertical-align:middle;margin-right:3px;"></span>Actual</span>
+                        <span><span style="display:inline-block;width:8px;height:8px;background:var(--info);opacity:.3;border-radius:2px;vertical-align:middle;margin-right:3px;"></span>Forecast</span>
                     </div>
                     <canvas id="baForecastChart" height="120"></canvas>
                 </div>
-                <div style="background:var(--white);border:1px solid var(--border);border-radius:14px;padding:20px;">
-                    <div style="font-size:13px;font-weight:800;margin-bottom:14px;">Insights &amp; Actions</div>
+                <div class="card" style="margin-bottom:0;padding:20px;">
+                    <div style="font-size:13px;font-weight:800;color:var(--dark);margin-bottom:14px;">Insights &amp; Actions</div>
                     @php
                         $insights = [];
 
                         // On-Time Delivery
                         if ($onTimeRate >= $otTarget) {
-                            $insights[] = ['kpi'=>'otd', 'icon'=>'✓', 'color'=>'#16a34a', 'text'=>'OTD at '.$onTimeRate.'% — delivery schedule is well-managed.'];
+                            $insights[] = ['kpi'=>'otd', 'icon'=>'✓', 'chip'=>'icon-chip-success', 'text'=>'OTD at '.$onTimeRate.'% — delivery schedule is well-managed.'];
                         } else {
-                            $insights[] = ['kpi'=>'otd', 'icon'=>'!', 'color'=>'#ef4444', 'text'=>'OTD at '.$onTimeRate.'%. '.$delayedCount.' project'.($delayedCount!==1?'s':'').' delayed'.($avgDelayDays>0?' (~'.$avgDelayDays.' days avg)':'').'.'];
+                            $insights[] = ['kpi'=>'otd', 'icon'=>'!', 'chip'=>'icon-chip-danger', 'text'=>'OTD at '.$onTimeRate.'%. '.$delayedCount.' project'.($delayedCount!==1?'s':'').' delayed'.($avgDelayDays>0?' (~'.$avgDelayDays.' days avg)':'').'.'];
                         }
 
                         // Profit Margin
                         if ($avgProfitMargin >= $pmTarget) {
-                            $insights[] = ['kpi'=>'profit', 'icon'=>'✓', 'color'=>'#16a34a', 'text'=>'Profit margin '.$avgProfitMargin.'% is above the '.$pmTarget.'% target.'];
+                            $insights[] = ['kpi'=>'profit', 'icon'=>'✓', 'chip'=>'icon-chip-success', 'text'=>'Profit margin '.$avgProfitMargin.'% is above the '.$pmTarget.'% target.'];
                         } else {
-                            $insights[] = ['kpi'=>'profit', 'icon'=>'↑', 'color'=>'#f59e0b', 'text'=>'Margin at '.$avgProfitMargin.'% vs '.$pmTarget.'% target. Review labor costing in next quotation.'];
+                            $insights[] = ['kpi'=>'profit', 'icon'=>'↑', 'chip'=>'icon-chip-warning', 'text'=>'Margin at '.$avgProfitMargin.'% vs '.$pmTarget.'% target. Review labor costing in next quotation.'];
                         }
 
                         // Budget Adherence
                         if ($avgBudgetAdherence >= $baTarget) {
-                            $insights[] = ['kpi'=>'budget', 'icon'=>'✓', 'color'=>'#16a34a', 'text'=>'Budget adherence at '.$avgBudgetAdherence.'% — spending is within the planned budget.'];
+                            $insights[] = ['kpi'=>'budget', 'icon'=>'✓', 'chip'=>'icon-chip-success', 'text'=>'Budget adherence at '.$avgBudgetAdherence.'% — spending is within the planned budget.'];
                         } else {
-                            $insights[] = ['kpi'=>'budget', 'icon'=>'!', 'color'=>'#ef4444', 'text'=>'Budget adherence at '.$avgBudgetAdherence.'% vs '.$baTarget.'% target. Actual spend is exceeding the BOM budget.'];
+                            $insights[] = ['kpi'=>'budget', 'icon'=>'!', 'chip'=>'icon-chip-danger', 'text'=>'Budget adherence at '.$avgBudgetAdherence.'% vs '.$baTarget.'% target. Actual spend is exceeding the BOM budget.'];
                         }
 
                         // WMA forecast trend (next project vs current average)
@@ -477,7 +474,7 @@
                                 $insights[] = [
                                     'kpi'   => 'profit',
                                     'icon'  => $pmDelta > 0 ? '↗' : '↘',
-                                    'color' => $pmDelta > 0 ? '#16a34a' : '#ef4444',
+                                    'chip'  => $pmDelta > 0 ? 'icon-chip-success' : 'icon-chip-danger',
                                     'text'  => 'WMA forecast projects margin to '.($pmDelta > 0 ? 'rise' : 'fall').' to '.$next3Forecast[0]['pm'].'% on the next project.',
                                 ];
                             }
@@ -486,11 +483,11 @@
                         // Net savings
                         $saved = max(0, $totalContracted - $totalActualSpend);
                         if ($saved > 0) {
-                            $insights[] = ['kpi'=>'all', 'icon'=>'₱', 'color'=>'#2563eb', 'text'=>'₱'.number_format($saved).' net savings vs contracted value across '.$count.' project'.($count!==1?'s':'').'.'];
+                            $insights[] = ['kpi'=>'all', 'icon'=>'₱', 'chip'=>'icon-chip-info', 'text'=>'₱'.number_format($saved).' net savings vs contracted value across '.$count.' project'.($count!==1?'s':'').'.'];
                         }
 
                         // Avg revenue per project
-                        $insights[] = ['kpi'=>'all', 'icon'=>'→', 'color'=>'#7c3aed', 'text'=>'Avg revenue per project: ₱'.number_format($count > 0 ? round($totalRevenue/$count) : 0).'.'];
+                        $insights[] = ['kpi'=>'all', 'icon'=>'→', 'chip'=>'icon-chip-neutral', 'text'=>'Avg revenue per project: ₱'.number_format($count > 0 ? round($totalRevenue/$count) : 0).'.'];
 
                         // When a specific KPI Focus filter is active, surface its insights first
                         if ($filterKpi !== 'all') {
@@ -502,7 +499,7 @@
                     <div style="display:flex;flex-direction:column;gap:10px;">
                         @foreach($insights as $ins)
                         <div style="display:flex;align-items:flex-start;gap:10px;">
-                            <span style="min-width:22px;height:22px;background:{{ $ins['color'] }}18;color:{{ $ins['color'] }};border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;flex-shrink:0;border:1px solid {{ $ins['color'] }}40;">{{ $ins['icon'] }}</span>
+                            <span class="{{ $ins['chip'] }}" style="min-width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;flex-shrink:0;">{{ $ins['icon'] }}</span>
                             <span style="font-size:12px;color:var(--dark);line-height:1.5;">{{ $ins['text'] }}</span>
                         </div>
                         @endforeach
@@ -548,9 +545,9 @@
                 options: { responsive: false, maintainAspectRatio: false, cutout: '70%', animation: { animateRotate: true }, plugins: { legend: { display: false }, tooltip: { enabled: false } } }
             });
         }
-        makeDonut('pmDonut', {{ $avgProfitMargin }}, '#F59E0B');
-        makeDonut('otDonut', {{ $onTimeRate }},       '{{ $otDiff >= 0 ? "#10B981" : "#EF4444" }}');
-        makeDonut('baDonut', {{ $avgBudgetAdherence }},'#2563EB');
+        makeDonut('pmDonut', {{ $avgProfitMargin }},  '{{ $pmDiff >= 0 ? "#207A3A" : "#8A6100" }}');
+        makeDonut('otDonut', {{ $onTimeRate }},       '{{ $otDiff >= 0 ? "#207A3A" : "#B42318" }}');
+        makeDonut('baDonut', {{ $avgBudgetAdherence }},'{{ $baDiff < 0 ? "#B42318" : ($baDiff <= 5 ? "#207A3A" : "#2A4EAA") }}');
 
         // ── Revenue vs Spend bar chart (last 15 projects) ─────────────────
         var rsEl = document.getElementById('revSpendChart');
@@ -560,9 +557,9 @@
                 data: {
                     labels: projectLabels.slice(-displayN),
                     datasets: [
-                        { label: 'Revenue',      data: revData.slice(-displayN),    backgroundColor: '#10B981', borderRadius: 3, borderSkipped: false },
-                        { label: 'Actual Spend', data: spendData.slice(-displayN),  backgroundColor: '#f87171', borderRadius: 3, borderSkipped: false },
-                        { label: 'Net Profit',   data: profitData.slice(-displayN), backgroundColor: '#2563eb', borderRadius: 3, borderSkipped: false },
+                        { label: 'Revenue',      data: revData.slice(-displayN),    backgroundColor: '#207A3A', borderRadius: 3, borderSkipped: false },
+                        { label: 'Actual Spend', data: spendData.slice(-displayN),  backgroundColor: '#B42318', borderRadius: 3, borderSkipped: false },
+                        { label: 'Net Profit',   data: profitData.slice(-displayN), backgroundColor: '#2A4EAA', borderRadius: 3, borderSkipped: false },
                     ]
                 },
                 options: {
@@ -591,9 +588,9 @@
                 data: {
                     labels: allLabels,
                     datasets: [
-                        { label: 'Actual revenue',   data: revActual,    borderColor: '#10B981', backgroundColor: 'rgba(16,185,129,.08)', fill: true, tension: 0.4, pointRadius: 3, borderWidth: 2.5 },
-                        { label: 'Forecast revenue', data: revFcPadded,  borderColor: '#10B981', borderDash: [5,4], tension: 0.4, pointRadius: 3, borderWidth: 2, pointBackgroundColor: '#10B981' },
-                        { label: 'Profit margin %',  data: pmActual,     borderColor: '#2563EB', yAxisID: 'y2', tension: 0.4, pointRadius: 3, borderWidth: 2 }
+                        { label: 'Actual revenue',   data: revActual,    borderColor: '#207A3A', backgroundColor: 'rgba(32,122,58,.08)', fill: true, tension: 0.4, pointRadius: 3, borderWidth: 2.5 },
+                        { label: 'Forecast revenue', data: revFcPadded,  borderColor: '#207A3A', borderDash: [5,4], tension: 0.4, pointRadius: 3, borderWidth: 2, pointBackgroundColor: '#207A3A' },
+                        { label: 'Profit margin %',  data: pmActual,     borderColor: '#2A4EAA', yAxisID: 'y2', tension: 0.4, pointRadius: 3, borderWidth: 2 }
                     ]
                 },
                 options: {
@@ -621,9 +618,9 @@
                 data: {
                     labels: allLabels,
                     datasets: [
-                        { label: 'Actual',     data: otActual,                               borderColor: '#F59E0B', pointBackgroundColor: '#F59E0B', tension: 0.4, borderWidth: 2, pointRadius: 3 },
-                        { label: 'Forecast',   data: otFcPad,                                borderColor: '#F59E0B', borderDash: [5,4], tension: 0.4, borderWidth: 2, pointRadius: 2 },
-                        { label: 'Target 90%', data: allLabels.map(function(){ return 90; }), borderColor: '#fca5a5', borderDash: [4,4], borderWidth: 1.5, pointRadius: 0 }
+                        { label: 'Actual',     data: otActual,                               borderColor: '#8A6100', pointBackgroundColor: '#8A6100', tension: 0.4, borderWidth: 2, pointRadius: 3 },
+                        { label: 'Forecast',   data: otFcPad,                                borderColor: '#8A6100', borderDash: [5,4], tension: 0.4, borderWidth: 2, pointRadius: 2 },
+                        { label: 'Target 90%', data: allLabels.map(function(){ return 90; }), borderColor: 'rgba(180,35,24,.45)', borderDash: [4,4], borderWidth: 1.5, pointRadius: 0 }
                     ]
                 },
                 options: {
@@ -646,8 +643,8 @@
                 data: {
                     labels: allLabels,
                     datasets: [
-                        { label: 'Actual',   data: baActual, backgroundColor: '#2563EB', borderRadius: 3 },
-                        { label: 'Forecast', data: baFcPad,  backgroundColor: '#bfdbfe', borderRadius: 3 }
+                        { label: 'Actual',   data: baActual, backgroundColor: '#2A4EAA', borderRadius: 3 },
+                        { label: 'Forecast', data: baFcPad,  backgroundColor: 'rgba(42,78,170,.3)', borderRadius: 3 }
                     ]
                 },
                 options: {

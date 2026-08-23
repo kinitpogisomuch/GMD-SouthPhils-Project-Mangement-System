@@ -388,7 +388,18 @@
                 <div class="reviews-marquee-track">
                     @for($pass = 0; $pass < 2; $pass++)
                         @foreach($reviews as $review)
-                        <div class="review-card">
+                        @php
+                            $reviewProject = $review->project->tank_type ?? $review->project->name;
+                            $reviewDate = $review->project && $review->project->end_date
+                                ? \Carbon\Carbon::parse($review->project->end_date)->format('M d, Y')
+                                : $review->created_at->format('M d, Y');
+                        @endphp
+                        <div class="review-card"
+                             data-rating="{{ $review->rating }}"
+                             data-name="{{ $review->client_name }}"
+                             data-project="{{ $reviewProject }}"
+                             data-date="{{ $reviewDate }}"
+                             data-comment="{{ $review->comment }}">
                             <div class="review-stars">
                                 @for($i=1;$i<=5;$i++)
                                     <i data-lucide="star" style="width:16px;height:16px;color:{{ $i <= $review->rating ? 'var(--accent)' : 'var(--border)' }};{{ $i <= $review->rating ? 'fill:var(--accent);' : '' }}"></i>
@@ -399,15 +410,101 @@
                                 <div class="review-avatar">{{ strtoupper(substr($review->client_name, 0, 1)) }}</div>
                                 <div>
                                     <div class="review-name">{{ $review->client_name }}</div>
-                                    <div class="review-project">{{ $review->project->tank_type ?? $review->project->name }}</div>
+                                    <div class="review-project">{{ $reviewProject }}</div>
                                 </div>
                                 <div style="margin-left:auto;font-size:11px;color:var(--muted);white-space:nowrap;">
-                                    {{ $review->project && $review->project->end_date ? \Carbon\Carbon::parse($review->project->end_date)->format('M d, Y') : $review->created_at->format('M d, Y') }}
+                                    {{ $reviewDate }}
                                 </div>
                             </div>
                         </div>
                         @endforeach
                     @endfor
+                </div>
+            </div>
+
+            <div class="reviews-see-all-wrap reveal">
+                <button type="button" class="reviews-see-all" id="seeAllReviewsBtn">
+                    See all reviews ({{ $allReviews->count() }})
+                    <i data-lucide="arrow-right"></i>
+                </button>
+            </div>
+
+            <div class="review-modal-overlay" id="reviewModalOverlay">
+                <div class="review-modal-card" role="dialog" aria-modal="true" aria-labelledby="reviewModalName">
+                    <button type="button" class="review-modal-close" id="reviewModalClose" aria-label="Close">
+                        <i data-lucide="x"></i>
+                    </button>
+                    <div class="review-stars" id="reviewModalStars"></div>
+                    <p class="review-modal-text" id="reviewModalText"></p>
+                    <div class="review-author">
+                        <div class="review-avatar" id="reviewModalAvatar"></div>
+                        <div>
+                            <div class="review-name" id="reviewModalName"></div>
+                            <div class="review-project" id="reviewModalProject"></div>
+                        </div>
+                        <div style="margin-left:auto;font-size:12px;color:var(--muted);white-space:nowrap;" id="reviewModalDate"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="review-modal-overlay" id="allReviewsModalOverlay">
+                <div class="review-modal-card all-reviews-card" role="dialog" aria-modal="true">
+                    <button type="button" class="review-modal-close" id="allReviewsModalClose" aria-label="Close">
+                        <i data-lucide="x"></i>
+                    </button>
+                    <div class="all-reviews-header">
+                        <h3>All Reviews</h3>
+                        <span>{{ $allReviews->count() }} {{ $allReviews->count() === 1 ? 'review' : 'reviews' }}</span>
+                    </div>
+
+                    @php $arRatingCounts = $allReviews->countBy('rating'); @endphp
+                    <div class="all-reviews-filters">
+                        <button type="button" class="all-reviews-filter active" data-filter-rating="all">
+                            All <span>({{ $allReviews->count() }})</span>
+                        </button>
+                        @for($r = 5; $r >= 1; $r--)
+                            @if($arRatingCounts->get($r, 0) > 0)
+                            <button type="button" class="all-reviews-filter" data-filter-rating="{{ $r }}">
+                                <i data-lucide="star" style="width:12px;height:12px;color:var(--accent);fill:var(--accent);"></i>
+                                {{ $r }} <span>({{ $arRatingCounts->get($r) }})</span>
+                            </button>
+                            @endif
+                        @endfor
+                    </div>
+
+                    <div class="all-reviews-grid" id="allReviewsGrid">
+                        @foreach($allReviews as $review)
+                        @php
+                            $arProject = $review->project->tank_type ?? $review->project->name;
+                            $arDate = $review->project && $review->project->end_date
+                                ? \Carbon\Carbon::parse($review->project->end_date)->format('M d, Y')
+                                : $review->created_at->format('M d, Y');
+                        @endphp
+                        <div class="review-card" data-rating="{{ $review->rating }}">
+                            <div class="review-stars">
+                                @for($i=1;$i<=5;$i++)
+                                    <i data-lucide="star" style="width:16px;height:16px;color:{{ $i <= $review->rating ? 'var(--accent)' : 'var(--border)' }};{{ $i <= $review->rating ? 'fill:var(--accent);' : '' }}"></i>
+                                @endfor
+                            </div>
+                            <p class="review-text">"{{ $review->comment }}"</p>
+                            <div class="review-author">
+                                <div class="review-avatar">{{ strtoupper(substr($review->client_name, 0, 1)) }}</div>
+                                <div>
+                                    <div class="review-name">{{ $review->client_name }}</div>
+                                    <div class="review-project">{{ $arProject }}</div>
+                                </div>
+                                <div style="margin-left:auto;font-size:11px;color:var(--muted);white-space:nowrap;">
+                                    {{ $arDate }}
+                                </div>
+                            </div>
+                        </div>
+                        @endforeach
+                    </div>
+
+                    <div class="all-reviews-empty" id="allReviewsEmpty">
+                        <i data-lucide="star-off"></i>
+                        <p>No reviews with this rating yet.</p>
+                    </div>
                 </div>
             </div>
             @else
@@ -420,17 +517,124 @@
         var wrap = document.querySelector('.reviews-marquee-wrap');
         if (!wrap) return;
 
+        // Locking scroll via overflow:hidden removes the scrollbar, which widens
+        // the viewport and shifts the whole page sideways. Pad the body by the
+        // scrollbar's own width to hold the layout still while it's locked.
+        function lockScroll() {
+            var scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+            document.body.style.overflow = 'hidden';
+            if (scrollbarWidth > 0) document.body.style.paddingRight = scrollbarWidth + 'px';
+        }
+        function unlockScroll() {
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+        }
+
+        var overlay      = document.getElementById('reviewModalOverlay');
+        var modalStars   = document.getElementById('reviewModalStars');
+        var modalText    = document.getElementById('reviewModalText');
+        var modalAvatar  = document.getElementById('reviewModalAvatar');
+        var modalName    = document.getElementById('reviewModalName');
+        var modalProject = document.getElementById('reviewModalProject');
+        var modalDate    = document.getElementById('reviewModalDate');
+        var closeBtn     = document.getElementById('reviewModalClose');
+        if (!overlay) return;
+
+        function openReviewModal(card) {
+            var rating = parseInt(card.dataset.rating, 10) || 0;
+            modalStars.innerHTML = '';
+            for (var i = 1; i <= 5; i++) {
+                var star = document.createElement('i');
+                star.setAttribute('data-lucide', 'star');
+                star.style.width = '18px';
+                star.style.height = '18px';
+                star.style.color = i <= rating ? 'var(--accent)' : 'var(--border)';
+                if (i <= rating) star.style.fill = 'var(--accent)';
+                modalStars.appendChild(star);
+            }
+
+            modalText.textContent    = '"' + card.dataset.comment + '"';
+            modalAvatar.textContent  = card.dataset.name.charAt(0).toUpperCase();
+            modalName.textContent    = card.dataset.name;
+            modalProject.textContent = card.dataset.project;
+            modalDate.textContent    = card.dataset.date;
+
+            if (window.lucide) lucide.createIcons();
+
+            overlay.classList.add('show');
+            wrap.classList.add('is-paused');
+            lockScroll();
+        }
+
+        function closeReviewModal() {
+            overlay.classList.remove('show');
+            wrap.classList.remove('is-paused');
+            unlockScroll();
+        }
+
         wrap.addEventListener('click', function(e) {
             var card = e.target.closest('.review-card');
             if (!card) return;
-            wrap.classList.toggle('is-paused');
+            openReviewModal(card);
         });
 
-        // Tapping anywhere outside the marquee resumes it
-        document.addEventListener('click', function(e) {
-            if (!wrap.contains(e.target)) {
-                wrap.classList.remove('is-paused');
-            }
+        closeBtn.addEventListener('click', closeReviewModal);
+
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) closeReviewModal();
+        });
+
+        // ── "See all reviews" grid modal ──────────────────────────────
+        var seeAllBtn      = document.getElementById('seeAllReviewsBtn');
+        var allOverlay     = document.getElementById('allReviewsModalOverlay');
+        var allCloseBtn    = document.getElementById('allReviewsModalClose');
+
+        function openAllReviewsModal() {
+            allOverlay.classList.add('show');
+            wrap.classList.add('is-paused');
+            lockScroll();
+        }
+
+        function closeAllReviewsModal() {
+            allOverlay.classList.remove('show');
+            wrap.classList.remove('is-paused');
+            unlockScroll();
+        }
+
+        if (seeAllBtn && allOverlay) {
+            seeAllBtn.addEventListener('click', openAllReviewsModal);
+            allCloseBtn.addEventListener('click', closeAllReviewsModal);
+            allOverlay.addEventListener('click', function(e) {
+                if (e.target === allOverlay) closeAllReviewsModal();
+            });
+        }
+
+        // ── All-reviews rating filter ──────────────────────────────────
+        var filterBtns  = document.querySelectorAll('.all-reviews-filter');
+        var filterCards = document.querySelectorAll('#allReviewsGrid .review-card');
+        var filterEmpty = document.getElementById('allReviewsEmpty');
+
+        filterBtns.forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                filterBtns.forEach(function(b) { b.classList.remove('active'); });
+                btn.classList.add('active');
+
+                var rating = btn.dataset.filterRating;
+                var visible = 0;
+                filterCards.forEach(function(card) {
+                    var match = rating === 'all' || card.dataset.rating === rating;
+                    card.style.display = match ? '' : 'none';
+                    if (match) visible++;
+                });
+
+                if (filterEmpty) filterEmpty.classList.toggle('show', visible === 0);
+            });
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key !== 'Escape') return;
+            if (overlay.classList.contains('show')) closeReviewModal();
+            if (allOverlay && allOverlay.classList.contains('show')) closeAllReviewsModal();
         });
     })();
     </script>
@@ -510,14 +714,14 @@
                     <div class="cc-icon"><i data-lucide="message-circle"></i></div>
                     <div>
                         <div class="cc-title">Request a Quotation</div>
-                        <p class="cc-body">Tell us your tank type, capacity, and intended use — we'll provide a detailed project estimate and timeline.</p>
+                        <p class="cc-body">Tell us your tank type, capacity, and intended use — we'll prepare a shop drawing for your approval, then send a formal quotation.</p>
                     </div>
                 </div>
                 <div class="contact-card">
                     <div class="cc-icon"><i data-lucide="file-text"></i></div>
                     <div>
                         <div class="cc-title">Technical Consultation</div>
-                        <p class="cc-body">Not sure what tank you need? Our engineers can recommend the right design and material specification for your application.</p>
+                        <p class="cc-body">Not sure what tank you need? Our engineers will assess your application and recommend the right tank type, capacity, and material specification.</p>
                     </div>
                 </div>
                 <div class="contact-card">
@@ -588,7 +792,7 @@
 
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>
-        lucide.createIcons();
+        if (window.lucide) lucide.createIcons();
 
         // Mobile hamburger menu
         (function() {

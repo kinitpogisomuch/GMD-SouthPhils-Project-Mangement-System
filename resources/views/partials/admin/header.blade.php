@@ -3,6 +3,7 @@
         <button class="sidebar-toggle-btn" type="button" id="sidebarToggleBtn" title="Toggle menu">
             <i data-lucide="menu"></i>
         </button>
+        <img src="{{ asset('images/gmdlogo-circle.svg') }}" alt="GMD South Phils" style="width:34px;height:34px;flex-shrink:0;border-radius:50%;border:1.5px solid rgba(255,255,255,0.25);">
         <div>
             <div class="system-title">GMD South Phils</div>
             <div class="system-subtitle">Project Management</div>
@@ -193,19 +194,59 @@ document.addEventListener('DOMContentLoaded', function () {
     var sidebar   = document.querySelector('.admin-sidebar');
     var overlay   = document.querySelector('.sidebar-overlay');
     if (toggleBtn && sidebar) {
+
+        // Reflow (space-between recalculating around the growing section headings)
+        // doesn't give the nav icons a real animated property to glide on, so their
+        // reposition can look stepped. FLIP: read each icon's position before the
+        // class change, let layout jump instantly (the headings themselves have no
+        // CSS transition — see admin.css — so this really is instant, with nothing
+        // left to fight the transform below), then undo the jump with a single
+        // GPU-composited transform that eases back to zero — same end state, smooth motion.
+        function flipSidebarNav(mutate) {
+            var links = sidebar.querySelectorAll('.admin-sidebar-nav a');
+            var before = [];
+            links.forEach(function (a) { before.push(a.getBoundingClientRect().top); });
+
+            mutate();
+
+            links.forEach(function (a, i) {
+                var delta = before[i] - a.getBoundingClientRect().top;
+                if (Math.abs(delta) < 0.5) return;
+                a.style.transition = 'none';
+                a.style.transform = 'translateY(' + delta + 'px)';
+                a.getBoundingClientRect(); // force reflow so the jump above is committed
+                requestAnimationFrame(function () {
+                    a.style.transition = 'transform 0.32s cubic-bezier(0.4, 0, 0.2, 1)';
+                    a.style.transform = '';
+                });
+            });
+        }
+
         toggleBtn.addEventListener('click', function (e) {
             e.stopPropagation();
-            sidebar.classList.toggle('open');
+            flipSidebarNav(function () { sidebar.classList.toggle('open'); });
         });
         if (overlay) {
             overlay.addEventListener('click', function () {
-                sidebar.classList.remove('open');
+                flipSidebarNav(function () { sidebar.classList.remove('open'); });
             });
         }
         document.addEventListener('click', function (e) {
             if (sidebar.classList.contains('open') && !sidebar.contains(e.target) && !toggleBtn.contains(e.target)) {
-                sidebar.classList.remove('open');
+                flipSidebarNav(function () { sidebar.classList.remove('open'); });
             }
+        });
+
+        // Desktop hover-to-expand now drives the same .open class (instead of a
+        // pure CSS :hover) so it can go through the same FLIP smoothing above.
+        var desktopMQ = window.matchMedia('(min-width: 1025px)');
+        sidebar.addEventListener('mouseenter', function () {
+            if (!desktopMQ.matches || sidebar.classList.contains('open')) return;
+            flipSidebarNav(function () { sidebar.classList.add('open'); });
+        });
+        sidebar.addEventListener('mouseleave', function () {
+            if (!desktopMQ.matches || !sidebar.classList.contains('open')) return;
+            flipSidebarNav(function () { sidebar.classList.remove('open'); });
         });
     }
 });
@@ -215,16 +256,29 @@ document.addEventListener('DOMContentLoaded', function () {
     const READ_ALL_URL = '{{ route("admin.notifications.read-all") }}';
     const CSRF         = '{{ csrf_token() }}';
 
+    // Kept in sync with Notification::ICON_MAP (app/Models/Notification.php)
     const iconMap = {
-        project_created:    'folder-kanban',
-        progress_requested: 'bell',
-        progress_submitted: 'send',
-        revision_requested: 'alert-triangle',
-        revision_submitted: 'refresh-cw',
-        progress_approved:  'check-circle',
-        phase_advanced:     'layers',
-        project_completed:  'award',
-        pending_review:     'clock',
+        project_created:                 'folder-kanban',
+        progress_requested:              'bell',
+        progress_submitted:              'send',
+        revision_requested:              'alert-triangle',
+        revision_submitted:              'refresh-cw',
+        progress_approved:               'check-circle',
+        phase_advanced:                  'layers',
+        project_completed:               'award',
+        pending_review:                  'clock',
+        material_added:                  'package-plus',
+        material_updated:                'package',
+        material_removed:                'package-minus',
+        material_requested:              'package-x',
+        material_usage_logged:           'clipboard-check',
+        labor_updated:                   'users',
+        shop_drawing_submitted:          'file-text',
+        shop_drawing_approved:           'check-circle',
+        shop_drawing_revision_requested: 'alert-triangle',
+        quotation_sent:                  'receipt',
+        fund_released:                   'credit-card',
+        fund_replenished:                'refresh-cw',
     };
 
     const priorityClass = {

@@ -24,7 +24,13 @@
                             <span class="notif-unread-badge">{{ $unreadCount }}</span>
                         @endif
                     </h1>
-                    <p class="page-subtitle">Your recent system notifications.</p>
+                    <p class="page-subtitle">
+                        @if($unreadCount > 0)
+                            {{ $unreadCount }} unread notification{{ $unreadCount === 1 ? '' : 's' }} waiting for you.
+                        @else
+                            You're all caught up — no unread notifications.
+                        @endif
+                    </p>
                 </div>
                 @if($unreadCount > 0)
                 <form method="POST" action="{{ route('admin.notifications.read-all') }}">
@@ -42,41 +48,37 @@
             </div>
 
             <div class="card" style="padding:0;overflow:hidden;">
-                @forelse($notifications as $n)
-                    @php
-                        $iconMap = [
-                            'project_created'    => 'folder-kanban',
-                            'progress_requested' => 'bell',
-                            'progress_submitted' => 'send',
-                            'revision_requested' => 'alert-triangle',
-                            'revision_submitted' => 'refresh-cw',
-                            'progress_approved'  => 'check-circle',
-                            'phase_advanced'     => 'layers',
-                            'project_completed'  => 'award',
-                            'pending_review'     => 'clock',
-                        ];
-                        $icon = $iconMap[$n->notification_type] ?? 'bell';
-                        $priorityClass = match($n->priority) {
-                            'warning' => 'notif-icon-warning',
-                            'success' => 'notif-icon-success',
-                            default   => 'notif-icon-info',
-                        };
-                    @endphp
-                    <a href="{{ $n->action_url ?? '#' }}"
-                       class="notif-page-item {{ !$n->is_read ? 'unread' : '' }}"
-                       onclick="markRead(event, {{ $n->id }}, '{{ $n->action_url ?? '' }}')">
-                        <div class="notification-icon {{ $priorityClass }}">
-                            <i data-lucide="{{ $icon }}"></i>
-                        </div>
-                        <div class="notif-page-body">
-                            <div class="notif-page-title">{{ $n->title }}</div>
-                            <div class="notif-page-msg">{{ $n->message }}</div>
-                            <span class="notif-time">{{ $n->created_at->format('M d, Y g:i A') }} &middot; {{ $n->created_at->diffForHumans() }}</span>
-                        </div>
-                        @if(!$n->is_read)
-                            <span class="notif-unread-dot"></span>
-                        @endif
-                    </a>
+                @php
+                    $grouped = $notifications->getCollection()->groupBy(function ($n) {
+                        if ($n->created_at->isToday()) return 'Today';
+                        if ($n->created_at->isYesterday()) return 'Yesterday';
+                        if ($n->created_at->greaterThanOrEqualTo(now()->subDays(7))) return 'This Week';
+                        return 'Earlier';
+                    });
+                @endphp
+                @forelse($grouped as $label => $group)
+                    <div class="notif-date-heading">{{ $label }}</div>
+                    @foreach($group as $n)
+                        <a href="{{ $n->action_url ?? '#' }}"
+                           class="notif-page-item {{ !$n->is_read ? 'unread' : '' }}"
+                           data-id="{{ $n->id }}"
+                           data-url="{{ $n->action_url ?? '' }}">
+                            <div class="notification-icon {{ $n->icon_class }}">
+                                <i data-lucide="{{ $n->icon }}"></i>
+                            </div>
+                            <div class="notif-page-body">
+                                <div class="notif-page-title">{{ $n->title }}</div>
+                                <div class="notif-page-msg">{{ $n->message }}</div>
+                                <span class="notif-time" title="{{ $n->created_at->format('M d, Y g:i A') }}">{{ $n->created_at->diffForHumans() }}</span>
+                            </div>
+                            <div class="notif-page-right">
+                                @if(!$n->is_read)
+                                    <span class="notif-unread-dot"></span>
+                                @endif
+                                <i data-lucide="chevron-right" class="notif-page-chevron"></i>
+                            </div>
+                        </a>
+                    @endforeach
                 @empty
                     <div class="notification-empty" style="padding:48px;">
                         <div class="notification-empty-icon">
@@ -100,17 +102,20 @@
 
         const CSRF = '{{ csrf_token() }}';
 
-        function markRead(e, id, url) {
-            e.preventDefault();
-            fetch(`/admin/notifications/${id}/read`, {
-                method: 'POST',
-                headers: { 'X-CSRF-TOKEN': CSRF, 'Content-Type': 'application/json' },
-            }).finally(() => {
-                if (url && url !== '#' && url !== '') window.location.href = url;
-                else window.location.reload();
+        document.querySelectorAll('.notif-page-item').forEach(function (item) {
+            item.addEventListener('click', function (e) {
+                e.preventDefault();
+                const id = this.dataset.id;
+                const url = this.dataset.url;
+                fetch(`/admin/notifications/${id}/read`, {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': CSRF, 'Content-Type': 'application/json' },
+                }).finally(() => {
+                    if (url) window.location.href = url;
+                    else window.location.reload();
+                });
             });
-        }
-
+        });
     </script>
 </body>
 </html>

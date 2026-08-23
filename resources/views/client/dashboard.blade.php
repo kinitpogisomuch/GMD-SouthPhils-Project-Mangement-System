@@ -23,13 +23,11 @@
 
                 $hour = (int) now()->timezone('Asia/Manila')->format('G');
                 $greeting = $hour < 12 ? 'Good morning' : ($hour < 18 ? 'Good afternoon' : 'Good evening');
-                $greetingIcon = $hour < 12 ? 'sunrise' : ($hour < 18 ? 'sun' : 'moon-star');
             @endphp
 
             <!-- ── Hero greeting ── -->
             <div class="db-hero">
                 <div class="db-hero-left">
-                    <div class="db-greeting-icon"><i data-lucide="{{ $greetingIcon }}"></i></div>
                     <div>
                         <div class="db-greeting">{{ $greeting }}, {{ $clientFirstName }}</div>
                         <div class="db-subgreeting">Here's an overview of your projects and payments.</div>
@@ -58,19 +56,6 @@
                     align-items: center;
                     gap: 16px;
                 }
-                .db-greeting-icon {
-                    width: 48px;
-                    height: 48px;
-                    min-width: 48px;
-                    border-radius: 50%;
-                    background: linear-gradient(135deg, var(--dark) 0%, var(--dark-deep) 100%);
-                    color: #fff;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    box-shadow: 0 8px 18px rgba(0,0,0,.16);
-                }
-                .db-greeting-icon i { width: 22px; height: 22px; }
                 .db-greeting {
                     font-size: 24px;
                     font-weight: 900;

@@ -434,6 +434,38 @@ body {
     white-space: pre-line;
 }
 
+.notif-date-heading {
+    padding: 10px 20px;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--muted-light);
+    background: var(--cream-soft);
+    border-bottom: 1px solid var(--border);
+}
+
+.notif-page-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    align-self: center;
+    flex-shrink: 0;
+}
+
+.notif-page-chevron {
+    width: 16px;
+    height: 16px;
+    color: var(--muted-light);
+    flex-shrink: 0;
+    transition: transform 0.15s ease;
+}
+
+.notif-page-item:hover .notif-page-chevron {
+    transform: translateX(2px);
+    color: var(--muted);
+}
+
 /* ================= FILTER TABS ================= */
 
 .filter-tabs {

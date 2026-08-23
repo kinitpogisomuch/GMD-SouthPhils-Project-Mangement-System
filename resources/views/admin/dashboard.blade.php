@@ -26,13 +26,11 @@
 
                 $hour = (int) now()->timezone('Asia/Manila')->format('G');
                 $greeting = $hour < 12 ? 'Good morning' : ($hour < 18 ? 'Good afternoon' : 'Good evening');
-                $greetingIcon = $hour < 12 ? 'sunrise' : ($hour < 18 ? 'sun' : 'moon-star');
             @endphp
 
             <!-- ── Hero greeting ── -->
             <div class="db-hero">
                 <div class="db-hero-left">
-                    <div class="db-greeting-icon"><i data-lucide="{{ $greetingIcon }}"></i></div>
                     <div>
                         <div class="db-greeting">{{ $greeting }}, {{ $adminFirstName }}</div>
                         <div class="db-subgreeting">Here's what's happening with your projects today.</div>
@@ -48,19 +46,22 @@
 
             {{-- ── Year filter ── --}}
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
-                <span style="font-size:13px;font-weight:700;color:var(--muted);">Filter by year:</span>
-                @foreach($availableYears as $yr)
-                <button type="button" class="db-year-btn {{ $yr == $currentYear ? 'active' : '' }}" data-year="{{ $yr }}">
-                    {{ $yr }}
-                </button>
-                @endforeach
+                <span style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--muted);">
+                    <i data-lucide="calendar-range" style="width:14px;height:14px;"></i>
+                    Filter by year:
+                </span>
+                <select id="dbYearFilterSelect" class="filter-select">
+                    @foreach($availableYears as $yr)
+                    <option value="{{ $yr }}" {{ $yr == $currentYear ? 'selected' : '' }}>{{ $yr }}</option>
+                    @endforeach
+                </select>
             </div>
 
             {{-- ── Top Client + Top Supplier ── --}}
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
 
                 {{-- Top Client --}}
-                <div style="background:linear-gradient(135deg,var(--dark) 0%,var(--dark-deep) 100%);border-radius:18px;padding:24px;box-shadow:0 8px 24px rgba(14,20,40,.25);">
+                <div class="db-top-card" style="background:linear-gradient(135deg,var(--dark) 0%,var(--dark-deep) 100%);border-radius:18px;padding:24px;box-shadow:0 8px 24px rgba(14,20,40,.25);">
                     <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:14px;">
                         <div style="width:36px;height:36px;background:rgba(255,255,255,.1);border-radius:10px;display:flex;align-items:center;justify-content:center;">
                             <i data-lucide="crown" style="width:18px;height:18px;color:#FDE74C;"></i>
@@ -86,10 +87,13 @@
                         </div>
                     </div>
                     <div id="topClientEmpty" style="color:rgba(255,255,255,.3);font-size:13px;text-align:center;padding:20px 0;{{ $topClient ? 'display:none;' : '' }}">No client data yet.</div>
+                    <a href="{{ route('admin.clients') }}" style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:rgba(255,255,255,.5);text-decoration:none;margin-top:16px;">
+                        View all clients <i data-lucide="arrow-right" style="width:13px;height:13px;"></i>
+                    </a>
                 </div>
 
                 {{-- Top Supplier --}}
-                <div style="background:linear-gradient(135deg,#333333 0%,#2a2a2a 100%);border-radius:18px;padding:24px;box-shadow:0 8px 24px rgba(0,0,0,.2);">
+                <div class="db-top-card" style="background:linear-gradient(135deg,#333333 0%,#2a2a2a 100%);border-radius:18px;padding:24px;box-shadow:0 8px 24px rgba(0,0,0,.2);">
                     <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:14px;">
                         <div style="width:36px;height:36px;background:rgba(255,255,255,.1);border-radius:10px;display:flex;align-items:center;justify-content:center;">
                             <i data-lucide="truck" style="width:18px;height:18px;color:#10B981;"></i>
@@ -111,17 +115,28 @@
                         </div>
                     </div>
                     <div id="topSupplierEmpty" style="color:rgba(255,255,255,.3);font-size:13px;text-align:center;padding:20px 0;{{ $topSupplier ? 'display:none;' : '' }}">No supplier data yet.</div>
+                    <a href="{{ route('admin.material_usage') }}" style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:rgba(255,255,255,.5);text-decoration:none;margin-top:16px;">
+                        View suppliers <i data-lucide="arrow-right" style="width:13px;height:13px;"></i>
+                    </a>
                 </div>
             </div>
 
             {{-- ── Peak Months Line Chart ── --}}
             <div class="table-card" style="margin-bottom:24px;">
-                <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 24px 16px;border-bottom:1px solid var(--border);">
-                    <div>
-                        <div style="font-size:15px;font-weight:800;color:var(--dark);">Peak Months</div>
-                        <div style="font-size:12px;color:var(--muted);margin-top:2px;">Monthly revenue trend — payments received</div>
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 24px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:10px;">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <div style="width:36px;height:36px;background:#d1fae5;color:#059669;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                            <i data-lucide="trending-up" style="width:18px;height:18px;"></i>
+                        </div>
+                        <div>
+                            <div style="font-size:15px;font-weight:800;color:var(--dark);">Peak Months</div>
+                            <div style="font-size:12px;color:var(--muted);margin-top:2px;">Monthly revenue trend — payments received</div>
+                        </div>
                     </div>
-                    <span id="peakYearLabel" style="font-size:13px;font-weight:700;color:var(--muted);"></span>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span id="peakMonthBadge" style="display:none;align-items:center;gap:7px;font-size:12px;padding:4px 12px 4px 4px;border-radius:999px;background:linear-gradient(135deg,#ecfdf5 0%,#d1fae5 100%);border:1px solid rgba(5,150,105,.18);box-shadow:0 1px 2px rgba(5,150,105,.06);"></span>
+                        <span id="peakYearLabel" style="font-size:12px;font-weight:700;color:var(--muted);background:var(--cream-soft,#fafafa);border:1px solid var(--border);padding:5px 12px;border-radius:999px;"></span>
+                    </div>
                 </div>
                 <div style="padding:20px 24px;">
                     <canvas id="peakMonthsChart" height="90"></canvas>
@@ -737,8 +752,57 @@
 
             document.getElementById('peakYearLabel').textContent = year;
 
+            var badge = document.getElementById('peakMonthBadge');
+            var peakIdx = -1, peakVal = 0;
+            amounts.forEach(function(v, i) { if (v > peakVal) { peakVal = v; peakIdx = i; } });
+            if (badge) {
+                if (peakIdx >= 0 && peakVal > 0) {
+                    badge.style.display = 'inline-flex';
+                    badge.innerHTML = '<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;background:#fff;border-radius:50%;flex-shrink:0;box-shadow:0 1px 2px rgba(5,150,105,.15);">'
+                        + '<i data-lucide="award" style="width:11px;height:11px;color:#059669;"></i></span>';
+
+                    var peakLabelEl = document.createElement('span');
+                    peakLabelEl.style.cssText = 'color:#059669;font-weight:600;';
+                    peakLabelEl.textContent = 'Peak ' + labels[peakIdx];
+                    badge.appendChild(peakLabelEl);
+
+                    var dot = document.createElement('span');
+                    dot.style.cssText = 'width:3px;height:3px;border-radius:50%;background:#059669;opacity:.55;flex-shrink:0;';
+                    badge.appendChild(dot);
+
+                    var peakValueEl = document.createElement('span');
+                    peakValueEl.style.cssText = 'color:#047857;font-weight:800;';
+                    peakValueEl.textContent = '₱' + Math.round(peakVal).toLocaleString();
+                    badge.appendChild(peakValueEl);
+
+                    if (window.lucide) lucide.createIcons();
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
+
             var ctx = document.getElementById('peakMonthsChart').getContext('2d');
             if (peakChart) peakChart.destroy();
+
+            // Vertical crosshair that tracks the hovered/nearest point
+            var crosshairPlugin = {
+                id: 'peakCrosshair',
+                afterDraw: function(chart) {
+                    var active = chart.tooltip && chart.tooltip._active;
+                    if (!active || !active.length) return;
+                    var x = active[0].element.x;
+                    var top = chart.scales.y.top, bottom = chart.scales.y.bottom;
+                    var c = chart.ctx;
+                    c.save();
+                    c.beginPath();
+                    c.moveTo(x, top);
+                    c.lineTo(x, bottom);
+                    c.lineWidth = 1;
+                    c.strokeStyle = 'rgba(51,51,51,.15)';
+                    c.stroke();
+                    c.restore();
+                }
+            };
 
             peakChart = new Chart(ctx, {
                 type: 'line',
@@ -748,36 +812,77 @@
                         label: 'Revenue',
                         data: amounts,
                         fill: true,
-                        backgroundColor: 'rgba(16,185,129,.08)',
+                        backgroundColor: function(context) {
+                            var chart = context.chart;
+                            var chartArea = chart.chartArea;
+                            if (!chartArea) return 'rgba(16,185,129,.12)';
+                            var gradient = chart.ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                            gradient.addColorStop(0, 'rgba(16,185,129,.24)');
+                            gradient.addColorStop(1, 'rgba(16,185,129,0)');
+                            return gradient;
+                        },
                         borderColor: '#10B981',
-                        borderWidth: 2.5,
+                        borderWidth: 2,
+                        borderCapStyle: 'round',
+                        borderJoinStyle: 'round',
                         pointBackgroundColor: '#10B981',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
                         pointRadius: 4,
                         pointHoverRadius: 6,
-                        tension: 0.4,
+                        pointHoverBorderWidth: 2,
+                        pointHoverBackgroundColor: '#10B981',
+                        pointHoverBorderColor: '#fff',
+                        tension: 0.35,
                     }]
                 },
                 options: {
                     responsive: true,
+                    layout: { padding: { top: 10, right: 6 } },
+                    interaction: { mode: 'index', intersect: false },
                     plugins: {
                         legend: { display: false },
                         tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            displayColors: false,
+                            backgroundColor: '#1a1a1a',
+                            titleColor: '#999999',
+                            titleFont: { size: 11, weight: '600' },
+                            bodyColor: '#ffffff',
+                            bodyFont: { size: 13, weight: '700' },
+                            padding: { top: 10, bottom: 10, left: 12, right: 12 },
+                            cornerRadius: 10,
+                            caretSize: 6,
+                            borderColor: 'rgba(255,255,255,.08)',
+                            borderWidth: 1,
                             callbacks: {
+                                title: function(items) { return items[0].label; },
                                 label: function(ctx) { return '₱' + ctx.parsed.y.toLocaleString('en-PH', {minimumFractionDigits:2}); }
                             }
                         }
                     },
                     scales: {
-                        x: { grid: { display: false }, ticks: { font: { size: 12, weight: '700' } } },
+                        x: {
+                            grid: { display: false },
+                            border: { display: false },
+                            ticks: { color: '#666666', font: { size: 12, weight: '700' } }
+                        },
                         y: {
-                            grid: { color: 'rgba(0,0,0,.05)' },
+                            beginAtZero: true,
+                            grid: { color: '#eeeeee', drawTicks: false },
+                            border: { display: false },
                             ticks: {
+                                maxTicksLimit: 5,
+                                padding: 8,
                                 callback: function(v) { return v >= 1000 ? '₱' + (v/1000).toFixed(0) + 'k' : '₱' + v; },
+                                color: '#999999',
                                 font: { size: 11 }
                             }
                         }
                     }
-                }
+                },
+                plugins: [crosshairPlugin]
             });
         }
 
@@ -834,38 +939,20 @@
         }
         updateTopSupplier(currentYear);
 
-        // Year filter buttons — update chart AND both cards (name + stats)
-        document.querySelectorAll('.db-year-btn').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                document.querySelectorAll('.db-year-btn').forEach(function(b) { b.classList.remove('active'); });
-                this.classList.add('active');
-                var year = parseInt(this.dataset.year);
+        // Year filter dropdown — update chart AND both cards (name + stats)
+        var yearSelect = document.getElementById('dbYearFilterSelect');
+        if (yearSelect) {
+            yearSelect.addEventListener('change', function() {
+                var year = parseInt(this.value);
                 buildPeakChart(year);
                 updateTopClient(year);
                 updateTopSupplier(year);
             });
-        });
+        }
         // ─────────────────────────────────────────────────────────────────
     </script>
 
     <style>
-        .db-year-btn {
-            padding: 6px 16px;
-            border-radius: 999px;
-            border: 1.5px solid var(--border);
-            background: var(--white);
-            color: var(--muted);
-            font-size: 13px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all .18s;
-        }
-        .db-year-btn:hover { border-color: var(--dark); color: var(--dark); }
-        .db-year-btn.active {
-            background: var(--dark);
-            border-color: var(--dark);
-            color: #fff;
-        }
 
         /* ── Hero ── */
         .db-hero {
@@ -882,19 +969,6 @@
             align-items: center;
             gap: 16px;
         }
-        .db-greeting-icon {
-            width: 48px;
-            height: 48px;
-            min-width: 48px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, var(--dark) 0%, var(--dark-deep) 100%);
-            color: #fff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 8px 18px rgba(0,0,0,.16);
-        }
-        .db-greeting-icon i { width: 22px; height: 22px; }
         .db-greeting {
             font-size: 24px;
             font-weight: 900;
@@ -922,6 +996,17 @@
             box-shadow: 0 4px 12px rgba(0,0,0,.05);
         }
         .db-hero-date i { width: 14px; height: 14px; }
+
+        /* ── Top Client / Top Supplier cards ── */
+        .db-top-card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .db-top-card:hover {
+            transform: translateY(-3px);
+        }
+        .db-top-card a:hover {
+            color: #fff !important;
+        }
 
         /* ── KPI strip ── */
         .db-kpi-row {
