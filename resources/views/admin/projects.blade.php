@@ -6,6 +6,90 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Projects | GMD South Phils</title>
     <link href="{{ asset('css/admin.css') }}" rel="stylesheet">
+    <style>
+        .mat-combo { position: relative; width: 100%; }
+        .mat-combo-dropdown {
+            display: none;
+            position: fixed;
+            max-height: 400px;
+            overflow-y: auto;
+            background: #fff;
+            border: 1px solid rgba(0,0,0,0.12);
+            border-radius: 14px;
+            box-shadow: 0 12px 32px rgba(0,0,0,.18);
+            z-index: 1000;
+            padding: 12px;
+            columns: 3 180px;
+            column-gap: 16px;
+        }
+        .mat-combo-dropdown.show { display: block; }
+        .mat-combo-category {
+            break-inside: avoid;
+            margin-bottom: 8px;
+        }
+        .mat-combo-group {
+            font-size: 10px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: #fff;
+            background: var(--dark);
+            padding: 5px 10px;
+            border-radius: 6px;
+            margin-bottom: 4px;
+            display: block;
+        }
+        .mat-combo-item {
+            padding: 6px 10px;
+            border-radius: 7px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--dark);
+            cursor: pointer;
+            display: block;
+        }
+        .mat-combo-item:hover {
+            background: #f0f4ff;
+            color: #2563EB;
+            font-weight: 600;
+        }
+        .mat-combo-item.disabled {
+            color: var(--muted);
+            cursor: not-allowed;
+            opacity: 0.6;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+        .mat-combo-item.disabled:hover {
+            background: none;
+        }
+        .mat-combo-item-badge {
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            color: var(--danger);
+            white-space: nowrap;
+        }
+        .mat-combo-empty {
+            padding: 10px;
+            font-size: 12px;
+            color: var(--muted);
+            text-align: center;
+        }
+        .mat-combo-warning {
+            display: none;
+            margin-top: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--danger);
+        }
+        .mat-combo-warning.show {
+            display: block;
+        }
+    </style>
 </head>
 <body class="page-enter">
 
@@ -375,6 +459,36 @@
                     </div>
                     <input type="hidden" name="from_existing_template" id="fromExistingTemplateHidden" value="0">
 
+                    <!-- Bill of Materials (only shown when reusing a template) -->
+                    <div id="bomSection" style="display:none;">
+                        <div style="margin-top:18px;margin-bottom:10px;display:flex;align-items:center;gap:10px;">
+                            <div style="background:linear-gradient(180deg,#333 0%,#2a2a2a 100%);color:#fff;font-size:10px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;padding:4px 12px;border-radius:999px;">Bill of Materials</div>
+                            <div style="flex:1;height:1px;background:linear-gradient(90deg,#333,transparent);"></div>
+                        </div>
+
+                        <p id="materialsEmptyHint" style="font-size:12.5px;color:var(--muted);margin:0 0 10px;">No materials added yet. Materials can also be priced later on the Project Materials page.</p>
+                        <div id="materialsTableWrapper" style="display:none;overflow-x:auto;margin-bottom:10px;border:1px solid rgba(0,0,0,0.10);border-radius:12px;">
+                            <table style="width:100%;border-collapse:collapse;min-width:520px;">
+                                <thead>
+                                    <tr style="background:var(--cream-soft,#f5f5f5);">
+                                        <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);">Material Name</th>
+                                        <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);width:80px;">Qty</th>
+                                        <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);width:100px;">Unit</th>
+                                        <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);width:120px;">Price</th>
+                                        <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);width:120px;">Total</th>
+                                        <th style="width:36px;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="materialsContainer">
+                                    <!-- Material rows injected by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <button type="button" id="addMaterialBtn" class="cancel-btn" style="display:inline-flex;width:auto;margin-bottom:6px;">
+                            <i data-lucide="plus"></i> Add Material
+                        </button>
+                    </div>
+
                     <!-- Schedule -->
                     <div class="form-section-label" style="margin-top:18px;">Schedule</div>
                     <div class="form-grid">
@@ -520,6 +634,8 @@
         </div>
     </div>
 
+    @include('admin.partials.material_catalog')
+
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="{{ asset('js/admin.js') }}"></script>
     <script>
@@ -638,6 +754,7 @@
         }
 
         var selectedEmployeeIds = [];
+        var originalAssignedIds = [];
 
         function renderEmployeeAssignList(employees, filter) {
             var list = document.getElementById('employeeSelectList');
@@ -658,16 +775,22 @@
             }
 
             filtered.forEach(function(employee, idx) {
-                var isSelected = selectedEmployeeIds.indexOf(employee.id) !== -1;
+                var isSelected         = selectedEmployeeIds.indexOf(employee.id) !== -1;
+                var wasAlreadyAssigned = originalAssignedIds.indexOf(employee.id) !== -1;
                 var item       = document.createElement('div');
                 item.className = 'client-select-item' + (isSelected ? ' selected' : '');
                 var init    = employee.name.charAt(0).toUpperCase();
                 var roleStr = [employee.role, employee.type].filter(Boolean).join(' · ');
+                var alreadyAddedBadge = wasAlreadyAssigned
+                    ? '<span style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#15803D;background:#F0FDF4;border:1px solid #BBF7D0;padding:1px 7px;border-radius:999px;white-space:nowrap;">Already added</span>'
+                    : '';
                 item.innerHTML =
                     '<div class="cs-avatar"><span class="cs-avatar-init">' + init + '</span></div>' +
                     '<div class="cs-info">' +
                         '<div class="cs-name">' + employee.name + '</div>' +
-                        '<div class="cs-meta" style="display:block;">' + (roleStr || '—') + '</div>' +
+                        '<div class="cs-meta" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">' +
+                            '<span>' + (roleStr || '—') + '</span>' + alreadyAddedBadge +
+                        '</div>' +
                     '</div>' +
                     '<div class="client-select-check" style="display:' + (isSelected ? 'flex' : 'none') + ';align-items:center;margin-left:auto;">' +
                         '<i data-lucide="check-circle" style="width:20px;height:20px;"></i>' +
@@ -693,6 +816,7 @@
 
         function openAssignEmployeesModal(projectId, projectName, assignedIds) {
             selectedEmployeeIds = assignedIds.slice();
+            originalAssignedIds = assignedIds.slice();
             var si = document.getElementById('employeeSelectSearch');
             if (si) si.value = '';
             var shortName = projectName.length > 35 ? projectName.substring(0, 35) + '…' : projectName;
@@ -1037,7 +1161,262 @@
             return row;
         }
 
-        /* ── Project templates (reusable tank specs) ── */
+        function escAttr(s) {
+            return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        // Materials actually recorded on projects' Bill of Materials (Project Quotation module) —
+        // shown as a "Previously Used" group above the static catalog in the materials combo box.
+        var USED_MATERIALS = @json($usedMaterials);
+        var USED_MATERIAL_UNITS = {};
+        (USED_MATERIALS || []).forEach(function(m) {
+            if (m.unit) USED_MATERIAL_UNITS[m.name] = m.unit;
+        });
+
+        function buildMaterialRow(prefix, item) {
+            item = item || {};
+            var inputStyle = 'width:100%;padding:8px 10px;border:1px solid rgba(0,0,0,0.14);border-radius:8px;font-size:13px;box-sizing:border-box;';
+
+            var tr = document.createElement('tr');
+            tr.className = 'material-item-row';
+            tr.style.cssText = 'border-bottom:1px solid rgba(0,0,0,0.06);';
+
+            var readonlyStyle = 'width:100%;padding:8px 10px;border:1px solid rgba(0,0,0,0.08);border-radius:8px;font-size:13px;font-weight:800;color:var(--dark);background:rgba(0,0,0,0.03);cursor:default;box-sizing:border-box;';
+
+            tr.innerHTML =
+                '<td style="padding:8px 10px;vertical-align:top;">' +
+                    '<div class="mat-combo">' +
+                        '<input type="text" name="' + prefix + '[material_name]" class="row-mat-name-input" value="' + escAttr(item.material_name) + '" ' +
+                            'placeholder="Search or type material..." required autocomplete="off" ' +
+                            'oninput="filterMatCombo(this)" onfocus="openMatCombo(this)" style="' + inputStyle + '">' +
+                        '<div class="mat-combo-dropdown"></div>' +
+                    '</div>' +
+                    '<div class="mat-combo-warning">This material is already added.</div>' +
+                '</td>' +
+                '<td style="padding:8px 10px;vertical-align:top;">' +
+                    '<input type="number" name="' + prefix + '[quantity]" class="row-qty" value="' + (item.quantity || 1) + '" min="0.01" step="0.01" onwheel="this.blur()" oninput="updateMaterialRowTotal(this)" style="' + inputStyle + '">' +
+                '</td>' +
+                '<td style="padding:8px 10px;vertical-align:top;">' +
+                    '<input type="text" name="' + prefix + '[unit]" class="row-unit" value="' + escAttr(item.unit) + '" placeholder="pcs, kg, m" style="' + inputStyle + '">' +
+                '</td>' +
+                '<td style="padding:8px 10px;vertical-align:top;">' +
+                    '<input type="number" name="' + prefix + '[price_per_unit]" class="row-price" value="' + (item.price_per_unit || '') + '" min="0" step="0.01" placeholder="0.00" onwheel="this.blur()" oninput="updateMaterialRowTotal(this)" style="' + inputStyle + '">' +
+                '</td>' +
+                '<td style="padding:8px 10px;vertical-align:top;">' +
+                    '<input type="text" class="row-total-display" readonly placeholder="—" style="' + readonlyStyle + '">' +
+                '</td>' +
+                '<td style="padding:8px 10px;vertical-align:top;text-align:center;">' +
+                    '<button type="button" onclick="this.closest(\'tr\').remove(); toggleMaterialsEmptyHint();" title="Remove material" ' +
+                        'style="background:none;border:none;cursor:pointer;padding:6px;border-radius:8px;color:var(--danger);display:inline-flex;align-items:center;">' +
+                        '<i data-lucide="trash-2" style="width:15px;height:15px;"></i>' +
+                    '</button>' +
+                '</td>';
+
+            var qty   = parseFloat(item.quantity)       || 0;
+            var price = parseFloat(item.price_per_unit)  || 0;
+            var total = qty * price;
+            tr.querySelector('.row-total-display').value = total > 0 ? formatMaterialCost(total) : '';
+
+            return tr;
+        }
+
+        function formatMaterialCost(val) {
+            return '₱' + parseFloat(val).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function updateMaterialRowTotal(input) {
+            var row   = input.closest('.material-item-row');
+            var qty   = parseFloat(row.querySelector('.row-qty').value)   || 0;
+            var price = parseFloat(row.querySelector('.row-price').value) || 0;
+            var total = qty * price;
+            row.querySelector('.row-total-display').value = total > 0 ? formatMaterialCost(total) : '';
+        }
+
+        // ---- searchable, categorized material combo box (fed by the shared Project Materials catalog) ----
+        function getUsedMaterialNames(excludeInput) {
+            var used = [];
+            document.querySelectorAll('#materialsContainer .row-mat-name-input').forEach(function(el) {
+                if (el === excludeInput) return;
+                var val = el.value.trim();
+                if (val) used.push(val.toLowerCase());
+            });
+            return used;
+        }
+
+        function renderMatComboList(panel, filterText, onSelect, usedNames) {
+            var q = (filterText || '').toLowerCase().trim();
+            var html = '';
+            var hasMatches = false;
+            usedNames = usedNames || [];
+
+            // "Previously Used" — real materials pulled from the Project Quotation / BOM module,
+            // shown first so admins reuse actual project history instead of retyping.
+            var seenFromHistory = {};
+            var recentItems = (USED_MATERIALS || []).filter(function(m) {
+                return !q || m.name.toLowerCase().indexOf(q) !== -1;
+            });
+            if (recentItems.length) {
+                hasMatches = true;
+                html += '<div class="mat-combo-category">';
+                html += '<div class="mat-combo-group" style="background:#7C3AED;">Previously Used</div>';
+                recentItems.forEach(function(m) {
+                    seenFromHistory[m.name.toLowerCase()] = true;
+                    var isUsed = usedNames.indexOf(m.name.toLowerCase()) !== -1;
+                    var countLabel = m.count > 1 ? m.count + ' projects' : '1 project';
+                    if (isUsed) {
+                        html += '<div class="mat-combo-item disabled" data-value="' + escAttr(m.name) + '">' +
+                                    '<span>' + escAttr(m.name) + '</span>' +
+                                    '<span class="mat-combo-item-badge">Already added</span>' +
+                                '</div>';
+                    } else {
+                        html += '<div class="mat-combo-item" data-value="' + escAttr(m.name) + '" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">' +
+                                    '<span>' + escAttr(m.name) + '</span>' +
+                                    '<span style="font-size:10px;font-weight:600;color:var(--muted);white-space:nowrap;">' + countLabel + '</span>' +
+                                '</div>';
+                    }
+                });
+                html += '</div>';
+            }
+
+            Object.keys(MATERIAL_CATALOG).forEach(function(category) {
+                var items = MATERIAL_CATALOG[category].filter(function(name) {
+                    return (!q || name.toLowerCase().indexOf(q) !== -1) && !seenFromHistory[name.toLowerCase()];
+                });
+                if (items.length === 0) return;
+                hasMatches = true;
+                html += '<div class="mat-combo-category">';
+                html += '<div class="mat-combo-group">' + escAttr(category) + '</div>';
+                items.forEach(function(name) {
+                    var isUsed = usedNames.indexOf(name.toLowerCase()) !== -1;
+                    if (isUsed) {
+                        html += '<div class="mat-combo-item disabled" data-value="' + escAttr(name) + '">' +
+                                    '<span>' + escAttr(name) + '</span>' +
+                                    '<span class="mat-combo-item-badge">Already added</span>' +
+                                '</div>';
+                    } else {
+                        html += '<div class="mat-combo-item" data-value="' + escAttr(name) + '">' + escAttr(name) + '</div>';
+                    }
+                });
+                html += '</div>';
+            });
+
+            if (!hasMatches) {
+                html += '<div class="mat-combo-empty">No matches in the catalog — your typed name will be used as-is.</div>';
+            }
+
+            panel.innerHTML = html;
+            panel.querySelectorAll('.mat-combo-item').forEach(function(item) {
+                if (item.classList.contains('disabled')) return;
+                item.addEventListener('mousedown', function(e) {
+                    e.preventDefault();
+                    onSelect(item.dataset.value);
+                });
+            });
+        }
+
+        function checkMatDuplicate(input) {
+            var wrapper = input.closest('.mat-combo');
+            var warning = wrapper.parentNode.querySelector('.mat-combo-warning');
+            if (!warning) return;
+
+            var value = input.value.trim().toLowerCase();
+            var isDuplicate = value && getUsedMaterialNames(input).indexOf(value) !== -1;
+
+            warning.classList.toggle('show', isDuplicate);
+            input.style.outline = isDuplicate ? '2px solid var(--danger)' : '';
+            return isDuplicate;
+        }
+
+        function positionMatCombo(panel, input) {
+            var rect       = input.getBoundingClientRect();
+            var maxHeight  = 320;
+            var width      = Math.max(rect.width, Math.min(640, window.innerWidth - 32));
+            var spaceBelow = window.innerHeight - rect.bottom;
+            var spaceAbove = rect.top;
+
+            var left = Math.min(rect.left, window.innerWidth - width - 16);
+            left = Math.max(16, left);
+
+            panel.style.left  = left + 'px';
+            panel.style.width = width + 'px';
+
+            if (spaceBelow < maxHeight && spaceAbove > spaceBelow) {
+                panel.style.top       = '';
+                panel.style.bottom    = (window.innerHeight - rect.top + 4) + 'px';
+                panel.style.maxHeight = Math.max(120, Math.min(maxHeight, spaceAbove - 12)) + 'px';
+            } else {
+                panel.style.bottom    = '';
+                panel.style.top       = (rect.bottom + 4) + 'px';
+                panel.style.maxHeight = Math.max(120, Math.min(maxHeight, spaceBelow - 12)) + 'px';
+            }
+        }
+
+        function openMatCombo(input) {
+            var wrapper = input.closest('.mat-combo');
+            var panel   = wrapper.querySelector('.mat-combo-dropdown');
+            renderMatComboList(panel, input.value, function(value) {
+                input.value = value;
+                panel.classList.remove('show');
+                checkMatDuplicate(input);
+                var row = input.closest('tr');
+                if (row) {
+                    var unitInput = row.querySelector('.row-unit');
+                    var unit = USED_MATERIAL_UNITS[value] || MATERIAL_UNITS[value];
+                    if (unitInput && unit) {
+                        unitInput.value = unit;
+                    }
+                }
+                input.focus();
+            }, getUsedMaterialNames(input));
+            positionMatCombo(panel, input);
+            panel.classList.add('show');
+        }
+
+        function filterMatCombo(input) {
+            openMatCombo(input);
+            checkMatDuplicate(input);
+        }
+
+        function closeAllMatCombos() {
+            document.querySelectorAll('.mat-combo-dropdown.show').forEach(function(p) {
+                p.classList.remove('show');
+            });
+        }
+
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.mat-combo')) closeAllMatCombos();
+        });
+        window.addEventListener('scroll', function(e) {
+            var t = e.target;
+            if (t && t.nodeType === 1 && t.closest('.mat-combo-dropdown')) return;
+            closeAllMatCombos();
+        }, true);
+
+        function toggleMaterialsEmptyHint() {
+            var container = document.getElementById('materialsContainer');
+            var hint = document.getElementById('materialsEmptyHint');
+            var wrapper = document.getElementById('materialsTableWrapper');
+            var hasRows = !!(container && container.children.length);
+            if (hint)    hint.style.display    = hasRows ? 'none'  : 'block';
+            if (wrapper) wrapper.style.display = hasRows ? 'block' : 'none';
+        }
+
+        var addMaterialIndex = 0;
+        function addMaterialRow(item) {
+            var container = document.getElementById('materialsContainer');
+            var prefix = 'materials[' + addMaterialIndex + ']';
+            container.appendChild(buildMaterialRow(prefix, item));
+            addMaterialIndex++;
+            toggleMaterialsEmptyHint();
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        var addMaterialBtn = document.getElementById('addMaterialBtn');
+        if (addMaterialBtn) {
+            addMaterialBtn.addEventListener('click', function() { addMaterialRow(); });
+        }
+
+        /* ── Project templates (reusable tank specs + materials) ── */
         @php
             $templateOptionsForJs = $projectTemplates->map(function ($t) {
                 return [
@@ -1045,6 +1424,7 @@
                     'name'         => $t->name,
                     'project_name' => $t->project_name,
                     'tank_items'   => $t->tank_items,
+                    'materials'    => $t->materials,
                 ];
             })->values();
         @endphp
@@ -1054,10 +1434,20 @@
             var tpl = PROJECT_TEMPLATES.find(function(t) { return String(t.id) === String(templateId); });
             if (!tpl) return;
 
+            var hasMaterials = !!(tpl.materials && tpl.materials.length);
+            document.getElementById('bomSection').style.display = hasMaterials ? 'block' : 'none';
+
             document.getElementById('tankItemsContainer').innerHTML = '';
             addTankIndex = 0;
             (tpl.tank_items || []).forEach(function(item) { addTankRow(item); });
             if (!tpl.tank_items || !tpl.tank_items.length) addTankRow();
+
+            document.getElementById('materialsContainer').innerHTML = '';
+            addMaterialIndex = 0;
+            if (hasMaterials) {
+                tpl.materials.forEach(function(item) { addMaterialRow(item); });
+            }
+            toggleMaterialsEmptyHint();
 
             if (tpl.project_name) {
                 var nameSelect = document.getElementById('projectNameSelect');
@@ -1100,6 +1490,7 @@
         // Init add modal with one empty row
         document.addEventListener('DOMContentLoaded', function() {
             addTankRow();
+            toggleMaterialsEmptyHint();
         });
 
         // Reset add modal tank rows when opened
@@ -1109,6 +1500,11 @@
                 document.getElementById('tankItemsContainer').innerHTML = '';
                 addTankIndex = 0;
                 addTankRow();
+
+                document.getElementById('materialsContainer').innerHTML = '';
+                addMaterialIndex = 0;
+                toggleMaterialsEmptyHint();
+                document.getElementById('bomSection').style.display = 'none';
             });
         }
 
@@ -1255,8 +1651,12 @@
 
             function templateSummary(tpl) {
                 var items = tpl.tank_items || [];
-                if (!items.length) return '<span style="font-size:12px;color:var(--muted);">No tank specs saved</span>';
                 var pillStyle = 'display:inline-flex;align-items:center;padding:2px 7px;border-radius:999px;font-size:10px;font-weight:600;margin-right:4px;white-space:nowrap;';
+
+                if (!items.length) {
+                    return '<span style="font-size:12px;color:var(--muted);">No tank specs saved</span>';
+                }
+
                 return items.map(function(it) {
                     var qty   = it.quantity && it.quantity > 1 ? ' ×' + it.quantity : '';
                     var shape = it.shape || inferShapeLabel(it.dimensions);
@@ -1392,7 +1792,11 @@
                     if (usedExistingTemplate) {
                         loadTemplateIntoAddForm(selectedTemplateId);
                     } else {
+                        document.getElementById('bomSection').style.display = 'none';
                         addTankRow();
+                        document.getElementById('materialsContainer').innerHTML = '';
+                        addMaterialIndex = 0;
+                        toggleMaterialsEmptyHint();
                     }
 
                     openModal('addProjectModal');

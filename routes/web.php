@@ -25,6 +25,7 @@ use App\Http\Controllers\MaterialRequestController;
 use App\Http\Controllers\SupplierContactController;
 use App\Http\Controllers\MonthlyExpenseController;
 use App\Http\Controllers\MessageController;
+use App\Http\Controllers\KpiDashboardController;
 
 /*
 |--------------------------------------------------------------------------
@@ -115,6 +116,13 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::get('/reports', [AdminController::class, 'reports'])->name('reports');
     Route::get('/reports/project/{id}', [AdminController::class, 'projectKpi'])->name('reports.project');
     Route::get('/revenue/weekly', [AdminController::class, 'weeklyRevenue'])->name('revenue.weekly');
+
+    // KPI Dashboard (Scorecard / Performance Trend)
+    Route::get('/kpi-dashboard', [KpiDashboardController::class, 'index'])->name('kpi_dashboard');
+    Route::get('/kpi-dashboard/data', [KpiDashboardController::class, 'data'])->name('kpi_dashboard.data');
+    Route::get('/kpi-dashboard/report-range', [KpiDashboardController::class, 'reportRange'])->name('kpi_dashboard.report_range');
+    Route::post('/kpi-dashboard/targets/quarter', [KpiDashboardController::class, 'saveQuarterTargets'])->name('kpi_dashboard.save_quarter_targets');
+    Route::post('/kpi-dashboard/targets/project', [KpiDashboardController::class, 'saveProjectTargets'])->name('kpi_dashboard.save_project_targets');
 
     // Project View & Workflow
     Route::get('/project-view/{id}', [ProjectController::class, 'adminView'])->name('project_view');

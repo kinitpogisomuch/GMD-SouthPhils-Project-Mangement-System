@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Project;
 use App\Models\ProjectMaterial;
+use App\Models\ProjectTemplate;
 use App\Models\ProjectLabor;
 use App\Models\Employee;
 use App\Models\MaterialRequest;
@@ -222,6 +223,8 @@ class ProjectMaterialController extends Controller
         // The Material Factor applies to the whole project — keep every material's factor in sync.
         ProjectMaterial::where('project_id', $projectId)->update(['factor' => $factor]);
 
+        $this->syncLinkedTemplateMaterials($projectId);
+
         $messages = [];
         if ($createdCount > 0) {
             $messages[] = $createdCount === 1 ? "1 material added" : "{$createdCount} materials added";
@@ -237,6 +240,36 @@ class ProjectMaterialController extends Controller
         return redirect()
             ->route('admin.project_materials.detail', $projectId)
             ->with('success', $message);
+    }
+
+    /**
+     * Keep the reusable Project Template's BOM in sync with the project it was created from,
+     * so materials added/edited/removed here (Project Quotation module) also show up when this
+     * project's template is reused for a new project.
+     */
+    private function syncLinkedTemplateMaterials($projectId): void
+    {
+        $templates = ProjectTemplate::where('project_id', $projectId)->get();
+        if ($templates->isEmpty()) {
+            return;
+        }
+
+        $materials = ProjectMaterial::where('project_id', $projectId)
+            ->where('status', 'active')
+            ->orderBy('created_at')
+            ->get()
+            ->map(fn ($m) => [
+                'material_name'  => $m->material_name,
+                'quantity'       => $m->quantity,
+                'unit'           => $m->unit,
+                'price_per_unit' => $m->price_per_unit,
+            ])
+            ->values()
+            ->toArray();
+
+        foreach ($templates as $template) {
+            $template->update(['materials' => $materials]);
+        }
     }
 
     public function storeLabor(Request $request, $projectId)

@@ -57,8 +57,148 @@
                 </select>
             </div>
 
+            {{-- ── Interactive KPI cards ── --}}
+            <div class="db-kpi-row" id="kpiCardRow" style="margin-bottom:16px;">
+                @foreach($kpiCards as $i => $card)
+                <div class="db-kpi-card db-kpi-card-interactive{{ $i === 0 ? ' selected' : '' }}"
+                     data-kpi-key="{{ $card['key'] }}"
+                     role="button"
+                     tabindex="0"
+                     aria-pressed="{{ $i === 0 ? 'true' : 'false' }}"
+                     style="--kpi-accent:{{ $card['color'] }};">
+                    <div class="db-kpi-icon" style="background:{{ $card['bg'] }};color:{{ $card['color'] }};">
+                        <i data-lucide="{{ $card['icon'] }}"></i>
+                    </div>
+                    <div class="db-kpi-body">
+                        <div class="db-kpi-value">{{ $card['valueText'] }}</div>
+                        <div class="db-kpi-label">{{ $card['name'] }}</div>
+                        <div class="db-kpi-sub">
+                            @if($card['trendText'])
+                                @if($card['trendPct'] !== null)
+                                    <span class="{{ $card['trendGood'] ? 'db-kpi-trend-up' : 'db-kpi-trend-down' }}">
+                                        {{ $card['trendPct'] >= 0 ? '▲' : '▼' }} {{ number_format(abs($card['trendPct']), 1) }}%
+                                    </span>
+                                    {{ $card['trendText'] }}
+                                @else
+                                    {{ $card['trendText'] }}
+                                @endif
+                            @else
+                                {{ $card['unitText'] }}
+                            @endif
+                        </div>
+                    </div>
+                    <div class="db-kpi-select-check"><i data-lucide="check"></i></div>
+                </div>
+                @endforeach
+            </div>
+
+            {{-- ── KPI detail chart (updates based on selected card above) ── --}}
+            <div class="table-card" style="margin-bottom:20px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 24px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:10px;">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <div id="kpiChartIconWrap" style="width:36px;height:36px;background:{{ $kpiCards[0]['bg'] }};color:{{ $kpiCards[0]['color'] }};border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                            <i data-lucide="{{ $kpiCards[0]['icon'] }}" style="width:18px;height:18px;"></i>
+                        </div>
+                        <div>
+                            <div id="kpiChartTitle" style="font-size:15px;font-weight:800;color:var(--dark);">{{ $kpiCards[0]['chart']['title'] }}</div>
+                            <div id="kpiChartSubtitle" style="font-size:12px;color:var(--muted);margin-top:2px;">{{ $kpiCards[0]['chart']['subtitle'] }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div style="padding:20px 24px;">
+                    <div id="kpiChartWrap" style="position:relative;height:280px;transition:opacity .18s ease;">
+                        <canvas id="kpiDetailChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            {{-- ── Needs Attention ── --}}
+            <div class="table-card" style="margin-bottom:20px;">
+                <div style="display:flex;align-items:center;gap:10px;padding:20px 24px 16px;border-bottom:1px solid var(--border);">
+                    <div style="width:36px;height:36px;background:#FFF3D6;color:#8A6100;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        <i data-lucide="alert-triangle" style="width:18px;height:18px;"></i>
+                    </div>
+                    <div>
+                        <div style="font-size:15px;font-weight:800;color:var(--dark);">Needs Attention</div>
+                        <div style="font-size:12px;color:var(--muted);margin-top:2px;">Overdue projects, unpaid balances, and unread messages</div>
+                    </div>
+                </div>
+
+                @if($overdueProjectsList->isEmpty() && $pendingPaymentsList->isEmpty() && $unreadMessages == 0)
+                <div style="text-align:center;padding:36px 20px;color:var(--muted);">
+                    <i data-lucide="check-circle-2" style="width:32px;height:32px;color:#16a34a;display:block;margin:0 auto 10px;"></i>
+                    <div style="font-size:13.5px;font-weight:700;color:var(--dark);">All caught up</div>
+                    <div style="font-size:12px;margin-top:2px;">No overdue projects, unpaid balances, or unread messages.</div>
+                </div>
+                @else
+                <div class="db-attention-grid" style="display:grid;grid-template-columns:1fr 1fr;">
+                    {{-- Overdue projects --}}
+                    <div style="padding:18px 24px;border-right:1px solid var(--border);min-width:0;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                            <span style="font-size:11px;font-weight:800;color:var(--muted-light);text-transform:uppercase;letter-spacing:.4px;">Overdue Projects</span>
+                            <span class="icon-chip-danger" style="font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px;">{{ $overdueCount }}</span>
+                        </div>
+                        @forelse($overdueProjectsList as $project)
+                        <a href="{{ route('admin.project_view', $project->id) }}" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;text-decoration:none;color:inherit;border-bottom:1px solid var(--border);">
+                            <div style="min-width:0;">
+                                <div style="font-size:12.5px;font-weight:700;color:var(--dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ $project->name }}</div>
+                                <div style="font-size:11px;color:var(--muted-light);margin-top:1px;">{{ $project->client }}</div>
+                            </div>
+                            <span style="font-size:11px;font-weight:800;color:#B42318;white-space:nowrap;flex-shrink:0;">{{ (int) $project->end_date->diffInDays(now(), true) }}d late</span>
+                        </a>
+                        @empty
+                        <div style="font-size:12px;color:var(--muted-light);padding:6px 0;">No overdue projects.</div>
+                        @endforelse
+                    </div>
+
+                    {{-- Pending payments --}}
+                    <div style="padding:18px 24px;min-width:0;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                            <span style="font-size:11px;font-weight:800;color:var(--muted-light);text-transform:uppercase;letter-spacing:.4px;">Pending Payments</span>
+                            <span class="icon-chip-warning" style="font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px;">{{ $pendingPaymentsCount }}</span>
+                        </div>
+                        @forelse($pendingPaymentsList as $payment)
+                        <a href="{{ route('admin.payments') }}" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;text-decoration:none;color:inherit;border-bottom:1px solid var(--border);">
+                            <div style="min-width:0;">
+                                <div style="font-size:12.5px;font-weight:700;color:var(--dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ $payment->client }}</div>
+                                <div style="font-size:11px;color:var(--muted-light);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ $payment->project->name ?? 'Unknown project' }}</div>
+                            </div>
+                            <span style="font-size:11px;font-weight:800;color:#8A6100;white-space:nowrap;flex-shrink:0;">₱{{ number_format($payment->currentBalance(), 0) }}</span>
+                        </a>
+                        @empty
+                        <div style="font-size:12px;color:var(--muted-light);padding:6px 0;">No pending payments.</div>
+                        @endforelse
+                    </div>
+                </div>
+
+                @if($unreadMessages > 0)
+                <a href="{{ route('admin.messages') }}" style="display:flex;align-items:center;gap:8px;padding:12px 24px;border-top:1px solid var(--border);background:var(--cream-soft);text-decoration:none;color:var(--dark);font-size:12.5px;font-weight:700;">
+                    <i data-lucide="message-square" style="width:14px;height:14px;color:#8A6100;"></i>
+                    {{ $unreadMessages }} unread message{{ $unreadMessages !== 1 ? 's' : '' }} waiting for a reply
+                    <i data-lucide="arrow-right" style="width:13px;height:13px;margin-left:auto;"></i>
+                </a>
+                @endif
+                @endif
+            </div>
+
+            {{-- ── Project Status Snapshot ── --}}
+            <div class="table-card" style="margin-bottom:20px;padding:16px 24px;display:flex;align-items:center;flex-wrap:wrap;gap:18px;">
+                <div style="display:flex;align-items:center;gap:8px;font-size:11px;font-weight:800;color:var(--muted-light);text-transform:uppercase;letter-spacing:.4px;flex-shrink:0;">
+                    <i data-lucide="layers" style="width:14px;height:14px;"></i>
+                    Project Status
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                    @foreach($statusSnapshot as $item)
+                    <a href="{{ route('admin.projects') }}" style="display:flex;align-items:center;gap:7px;text-decoration:none;">
+                        <span class="status-badge {{ $item['badge'] }}">{{ $item['label'] }}</span>
+                        <span style="font-size:13px;font-weight:800;color:var(--dark);">{{ $item['count'] }}</span>
+                    </a>
+                    @endforeach
+                </div>
+            </div>
+
             {{-- ── Top Client + Top Supplier ── --}}
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+            <div class="db-top-cards-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
 
                 {{-- Top Client --}}
                 <div class="db-top-card" style="background:linear-gradient(135deg,var(--dark) 0%,var(--dark-deep) 100%);border-radius:18px;padding:24px;box-shadow:0 8px 24px rgba(14,20,40,.25);">
@@ -121,123 +261,8 @@
                 </div>
             </div>
 
-            {{-- ── Peak Months Line Chart ── --}}
-            <div class="table-card" style="margin-bottom:24px;">
-                <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 24px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:10px;">
-                    <div style="display:flex;align-items:center;gap:10px;">
-                        <div style="width:36px;height:36px;background:#d1fae5;color:#059669;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                            <i data-lucide="trending-up" style="width:18px;height:18px;"></i>
-                        </div>
-                        <div>
-                            <div style="font-size:15px;font-weight:800;color:var(--dark);">Peak Months</div>
-                            <div style="font-size:12px;color:var(--muted);margin-top:2px;">Monthly revenue trend — payments received</div>
-                        </div>
-                    </div>
-                    <div style="display:flex;align-items:center;gap:8px;">
-                        <span id="peakMonthBadge" style="display:none;align-items:center;gap:7px;font-size:12px;padding:4px 12px 4px 4px;border-radius:999px;background:linear-gradient(135deg,#ecfdf5 0%,#d1fae5 100%);border:1px solid rgba(5,150,105,.18);box-shadow:0 1px 2px rgba(5,150,105,.06);"></span>
-                        <span id="peakYearLabel" style="font-size:12px;font-weight:700;color:var(--muted);background:var(--cream-soft,#fafafa);border:1px solid var(--border);padding:5px 12px;border-radius:999px;"></span>
-                    </div>
-                </div>
-                <div style="padding:20px 24px;">
-                    <canvas id="peakMonthsChart" height="90"></canvas>
-                </div>
-            </div>
-
             {{-- sections removed per user request --}}
             <div class="db-outer-grid" style="display:none;">
-
-            <!-- Left: KPI stack -->
-            <div class="db-kpi-row">
-
-                <a href="{{ route('admin.projects') }}" class="db-kpi-card" style="text-decoration:none;">
-                    <div class="db-kpi-icon" style="background:#EAF0FF;color:#2A4EAA;">
-                        <i data-lucide="folder-kanban"></i>
-                    </div>
-                    <div class="db-kpi-body">
-                        <div class="db-kpi-value">{{ $totalProjects }}</div>
-                        <div class="db-kpi-label">Total Projects</div>
-                        <div class="db-kpi-sub">
-                            <span style="color:#16a34a;">{{ $activeProjects }} active</span>
-                            &nbsp;·&nbsp;
-                            <span style="color:#6b7280;">{{ $completedProjects }} done</span>
-                        </div>
-                    </div>
-                </a>
-
-                <a href="{{ route('admin.employees') }}" class="db-kpi-card" style="text-decoration:none;">
-                    <div class="db-kpi-icon" style="background:#EDE9FE;color:#6D28D9;">
-                        <i data-lucide="users"></i>
-                    </div>
-                    <div class="db-kpi-body">
-                        <div class="db-kpi-value">{{ $totalEmployees }}</div>
-                        <div class="db-kpi-label">Employees</div>
-                        <div class="db-kpi-sub">{{ $totalClients }} clients registered</div>
-                    </div>
-                </a>
-
-                <a href="{{ route('admin.payments') }}" class="db-kpi-card" style="text-decoration:none;">
-                    <div class="db-kpi-icon" style="background:#E7F6EC;color:#207A3A;">
-                        <i data-lucide="credit-card"></i>
-                    </div>
-                    <div class="db-kpi-body">
-                        <div class="db-kpi-value">₱{{ number_format($totalReceived, 0) }}</div>
-                        <div class="db-kpi-label">Total Received</div>
-                        <div class="db-kpi-sub">
-                            <span style="color:#16a34a;">{{ $fullyPaidPayments }} fully paid</span>
-                            &nbsp;·&nbsp;
-                            <span style="color:#e8900a;">{{ $pendingPayments }} pending</span>
-                        </div>
-                    </div>
-                </a>
-
-                <a href="{{ route('admin.messages') }}" class="db-kpi-card" style="text-decoration:none;">
-                    <div class="db-kpi-icon" style="background:#CCFBF1;color:#0D9488;">
-                        <i data-lucide="message-square"></i>
-                    </div>
-                    <div class="db-kpi-body">
-                        <div class="db-kpi-value">{{ $unreadMessages }}</div>
-                        <div class="db-kpi-label">Unread Messages</div>
-                        <div class="db-kpi-sub">
-                            @if($unreadMessages > 0)
-                                <span style="color:#e8900a;">Needs your attention</span>
-                            @else
-                                <span style="color:#16a34a;">All caught up</span>
-                            @endif
-                        </div>
-                    </div>
-                </a>
-
-                <!-- ── System Stats card ── -->
-                @php $estimatedProfit = max(0, $totalContractValue - $totalMaterialCost); @endphp
-                <div class="db-kpi-card db-kpi-stats" style="flex-direction:column;align-items:stretch;gap:0;padding:18px;cursor:default;transform:none !important;box-shadow:none !important;">
-                    <div style="font-size:10px;font-weight:700;color:var(--muted-light);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;display:flex;align-items:center;gap:5px;">
-                        <i data-lucide="bar-chart-2" style="width:12px;height:12px;"></i>
-                        System Stats
-                    </div>
-                    <div style="display:flex;flex-direction:column;gap:10px;">
-                        <div style="display:flex;justify-content:space-between;align-items:center;">
-                            <span style="font-size:11px;color:var(--muted);">Contract Value</span>
-                            <span style="font-size:12px;font-weight:700;color:var(--dark);">₱{{ number_format($totalContractValue, 0) }}</span>
-                        </div>
-                        <div style="height:1px;background:var(--border);"></div>
-                        <div style="display:flex;justify-content:space-between;align-items:center;">
-                            <span style="font-size:11px;color:var(--muted);">Est. Profit</span>
-                            <span style="font-size:12px;font-weight:700;color:#16a34a;">₱{{ number_format($estimatedProfit, 0) }}</span>
-                        </div>
-                        <div style="height:1px;background:var(--border);"></div>
-                        <div style="display:flex;justify-content:space-between;align-items:center;">
-                            <span style="font-size:11px;color:var(--muted);">Material Cost</span>
-                            <span style="font-size:12px;font-weight:700;color:var(--dark);">₱{{ number_format($totalMaterialCost, 0) }}</span>
-                        </div>
-                        <div style="height:1px;background:var(--border);"></div>
-                        <div style="display:flex;justify-content:space-between;align-items:center;">
-                            <span style="font-size:11px;color:var(--muted);">Total Received</span>
-                            <span style="font-size:12px;font-weight:700;color:#16a34a;">₱{{ number_format($totalReceived, 0) }}</span>
-                        </div>
-                    </div>
-                </div>
-
-            </div><!-- end db-kpi-row -->
 
             <!-- Right: Three-panel column -->
             <div>
@@ -277,29 +302,6 @@
                 </div>
             </div>
 
-            <!-- Donut chart: Project Status Breakdown -->
-            <div class="db-panel-card" style="display:flex;flex-direction:column;">
-                <div class="db-panel-title">
-                    <i data-lucide="pie-chart"></i>
-                    Project Status Breakdown
-                </div>
-                <div style="display:flex;align-items:center;justify-content:center;flex:1;gap:20px;flex-wrap:wrap;">
-                    <div style="position:relative;width:140px;height:140px;flex-shrink:0;">
-                        <canvas id="statusDonutChart"></canvas>
-                    </div>
-                    <div style="display:flex;flex-direction:column;gap:10px;">
-                        @foreach($projectStatusChart as $item)
-                        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;min-width:110px;">
-                            <div style="display:flex;align-items:center;gap:7px;">
-                                <span style="width:9px;height:9px;border-radius:50%;background:{{ $item['color'] }};display:inline-block;flex-shrink:0;"></span>
-                                <span style="font-size:12px;color:var(--muted);">{{ $item['label'] }}</span>
-                            </div>
-                            <span style="font-size:13px;font-weight:800;color:var(--dark);">{{ $item['count'] }}</span>
-                        </div>
-                        @endforeach
-                    </div>
-                </div>
-            </div>
 
             </div><!-- end grid wrapper -->
 
@@ -430,7 +432,7 @@
             </div><!-- end kpi + three-panel wrapper -->
 
             <!-- ── Main content: projects (full width) ── -->
-            <div class="db-main-grid" style="display:none;">
+            <div class="db-main-grid" style="margin-bottom:24px;">
 
                 <!-- Recent Projects -->
                 <div class="db-project-card">
@@ -520,6 +522,178 @@
         document.querySelectorAll('.db-pay-bar-fill[data-width]').forEach(function(el) {
             el.style.width = el.dataset.width + '%';
         });
+
+        // ── Interactive KPI cards → detail chart ──
+        (function() {
+            var KPI_CARDS_BY_YEAR = @json($kpiCardsByYear);
+            var KPI_CARDS         = @json($kpiCards);
+            var cardEls    = document.querySelectorAll('.db-kpi-card-interactive');
+            var chartEl    = document.getElementById('kpiDetailChart');
+            var wrapEl     = document.getElementById('kpiChartWrap');
+            var titleEl    = document.getElementById('kpiChartTitle');
+            var subtitleEl = document.getElementById('kpiChartSubtitle');
+            var iconWrap   = document.getElementById('kpiChartIconWrap');
+            var chart      = null;
+            var activeKey  = null;
+
+            if (!cardEls.length || !chartEl || typeof Chart === 'undefined') return;
+
+            function findCard(key) {
+                for (var i = 0; i < KPI_CARDS.length; i++) {
+                    if (KPI_CARDS[i].key === key) return KPI_CARDS[i];
+                }
+                return null;
+            }
+
+            function fmtValue(prefix, v) {
+                v = Math.round(v);
+                return prefix === '₱' ? ('₱' + v.toLocaleString()) : v.toLocaleString();
+            }
+
+            function hexToRgba(hex, alpha) {
+                var r = parseInt(hex.slice(1, 3), 16);
+                var g = parseInt(hex.slice(3, 5), 16);
+                var b = parseInt(hex.slice(5, 7), 16);
+                return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+            }
+
+            function buildChart(card) {
+                var cfg = card.chart;
+                if (chart) { chart.destroy(); chart = null; }
+
+                var dataset = (cfg.type === 'line')
+                    ? {
+                        label: card.name,
+                        data: cfg.data,
+                        borderColor: card.color,
+                        backgroundColor: hexToRgba(card.color, 0.10),
+                        fill: true,
+                        tension: 0.35,
+                        pointRadius: 3,
+                        pointBackgroundColor: card.color,
+                        borderWidth: 2.5,
+                    }
+                    : {
+                        label: card.name,
+                        data: cfg.data,
+                        backgroundColor: cfg.colors || card.color,
+                        borderRadius: 6,
+                        maxBarThickness: 70,
+                    };
+
+                chart = new Chart(chartEl, {
+                    type: cfg.type,
+                    data: { labels: cfg.labels, datasets: [dataset] },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: { duration: 650, easing: 'easeOutQuart' },
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                backgroundColor: '#1a1a1a',
+                                padding: 10,
+                                cornerRadius: 8,
+                                titleFont: { weight: '700' },
+                                bodyFont: { weight: '500' },
+                                callbacks: {
+                                    label: function(c) {
+                                        var v = (c.parsed && c.parsed.y !== undefined) ? c.parsed.y : c.parsed;
+                                        return ' ' + fmtValue(cfg.prefix, v);
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: { grid: { display: false }, ticks: { color: '#666666', font: { size: 11 } } },
+                            y: {
+                                grid: { color: 'rgba(0,0,0,.05)' },
+                                ticks: {
+                                    color: '#666666',
+                                    font: { size: 11 },
+                                    callback: function(v) { return fmtValue(cfg.prefix, v); }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            function renderSubHtml(card) {
+                if (card.trendText) {
+                    if (card.trendPct !== null) {
+                        var cls   = card.trendGood ? 'db-kpi-trend-up' : 'db-kpi-trend-down';
+                        var arrow = card.trendPct >= 0 ? '▲' : '▼';
+                        var pct   = Math.abs(card.trendPct).toFixed(1);
+                        return '<span class="' + cls + '">' + arrow + ' ' + pct + '%</span> ' + card.trendText;
+                    }
+                    return card.trendText;
+                }
+                return card.unitText;
+            }
+
+            function renderCardValues() {
+                cardEls.forEach(function(el) {
+                    var card = findCard(el.dataset.kpiKey);
+                    if (!card) return;
+                    var valueEl = el.querySelector('.db-kpi-value');
+                    var subEl   = el.querySelector('.db-kpi-sub');
+                    if (valueEl) valueEl.textContent = card.valueText;
+                    if (subEl)   subEl.innerHTML     = renderSubHtml(card);
+                });
+            }
+
+            function selectCard(key, animate) {
+                var card = findCard(key);
+                if (!card) return;
+                activeKey = key;
+
+                cardEls.forEach(function(el) {
+                    var isSel = el.dataset.kpiKey === key;
+                    el.classList.toggle('selected', isSel);
+                    el.setAttribute('aria-pressed', isSel ? 'true' : 'false');
+                });
+
+                titleEl.textContent    = card.chart.title;
+                subtitleEl.textContent = card.chart.subtitle;
+                iconWrap.style.background = card.bg;
+                iconWrap.style.color      = card.color;
+                iconWrap.innerHTML = '<i data-lucide="' + card.icon + '" style="width:18px;height:18px;"></i>';
+                if (window.lucide) lucide.createIcons();
+
+                if (animate) {
+                    wrapEl.style.opacity = '0.25';
+                    setTimeout(function() {
+                        buildChart(card);
+                        wrapEl.style.opacity = '1';
+                    }, 160);
+                } else {
+                    buildChart(card);
+                }
+            }
+
+            cardEls.forEach(function(el) {
+                el.addEventListener('click', function() { selectCard(el.dataset.kpiKey, true); });
+                el.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        selectCard(el.dataset.kpiKey, true);
+                    }
+                });
+            });
+
+            selectCard(KPI_CARDS[0].key, false);
+
+            // Bridge for the "Filter by year" dropdown (wired up further below)
+            window.updateKpiCardsForYear = function(year) {
+                var yearCards = KPI_CARDS_BY_YEAR[year];
+                if (!yearCards) return;
+                KPI_CARDS = yearCards;
+                renderCardValues();
+                selectCard(findCard(activeKey) ? activeKey : KPI_CARDS[0].key, true);
+            };
+        })();
 
         // Revenue chart with filters
         (function() {
@@ -698,195 +872,7 @@
             lastFilterMeta = filterMeta['6'];
         })();
 
-        // ── Project Status Donut ──
-        (function () {
-            var data   = @json($projectStatusChart);
-            var labels = data.map(function(d){ return d.label; });
-            var counts = data.map(function(d){ return d.count; });
-            var colors = data.map(function(d){ return d.color; });
-
-            new Chart(document.getElementById('statusDonutChart').getContext('2d'), {
-                type: 'doughnut',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: counts,
-                        backgroundColor: colors,
-                        borderWidth: 2,
-                        borderColor: '#ffffff',
-                        hoverOffset: 4,
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: '65%',
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                label: function(c) {
-                                    return '  ' + c.label + ': ' + c.parsed + ' project' + (c.parsed !== 1 ? 's' : '');
-                                }
-                            },
-                            backgroundColor: '#1a1a1a',
-                            padding: 10,
-                            cornerRadius: 8,
-                            titleFont: { weight: '700' },
-                            bodyFont:  { weight: '500' },
-                        }
-                    }
-                }
-            });
-        })();
-
-        // ── Peak Months Line Chart ────────────────────────────────────────
-        var peakData = @json($peakMonthsData);
         var currentYear = {{ now()->year }};
-        var peakChart;
-
-        function buildPeakChart(year) {
-            var data = peakData[year] || [];
-            var labels  = data.map(function(d) { return d.label; });
-            var amounts = data.map(function(d) { return d.amount; });
-
-            document.getElementById('peakYearLabel').textContent = year;
-
-            var badge = document.getElementById('peakMonthBadge');
-            var peakIdx = -1, peakVal = 0;
-            amounts.forEach(function(v, i) { if (v > peakVal) { peakVal = v; peakIdx = i; } });
-            if (badge) {
-                if (peakIdx >= 0 && peakVal > 0) {
-                    badge.style.display = 'inline-flex';
-                    badge.innerHTML = '<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;background:#fff;border-radius:50%;flex-shrink:0;box-shadow:0 1px 2px rgba(5,150,105,.15);">'
-                        + '<i data-lucide="award" style="width:11px;height:11px;color:#059669;"></i></span>';
-
-                    var peakLabelEl = document.createElement('span');
-                    peakLabelEl.style.cssText = 'color:#059669;font-weight:600;';
-                    peakLabelEl.textContent = 'Peak ' + labels[peakIdx];
-                    badge.appendChild(peakLabelEl);
-
-                    var dot = document.createElement('span');
-                    dot.style.cssText = 'width:3px;height:3px;border-radius:50%;background:#059669;opacity:.55;flex-shrink:0;';
-                    badge.appendChild(dot);
-
-                    var peakValueEl = document.createElement('span');
-                    peakValueEl.style.cssText = 'color:#047857;font-weight:800;';
-                    peakValueEl.textContent = '₱' + Math.round(peakVal).toLocaleString();
-                    badge.appendChild(peakValueEl);
-
-                    if (window.lucide) lucide.createIcons();
-                } else {
-                    badge.style.display = 'none';
-                }
-            }
-
-            var ctx = document.getElementById('peakMonthsChart').getContext('2d');
-            if (peakChart) peakChart.destroy();
-
-            // Vertical crosshair that tracks the hovered/nearest point
-            var crosshairPlugin = {
-                id: 'peakCrosshair',
-                afterDraw: function(chart) {
-                    var active = chart.tooltip && chart.tooltip._active;
-                    if (!active || !active.length) return;
-                    var x = active[0].element.x;
-                    var top = chart.scales.y.top, bottom = chart.scales.y.bottom;
-                    var c = chart.ctx;
-                    c.save();
-                    c.beginPath();
-                    c.moveTo(x, top);
-                    c.lineTo(x, bottom);
-                    c.lineWidth = 1;
-                    c.strokeStyle = 'rgba(51,51,51,.15)';
-                    c.stroke();
-                    c.restore();
-                }
-            };
-
-            peakChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Revenue',
-                        data: amounts,
-                        fill: true,
-                        backgroundColor: function(context) {
-                            var chart = context.chart;
-                            var chartArea = chart.chartArea;
-                            if (!chartArea) return 'rgba(16,185,129,.12)';
-                            var gradient = chart.ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-                            gradient.addColorStop(0, 'rgba(16,185,129,.24)');
-                            gradient.addColorStop(1, 'rgba(16,185,129,0)');
-                            return gradient;
-                        },
-                        borderColor: '#10B981',
-                        borderWidth: 2,
-                        borderCapStyle: 'round',
-                        borderJoinStyle: 'round',
-                        pointBackgroundColor: '#10B981',
-                        pointBorderColor: '#fff',
-                        pointBorderWidth: 2,
-                        pointRadius: 4,
-                        pointHoverRadius: 6,
-                        pointHoverBorderWidth: 2,
-                        pointHoverBackgroundColor: '#10B981',
-                        pointHoverBorderColor: '#fff',
-                        tension: 0.35,
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    layout: { padding: { top: 10, right: 6 } },
-                    interaction: { mode: 'index', intersect: false },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            mode: 'index',
-                            intersect: false,
-                            displayColors: false,
-                            backgroundColor: '#1a1a1a',
-                            titleColor: '#999999',
-                            titleFont: { size: 11, weight: '600' },
-                            bodyColor: '#ffffff',
-                            bodyFont: { size: 13, weight: '700' },
-                            padding: { top: 10, bottom: 10, left: 12, right: 12 },
-                            cornerRadius: 10,
-                            caretSize: 6,
-                            borderColor: 'rgba(255,255,255,.08)',
-                            borderWidth: 1,
-                            callbacks: {
-                                title: function(items) { return items[0].label; },
-                                label: function(ctx) { return '₱' + ctx.parsed.y.toLocaleString('en-PH', {minimumFractionDigits:2}); }
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            grid: { display: false },
-                            border: { display: false },
-                            ticks: { color: '#666666', font: { size: 12, weight: '700' } }
-                        },
-                        y: {
-                            beginAtZero: true,
-                            grid: { color: '#eeeeee', drawTicks: false },
-                            border: { display: false },
-                            ticks: {
-                                maxTicksLimit: 5,
-                                padding: 8,
-                                callback: function(v) { return v >= 1000 ? '₱' + (v/1000).toFixed(0) + 'k' : '₱' + v; },
-                                color: '#999999',
-                                font: { size: 11 }
-                            }
-                        }
-                    }
-                },
-                plugins: [crosshairPlugin]
-            });
-        }
-
-        buildPeakChart(currentYear);
 
         // Per-year top client and top supplier — name changes per year, not just stats
         var topClientByYear  = @json($topClientByYear);
@@ -944,9 +930,9 @@
         if (yearSelect) {
             yearSelect.addEventListener('change', function() {
                 var year = parseInt(this.value);
-                buildPeakChart(year);
                 updateTopClient(year);
                 updateTopSupplier(year);
+                if (window.updateKpiCardsForYear) window.updateKpiCardsForYear(year);
             });
         }
         // ─────────────────────────────────────────────────────────────────
@@ -1011,9 +997,8 @@
         /* ── KPI strip ── */
         .db-kpi-row {
             display: grid;
-            grid-template-columns: 1fr;
+            grid-template-columns: repeat(4, 1fr);
             gap: 12px;
-            margin-bottom: 0;
         }
         .db-kpi-card {
             background: var(--white);
@@ -1042,12 +1027,14 @@
             flex-shrink: 0;
         }
         .db-kpi-icon i { width: 20px; height: 20px; }
+        .db-kpi-body { min-width: 0; }
         .db-kpi-value {
             font-size: 26px;
             font-weight: 900;
             color: var(--dark);
             letter-spacing: -0.5px;
-            line-height: 1;
+            line-height: 1.15;
+            overflow-wrap: break-word;
         }
         .db-kpi-label {
             font-size: 12px;
@@ -1063,6 +1050,38 @@
             color: var(--muted-light);
             margin-top: 5px;
         }
+
+        /* ── Interactive KPI cards ── */
+        .db-kpi-card-interactive {
+            position: relative;
+            border: 1px solid var(--border);
+            transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s, background 0.18s;
+        }
+        .db-kpi-card-interactive:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(42,78,170,.22);
+        }
+        .db-kpi-card-interactive.selected {
+            border-color: var(--kpi-accent, var(--dark));
+            box-shadow: 0 0 0 1px var(--kpi-accent, var(--dark)), 0 10px 24px rgba(0,0,0,.08);
+        }
+        .db-kpi-select-check {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--kpi-accent, var(--dark));
+            color: #fff;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        .db-kpi-select-check i { width: 11px; height: 11px; }
+        .db-kpi-card-interactive.selected .db-kpi-select-check { display: flex; }
+        .db-kpi-trend-up   { color: #16a34a; font-weight: 800; }
+        .db-kpi-trend-down { color: #dc2626; font-weight: 800; }
 
         /* ── Main grid (recent projects full width) ── */
         .db-main-grid {
@@ -1555,7 +1574,6 @@
         @media (max-width: 1100px) {
             .db-outer-grid         { grid-template-columns: 1fr; }
             .db-kpi-row            { grid-template-columns: repeat(2, 1fr); }
-            .db-kpi-stats          { grid-column: 1 / -1; }
             .db-chart-panels-grid  { grid-template-columns: 1fr; }
             .db-three-panel-row    { grid-template-columns: repeat(2, 1fr); }
             .db-chart-head         { flex-wrap: wrap; gap: 10px; }
@@ -1573,6 +1591,9 @@
             .db-chart-wrap         { height: 190px; }
             .db-row-right          { flex-direction: column; align-items: flex-end; gap: 6px; }
             .db-progress-bar       { width: 70px; }
+            .db-top-cards-grid     { grid-template-columns: 1fr !important; }
+            .db-attention-grid     { grid-template-columns: 1fr !important; }
+            .db-attention-grid > div:first-child { border-right: none !important; border-bottom: 1px solid var(--border); }
         }
 
         /* Mobile (≤540px): KPIs 2-col, System Stats full-width, tighter everything */

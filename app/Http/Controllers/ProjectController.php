@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use App\Models\Project;
 use App\Models\ProjectTankItem;
+use App\Models\ProjectMaterial;
+use App\Models\ProjectLabor;
 use App\Models\ProjectTemplate;
 use App\Models\ProjectUpdate;
 use App\Models\ProgressRequest;
@@ -345,6 +347,11 @@ class ProjectController extends Controller
             'tank_items.*.tank_type' => 'required|string',
             'tank_items.*.capacity'  => 'nullable|string',
             'tank_items.*.quantity'  => 'nullable|integer|min:1',
+            'materials'                    => 'nullable|array',
+            'materials.*.material_name'    => 'required|string|max:255',
+            'materials.*.quantity'         => 'nullable|numeric|min:0.01',
+            'materials.*.unit'             => 'nullable|string|max:50',
+            'materials.*.price_per_unit'   => 'nullable|numeric|min:0',
             'start_date' => 'required|date',
             'end_date'   => 'required|date|after_or_equal:start_date',
             'client'     => 'required|string',
@@ -400,8 +407,30 @@ class ProjectController extends Controller
             ]);
         }
 
-        // Auto-save tank specs as a reusable template for custom (not from-template) projects,
-        // skipping it when an identical template already exists.
+        // Save the bill of materials (if provided) as the project's initial BOM.
+        // Prices can be left blank and filled in later on the Project Materials page.
+        foreach ($request->input('materials', []) as $material) {
+            if (empty($material['material_name'])) {
+                continue;
+            }
+
+            $quantity  = $material['quantity'] ?? 1;
+            $unitPrice = $material['price_per_unit'] ?? 0;
+
+            ProjectMaterial::create([
+                'project_id'     => $project->id,
+                'material_name'  => $material['material_name'],
+                'quantity'       => $quantity,
+                'unit'           => $material['unit'] ?? '',
+                'price_per_unit' => $unitPrice,
+                'total_cost'     => round($quantity * $unitPrice, 2),
+                'factor'         => 7,
+                'status'         => 'active',
+            ]);
+        }
+
+        // Auto-save tank specs (and materials) as a reusable template for custom
+        // (not from-template) projects, skipping it when an identical template already exists.
         if (!$request->boolean('from_existing_template')) {
             $normalizedItems = $this->normalizeTankItems($request->tank_items);
 
@@ -411,9 +440,11 @@ class ProjectController extends Controller
 
             if (!$isDuplicate) {
                 ProjectTemplate::create([
+                    'project_id'   => $project->id,
                     'name'         => $name,
                     'project_name' => $name,
                     'tank_items'   => array_values($request->tank_items),
+                    'materials'    => array_values($request->input('materials', [])),
                 ]);
             }
         }
@@ -533,9 +564,56 @@ class ProjectController extends Controller
         ]);
 
         $project = Project::findOrFail($id);
-        $project->assignedEmployees()->sync($request->employee_ids ?? []);
+        $result  = $project->assignedEmployees()->sync($request->employee_ids ?? []);
+
+        $this->addNewlyAssignedEmployeesToLabor($project, $result['attached']);
 
         return redirect()->route('admin.projects')->with('success', "Employee assignments updated for \"{$project->name}\".");
+    }
+
+    /**
+     * Newly assigned employees automatically get a Labor Cost entry on the Project Materials
+     * (Quotation) page, using their real daily rate — skips anyone who already has an active
+     * labor entry for this project so re-assigning doesn't create duplicates.
+     */
+    private function addNewlyAssignedEmployeesToLabor(Project $project, array $newlyAssignedIds): void
+    {
+        if (empty($newlyAssignedIds)) {
+            return;
+        }
+
+        $employees = Employee::whereIn('id', $newlyAssignedIds)
+            ->where('employee_type', 'Regular')
+            ->get();
+
+        if ($employees->isEmpty()) {
+            return;
+        }
+
+        $existingNames = ProjectLabor::where('project_id', $project->id)
+            ->where('status', 'active')
+            ->pluck('description')
+            ->map(fn ($d) => trim(preg_replace('/\s*\([^)]*\)$/', '', $d)))
+            ->all();
+
+        foreach ($employees as $employee) {
+            $fullName = trim($employee->first_name . ' ' . $employee->last_name);
+
+            if (in_array($fullName, $existingNames, true)) {
+                continue;
+            }
+
+            $description = $employee->role ? "{$fullName} ({$employee->role})" : $fullName;
+            $dailyRate   = (float) $employee->daily_rate;
+
+            ProjectLabor::create([
+                'project_id'  => $project->id,
+                'description' => $description,
+                'daily_rate'  => $dailyRate,
+                'total_cost'  => round($dailyRate * (float) $project->estimated_working_days, 2),
+                'status'      => 'active',
+            ]);
+        }
     }
 
     /*

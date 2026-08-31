@@ -31,7 +31,7 @@ class AdminController extends Controller
             ->orderBy('created_at', 'desc')->take(6)->get();
 
         // Payment stats
-        $allPayments            = Payment::with('transactions')->get();
+        $allPayments            = Payment::with('transactions', 'project')->get();
         $totalContractValue     = $allPayments->sum('contract_amount');
         $totalReceived          = PaymentTransaction::sum('amount_paid');
         $fullyPaidPayments      = $allPayments->filter(fn($p) => $p->computeStatus() === 'Fully Paid')->count();
@@ -48,9 +48,11 @@ class AdminController extends Controller
         $sumForMonth = fn($y, $m) => (float) ($monthlySums->get($y . '-' . $m)->total ?? 0);
 
         // Monthly revenue for the last 12 months (used by all chart filters)
+        // Normalize to day 1 before subtracting months — subMonths() on a 29th/30th/31st
+        // overflows into the wrong month for shorter months (e.g. Aug 31 - 1mo != Jul 31).
         $monthlyRevenue = [];
         for ($i = 11; $i >= 0; $i--) {
-            $month = now()->subMonths($i);
+            $month = now()->startOfMonth()->subMonths($i);
             $monthlyRevenue[] = [
                 'label'  => $month->format('M Y'),
                 'amount' => $sumForMonth($month->year, $month->month),
@@ -94,6 +96,15 @@ class AdminController extends Controller
             $weekNum++;
         }
 
+        // Material purchases, summed per month, for the KPI cards' per-year material cost trend
+        $monthlyMaterialSums = \DB::table('material_purchases')
+            ->selectRaw('EXTRACT(YEAR FROM purchase_date)::int as yr, EXTRACT(MONTH FROM purchase_date)::int as mo, SUM(total_paid) as total')
+            ->whereNotNull('purchase_date')
+            ->groupBy('yr', 'mo')
+            ->get()
+            ->keyBy(fn($row) => $row->yr . '-' . $row->mo);
+        $materialSumForMonth = fn($y, $m) => (float) ($monthlyMaterialSums->get($y . '-' . $m)->total ?? 0);
+
         // All distinct years that have any data — drives year filter buttons
         $availableYears = collect()
             ->merge(\DB::table('payment_transactions')->selectRaw('EXTRACT(YEAR FROM payment_date)::int as yr')->whereNotNull('payment_date')->distinct()->pluck('yr'))
@@ -105,8 +116,12 @@ class AdminController extends Controller
 
         // Pre-compute the TOP CLIENT and TOP SUPPLIER for each available year
         // so switching year shows who was actually #1 that year, not the all-time leader
-        $topClientByYear  = [];
+        $topClientByYear   = [];
         $topSupplierByYear = [];
+        $kpiCardsByYear    = [];
+
+        // Sums a closure's monthly values (Jan–Dec) for one calendar year
+        $yearTotal = fn(callable $monthFn, int $y) => array_sum(array_map(fn($m) => $monthFn($y, $m), range(1, 12)));
 
         foreach ($availableYears as $y) {
             // Top client for this year = client with most projects created in that year
@@ -158,25 +173,146 @@ class AdminController extends Controller
             } else {
                 $topSupplierByYear[$y] = null;
             }
+
+            // Monthly revenue (and material cost) for this year — feeds the KPI cards' trend charts
+            // (reuses $monthlySums/$monthlyMaterialSums, computed once above, instead of re-querying per month/year)
+            $months         = [];
+            $materialMonths = [];
+            for ($m = 1; $m <= 12; $m++) {
+                $label = \Carbon\Carbon::create($y, $m)->format('M');
+                $months[]         = ['label' => $label, 'amount' => $sumForMonth($y, $m)];
+                $materialMonths[] = ['label' => $label, 'amount' => $materialSumForMonth($y, $m)];
+            }
+
+            // ── Interactive KPI cards, scoped to this year ──
+            $yRevenueTotal = $yearTotal($sumForMonth, $y);
+            $yRevenuePrev  = $yearTotal($sumForMonth, $y - 1);
+            $yRevenueTrend = $yRevenuePrev > 0 ? round((($yRevenueTotal - $yRevenuePrev) / $yRevenuePrev) * 100, 1) : null;
+
+            $yMaterialTotal = $yearTotal($materialSumForMonth, $y);
+            $yMaterialPrev  = $yearTotal($materialSumForMonth, $y - 1);
+            $yMaterialTrend = $yMaterialPrev > 0 ? round((($yMaterialTotal - $yMaterialPrev) / $yMaterialPrev) * 100, 1) : null;
+
+            $yProjectIdsForYear = Project::whereYear('created_at', $y)->pluck('id');
+            $yProjectsBase      = Project::whereIn('id', $yProjectIdsForYear);
+            $yTotalProjects     = $yProjectIdsForYear->count();
+            $yActiveProjects    = (clone $yProjectsBase)->whereNotIn('status', ['completed', 'archived'])->count();
+            $yCompletedProjects = (clone $yProjectsBase)->where('status', 'completed')->count();
+            $yOverdueCount      = (clone $yProjectsBase)->whereNotIn('status', ['completed', 'archived'])
+                ->whereNotNull('end_date')->where('end_date', '<', now()->toDateString())->where('progress', '<', 100)->count();
+            $yPlanningCount     = (clone $yProjectsBase)->whereNotIn('status', ['completed', 'archived'])
+                ->where('current_phase', 'planning')
+                ->where(function ($q) {
+                    $q->whereNull('end_date')->orWhere('end_date', '>=', now()->toDateString())->orWhere('progress', '>=', 100);
+                })->count();
+            $yOngoingCount = max(0, $yActiveProjects - $yOverdueCount - $yPlanningCount);
+            $yLastYearProjectCount = Project::whereYear('created_at', $y - 1)->count();
+            $yProjectsDelta = $yTotalProjects - $yLastYearProjectCount;
+
+            $yPayments      = $allPayments->filter(fn($p) => $p->project_id && $yProjectIdsForYear->contains($p->project_id));
+            $yTotalPayments = $yPayments->count();
+            $yFullyPaid     = $yPayments->filter(fn($p) => $p->computeStatus() === 'Fully Paid')->count();
+            $yFullyPaidRate = $yTotalPayments > 0 ? round(($yFullyPaid / $yTotalPayments) * 100, 1) : 0;
+            $yPaymentStatusCounts = $yPayments->countBy(fn($p) => $p->computeStatus());
+
+            $kpiCardsByYear[$y] = [
+                [
+                    'key'        => 'revenue',
+                    'name'       => 'Total Revenue',
+                    'icon'       => 'credit-card',
+                    'color'      => '#207A3A',
+                    'bg'         => '#E7F6EC',
+                    'valueText'  => '₱' . number_format($yRevenueTotal, 0),
+                    'unitText'   => $y . ' received',
+                    'trendPct'   => $yRevenueTrend,
+                    'trendGood'  => $yRevenueTrend === null ? null : $yRevenueTrend >= 0,
+                    'trendText'  => $yRevenueTrend === null ? null : 'vs ' . ($y - 1),
+                    'chart'      => [
+                        'type'     => 'line',
+                        'title'    => 'Monthly Revenue Trend',
+                        'subtitle' => 'Payments received in ' . $y,
+                        'labels'   => array_column($months, 'label'),
+                        'data'     => array_column($months, 'amount'),
+                        'prefix'   => '₱',
+                    ],
+                ],
+                [
+                    'key'        => 'projects',
+                    'name'       => 'Total Projects',
+                    'icon'       => 'folder-kanban',
+                    'color'      => '#2A4EAA',
+                    'bg'         => '#EAF0FF',
+                    'valueText'  => (string) $yTotalProjects,
+                    'unitText'   => $yActiveProjects . ' active · ' . $yCompletedProjects . ' done',
+                    'trendPct'   => null,
+                    'trendGood'  => null,
+                    'trendText'  => $yLastYearProjectCount == 0 ? null : (($yProjectsDelta >= 0 ? '+' : '') . $yProjectsDelta . ' vs ' . ($y - 1)),
+                    'chart'      => [
+                        'type'     => 'bar',
+                        'title'    => 'Project Status Breakdown',
+                        'subtitle' => 'Projects started in ' . $y,
+                        'labels'   => ['Planning', 'Ongoing', 'Overdue', 'Completed'],
+                        'data'     => [$yPlanningCount, $yOngoingCount, $yOverdueCount, $yCompletedProjects],
+                        'colors'   => ['#b45309', '#1d4ed8', '#b91c1c', '#15803d'],
+                        'prefix'   => '',
+                    ],
+                ],
+                [
+                    'key'        => 'material_cost',
+                    'name'       => 'Material Cost',
+                    'icon'       => 'package',
+                    'color'      => '#8A6100',
+                    'bg'         => '#FFF3D6',
+                    'valueText'  => '₱' . number_format($yMaterialTotal, 0),
+                    'unitText'   => $y . ' purchases',
+                    'trendPct'   => $yMaterialTrend,
+                    'trendGood'  => $yMaterialTrend === null ? null : $yMaterialTrend <= 0,
+                    'trendText'  => $yMaterialTrend === null ? null : 'vs ' . ($y - 1),
+                    'chart'      => [
+                        'type'     => 'line',
+                        'title'    => 'Monthly Material Cost Trend',
+                        'subtitle' => 'Material purchases in ' . $y,
+                        'labels'   => array_column($materialMonths, 'label'),
+                        'data'     => array_column($materialMonths, 'amount'),
+                        'prefix'   => '₱',
+                    ],
+                ],
+                [
+                    'key'        => 'payments',
+                    'name'       => 'Payment Status',
+                    'icon'       => 'wallet',
+                    'color'      => '#15803d',
+                    'bg'         => '#dcfce7',
+                    'valueText'  => $yFullyPaidRate . '%',
+                    'unitText'   => $yFullyPaid . ' of ' . $yTotalPayments . ' fully paid',
+                    'trendPct'   => null,
+                    'trendGood'  => null,
+                    'trendText'  => null,
+                    'chart'      => [
+                        'type'     => 'bar',
+                        'title'    => 'Payment Status Breakdown',
+                        'subtitle' => 'Payments for projects started in ' . $y,
+                        'labels'   => ['Fully Paid', 'Progress Payment', 'Down Payment', 'Pending'],
+                        'data'     => [
+                            $yPaymentStatusCounts->get('Fully Paid', 0),
+                            $yPaymentStatusCounts->get('Progress Payment Paid', 0),
+                            $yPaymentStatusCounts->get('Down Payment Paid', 0),
+                            $yPaymentStatusCounts->get('Pending Down Payment', 0),
+                        ],
+                        'colors'   => ['#15803d', '#6d28d9', '#1d4ed8', '#b45309'],
+                        'prefix'   => '',
+                    ],
+                ],
+            ];
         }
+
+        // Default card values = current year's KPI cards
+        $kpiCardsYear = isset($kpiCardsByYear[$currentYear]) ? $currentYear : max($availableYears);
+        $kpiCards     = $kpiCardsByYear[$kpiCardsYear] ?? [];
 
         // Default card values = current year's top client/supplier
         $topClient   = $topClientByYear[$currentYear]   ?? ($topClientByYear[max($availableYears)] ?? null);
         $topSupplier = $topSupplierByYear[$currentYear] ?? ($topSupplierByYear[max($availableYears)] ?? null);
-
-        // Peak months — monthly revenue per year for all available years
-        // (reuses $monthlySums, computed once above, instead of re-querying per month/year)
-        $peakMonthsData = [];
-        foreach ($availableYears as $y) {
-            $months = [];
-            for ($m = 1; $m <= 12; $m++) {
-                $months[] = [
-                    'label'  => \Carbon\Carbon::create($y, $m)->format('M'),
-                    'amount' => $sumForMonth($y, $m),
-                ];
-            }
-            $peakMonthsData[$y] = $months;
-        }
 
         // Unread messages
         $unreadMessages = \App\Models\Message::where('recipient_type', 'admin')
@@ -184,19 +320,35 @@ class AdminController extends Controller
             ->unread()
             ->count();
 
-        // Project status donut chart data
-        $overdueCount  = Project::whereNotIn('status', ['completed', 'archived'])
+        // ── Needs Attention: overdue projects (most overdue first) ──
+        $overdueProjectsQuery = Project::whereNotIn('status', ['completed', 'archived'])
             ->whereNotNull('end_date')
             ->where('end_date', '<', now()->toDateString())
-            ->where('progress', '<', 100)
+            ->where('progress', '<', 100);
+        $overdueCount        = $overdueProjectsQuery->count();
+        $overdueProjectsList = (clone $overdueProjectsQuery)->orderBy('end_date', 'asc')->take(5)->get();
+
+        // ── Needs Attention: pending payments (largest outstanding balance first) ──
+        $unpaidPayments       = $allPayments->filter(fn($p) => $p->computeStatus() !== 'Fully Paid');
+        $pendingPaymentsCount = $unpaidPayments->count();
+        $pendingPaymentsList  = $unpaidPayments->sortByDesc(fn($p) => $p->currentBalance())->take(5)->values();
+
+        // ── Project status snapshot (mutually exclusive buckets) ──
+        $planningCount = Project::whereNotIn('status', ['completed', 'archived'])
+            ->where('current_phase', 'planning')
+            ->where(function ($q) {
+                $q->whereNull('end_date')
+                  ->orWhere('end_date', '>=', now()->toDateString())
+                  ->orWhere('progress', '>=', 100);
+            })
             ->count();
-        $planningCount = Project::where('current_phase', 'planning')
-            ->whereNotIn('status', ['archived', 'completed'])
-            ->count();
-        $projectStatusChart = [
-            ['label' => 'Completed', 'count' => $completedProjects, 'color' => '#16a34a'],
-            ['label' => 'Planning',  'count' => $planningCount,     'color' => '#f59e0b'],
-            ['label' => 'Overdue',   'count' => $overdueCount,      'color' => '#ef4444'],
+        $ongoingCount = max(0, $activeProjects - $overdueCount - $planningCount);
+
+        $statusSnapshot = [
+            ['label' => 'Planning',  'count' => $planningCount,     'badge' => 'planning'],
+            ['label' => 'Ongoing',   'count' => $ongoingCount,      'badge' => 'ongoing'],
+            ['label' => 'Overdue',   'count' => $overdueCount,      'badge' => 'shortage'],
+            ['label' => 'Completed', 'count' => $completedProjects, 'badge' => 'completed'],
         ];
 
         return view('admin.dashboard', compact(
@@ -220,11 +372,17 @@ class AdminController extends Controller
             'monthlyRevenue',
             'yearlyRevenue',
             'weeklyRevenue',
-            'projectStatusChart',
+            'overdueCount',
+            'overdueProjectsList',
+            'pendingPaymentsCount',
+            'pendingPaymentsList',
+            'statusSnapshot',
+            'kpiCards',
+            'kpiCardsByYear',
+            'kpiCardsYear',
             'topSupplier',
             'topClientByYear',
             'topSupplierByYear',
-            'peakMonthsData',
             'availableYears',
             'currentYear'
         ));
@@ -234,6 +392,25 @@ class AdminController extends Controller
     {
         $projects = Project::with('assignedEmployees', 'tankItems')->orderBy('created_at', 'desc')->get();
         $projectTemplates = \App\Models\ProjectTemplate::orderBy('name')->get();
+
+        // Materials actually recorded on projects' Bill of Materials (Project Quotation module),
+        // deduped to the most recently used unit per material name — powers the "Previously Used"
+        // suggestions in the Add Project materials picker.
+        $materialProjectCounts = \App\Models\ProjectMaterial::select('material_name')
+            ->selectRaw('COUNT(DISTINCT project_id) as project_count')
+            ->groupBy('material_name')
+            ->pluck('project_count', 'material_name');
+
+        $usedMaterials = \App\Models\ProjectMaterial::select('material_name', 'unit', 'created_at')
+            ->orderByDesc('created_at')
+            ->get()
+            ->unique('material_name')
+            ->map(fn ($m) => [
+                'name'  => $m->material_name,
+                'unit'  => $m->unit,
+                'count' => (int) ($materialProjectCounts[$m->material_name] ?? 1),
+            ])
+            ->values();
 
         // ── Financial Summary (Active projects only: not completed, archived, or cancelled) ──
         $activeStatuses = ['completed', 'archived', 'cancelled'];
@@ -261,6 +438,7 @@ class AdminController extends Controller
         return view('admin.projects', compact(
             'projects',
             'projectTemplates',
+            'usedMaterials',
             'activeProjectsCount',
             'totalRevenue',
             'actualMaterialCost',

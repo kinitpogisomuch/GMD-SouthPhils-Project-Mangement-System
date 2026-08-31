@@ -9,11 +9,21 @@
             <span>Dashboard</span>
         </a>
 
+        {{-- KPI Reports (old module) hidden per user request — superseded by KPI Dashboard below --}}
+        {{--
         <a href="{{ route('admin.reports') }}"
            class="{{ request()->routeIs('admin.reports') ? 'active' : '' }}"
            title="KPI Reports">
             <div class="sidebar-icon"><i data-lucide="bar-chart-2"></i></div>
             <span>KPI Reports</span>
+        </a>
+        --}}
+
+        <a href="{{ route('admin.kpi_dashboard') }}"
+           class="{{ request()->routeIs('admin.kpi_dashboard') ? 'active' : '' }}"
+           title="KPI Dashboard">
+            <div class="sidebar-icon"><i data-lucide="gauge"></i></div>
+            <span>KPI Dashboard</span>
         </a>
 
         <div class="sidebar-section-label">Project Management</div>
