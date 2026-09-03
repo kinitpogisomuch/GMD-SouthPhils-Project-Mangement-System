@@ -452,7 +452,15 @@ class AdminController extends Controller
     {
         $employees = Employee::orderBy('created_at', 'desc')->get();
         $nextEmployeeUsername = Employee::nextUsername();
-        return view('admin.employees', compact('employees', 'nextEmployeeUsername'));
+
+        $defaultRoles = ['Fabricator', 'Welder', 'Helper/Labor', 'Outsourced'];
+        $employeeRoles = collect($defaultRoles)
+            ->merge(Employee::whereNotNull('role')->distinct()->pluck('role'))
+            ->filter()
+            ->unique()
+            ->values();
+
+        return view('admin.employees', compact('employees', 'nextEmployeeUsername', 'employeeRoles'));
     }
 
     public function projectMaterials()

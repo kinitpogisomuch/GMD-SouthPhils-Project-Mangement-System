@@ -331,18 +331,24 @@
                         <input type="email" name="email" required maxlength="255"
                                placeholder="e.g. juan@gmail.com"
                                value="{{ old('email') }}"
-                               oninput="empFieldError(this,'addEmpEmailErr')">
+                               oninput="empFieldError(this,'addEmpEmailErr'); addEmpUpdateAccountPreview()">
                         <span class="emp-field-err" id="addEmpEmailErr"></span>
                     </div>
                     <div class="form-group">
                         <label>Role </label>
-                        <select name="role" required onchange="empFieldError(this,'addEmpRoleErr'); addEmpUpdateAccountPreview()">
+                        @php $addEmpCustomRole = old('role') && !$employeeRoles->contains(old('role')); @endphp
+                        <select id="addEmpRoleSelect" required onchange="empRoleSelectChanged('addEmp'); addEmpUpdateAccountPreview();">
                             <option value="" disabled {{ old('role') ? '' : 'selected' }} hidden>Select role</option>
-                            <option value="Fabricator" {{ old('role') === 'Fabricator' ? 'selected' : '' }}>Fabricator</option>
-                            <option value="Welder" {{ old('role') === 'Welder' ? 'selected' : '' }}>Welder</option>
-                            <option value="Helper/Labor" {{ old('role') === 'Helper/Labor' ? 'selected' : '' }}>Helper/Labor</option>
-                            <option value="Outsourced" {{ old('role') === 'Outsourced' ? 'selected' : '' }}>Outsourced</option>
+                            @foreach($employeeRoles as $r)
+                            <option value="{{ $r }}" {{ old('role') === $r ? 'selected' : '' }}>{{ $r }}</option>
+                            @endforeach
+                            <option value="__other__" {{ $addEmpCustomRole ? 'selected' : '' }}>Other</option>
                         </select>
+                        <input type="text" id="addEmpRoleOtherInput" maxlength="50" placeholder="Enter custom role"
+                               value="{{ $addEmpCustomRole ? old('role') : '' }}"
+                               style="margin-top:8px;{{ $addEmpCustomRole ? '' : 'display:none;' }}"
+                               oninput="empRoleOtherInputChanged('addEmp'); addEmpUpdateAccountPreview();">
+                        <input type="hidden" name="role" id="addEmpRoleHidden" value="{{ old('role') }}">
                         <span class="emp-field-err" id="addEmpRoleErr"></span>
                     </div>
                     <div class="form-group">
@@ -364,28 +370,25 @@
                     </div>
                 </div>
 
-                <div class="form-section-label" style="margin-top:18px;">User Account Information</div>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>Username</label>
-                        <div id="addEmpUsernameBox" style="display:flex;align-items:center;gap:8px;height:44px;background:var(--cream-soft);border:1px solid var(--border);border-radius:10px;padding:0 12px;transition:background .15s,border-color .15s;">
-                            <i data-lucide="user" style="width:15px;height:15px;color:var(--muted);flex-shrink:0;"></i>
-                            <span id="addEmpUsernameText" style="font-size:13px;font-weight:700;color:var(--muted);font-family:monospace;">EGMD-XXXX</span>
-                            <span id="addEmpUsernameTag" style="font-size:11px;color:var(--muted-light);margin-left:auto;">Auto-generated</span>
+                <div id="addEmpCredentialsCard" style="display:none;margin-top:18px;background:#f8f9ff;border:1.5px solid #dde1f5;border-radius:10px;padding:16px 20px;">
+                    <div style="font-size:11px;font-weight:800;color:#6366f1;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:12px;display:flex;align-items:center;gap:6px;">
+                        <i data-lucide="sparkles" style="width:13px;height:13px;"></i>
+                        Auto-Generated Login Credentials
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                        <div id="addEmpUsernameBox" style="background:#fff;border:1px solid #e0e3f5;border-radius:8px;padding:12px;">
+                            <div style="font-size:10.5px;font-weight:700;color:#888;text-transform:uppercase;margin-bottom:4px;">Username</div>
+                            <div id="addEmpUsernameText" style="font-size:18px;font-weight:900;color:#1a1a2e;letter-spacing:2px;">EGMD-XXXX</div>
+                        </div>
+                        <div id="addEmpPinBox" style="background:#fff;border:1px solid #e0e3f5;border-radius:8px;padding:12px;">
+                            <div style="font-size:10.5px;font-weight:700;color:#888;text-transform:uppercase;margin-bottom:4px;">PIN / Password</div>
+                            <div id="addEmpPinText" style="font-size:18px;font-weight:900;color:#1a1a2e;letter-spacing:3px;">••••••</div>
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label>PIN / Password</label>
-                        <div id="addEmpPinBox" style="display:flex;align-items:center;gap:8px;height:44px;background:var(--cream-soft);border:1px solid var(--border);border-radius:10px;padding:0 12px;transition:background .15s,border-color .15s;">
-                            <i data-lucide="key-round" style="width:15px;height:15px;color:var(--muted);flex-shrink:0;"></i>
-                            <span style="font-size:13px;font-weight:700;color:var(--muted);letter-spacing:4px;">••••••</span>
-                            <span id="addEmpPinTag" style="font-size:11px;color:var(--muted-light);margin-left:auto;">6-digit PIN</span>
-                        </div>
+                    <div style="font-size:12px;color:#6b7280;margin-top:10px;display:flex;align-items:center;gap:5px;">
+                        <i data-lucide="info" style="width:12px;height:12px;"></i>
+                        Credentials are auto-generated and shown once after saving. No email will be sent — share directly with the employee.
                     </div>
-                </div>
-                <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:10px 14px;margin-top:8px;font-size:12.5px;color:#0369a1;display:flex;align-items:center;gap:6px;">
-                    <i data-lucide="info" style="width:13px;height:13px;flex-shrink:0;"></i>
-                    Credentials are auto-generated and shown once after saving. No email will be sent — share directly with the employee.
                 </div>
 
                 @if($errors->hasBag('employee_account') && $errors->getBag('employee_account')->any())
@@ -566,13 +569,16 @@
                     </div>
                     <div class="form-group">
                         <label>Role </label>
-                        <select name="role" id="editEmpRole" required
-                                onchange="empFieldError(this,'editEmpRoleErr')">
-                            <option value="Fabricator">Fabricator</option>
-                            <option value="Welder">Welder</option>
-                            <option value="Helper/Labor">Helper/Labor</option>
-                            <option value="Outsourced">Outsourced</option>
+                        <select id="editEmpRoleSelect" required onchange="empRoleSelectChanged('editEmp')">
+                            @foreach($employeeRoles as $r)
+                            <option value="{{ $r }}">{{ $r }}</option>
+                            @endforeach
+                            <option value="__other__">Other</option>
                         </select>
+                        <input type="text" id="editEmpRoleOtherInput" maxlength="50" placeholder="Enter custom role"
+                               style="margin-top:8px;display:none;"
+                               oninput="empRoleOtherInputChanged('editEmp')">
+                        <input type="hidden" name="role" id="editEmpRoleHidden" value="">
                         <span class="emp-field-err" id="editEmpRoleErr"></span>
                     </div>
                     <div class="form-group">
@@ -957,7 +963,7 @@
                     document.getElementById('editEmpCity').value          = this.dataset.city || '';
                     document.getElementById('editEmpRegion').value        = this.dataset.region || '';
                     document.getElementById('editEmpStreetAddress').value = this.dataset.streetAddress || '';
-                    document.getElementById('editEmpRole').value          = this.dataset.role;
+                    empSetRoleValue('editEmp', this.dataset.role);
                     document.getElementById('editEmpType').value          = this.dataset.type;
                     document.getElementById('editEmpDailyRate').value     = this.dataset.rate || 0;
                     document.getElementById('editEmpSubtitle').textContent = 'Editing: ' + this.dataset.lastName + ', ' + this.dataset.firstName;
@@ -1884,44 +1890,20 @@
     function addEmpUpdateAccountPreview() {
         var form = document.getElementById('addEmpAccountForm');
         if (!form) return;
-        var requiredFields = ['first_name', 'last_name', 'contact', 'role', 'employee_type', 'daily_rate'];
-        var ready = requiredFields.every(function (name) {
-            var el = form.querySelector('[name="' + name + '"]');
-            return el && el.value.trim() && !empValidateField(el);
-        });
 
-        var usernameBox  = document.getElementById('addEmpUsernameBox');
+        var credentialsCard = document.getElementById('addEmpCredentialsCard');
+        var emailEl = form.querySelector('[name="email"]');
+        var emailFilled = !!(emailEl && emailEl.value.trim().includes('@'));
+
+        if (credentialsCard) credentialsCard.style.display = emailFilled ? 'block' : 'none';
+        if (!emailFilled) return;
+
         var usernameText = document.getElementById('addEmpUsernameText');
-        var usernameTag  = document.getElementById('addEmpUsernameTag');
-        var pinBox        = document.getElementById('addEmpPinBox');
-        var pinTag         = document.getElementById('addEmpPinTag');
-        if (!usernameBox || !pinBox) return;
+        var pinText       = document.getElementById('addEmpPinText');
+        if (!usernameText || !pinText) return;
 
-        if (ready) {
-            usernameBox.style.background   = '#ecfdf5';
-            usernameBox.style.borderColor  = '#6ee7b7';
-            usernameText.textContent       = NEXT_EMP_USERNAME;
-            usernameText.style.color       = '#047857';
-            usernameTag.textContent        = 'Ready';
-            usernameTag.style.color        = '#059669';
-
-            pinBox.style.background = '#ecfdf5';
-            pinBox.style.borderColor = '#6ee7b7';
-            pinTag.textContent = 'Ready';
-            pinTag.style.color = '#059669';
-        } else {
-            usernameBox.style.background  = 'var(--cream-soft)';
-            usernameBox.style.borderColor = 'var(--border)';
-            usernameText.textContent      = 'EGMD-XXXX';
-            usernameText.style.color      = 'var(--muted)';
-            usernameTag.textContent       = 'Auto-generated';
-            usernameTag.style.color       = 'var(--muted-light)';
-
-            pinBox.style.background = 'var(--cream-soft)';
-            pinBox.style.borderColor = 'var(--border)';
-            pinTag.textContent = '6-digit PIN';
-            pinTag.style.color = 'var(--muted-light)';
-        }
+        usernameText.textContent = NEXT_EMP_USERNAME;
+        pinText.textContent      = '••••••';
     }
 
     function formatEmpContact(input) {
@@ -1942,6 +1924,57 @@
         span.textContent = msg;
         span.style.display = msg ? 'block' : 'none';
         el.style.borderColor = msg ? '#dc2626' : '';
+    }
+
+    // Role select with an "Other" option that reveals a free-text field.
+    // `prefix` is 'addEmp' or 'editEmp' — matches the *RoleSelect/*RoleOtherInput/*RoleHidden ids.
+    function empRoleSelectChanged(prefix) {
+        var select = document.getElementById(prefix + 'RoleSelect');
+        var other  = document.getElementById(prefix + 'RoleOtherInput');
+        var hidden = document.getElementById(prefix + 'RoleHidden');
+        if (!select || !other || !hidden) return;
+
+        if (select.value === '__other__') {
+            other.style.display = 'block';
+            hidden.value = other.value.trim();
+            other.focus();
+        } else {
+            other.style.display = 'none';
+            other.value = '';
+            hidden.value = select.value;
+        }
+        empFieldError(hidden, prefix + 'RoleErr');
+    }
+
+    function empRoleOtherInputChanged(prefix) {
+        var other  = document.getElementById(prefix + 'RoleOtherInput');
+        var hidden = document.getElementById(prefix + 'RoleHidden');
+        if (!other || !hidden) return;
+        hidden.value = other.value.trim();
+        empFieldError(hidden, prefix + 'RoleErr');
+    }
+
+    function empSetRoleValue(prefix, roleValue) {
+        var select = document.getElementById(prefix + 'RoleSelect');
+        var other  = document.getElementById(prefix + 'RoleOtherInput');
+        var hidden = document.getElementById(prefix + 'RoleHidden');
+        if (!select || !other || !hidden) return;
+
+        var matched = Array.prototype.some.call(select.options, function (opt) {
+            return opt.value !== '__other__' && opt.value === roleValue;
+        });
+
+        if (matched) {
+            select.value = roleValue;
+            other.style.display = 'none';
+            other.value = '';
+            hidden.value = roleValue;
+        } else {
+            select.value = '__other__';
+            other.style.display = 'block';
+            other.value = roleValue || '';
+            hidden.value = roleValue || '';
+        }
     }
 
     function empValidateForm(formEl) {

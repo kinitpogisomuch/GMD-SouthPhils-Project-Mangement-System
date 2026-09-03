@@ -498,10 +498,6 @@
                 var pinEl       = document.getElementById('previewPin');
                 var debounce    = null;
 
-                function randomPin() {
-                    return String(Math.floor(Math.random() * 1000000)).padStart(6, '0');
-                }
-
                 function fetchNextUsername() {
                     return fetch('{{ route("admin.client-account.next-username") }}', {
                         headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
@@ -521,7 +517,7 @@
                     }
                     clearTimeout(debounce);
                     debounce = setTimeout(function () {
-                        pinEl.textContent  = randomPin();
+                        pinEl.textContent  = '······';
                         userEl.textContent = 'CGMD-····';
                         preview.style.display = 'block';
                         if (typeof lucide !== 'undefined') lucide.createIcons();

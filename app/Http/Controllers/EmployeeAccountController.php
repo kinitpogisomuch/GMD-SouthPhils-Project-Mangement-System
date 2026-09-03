@@ -19,14 +19,24 @@ class EmployeeAccountController extends Controller
         return str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
     }
 
+    private function contactRule(): \Closure
+    {
+        return function (string $attribute, $value, \Closure $fail) {
+            $stripped = preg_replace('/[\s\-]/', '', (string) $value);
+            if (!preg_match('/^(09\d{9}|\+639\d{9})$/', $stripped)) {
+                $fail('Must be a valid Philippine mobile number (e.g. 09171234567 or +639171234567).');
+            }
+        };
+    }
+
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'first_name'    => ['required', 'string', 'min:2', 'max:50', 'regex:/^[A-Za-zÀ-ÖØ-öø-ÿÑñ\s\'\-]+$/u'],
             'last_name'     => ['required', 'string', 'min:2', 'max:50', 'regex:/^[A-Za-zÀ-ÖØ-öø-ÿÑñ\s\'\-]+$/u'],
-            'contact'       => ['required', 'string', 'regex:/^(09|\+639)\d{9}$/'],
+            'contact'       => ['required', 'string', $this->contactRule()],
             'email'         => 'required|email|max:255|unique:employees,email',
-            'role'          => 'required|string|in:Fabricator,Welder,Helper/Labor,Outsourced',
+            'role'          => 'required|string|max:50',
             'employee_type' => 'required|in:Regular,Outsourced',
             'daily_rate'    => 'required|numeric|min:1',
         ], [
@@ -39,12 +49,10 @@ class EmployeeAccountController extends Controller
             'last_name.max'       => 'Last name must not exceed 50 characters.',
             'last_name.regex'     => 'Last name must contain letters only (hyphens and apostrophes allowed).',
             'contact.required'    => 'Contact number is required.',
-            'contact.regex'       => 'Must be a valid Philippine mobile number (e.g. 09171234567 or +639171234567).',
             'email.required'      => 'Email address is required.',
             'email.email'         => 'Enter a valid email address.',
             'email.max'           => 'Email must not exceed 255 characters.',
             'email.unique'        => 'An account with this email already exists.',
-            'role.in'             => 'Please select a valid role.',
             'employee_type.in'    => 'Employee type must be Regular or Outsourced.',
             'daily_rate.min'      => 'Daily rate must be greater than zero.',
         ]);
@@ -100,9 +108,9 @@ class EmployeeAccountController extends Controller
         $validator = Validator::make($request->all(), [
             'first_name'     => ['required', 'string', 'max:100', 'regex:/^[A-Za-zÀ-ÖØ-öø-ÿÑñ\s\'\-\.]+$/u'],
             'last_name'      => ['required', 'string', 'max:100', 'regex:/^[A-Za-zÀ-ÖØ-öø-ÿÑñ\s\'\-\.]+$/u'],
-            'contact'        => ['required', 'string', 'regex:/^(09|\+639)\d{9}$/'],
+            'contact'        => ['required', 'string', $this->contactRule()],
             'email'          => 'nullable|email|unique:employees,email,' . $employee->id,
-            'role'           => 'required|string|in:Fabricator,Welder,Helper/Labor,Outsourced',
+            'role'           => 'required|string|max:50',
             'employee_type'  => 'required|in:Regular,Outsourced',
             'daily_rate'     => 'required|numeric|min:1',
             'province'       => 'required|string|max:255',
@@ -112,9 +120,7 @@ class EmployeeAccountController extends Controller
         ], [
             'first_name.regex'    => 'First name must contain letters only (hyphens and apostrophes allowed).',
             'last_name.regex'     => 'Last name must contain letters only (hyphens and apostrophes allowed).',
-            'contact.regex'       => 'Contact number must be a valid Philippine mobile number (e.g. 09171234567).',
             'email.unique'        => 'An account with this email is already used by another employee.',
-            'role.in'             => 'Please select a valid role.',
             'employee_type.in'    => 'Employee type must be Regular or Outsourced.',
             'daily_rate.min'      => 'Daily rate must be greater than zero.',
             'province.required'   => 'Province is required.',
