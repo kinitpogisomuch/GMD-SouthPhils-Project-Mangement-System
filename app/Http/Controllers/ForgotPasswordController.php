@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 use App\Models\PasswordReset;
@@ -77,6 +78,7 @@ class ForgotPasswordController extends Controller
                     ->subject('GMD Password Reset Verification Code')
             );
         } catch (\Exception $e) {
+            Log::error('ForgotPassword: sendCode email failed', ['email' => $email, 'error' => $e->getMessage()]);
             return back()
                 ->withErrors(['email' => 'Failed to send email. Please try again later.'])
                 ->withInput();
@@ -184,6 +186,7 @@ class ForgotPasswordController extends Controller
                     ->subject('GMD Password Reset Verification Code')
             );
         } catch (\Exception $e) {
+            Log::error('ForgotPassword: resendCode email failed', ['email' => $email, 'error' => $e->getMessage()]);
             return back()->withErrors(['code' => 'Failed to send email. Please try again.']);
         }
 
