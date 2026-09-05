@@ -82,6 +82,11 @@
                     </button>
                 </form>
 
+                <div class="form-extra" style="text-align:center;margin-top:16px;">
+                    <span style="color:var(--muted);font-size:12.5px;">New client? </span>
+                    <a href="{{ route('signup') }}" class="forgot-link" style="color:var(--dark);">Sign Up</a>
+                </div>
+
                 <div class="login-footer">
                     <i data-lucide="shield-check"></i>
                     <span>Secured access · GMD South Phils Metal Fabrication Works</span>

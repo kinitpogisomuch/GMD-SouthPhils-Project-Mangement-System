@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\Employee;
 use App\Models\Client;
 use App\Models\Project;
+use App\Models\QuotationRequest;
 
 class NotificationService
 {
@@ -31,6 +32,13 @@ class NotificationService
     const TYPE_QUOTATION_SENT         = 'quotation_sent';
     const TYPE_FUND_RELEASED            = 'fund_released';
     const TYPE_FUND_REPLENISHED         = 'fund_replenished';
+    const TYPE_CLIENT_SIGNUP_PENDING       = 'client_signup_pending';
+    const TYPE_CLIENT_APPROVED             = 'client_approved';
+    const TYPE_CLIENT_REJECTED             = 'client_rejected';
+    const TYPE_QUOTATION_REQUEST_SUBMITTED = 'quotation_request_submitted';
+    const TYPE_QUOTATION_REQUEST_DECLINED  = 'quotation_request_declined';
+    const TYPE_QUOTATION_REQUEST_QUOTATION_SENT = 'quotation_request_quotation_sent';
+    const TYPE_QUOTATION_REQUEST_APPROVED       = 'quotation_request_approved';
 
     // -------------------------------------------------------------------------
     // Core send — accepts any model with an id, or a raw integer ID + type
@@ -137,6 +145,22 @@ class NotificationService
 
         if ($client) {
             self::send($client->id, 'client', $title, $message, $type, $priority, $project->id, $progressId, $actionUrl);
+        }
+    }
+
+    /** Notify a specific client by their clients.id (not tied to any project) */
+    public static function notifyClient(
+        int     $clientId,
+        string  $title,
+        string  $message,
+        string  $type,
+        string  $priority = 'info',
+        ?int    $projectId = null,
+        ?string $actionUrl = null
+    ): void {
+        $client = Client::find($clientId);
+        if ($client) {
+            self::send($client->id, 'client', $title, $message, $type, $priority, $projectId, null, $actionUrl);
         }
     }
 
@@ -504,6 +528,105 @@ class NotificationService
             'info',
             null,
             "/client/project-view/{$project->id}"
+        );
+    }
+
+    /** A new client self-registered and is awaiting admin approval → notify admins */
+    public static function clientSignupPending(Client $client): void
+    {
+        self::notifyAdmins(
+            'New Client Signup Pending Approval',
+            "{$client->name} ({$client->email}) has signed up and is awaiting approval.",
+            self::TYPE_CLIENT_SIGNUP_PENDING,
+            'warning',
+            null,
+            null,
+            '/admin/clients'
+        );
+    }
+
+    /** Admin approved a pending client account → notify the client */
+    public static function clientApproved(Client $client): void
+    {
+        self::notifyClient(
+            $client->id,
+            'Account Approved',
+            'Your GMD South Phils client account has been approved. You can now log in.',
+            self::TYPE_CLIENT_APPROVED,
+            'success',
+            null,
+            '/login'
+        );
+    }
+
+    /** Admin rejected a pending client account → notify the client */
+    public static function clientRejected(Client $client, ?string $reason = null): void
+    {
+        self::notifyClient(
+            $client->id,
+            'Account Application Declined',
+            'Your GMD South Phils account application was not approved.' . ($reason ? " Reason: {$reason}" : ''),
+            self::TYPE_CLIENT_REJECTED,
+            'warning',
+            null,
+            '/login'
+        );
+    }
+
+    /** Client submitted a quotation request → notify admins */
+    public static function quotationRequestSubmitted(QuotationRequest $request): void
+    {
+        self::notifyAdmins(
+            'New Quotation Request',
+            "{$request->client->name} submitted a quotation request for {$request->tank_summary}.",
+            self::TYPE_QUOTATION_REQUEST_SUBMITTED,
+            'info',
+            null,
+            null,
+            '/admin/quotation-requests'
+        );
+    }
+
+    /** Admin declined a quotation request → notify the client */
+    public static function quotationRequestDeclined(QuotationRequest $request): void
+    {
+        self::notifyClient(
+            $request->client_id,
+            'Quotation Request Update',
+            'Your quotation request has been reviewed and was not approved at this time.'
+                . ($request->decline_reason ? " Reason: {$request->decline_reason}" : ''),
+            self::TYPE_QUOTATION_REQUEST_DECLINED,
+            'warning',
+            null,
+            '/client/request-quotation/status'
+        );
+    }
+
+    /** Admin sent a quotation for a request → notify the client */
+    public static function quotationRequestQuotationSent(QuotationRequest $request): void
+    {
+        self::notifyClient(
+            $request->client_id,
+            'Quotation Ready for Review',
+            "We've prepared a quotation for your {$request->tank_summary} request. Please review and approve it.",
+            self::TYPE_QUOTATION_REQUEST_QUOTATION_SENT,
+            'info',
+            null,
+            '/client/request-quotation/status'
+        );
+    }
+
+    /** Client approved the sent quotation → notify admins */
+    public static function quotationRequestApproved(QuotationRequest $request): void
+    {
+        self::notifyAdmins(
+            'Quotation Approved by Client',
+            "{$request->client->name} approved the quotation for their {$request->tank_summary} request. It's ready to be converted into a project.",
+            self::TYPE_QUOTATION_REQUEST_APPROVED,
+            'success',
+            null,
+            null,
+            '/admin/quotation-requests'
         );
     }
 

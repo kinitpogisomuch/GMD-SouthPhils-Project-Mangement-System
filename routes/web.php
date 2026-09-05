@@ -9,6 +9,7 @@ use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectUpdateController;
 use App\Http\Controllers\ClientSettingsController;
 use App\Http\Controllers\ClientAccountController;
+use App\Http\Controllers\ClientSignupController;
 use App\Http\Controllers\EmployeeAccountController;
 use App\Http\Controllers\FirstLoginController;
 use App\Http\Controllers\ForgotPasswordController;
@@ -26,6 +27,7 @@ use App\Http\Controllers\SupplierContactController;
 use App\Http\Controllers\MonthlyExpenseController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\KpiDashboardController;
+use App\Http\Controllers\QuotationRequestController;
 
 /*
 |--------------------------------------------------------------------------
@@ -37,6 +39,11 @@ Route::get('/', [AuthController::class, 'index'])->name('home');
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.post');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+
+// Client Self-Registration
+Route::get('/signup', [ClientSignupController::class, 'show'])->name('signup');
+Route::post('/signup', [ClientSignupController::class, 'store'])->name('signup.post');
+Route::get('/signup/next-username', [ClientSignupController::class, 'nextUsername'])->name('signup.next_username');
 
 // First-Login Credential Setup (client & employee, no profile.complete middleware here)
 Route::get('/setup/credentials', [FirstLoginController::class, 'show'])->name('setup.credentials');
@@ -113,6 +120,14 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::get('/projects', [AdminController::class, 'projects'])->name('projects');
     Route::get('/settings', [AdminController::class, 'settings'])->name('settings');
     Route::get('/clients', [AdminController::class, 'clients'])->name('clients');
+
+    // Quotation Requests
+    Route::get('/quotation-requests', [QuotationRequestController::class, 'adminIndex'])->name('quotation_requests');
+    Route::patch('/quotation-requests/{id}/decline', [QuotationRequestController::class, 'decline'])->name('quotation_requests.decline');
+    Route::post('/quotation-requests/{id}/send-quotation', [QuotationRequestController::class, 'sendQuotation'])->name('quotation_requests.send_quotation');
+    Route::get('/quotation-requests/{id}/convert', [QuotationRequestController::class, 'convert'])->name('quotation_requests.convert');
+    Route::get('/quotation-requests/{id}/prefill', [QuotationRequestController::class, 'prefillData'])->name('quotation_requests.prefill');
+
     Route::get('/reports', [AdminController::class, 'reports'])->name('reports');
     Route::get('/reports/project/{id}', [AdminController::class, 'projectKpi'])->name('reports.project');
     Route::get('/revenue/weekly', [AdminController::class, 'weeklyRevenue'])->name('revenue.weekly');
@@ -165,6 +180,8 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::put('/clients/{id}', [ClientSettingsController::class, 'update'])->name('client.update');
     Route::delete('/clients/{id}', [ClientSettingsController::class, 'destroy'])->name('client.destroy');
     Route::patch('/clients/{id}/archive', [ClientSettingsController::class, 'archive'])->name('client.archive');
+    Route::patch('/clients/{id}/approve', [ClientSettingsController::class, 'approve'])->name('client.approve');
+    Route::patch('/clients/{id}/reject', [ClientSettingsController::class, 'reject'])->name('client.reject');
 
     // Client List API
     Route::get('/clients/list', [ClientSettingsController::class, 'list'])->name('client.list');
@@ -216,6 +233,10 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
 
 Route::prefix('client')->name('client.')->middleware(['role:client', 'profile.complete', 'no.back'])->group(function () {
     Route::get('/dashboard', [ClientController::class, 'dashboard'])->name('dashboard');
+    Route::get('/request-quotation', [QuotationRequestController::class, 'create'])->name('quotation.create');
+    Route::post('/request-quotation', [QuotationRequestController::class, 'store'])->name('quotation.store');
+    Route::get('/request-quotation/status', [QuotationRequestController::class, 'status'])->name('quotation.status');
+    Route::post('/request-quotation/{id}/approve', [QuotationRequestController::class, 'approveQuotation'])->name('quotation.approve');
     Route::get('/messages', [MessageController::class, 'index'])->name('messages');
     Route::get('/messages/contacts', [MessageController::class, 'contacts'])->name('messages.contacts');
     Route::get('/messages/thread/{type}/{id}', [MessageController::class, 'thread'])->name('messages.thread');

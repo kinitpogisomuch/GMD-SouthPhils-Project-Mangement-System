@@ -47,7 +47,7 @@
                     @if($projectOutstandings->isNotEmpty())
                         {{ $projectOutstandings->count() }} active {{ Str::plural('project', $projectOutstandings->count()) }}
                         ({{ $projectOutstandings->map(fn($d) => $d['project']?->name ?? '—')->implode(', ') }})
-                        currently {{ $projectOutstandings->count() === 1 ? 'has' : 'have' }} outstanding drawdowns.
+                        currently {{ $projectOutstandings->count() === 1 ? 'has' : 'have' }} outstanding fund used.
                     @else
                         consider replenishing the fund before releasing more advances.
                     @endif
@@ -65,7 +65,7 @@
                 </div>
                 <div class="info-card red">
                     <div class="info-card-icon red"><i data-lucide="trending-down"></i></div>
-                    <h3>Total Drawn This Month</h3>
+                    <h3>Total Fund Used This Month</h3>
                     <div class="value">₱{{ number_format($totalDrawnThisMonth, 2) }}</div>
                     <div class="info-card-sub">Across {{ $activeAdvances }} active {{ Str::plural('project', $activeAdvances) }}</div>
                 </div>
@@ -153,7 +153,7 @@
                             </div>
                             <select id="fundTypeFilter" class="filter-select" style="height:40px;">
                                 <option value="">All</option>
-                                <option value="release">Drawdown</option>
+                                <option value="release">Fund Used</option>
                                 <option value="replenishment">Replenishment</option>
                             </select>
                         </div>
@@ -197,7 +197,7 @@
                                     <td style="font-size:13px;color:var(--muted);white-space:normal;word-break:break-word;max-width:320px;line-height:1.5;">{{ $tx->purpose ?? $tx->description ?? '—' }}</td>
                                     <td style="text-align:center;">
                                         <span class="status-badge {{ $tx->type === 'release' ? 'shortage' : 'completed' }}" style="font-size:11px;">
-                                            {{ $tx->type === 'release' ? 'Drawdown' : 'Replenishment' }}
+                                            {{ $tx->type === 'release' ? 'Fund Used' : 'Replenishment' }}
                                         </span>
                                     </td>
                                     <td style="text-align:center;color:var(--muted);white-space:nowrap;font-size:12.5px;">
@@ -227,12 +227,12 @@
 
                     {{-- Header --}}
                     <div style="padding:20px 24px 16px;border-bottom:1px solid rgba(255,255,255,.08);">
-                        <div style="font-size:15px;font-weight:800;color:#fff;margin-bottom:2px;">Record a Drawdown</div>
+                        <div style="font-size:15px;font-weight:800;color:#fff;margin-bottom:2px;">Record Fund Used</div>
                         <div style="font-size:12px;color:rgba(255,255,255,.45);">Tag to a project for traceability</div>
                     </div>
 
                     <div style="padding:16px 24px 0;">
-                        {{-- Drawdown form --}}
+                        {{-- Fund used form --}}
                         <form method="POST" action="{{ route('admin.revolving_fund.release') }}" id="drawdownForm">
                             @csrf
                             <div style="display:flex;flex-direction:column;gap:14px;">

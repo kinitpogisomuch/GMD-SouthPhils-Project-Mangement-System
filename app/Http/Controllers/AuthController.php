@@ -106,6 +106,16 @@ class AuthController extends Controller
             ->first();
 
         if ($client && $client->password && Hash::check($password, $client->password)) {
+            if ($client->status === 'Pending') {
+                return redirect()->route('login')
+                    ->with('error', 'Your account is pending admin approval. Please check back soon.')
+                    ->withInput(['email' => $username]);
+            }
+            if ($client->status === 'Rejected') {
+                return redirect()->route('login')
+                    ->with('error', 'Your account application was not approved. Please contact us for details.')
+                    ->withInput(['email' => $username]);
+            }
             if ($client->status !== 'Active') {
                 return redirect()->route('login')
                     ->with('error', 'Your account is inactive. Please contact the administrator.')

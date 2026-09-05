@@ -7,6 +7,7 @@ use App\Models\Project;
 use App\Models\Payment;
 use App\Models\Client;
 use App\Models\Review;
+use App\Models\QuotationRequest;
 
 class ClientController extends Controller
 {
@@ -20,6 +21,23 @@ class ClientController extends Controller
     public function dashboard()
     {
         $clientName = $this->clientName();
+        $hasProject = $clientName && Project::where('client', $clientName)->exists();
+
+        if (!$hasProject) {
+            $client = Client::find(session('user_id'));
+
+            if ($client) {
+                $unresolvedRequest = QuotationRequest::where('client_id', $client->id)
+                    ->unresolved()
+                    ->latest()
+                    ->first();
+
+                return $unresolvedRequest
+                    ? redirect()->route('client.quotation.status')
+                    : redirect()->route('client.quotation.create');
+            }
+        }
+
         $projects = $clientName
             ? Project::where('client', $clientName)->orderBy('created_at', 'desc')->take(3)->get()
             : collect();

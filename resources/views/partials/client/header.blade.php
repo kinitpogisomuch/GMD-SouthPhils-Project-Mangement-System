@@ -1,3 +1,18 @@
+@php
+    // The full client portal (My Projects, Payments, Messaging) only unlocks once
+    // the client has an approved/converted quotation request or an actual project —
+    // not while their request is still pending review.
+    $clientUnlocked = false;
+    if (session('role') === 'client' && session('user_id')) {
+        $__messagingClient = \App\Models\Client::find(session('user_id'));
+        if ($__messagingClient) {
+            $clientUnlocked = \App\Models\Project::where('client', $__messagingClient->name)->exists()
+                || \App\Models\QuotationRequest::where('client_id', $__messagingClient->id)
+                    ->whereIn('status', ['approved', 'converted'])
+                    ->exists();
+        }
+    }
+@endphp
 <header class="client-header">
     <div class="client-header-left">
         <div>
@@ -7,6 +22,7 @@
     </div>
 
     <nav class="client-header-nav">
+        @if($clientUnlocked)
         <a href="{{ route('client.dashboard') }}"
            class="{{ request()->routeIs('client.dashboard') ? 'active' : '' }}">
             <i data-lucide="layout-dashboard"></i>
@@ -21,6 +37,12 @@
            class="{{ request()->routeIs('client.payments') ? 'active' : '' }}">
             <i data-lucide="credit-card"></i>
             <span>Payments</span>
+        </a>
+        @endif
+        <a href="{{ route('client.quotation.create') }}"
+           class="{{ request()->routeIs('client.quotation.*') ? 'active' : '' }}">
+            <i data-lucide="clipboard-list"></i>
+            <span>Request a Quotation</span>
         </a>
     </nav>
 
@@ -107,6 +129,7 @@
     </div>
 </header>
 
+@if($clientUnlocked)
 {{-- Floating chat launcher --}}
 <div style="position:fixed;bottom:24px;right:24px;z-index:9997;" id="chatPopupWrap">
     <button type="button" id="chatPopupBtn" title="Messages"
@@ -212,6 +235,7 @@
         </button>
     </div>
 </div>
+@endif
 
 <!-- Logout Confirmation Modal -->
 <div class="modal-overlay" id="clientLogoutModal">
@@ -275,6 +299,13 @@
         quotation_sent:                  'receipt',
         fund_released:                   'credit-card',
         fund_replenished:                'refresh-cw',
+        client_signup_pending:           'user-plus',
+        client_approved:                 'check-circle',
+        client_rejected:                 'user-x',
+        quotation_request_submitted:     'clipboard-list',
+        quotation_request_declined:      'x-circle',
+        quotation_request_quotation_sent: 'file-text',
+        quotation_request_approved:       'thumbs-up',
     };
 
     const priorityClass = {
@@ -430,6 +461,7 @@
 })();
 
 // ─── Chat Popup ────────────────────────────────────────────────────────────
+@if($clientUnlocked)
 (function () {
     var CONTACTS_URL = '{{ route("client.messages.contacts") }}';
     var THREAD_URL   = '{{ url("client/messages/thread") }}';
@@ -712,4 +744,5 @@
         }
     } catch (e) {}
 })();
+@endif
 </script>

@@ -396,7 +396,7 @@
                         @endphp
                         <div class="review-card"
                              data-rating="{{ $review->rating }}"
-                             data-name="{{ $review->client_name }}"
+                             data-name="{{ $review->masked_client_name }}"
                              data-project="{{ $reviewProject }}"
                              data-date="{{ $reviewDate }}"
                              data-comment="{{ $review->comment }}">
@@ -409,7 +409,7 @@
                             <div class="review-author">
                                 <div class="review-avatar">{{ strtoupper(substr($review->client_name, 0, 1)) }}</div>
                                 <div>
-                                    <div class="review-name">{{ $review->client_name }}</div>
+                                    <div class="review-name">{{ $review->masked_client_name }}</div>
                                     <div class="review-project">{{ $reviewProject }}</div>
                                 </div>
                                 <div style="margin-left:auto;font-size:11px;color:var(--muted);white-space:nowrap;">
@@ -490,7 +490,7 @@
                             <div class="review-author">
                                 <div class="review-avatar">{{ strtoupper(substr($review->client_name, 0, 1)) }}</div>
                                 <div>
-                                    <div class="review-name">{{ $review->client_name }}</div>
+                                    <div class="review-name">{{ $review->masked_client_name }}</div>
                                     <div class="review-project">{{ $arProject }}</div>
                                 </div>
                                 <div style="margin-left:auto;font-size:11px;color:var(--muted);white-space:nowrap;">

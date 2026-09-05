@@ -49,6 +49,14 @@
                             Active
                             <span class="filter-count">{{ $clients->where('status', 'Active')->count() }}</span>
                         </button>
+                        <button type="button" class="filter-tab" data-filter="Pending">
+                            Pending Approval
+                            <span class="filter-count">{{ $clients->where('status', 'Pending')->count() }}</span>
+                        </button>
+                        <button type="button" class="filter-tab" data-filter="Rejected">
+                            Rejected
+                            <span class="filter-count">{{ $clients->where('status', 'Rejected')->count() }}</span>
+                        </button>
                         <button type="button" class="filter-tab" data-filter="Inactive">
                             Archived
                             <span class="filter-count">{{ $clients->where('status', 'Inactive')->count() }}</span>
@@ -73,7 +81,23 @@
                             <tr
                                 data-status="{{ $client->status }}"
                                 data-name="{{ strtolower($client->full_name) }}"
-                                data-username="{{ strtolower($client->username ?? '') }}">
+                                data-username="{{ strtolower($client->username ?? '') }}"
+                                data-client="{{ json_encode([
+                                    'name'             => $client->full_name,
+                                    'username'         => $client->username ?? '—',
+                                    'email'            => $client->email ?? '—',
+                                    'contact'          => $client->contact ?? '—',
+                                    'status'           => $client->status,
+                                    'region'           => $client->region,
+                                    'province'         => $client->province,
+                                    'city'             => $client->city,
+                                    'barangay'         => $client->barangay,
+                                    'street_address'   => $client->street_address,
+                                    'address'          => $client->address,
+                                    'projects_count'   => $client->projects_count ?? 0,
+                                    'created_at'       => $client->created_at?->format('M d, Y'),
+                                    'rejection_reason' => $client->rejection_reason,
+                                ]) }}">
                                 <td>
                                     {{ $client->full_name }}
                                 </td>
@@ -90,11 +114,32 @@
                                 <td>
                                     @if($client->status === 'Active')
                                     <span class="status-badge active">Active</span>
+                                    @elseif($client->status === 'Pending')
+                                    <span class="status-badge pending">Pending Approval</span>
+                                    @elseif($client->status === 'Rejected')
+                                    <span class="status-badge revision">Rejected</span>
                                     @else
                                     <span class="status-badge archived">Archived</span>
                                     @endif
                                 </td>
                                 <td class="action-cell">
+                                    <button class="action-btn view view-client-btn" type="button" title="View Client Details">
+                                        <i data-lucide="eye"></i>
+                                    </button>
+                                    @if($client->status === 'Pending')
+                                    <button class="action-btn view approve-client-btn" type="button"
+                                            title="Approve Client"
+                                            data-id="{{ $client->id }}"
+                                            data-name="{{ $client->full_name }}">
+                                        <i data-lucide="check"></i>
+                                    </button>
+                                    <button class="action-btn view reject-client-btn" type="button"
+                                            title="Reject Client"
+                                            data-id="{{ $client->id }}"
+                                            data-name="{{ $client->full_name }}">
+                                        <i data-lucide="x"></i>
+                                    </button>
+                                    @else
                                     <button class="action-btn view edit-client-btn" type="button"
                                             title="Edit Client Information"
                                             data-id="{{ $client->id }}"
@@ -115,6 +160,7 @@
                                             data-archived="{{ $client->status === 'Inactive' ? '1' : '0' }}">
                                         <i data-lucide="{{ $client->status === 'Inactive' ? 'archive-restore' : 'archive' }}"></i>
                                     </button>
+                                    @endif
                                 </td>
                             </tr>
                             @empty
@@ -276,6 +322,64 @@
         </div>
     </div>
 
+    <!-- ===== VIEW CLIENT MODAL ===== -->
+    <div class="modal-overlay" id="viewClientModal">
+        <div class="modal-card" style="max-width:520px;max-height:90vh;overflow-y:auto;">
+            <div class="modal-header">
+                <div>
+                    <h2 id="viewClientTitle">Client Details</h2>
+                    <p id="viewClientSubtitle">Registered client information</p>
+                </div>
+                <button class="modal-close" type="button" id="closeViewClientModal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+
+            <div style="padding:0 28px 4px;">
+                <div id="viewClientStatusBadge" style="margin-bottom:16px;"></div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Full Name</label>
+                        <input type="text" id="viewClientName" disabled>
+                    </div>
+                    <div class="form-group">
+                        <label>Username</label>
+                        <input type="text" id="viewClientUsername" disabled>
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="text" id="viewClientEmail" disabled>
+                    </div>
+                    <div class="form-group">
+                        <label>Contact Number</label>
+                        <input type="text" id="viewClientContact" disabled>
+                    </div>
+                    <div class="form-group">
+                        <label>No. of Projects</label>
+                        <input type="text" id="viewClientProjects" disabled>
+                    </div>
+                    <div class="form-group">
+                        <label>Registered On</label>
+                        <input type="text" id="viewClientCreated" disabled>
+                    </div>
+                    <div class="form-group form-group-full">
+                        <label>Address</label>
+                        <textarea id="viewClientAddress" rows="2" disabled></textarea>
+                    </div>
+                </div>
+
+                <div id="viewClientRejectionWrap" class="alert-banner"
+                     style="display:none;margin-top:4px;margin-bottom:16px;background:#fee2e2;border:1px solid #fca5a5;color:#dc2626;">
+                    <i data-lucide="circle-alert"></i>
+                    <span id="viewClientRejectionReason"></span>
+                </div>
+
+                <div style="height:16px;"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- ===== EDIT CLIENT MODAL ===== -->
     <div class="modal-overlay" id="editClientModal">
         <div class="modal-card" style="max-width:560px;">
@@ -368,6 +472,71 @@
         </div>
     </div>
 
+    <!-- ===== APPROVE CLIENT MODAL ===== -->
+    <div class="modal-overlay" id="approveClientModal">
+        <div class="modal-card" style="max-width:460px;">
+            <div class="modal-header">
+                <div>
+                    <h2>Approve Client</h2>
+                    <p>This will activate the client's account and let them log in.</p>
+                </div>
+                <button class="modal-close" type="button" id="closeApproveClientModal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="delete-confirm-body">
+                <div class="delete-confirm-icon"><i data-lucide="check-circle"></i></div>
+                <p id="approveClientMsg">Are you sure you want to approve this client?</p>
+            </div>
+            <form method="POST" id="approveClientForm">
+                @csrf
+                @method('PATCH')
+                <div class="modal-actions">
+                    <button type="button" class="cancel-btn" id="cancelApproveClient">Cancel</button>
+                    <button type="submit" class="save-btn">
+                        <i data-lucide="check"></i> Approve
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ===== REJECT CLIENT MODAL ===== -->
+    <div class="modal-overlay" id="rejectClientModal">
+        <div class="modal-card" style="max-width:460px;">
+            <div class="modal-header">
+                <div>
+                    <h2>Reject Client</h2>
+                    <p>This will decline the client's signup application.</p>
+                </div>
+                <button class="modal-close" type="button" id="closeRejectClientModal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="delete-confirm-body">
+                <div class="delete-confirm-icon"><i data-lucide="x-circle"></i></div>
+                <p id="rejectClientMsg">Are you sure you want to reject this client?</p>
+            </div>
+            <form method="POST" id="rejectClientForm">
+                @csrf
+                @method('PATCH')
+                <div class="form-group" style="text-align:left;padding:0 24px 8px;">
+                    <label style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:8px;">
+                        Reason <span style="font-weight:400;text-transform:none;">(optional)</span>
+                    </label>
+                    <textarea name="reason" class="log-textarea" rows="3"
+                              placeholder="Let the client know why their application was declined..."></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="cancel-btn" id="cancelRejectClient">Cancel</button>
+                    <button type="submit" class="save-btn" style="background:#dc2626;">
+                        <i data-lucide="x"></i> Reject
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- ===== SUCCESS TOAST ===== -->
     <div class="toast" id="successToast">
         <i data-lucide="check-circle"></i>
@@ -389,6 +558,50 @@
                 .addEventListener('click', function () { closeModal('addClientModal'); });
             document.getElementById('cancelAddClient')
                 .addEventListener('click', function () { closeModal('addClientModal'); });
+
+            // ---- View Client Modal ----
+            var clientStatusMeta = {
+                Active:   { label: 'Active',          cls: 'active'   },
+                Pending:  { label: 'Pending Approval', cls: 'pending'  },
+                Rejected: { label: 'Rejected',        cls: 'revision' },
+                Inactive: { label: 'Archived',        cls: 'archived' },
+            };
+            document.querySelectorAll('.view-client-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var row = this.closest('tr');
+                    var c   = JSON.parse(row.dataset.client);
+
+                    document.getElementById('viewClientSubtitle').textContent = 'Registered ' + (c.created_at || '—');
+                    document.getElementById('viewClientName').value     = c.name;
+                    document.getElementById('viewClientUsername').value = c.username;
+                    document.getElementById('viewClientEmail').value    = c.email;
+                    document.getElementById('viewClientContact').value  = c.contact;
+                    document.getElementById('viewClientProjects').value = c.projects_count;
+                    document.getElementById('viewClientCreated').value  = c.created_at || '—';
+
+                    var addressParts = [c.street_address, c.barangay, c.city, c.province, c.region].filter(Boolean);
+                    document.getElementById('viewClientAddress').value = addressParts.length
+                        ? addressParts.join(', ')
+                        : (c.address || '—');
+
+                    var meta = clientStatusMeta[c.status] || clientStatusMeta.Active;
+                    document.getElementById('viewClientStatusBadge').innerHTML =
+                        '<span class="status-badge ' + meta.cls + '">' + meta.label + '</span>';
+
+                    var rejectWrap = document.getElementById('viewClientRejectionWrap');
+                    if (c.status === 'Rejected' && c.rejection_reason) {
+                        rejectWrap.style.display = '';
+                        document.getElementById('viewClientRejectionReason').textContent = c.rejection_reason;
+                    } else {
+                        rejectWrap.style.display = 'none';
+                    }
+
+                    openModal('viewClientModal');
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                });
+            });
+            document.getElementById('closeViewClientModal')
+                .addEventListener('click', function () { closeModal('viewClientModal'); });
 
             // ---- Edit Client Modal ----
             document.querySelectorAll('.edit-client-btn').forEach(function (btn) {
@@ -437,6 +650,34 @@
             document.getElementById('cancelArchiveClient')
                 .addEventListener('click', function () { closeModal('archiveClientModal'); });
 
+            // ---- Approve Client Modal ----
+            document.querySelectorAll('.approve-client-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    document.getElementById('approveClientMsg').textContent =
+                        'Are you sure you want to approve "' + this.dataset.name + '"? They will be able to log in immediately.';
+                    document.getElementById('approveClientForm').action = '/admin/clients/' + this.dataset.id + '/approve';
+                    openModal('approveClientModal');
+                });
+            });
+            document.getElementById('closeApproveClientModal')
+                .addEventListener('click', function () { closeModal('approveClientModal'); });
+            document.getElementById('cancelApproveClient')
+                .addEventListener('click', function () { closeModal('approveClientModal'); });
+
+            // ---- Reject Client Modal ----
+            document.querySelectorAll('.reject-client-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    document.getElementById('rejectClientMsg').textContent =
+                        'Are you sure you want to reject "' + this.dataset.name + '"?';
+                    document.getElementById('rejectClientForm').action = '/admin/clients/' + this.dataset.id + '/reject';
+                    openModal('rejectClientModal');
+                });
+            });
+            document.getElementById('closeRejectClientModal')
+                .addEventListener('click', function () { closeModal('rejectClientModal'); });
+            document.getElementById('cancelRejectClient')
+                .addEventListener('click', function () { closeModal('rejectClientModal'); });
+
             // ---- Overlay click to close ----
             document.querySelectorAll('.modal-overlay').forEach(function (modal) {
                 modal.addEventListener('click', function (e) {
@@ -469,6 +710,8 @@
                         if (emptyMsg) emptyMsg.textContent =
                             status === 'Inactive' ? 'No archived clients.' :
                             status === 'Active'   ? 'No active clients.' :
+                            status === 'Pending'  ? 'No clients pending approval.' :
+                            status === 'Rejected' ? 'No rejected clients.' :
                                                    'No clients match your search.';
                         emptyRow.style.display = '';
                         if (window.lucide) lucide.createIcons();

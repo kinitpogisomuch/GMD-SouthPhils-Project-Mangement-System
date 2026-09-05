@@ -355,8 +355,8 @@
 
     <!-- ===================== SELECT TEMPLATE MODAL ===================== -->
     <div class="modal-overlay" id="selectTemplateModal">
-        <div class="modal-card" style="max-width:560px;">
-            <div class="modal-header">
+        <div class="modal-card" style="max-width:560px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;">
+            <div class="modal-header" style="flex-shrink:0;">
                 <div>
                     <h2>Choose a Starting Point</h2>
                     <p>Reuse a saved template or start with a blank project.</p>
@@ -366,29 +366,40 @@
                 </button>
             </div>
 
-            <div class="search-box" style="margin:0 auto 14px;max-width:100%;">
+            <!-- Quotation Request prefill banner (shown only when converting a client's request) -->
+            <div id="templatePrefillBanner" class="alert-banner info" style="display:none;margin-bottom:14px;flex-shrink:0;">
+                <i data-lucide="info"></i>
+                <div>
+                    <strong class="qr-client-heading">Converting a client's quotation request.</strong>
+                    <div class="qr-summary" style="margin-top:2px;"></div>
+                </div>
+            </div>
+
+            <div class="search-box" style="margin:0 auto 14px;max-width:100%;flex-shrink:0;">
                 <i data-lucide="search"></i>
                 <input type="text" id="templateSelectSearch" placeholder="Search templates...">
             </div>
 
-            <div class="client-select-item" id="customTemplateOption" style="border-style:dashed;margin-bottom:14px;">
-                <div class="cs-avatar" style="background:var(--accent-soft);">
-                    <i data-lucide="file-plus-2" style="width:20px;height:20px;color:var(--dark);"></i>
+            <div style="overflow-y:auto;flex:1;">
+                <div class="client-select-item" id="customTemplateOption" style="border-style:dashed;margin-bottom:14px;">
+                    <div class="cs-avatar" style="background:var(--accent-soft);">
+                        <i data-lucide="file-plus-2" style="width:20px;height:20px;color:var(--dark);"></i>
+                    </div>
+                    <div class="cs-info">
+                        <div class="cs-name">Start from Scratch</div>
+                        <div style="font-size:12px;color:var(--muted);margin-top:2px;">Build a custom project with no preset tank specs</div>
+                    </div>
+                    <div class="cs-check">
+                        <i data-lucide="check-circle-2" style="width:20px;height:20px;color:var(--dark);"></i>
+                    </div>
                 </div>
-                <div class="cs-info">
-                    <div class="cs-name">Start from Scratch</div>
-                    <div style="font-size:12px;color:var(--muted);margin-top:2px;">Build a custom project with no preset tank specs</div>
-                </div>
-                <div class="cs-check">
-                    <i data-lucide="check-circle-2" style="width:20px;height:20px;color:var(--dark);"></i>
+
+                <div id="templateSelectList" class="cs-list" style="max-height:none;overflow-y:visible;">
+                    <!-- rendered by JS -->
                 </div>
             </div>
 
-            <div id="templateSelectList" class="cs-list">
-                <!-- rendered by JS -->
-            </div>
-
-            <div class="modal-actions" style="margin-top:16px;">
+            <div class="modal-actions" style="flex-shrink:0;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
                 <button type="button" class="cancel-btn" id="backSelectTemplate"><i data-lucide="arrow-left"></i> Back</button>
                 <button type="button" class="save-btn" id="continueSelectTemplate">
                     Continue <i data-lucide="arrow-right"></i>
@@ -422,9 +433,19 @@
                 <input type="hidden" name="address"        id="projAddressHidden">
                 <input type="hidden" name="capacity"       id="projCapacityHidden">
                 <input type="hidden" name="dimensions"     id="projDimensionsHidden">
+                <input type="hidden" name="quotation_request_id" id="projQuotationRequestIdHidden">
 
                 {{-- Scrollable body --}}
                 <div style="overflow-y:auto;flex:1;padding:0 28px 8px;">
+
+                    <!-- Quotation Request prefill banner (shown only when converting a client's request) -->
+                    <div id="quotationPrefillBanner" class="alert-banner info" style="display:none;margin-top:16px;">
+                        <i data-lucide="info"></i>
+                        <div>
+                            <strong class="qr-client-heading">Converting a client's quotation request.</strong>
+                            <div class="qr-summary" style="margin-top:2px;"></div>
+                        </div>
+                    </div>
 
                     <!-- Project Details -->
                     <div class="form-section-label">Project Details</div>
@@ -617,6 +638,17 @@
                 <input type="text" id="employeeSelectSearch" placeholder="Search employee by name or role...">
             </div>
 
+            <div style="display:flex;align-items:center;gap:18px;margin-bottom:12px;">
+                <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--dark);cursor:pointer;">
+                    <input type="checkbox" id="employeeSelectAllCheckbox">
+                    Select All
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--dark);cursor:pointer;">
+                    <input type="checkbox" id="employeeRegularOnlyCheckbox">
+                    Regular only
+                </label>
+            </div>
+
             <form id="assignEmployeesForm" method="POST" action="">
                 @csrf
                 <div id="employeeSelectList" class="cs-list">
@@ -745,6 +777,7 @@
 
         function openSelectClientModal() {
             selectedClient = null;
+            quotationConversionData = null; // starting a normal flow — discard any prior conversion state
             var si = document.getElementById('clientSelectSearch');
             if (si) si.value = '';
             var list = document.getElementById('clientSelectList');
@@ -755,22 +788,36 @@
 
         var selectedEmployeeIds = [];
         var originalAssignedIds = [];
+        var regularOnlyFilter   = false;
+
+        function getFilteredEmployees(employees, filter) {
+            var q = (filter || '').toLowerCase();
+            return employees.filter(function(e) {
+                var matchesSearch = !q || e.name.toLowerCase().indexOf(q) !== -1 ||
+                                     (e.role && e.role.toLowerCase().indexOf(q) !== -1);
+                var matchesType   = !regularOnlyFilter || (e.type && e.type.toLowerCase() === 'regular');
+                return matchesSearch && matchesType;
+            });
+        }
+
+        function updateSelectAllCheckbox(filtered) {
+            var cb = document.getElementById('employeeSelectAllCheckbox');
+            if (!cb) return;
+            cb.checked = filtered.length > 0 && filtered.every(function(e) {
+                return selectedEmployeeIds.indexOf(e.id) !== -1;
+            });
+        }
 
         function renderEmployeeAssignList(employees, filter) {
             var list = document.getElementById('employeeSelectList');
             if (!list) return;
-            var q = (filter || '').toLowerCase();
-            var filtered = q
-                ? employees.filter(function(e) {
-                    return e.name.toLowerCase().indexOf(q) !== -1 ||
-                           (e.role && e.role.toLowerCase().indexOf(q) !== -1);
-                  })
-                : employees;
+            var filtered = getFilteredEmployees(employees, filter);
 
             list.innerHTML = '';
 
             if (filtered.length === 0) {
                 list.innerHTML = '<p style="text-align:center;color:var(--muted);padding:20px 0;font-size:14px;font-weight:700;">No active employees found.</p>';
+                updateSelectAllCheckbox(filtered);
                 return;
             }
 
@@ -807,18 +854,23 @@
                         item.classList.remove('selected');
                         item.querySelector('.client-select-check').style.display = 'none';
                     }
+                    updateSelectAllCheckbox(filtered);
                     if (typeof lucide !== 'undefined') lucide.createIcons();
                 });
                 list.appendChild(item);
             });
+            updateSelectAllCheckbox(filtered);
             if (typeof lucide !== 'undefined') lucide.createIcons();
         }
 
         function openAssignEmployeesModal(projectId, projectName, assignedIds) {
             selectedEmployeeIds = assignedIds.slice();
             originalAssignedIds = assignedIds.slice();
+            regularOnlyFilter   = false;
             var si = document.getElementById('employeeSelectSearch');
             if (si) si.value = '';
+            var regularOnlyCb = document.getElementById('employeeRegularOnlyCheckbox');
+            if (regularOnlyCb) regularOnlyCb.checked = false;
             var shortName = projectName.length > 35 ? projectName.substring(0, 35) + '…' : projectName;
             document.getElementById('assignEmployeesSubtitle').textContent = shortName;
             document.getElementById('assignEmployeesForm').action = '/admin/projects/' + projectId + '/assign-employees';
@@ -826,6 +878,38 @@
             list.innerHTML = '<p style="text-align:center;color:var(--muted);padding:20px 0;">Loading employees...</p>';
             openModal('assignEmployeesModal');
             fetchEmployees().then(function(employees) { renderEmployeeAssignList(employees, ''); });
+        }
+
+        var employeeSelectAllCb = document.getElementById('employeeSelectAllCheckbox');
+        if (employeeSelectAllCb) {
+            employeeSelectAllCb.addEventListener('change', function () {
+                var filtered = getFilteredEmployees(allEmployees, document.getElementById('employeeSelectSearch').value);
+                if (this.checked) {
+                    filtered.forEach(function (e) {
+                        if (selectedEmployeeIds.indexOf(e.id) === -1) selectedEmployeeIds.push(e.id);
+                    });
+                } else {
+                    filtered.forEach(function (e) {
+                        var i = selectedEmployeeIds.indexOf(e.id);
+                        if (i !== -1) selectedEmployeeIds.splice(i, 1);
+                    });
+                }
+                renderEmployeeAssignList(allEmployees, document.getElementById('employeeSelectSearch').value);
+            });
+        }
+
+        var employeeRegularOnlyCb = document.getElementById('employeeRegularOnlyCheckbox');
+        if (employeeRegularOnlyCb) {
+            employeeRegularOnlyCb.addEventListener('change', function () {
+                regularOnlyFilter = this.checked;
+                var searchText = document.getElementById('employeeSelectSearch').value;
+                if (this.checked) {
+                    getFilteredEmployees(allEmployees, searchText).forEach(function (e) {
+                        if (selectedEmployeeIds.indexOf(e.id) === -1) selectedEmployeeIds.push(e.id);
+                    });
+                }
+                renderEmployeeAssignList(allEmployees, searchText);
+            });
         }
 
         function populateClientFields(client) {
@@ -1508,6 +1592,76 @@
             });
         }
 
+        // Holds the client + tank items + summary from a quotation request being
+        // converted, from the moment it's fetched until the Add Project form opens.
+        // Cleared whenever a normal (non-conversion) Add Project flow is started.
+        var quotationConversionData = null;
+
+        function qrEscapeHtml(str) {
+            return String(str == null ? '' : str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        // Renders each tank item as a row of color-coded chips (type / capacity / timeline)
+        // so the specs are easy to tell apart at a glance, plus a notes line if present.
+        function formatQuotationSummaryLine(data) {
+            var tankItems = (data && data.tank_items) || [];
+            var html = tankItems.length
+                ? tankItems.map(function (item) {
+                    var typeLabel = qrEscapeHtml(item.tank_type || 'Tank');
+                    if ((item.quantity || 1) > 1) typeLabel += ' ×' + parseInt(item.quantity, 10);
+                    var chips = '<span class="qr-spec-chip qr-chip-type"><i data-lucide="package" style="width:11px;height:11px;"></i>' + typeLabel + '</span>';
+                    if (item.capacity) {
+                        chips += '<span class="qr-spec-chip qr-chip-capacity"><i data-lucide="droplet" style="width:11px;height:11px;"></i>' + qrEscapeHtml(item.capacity) + '</span>';
+                    }
+                    if (item.target_timeline) {
+                        chips += '<span class="qr-spec-chip qr-chip-timeline"><i data-lucide="clock" style="width:11px;height:11px;"></i>' + qrEscapeHtml(item.target_timeline) + '</span>';
+                    }
+                    return '<div class="qr-tank-line">' + chips + '</div>';
+                }).join('')
+                : '<div class="qr-tank-line" style="font-weight:600;font-size:12.5px;">No tank details provided</div>';
+
+            var notes = data && data.summary && data.summary.notes;
+            if (notes) {
+                html += '<div class="qr-tank-notes">Notes: ' + qrEscapeHtml(notes) + '</div>';
+            }
+            return html;
+        }
+
+        // Kick off a conversion: fetch the quotation's details, lock in the client,
+        // then let the admin pick a template (or start from scratch) same as normal —
+        // (arrived here via "Convert to Project" on admin/quotation-requests)
+        function runQuotationPrefill() {
+            var qrId = new URLSearchParams(window.location.search).get('prefill_quotation_request');
+            if (!qrId) return;
+
+            fetch('/admin/quotation-requests/' + qrId + '/prefill', { headers: { 'Accept': 'application/json' } })
+                .then(function (r) {
+                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    return r.json();
+                })
+                .then(function (data) {
+                    quotationConversionData = data;
+                    populateClientFields(data.client);
+                    document.getElementById('projQuotationRequestIdHidden').value = data.quotation_request_id;
+                    openSelectTemplateModal(true);
+                })
+                .catch(function (err) {
+                    console.error('Quotation prefill failed:', err);
+                    alert('Could not load this quotation request\'s details. Please try clicking "Convert to Project" again from the Quotation Requests page.');
+                });
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', runQuotationPrefill);
+        } else {
+            runQuotationPrefill();
+        }
+
         function initializeFormValidation() {
             var form = document.getElementById('addProjectForm');
             if (!form) return;
@@ -1635,7 +1789,7 @@
             if (backAddBtn) {
                 backAddBtn.addEventListener('click', function() {
                     closeModal('addProjectModal');
-                    openSelectTemplateModal();
+                    openSelectTemplateModal(!!quotationConversionData);
                 });
             }
 
@@ -1741,15 +1895,35 @@
                 if (typeof lucide !== 'undefined') lucide.createIcons();
             }
 
-            function openSelectTemplateModal() {
+            function openSelectTemplateModal(isConversion) {
                 selectedTemplateId = 'custom';
                 setCustomTemplateSelected(true);
                 var si = document.getElementById('templateSelectSearch');
                 if (si) si.value = '';
                 renderTemplateSelectList('');
+                // Skipping client selection during a quotation conversion — going further
+                // back to "Select Client" would let the admin swap to an unrelated client,
+                // breaking the link back to the quotation being converted.
+                var backBtn = document.getElementById('backSelectTemplate');
+                if (backBtn) backBtn.style.display = isConversion ? 'none' : '';
+
+                var tBanner = document.getElementById('templatePrefillBanner');
+                if (tBanner) {
+                    if (isConversion && quotationConversionData) {
+                        tBanner.style.display = '';
+                        tBanner.querySelector('.qr-client-heading').textContent =
+                            'Converting ' + (quotationConversionData.client.name || 'a client') + '\'s quotation request.';
+                        tBanner.querySelector('.qr-summary').innerHTML = formatQuotationSummaryLine(quotationConversionData);
+                        if (typeof lucide !== 'undefined') lucide.createIcons();
+                    } else {
+                        tBanner.style.display = 'none';
+                    }
+                }
+
                 openModal('selectTemplateModal');
                 if (typeof lucide !== 'undefined') lucide.createIcons();
             }
+            window.openSelectTemplateModal = openSelectTemplateModal;
 
             var customTemplateOption = document.getElementById('customTemplateOption');
             if (customTemplateOption) {
@@ -1791,12 +1965,37 @@
 
                     if (usedExistingTemplate) {
                         loadTemplateIntoAddForm(selectedTemplateId);
+                    } else if (quotationConversionData && quotationConversionData.tank_items && quotationConversionData.tank_items.length) {
+                        // Starting from scratch while converting — prefill with the tanks
+                        // the client actually asked for, instead of one blank row.
+                        quotationConversionData.tank_items.forEach(function (item) { addTankRow(item); });
+                        document.getElementById('bomSection').style.display = 'none';
+                        document.getElementById('materialsContainer').innerHTML = '';
+                        addMaterialIndex = 0;
+                        toggleMaterialsEmptyHint();
                     } else {
                         document.getElementById('bomSection').style.display = 'none';
                         addTankRow();
                         document.getElementById('materialsContainer').innerHTML = '';
                         addMaterialIndex = 0;
                         toggleMaterialsEmptyHint();
+                    }
+
+                    var qBanner = document.getElementById('quotationPrefillBanner');
+                    if (quotationConversionData) {
+                        if (qBanner) {
+                            qBanner.style.display = '';
+                            qBanner.querySelector('.qr-client-heading').textContent =
+                                'Converting ' + (quotationConversionData.client.name || 'a client') + '\'s quotation request.';
+                            qBanner.querySelector('.qr-summary').innerHTML = formatQuotationSummaryLine(quotationConversionData);
+                            if (typeof lucide !== 'undefined') lucide.createIcons();
+                        }
+                        // quotation_request_id hidden field was already set in runQuotationPrefill()
+                        // and must survive the template step, so it's left untouched here.
+                    } else {
+                        // Normal (non-conversion) flow — make sure no stale conversion state lingers.
+                        document.getElementById('projQuotationRequestIdHidden').value = '';
+                        if (qBanner) qBanner.style.display = 'none';
                     }
 
                     openModal('addProjectModal');

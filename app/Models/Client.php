@@ -43,4 +43,23 @@ class Client extends Model
         }
         return $this->name ?? '';
     }
+
+    /** Next unused CGMD-XXXX username (sequential, gap-filling) */
+    public static function nextAvailableUsername(): string
+    {
+        $row = \DB::selectOne(
+            "SELECT COALESCE(MAX(CAST(SUBSTRING(username FROM 6) AS INTEGER)), 0) AS max_num
+             FROM clients WHERE username ~ '^CGMD-[0-9]+$'"
+        );
+
+        $nextNum = (int) ($row->max_num ?? 0) + 1;
+
+        do {
+            $username = 'CGMD-' . str_pad($nextNum, 4, '0', STR_PAD_LEFT);
+            if (!self::where('username', $username)->exists()) {
+                return $username;
+            }
+            $nextNum++;
+        } while (true);
+    }
 }

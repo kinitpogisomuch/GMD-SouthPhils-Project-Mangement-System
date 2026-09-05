@@ -353,7 +353,20 @@
         document.getElementById('profileEditActions').style.display = 'none';
     }
 
-    function psgcFetch(url) { return fetch(url).then(function(r){ if(!r.ok) throw new Error(r.status); return r.json(); }); }
+    // The PSGC API's own data has some names double UTF-8-encoded (e.g. "BiÃ±an" instead
+    // of "Biñan"); this reverses that specific mis-encoding.
+    function fixMojibake(str) {
+        try { return decodeURIComponent(escape(str)); } catch (e) { return str; }
+    }
+
+    function psgcFetch(url) {
+        return fetch(url).then(function(r){ if(!r.ok) throw new Error(r.status); return r.json(); })
+            .then(function(data) {
+                return Array.isArray(data) ? data.map(function (item) {
+                    return Object.assign({}, item, { name: fixMojibake(item.name) });
+                }) : data;
+            });
+    }
 
     function psgcBuildOptions(sel, items, val) {
         sel.innerHTML = '<option value="">-- Select --</option>';

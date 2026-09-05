@@ -6,6 +6,20 @@ use Illuminate\Database\Eloquent\Model;
 
 class ProjectTankItem extends Model
 {
+    const TANK_TYPES = [
+        'Underground Fuel Storage Tanks',
+        'Cooking Oil Storage Tank',
+        'Chemical Tank',
+        'Polymer Tank',
+        'Aboveground Water Storage Tanks',
+        'Tetrapod',
+        'Fuel Pipe Line Installation',
+        'Re-piping of Fuel Pipe Line',
+        'Aboveground Fuel Storage Tanks',
+        'Fuel Day Tanks',
+        'Others',
+    ];
+
     protected $fillable = [
         'project_id',
         'tank_type',

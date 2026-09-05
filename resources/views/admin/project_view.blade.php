@@ -139,6 +139,22 @@
                     </div>
                 </div>
             </div>
+            @php
+                // Needed unconditionally below (e.g. the Skip Step modal), regardless of the
+                // employee-assignment gate that hides the phase-tracking cards further down.
+                $subPhase = $project->current_sub_phase ?? 'shop_drawing';
+            @endphp
+
+            @if($project->assignedEmployees->isEmpty())
+            <!-- No Employees Assigned Placeholder (replaces Phase Tracker + Progress cards) -->
+            <div class="tracker-card" style="text-align:center;padding:48px 20px;">
+                <div style="width:60px;height:60px;border-radius:50%;background:#FFF3D6;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+                    <i data-lucide="users" style="width:30px;height:30px;color:#b45309;"></i>
+                </div>
+                <p style="font-size:16px;font-weight:800;color:var(--dark);margin-bottom:6px;">No Employees Assigned Yet</p>
+                <p style="font-size:13.5px;color:var(--muted);max-width:380px;margin:0 auto;line-height:1.6;">Assign employees to this project to start tracking its phases and progress.</p>
+            </div>
+            @else
             <!-- Phase Tracker Card -->
             <div class="tracker-card">
                 <div class="tracker-card-header">
@@ -588,6 +604,13 @@
                         </div>
 
                         <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px;padding-top:18px;border-top:1px solid var(--border);">
+                            @if($project->current_phase === 'planning' && in_array($subPhase, ['shop_drawing', 'quotation']))
+                            <button type="button" class="cancel-btn" id="openSkipStepModal"
+                                    style="font-size:13.5px;padding:11px 20px;">
+                                <i data-lucide="check-circle"></i>
+                                Mark as Already Completed
+                            </button>
+                            @endif
                             <button type="submit" class="save-btn" style="font-size:13.5px;padding:11px 24px;">
                                 <i data-lucide="save"></i>
                                 {{ $submitLabel ?? 'Save Progress Update' }}
@@ -757,6 +780,7 @@
                     </div>
                 </div>
             </div>
+            @endif
 
             <!-- Project Info Card -->
             <div class="pv-card" style="margin-top:20px;">
@@ -990,6 +1014,30 @@
         </div>
     </div>
 
+    <!-- ===== SKIP STEP CONFIRM MODAL ===== -->
+    @if($project->current_phase === 'planning' && in_array($subPhase, ['shop_drawing', 'quotation']))
+    <div class="modal-overlay" id="skipStepModal">
+        <div class="modal-card" style="max-width:440px;">
+            <div class="modal-header">
+                <div>
+                    <h2>Mark as Already Completed?</h2>
+                    <p>No files will be recorded for this step. It will be marked as already completed and the project will move directly to the next sub-phase.</p>
+                </div>
+                <button class="modal-close" type="button" id="closeSkipStepModal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="cancel-btn" id="cancelSkipStepModal">Cancel</button>
+                <button type="button" class="save-btn" style="background:#16a34a;" id="confirmSkipStep">
+                    <i data-lucide="check-circle"></i>
+                    Mark as Already Completed
+                </button>
+            </div>
+        </div>
+    </div>
+    @endif
+
     <!-- ===== IMAGE LIGHTBOX ===== -->
     <div class="pv-lightbox-overlay" id="pvLightboxOverlay" onclick="closeFileLightbox()">
         <button type="button" class="pv-lightbox-close" onclick="closeFileLightbox()">
@@ -1183,6 +1231,33 @@
             openRequestModalBtn.addEventListener('click', () => {
                 document.getElementById('requestUpdateModal').classList.add('show');
                 document.body.style.overflow = 'hidden';
+            });
+        }
+
+        const openSkipStepModalBtn = document.getElementById('openSkipStepModal');
+        const skipStepModal        = document.getElementById('skipStepModal');
+        if (openSkipStepModalBtn && skipStepModal) {
+            const closeSkipStepModal = () => {
+                skipStepModal.classList.remove('show');
+                document.body.style.overflow = '';
+            };
+            openSkipStepModalBtn.addEventListener('click', () => {
+                skipStepModal.classList.add('show');
+                document.body.style.overflow = 'hidden';
+            });
+            document.getElementById('closeSkipStepModal').addEventListener('click', closeSkipStepModal);
+            document.getElementById('cancelSkipStepModal').addEventListener('click', closeSkipStepModal);
+            skipStepModal.addEventListener('click', (e) => {
+                if (e.target === skipStepModal) closeSkipStepModal();
+            });
+            document.getElementById('confirmSkipStep').addEventListener('click', () => {
+                const form = document.getElementById('addUpdateForm');
+                const skipInput = document.createElement('input');
+                skipInput.type  = 'hidden';
+                skipInput.name  = 'skip';
+                skipInput.value = '1';
+                form.appendChild(skipInput);
+                form.submit();
             });
         }
         document.getElementById('closeRequestModal').addEventListener('click', () => {

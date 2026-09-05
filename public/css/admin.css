@@ -4782,6 +4782,54 @@ td.action-cell .action-btn + .action-btn {
     color: #1e3a8a;
 }
 
+/* Color-coded tank spec chips — reused for quotation summaries and the
+   quotation-requests table so type/capacity/timeline read as distinct at a glance. */
+.qr-tank-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+}
+.qr-tank-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+.qr-spec-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11.5px;
+    font-weight: 700;
+    line-height: 1.5;
+    white-space: nowrap;
+}
+.qr-chip-type {
+    background: #1e3a8a;
+    color: #fff;
+}
+.qr-chip-capacity {
+    background: #fff;
+    color: #1e3a8a;
+    border: 1px solid #93c5fd;
+}
+.qr-chip-timeline {
+    background: #FFF3D6;
+    color: #8A6100;
+}
+.qr-tank-notes {
+    margin-top: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    font-style: italic;
+    color: #1e3a8a;
+    opacity: .8;
+}
+
 /* ================= PHASE FORM CONTROLS ================= */
 
 .pv-upload-dropzone {

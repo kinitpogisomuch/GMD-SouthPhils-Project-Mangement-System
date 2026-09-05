@@ -172,6 +172,31 @@ class ClientSettingsController extends Controller
             ->with('success', $restore ? 'Client restored successfully.' : 'Client archived successfully.');
     }
 
+    public function approve($id)
+    {
+        $client = Client::findOrFail($id);
+        $client->update(['status' => 'Active']);
+
+        \App\Services\NotificationService::clientApproved($client);
+
+        return redirect()->route('admin.clients')
+            ->with('success', 'Client approved. They can now log in.');
+    }
+
+    public function reject(Request $request, $id)
+    {
+        $client = Client::findOrFail($id);
+        $client->update([
+            'status'            => 'Rejected',
+            'rejection_reason'  => $request->input('reason'),
+        ]);
+
+        \App\Services\NotificationService::clientRejected($client, $request->input('reason'));
+
+        return redirect()->route('admin.clients')
+            ->with('success', 'Client application rejected.');
+    }
+
     public function list()
     {
         $clients = Client::orderBy('last_name')->orderBy('first_name')

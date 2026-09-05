@@ -182,7 +182,7 @@
             </div>
 
             {{-- ── Project Status Snapshot ── --}}
-            <div class="table-card" style="margin-bottom:20px;padding:16px 24px;display:flex;align-items:center;flex-wrap:wrap;gap:18px;">
+            <div class="table-card" style="margin:0 auto 20px;padding:16px 24px;display:flex;align-items:center;flex-wrap:wrap;gap:18px;width:fit-content;max-width:100%;">
                 <div style="display:flex;align-items:center;gap:8px;font-size:11px;font-weight:800;color:var(--muted-light);text-transform:uppercase;letter-spacing:.4px;flex-shrink:0;">
                     <i data-lucide="layers" style="width:14px;height:14px;"></i>
                     Project Status

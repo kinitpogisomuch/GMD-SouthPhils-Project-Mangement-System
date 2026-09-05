@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use App\Models\Client;
 
@@ -17,38 +16,7 @@ class ClientAccountController extends Controller
     */
     public function nextUsername(): \Illuminate\Http\JsonResponse
     {
-        $row = \DB::selectOne(
-            "SELECT COALESCE(MAX(CAST(SUBSTRING(username FROM 6) AS INTEGER)), 0) AS max_num
-             FROM clients WHERE username ~ '^CGMD-[0-9]+$'"
-        );
-
-        $nextNum  = (int) ($row->max_num ?? 0) + 1;
-        $username = 'CGMD-' . str_pad($nextNum, 4, '0', STR_PAD_LEFT);
-
-        return response()->json(['username' => $username]);
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Generate unique CGMD-XXXX username
-    |--------------------------------------------------------------------------
-    */
-    private function generateUsername(): string
-    {
-        $row = \DB::selectOne(
-            "SELECT COALESCE(MAX(CAST(SUBSTRING(username FROM 6) AS INTEGER)), 0) AS max_num
-             FROM clients WHERE username ~ '^CGMD-[0-9]+$'"
-        );
-
-        $nextNum = (int) ($row->max_num ?? 0) + 1;
-
-        do {
-            $username = 'CGMD-' . str_pad($nextNum, 4, '0', STR_PAD_LEFT);
-            if (!Client::where('username', $username)->exists()) {
-                return $username;
-            }
-            $nextNum++;
-        } while (true);
+        return response()->json(['username' => Client::nextAvailableUsername()]);
     }
 
     /*
@@ -84,7 +52,7 @@ class ClientAccountController extends Controller
                 ->with('active_tab', 'users');
         }
 
-        $username = $this->generateUsername();
+        $username = Client::nextAvailableUsername();
         $pin      = $this->generatePin();
 
         try {

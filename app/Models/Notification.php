@@ -71,6 +71,13 @@ class Notification extends Model
         'quotation_sent'                  => 'receipt',
         'fund_released'                   => 'credit-card',
         'fund_replenished'                => 'refresh-cw',
+        'client_signup_pending'           => 'user-plus',
+        'client_approved'                 => 'check-circle',
+        'client_rejected'                 => 'user-x',
+        'quotation_request_submitted'     => 'clipboard-list',
+        'quotation_request_declined'      => 'x-circle',
+        'quotation_request_quotation_sent' => 'file-text',
+        'quotation_request_approved'       => 'thumbs-up',
     ];
 
     public function getIconAttribute(): string

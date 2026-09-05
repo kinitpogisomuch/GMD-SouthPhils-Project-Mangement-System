@@ -34,6 +34,13 @@
             <span>Projects</span>
         </a>
 
+        <a href="{{ route('admin.quotation_requests') }}"
+           class="{{ request()->routeIs('admin.quotation_requests') ? 'active' : '' }}"
+           title="Quotation Requests">
+            <div class="sidebar-icon"><i data-lucide="inbox"></i></div>
+            <span>Quotation Requests</span>
+        </a>
+
         <a href="{{ route('admin.project_materials') }}"
            class="{{ request()->routeIs(['admin.project_materials', 'admin.project_materials.detail']) ? 'active' : '' }}"
            title="Project Quotations">

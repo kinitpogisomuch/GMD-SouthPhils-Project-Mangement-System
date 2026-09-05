@@ -355,6 +355,7 @@ class ProjectController extends Controller
             'start_date' => 'required|date',
             'end_date'   => 'required|date|after_or_equal:start_date',
             'client'     => 'required|string',
+            'quotation_request_id' => 'nullable|integer|exists:quotation_requests,id',
         ]);
 
         $start    = \Carbon\Carbon::parse($request->start_date);
@@ -392,6 +393,13 @@ class ProjectController extends Controller
             'duration'          => $duration,
             'notes'             => $request->notes,
         ]);
+
+        if ($request->filled('quotation_request_id')) {
+            \App\Models\QuotationRequest::where('id', $request->quotation_request_id)->update([
+                'status'              => 'converted',
+                'related_project_id'  => $project->id,
+            ]);
+        }
 
         // Save all tank items
         foreach ($request->tank_items as $i => $item) {
@@ -678,6 +686,29 @@ class ProjectController extends Controller
     */
     private function handlePlanningShopDrawing(Request $request, Project $project)
     {
+        if ($request->boolean('skip')) {
+            $project->setPhaseData('planning.shop_drawing', [
+                'status'       => 'completed',
+                'completed_at' => now()->toDateTimeString(),
+            ]);
+
+            $newProgress = Project::SUBPHASE_PROGRESS['shop_drawing'];
+
+            $project->update([
+                'current_sub_phase' => 'quotation',
+                'progress'          => $newProgress,
+            ]);
+
+            $this->createAdminUpdate($project, [
+                'update_label' => 'shop_drawing',
+                'work_done'    => 'Shop drawing and tank design marked as already completed by admin.',
+                'percentage'   => $newProgress,
+            ]);
+
+            return redirect()->route('admin.project_view', $project->id)
+                ->with('success', 'Shop drawing step marked as already completed. Proceed to Project Quotation.');
+        }
+
         $status = $project->phaseData('planning.shop_drawing.status');
 
         if (in_array($status, ['pending_approval', 'approved'])) {
@@ -729,6 +760,29 @@ class ProjectController extends Controller
     */
     private function handlePlanningQuotation(Request $request, Project $project)
     {
+        if ($request->boolean('skip')) {
+            $project->setPhaseData('planning.quotation', [
+                'status'       => 'completed',
+                'completed_at' => now()->toDateTimeString(),
+            ]);
+
+            $newProgress = Project::SUBPHASE_PROGRESS['quotation'];
+
+            $project->update([
+                'current_sub_phase' => 'payment',
+                'progress'          => $newProgress,
+            ]);
+
+            $this->createAdminUpdate($project, [
+                'update_label' => 'quotation',
+                'work_done'    => 'Project quotation marked as already completed by admin.',
+                'percentage'   => $newProgress,
+            ]);
+
+            return redirect()->route('admin.project_view', $project->id)
+                ->with('success', 'Quotation step marked as already completed. Waiting for payment settlement.');
+        }
+
         $request->validate([
             'quotation_files'   => 'required|array|min:1',
             'quotation_files.*' => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',

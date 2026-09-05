@@ -161,6 +161,11 @@
                             <i data-lucide="rotate-ccw"></i>
                             You requested a revision: {{ $shopDrawing['revision_notes'] ?? '' }}
                         </div>
+                    @elseif($sdStatus === 'completed')
+                        <div class="alert-banner success">
+                            <i data-lucide="check-circle"></i>
+                            This step was already completed for your project.
+                        </div>
                     @endif
 
                     <div class="pv-stat-row">
