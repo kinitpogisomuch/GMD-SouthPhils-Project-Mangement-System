@@ -631,23 +631,59 @@
                 html += '</div>';
 
             } else {
-                // RECEIVED — left side
-                var cInit = (chatContact && chatContact.name || '?').charAt(0).toUpperCase();
-                html += '<div style="display:flex;justify-content:flex-start;align-items:flex-end;gap:5px;margin-bottom:' + mb + ';">';
-                html += '<div style="' + avatarStyle + 'background:var(--dark);">' + cInit + '</div>';
-                html += '<div style="display:flex;flex-direction:column;align-items:flex-start;max-width:75%;">';
-                if (m.body) {
-                    html += '<div onclick="toggleChatMsgTime(\''+timeId+'\')" style="cursor:pointer;background:#fff;color:#050505;border:1px solid #e8e8e8;border-radius:16px 16px 16px 3px;padding:8px 12px;font-size:13px;line-height:1.45;word-break:break-word;box-shadow:0 1px 2px rgba(0,0,0,.05);">' + escHtml(m.body) + '</div>';
-                }
-                if (imgHtml) html += imgHtml;
-                if (fileHtml) html += fileHtml;
-                if (timeLabel) html += '<div id="'+timeId+'" style="display:none;font-size:10px;color:#aaa;margin-top:3px;">' + escHtml(timeLabel) + '</div>';
-                html += '</div>';
-                html += '</div>';
+                html += receivedBubbleHtml(m, mb);
             }
         });
         msgList.innerHTML = html;
         msgList.scrollTop = msgList.scrollHeight;
+        if (window.lucide) lucide.createIcons();
+    }
+
+    function receivedBubbleHtml(m, mb) {
+        var avatarStyle = 'width:26px;height:26px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;';
+        var timeId    = 'chatMsgTime-' + (m.id || Date.now()) + '-' + Math.floor(Math.random() * 1000);
+        var timeLabel = [m.date_label, m.time].filter(Boolean).join(' · ');
+
+        var imgHtml = '', fileHtml = '';
+        if (m.attachments && m.attachments.length) {
+            m.attachments.forEach(function(a) {
+                if (a.url && /\.(jpg|jpeg|png|gif|webp)/i.test(a.url)) {
+                    imgHtml += '<img src="' + a.url + '" style="max-width:180px;width:100%;border-radius:10px;display:block;margin-top:4px;cursor:pointer;" onclick="window.open(\'' + a.url + '\',\'_blank\')">';
+                } else {
+                    fileHtml += '<div style="font-size:11px;margin-top:4px;opacity:.7;">📎 ' + escHtml(a.name || 'File') + '</div>';
+                }
+            });
+        }
+
+        var cInit = (chatContact && chatContact.name || '?').charAt(0).toUpperCase();
+        var html = '<div style="display:flex;justify-content:flex-start;align-items:flex-end;gap:5px;margin-bottom:' + mb + ';">';
+        html += '<div style="' + avatarStyle + 'background:var(--dark);">' + cInit + '</div>';
+        html += '<div style="display:flex;flex-direction:column;align-items:flex-start;max-width:75%;">';
+        if (m.body) {
+            html += '<div onclick="toggleChatMsgTime(\''+timeId+'\')" style="cursor:pointer;background:#fff;color:#050505;border:1px solid #e8e8e8;border-radius:16px 16px 16px 3px;padding:8px 12px;font-size:13px;line-height:1.45;word-break:break-word;box-shadow:0 1px 2px rgba(0,0,0,.05);">' + escHtml(m.body) + '</div>';
+        }
+        if (imgHtml) html += imgHtml;
+        if (fileHtml) html += fileHtml;
+        if (timeLabel) html += '<div id="'+timeId+'" style="display:none;font-size:10px;color:#aaa;margin-top:3px;">' + escHtml(timeLabel) + '</div>';
+        html += '</div>';
+        html += '</div>';
+        return html;
+    }
+
+    // Append a single pushed message to an already-open panel instead of
+    // re-fetching + re-rendering the whole thread — a full re-render can land
+    // between an outgoing message's optimistic bubble and its "Sent" status
+    // update, wiping it back out until the panel is reopened.
+    function appendIncomingMessage(m) {
+        var wasEmpty      = !msgList.querySelector(':scope > div');
+        var wasNearBottom = msgList.scrollHeight - msgList.scrollTop - msgList.clientHeight < 80;
+
+        if (wasEmpty) msgList.innerHTML = '';
+        var wrap = document.createElement('div');
+        wrap.innerHTML = receivedBubbleHtml(m, '8px');
+        msgList.appendChild(wrap.firstChild);
+
+        if (wasEmpty || wasNearBottom) msgList.scrollTop = msgList.scrollHeight;
         if (window.lucide) lucide.createIcons();
     }
 
@@ -760,9 +796,10 @@
             .bind('message.sent', function (data) {
                 if (window.__refreshUnreadBadge) window.__refreshUnreadBadge();
                 if (chatContact && data.from && chatContact.type === data.from.type && String(chatContact.id) === String(data.from.id)) {
-                    fetch(THREAD_URL + '/' + chatContact.type + '/' + chatContact.id, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-                        .then(function (r) { return r.json(); })
-                        .then(function (d) { renderMessages(d.messages || []); });
+                    appendIncomingMessage(data.message);
+                    // Fire-and-forget: marks it read server-side; response is ignored so it
+                    // can't clobber a bubble the user is mid-sending in this same panel.
+                    fetch(THREAD_URL + '/' + chatContact.type + '/' + chatContact.id, { headers: { 'X-Requested-With': 'XMLHttpRequest' } }).catch(function () {});
                 }
             });
     }
