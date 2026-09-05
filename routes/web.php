@@ -111,8 +111,11 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::get('/messages/unread-count', [MessageController::class, 'unreadCount'])->name('messages.unread_count');
     Route::get('/payments', [PaymentController::class, 'index'])->name('payments');
     Route::post('/payments/setup', [PaymentController::class, 'setup'])->name('payments.setup');
+    Route::get('/payments/client/{client}', [PaymentController::class, 'clientPayments'])->name('payments.client');
     Route::get('/payments/{id}', [PaymentController::class, 'show'])->name('payments.show');
     Route::post('/payments/{id}/record', [PaymentController::class, 'recordPayment'])->name('payments.record');
+    Route::post('/payments/{id}/billing-statements', [PaymentController::class, 'storeBillingStatement'])->name('payments.billing_statements.store');
+    Route::get('/payments/{id}/billing-statements/{statementId}', [PaymentController::class, 'showBillingStatement'])->name('payments.billing_statements.show');
     Route::get('/revolving-fund', [FundController::class, 'index'])->name('revolving_fund');
     Route::post('/revolving-fund/setup', [FundController::class, 'setupInitial'])->name('revolving_fund.setup_initial');
     Route::post('/revolving-fund/release', [FundController::class, 'release'])->name('revolving_fund.release');
@@ -177,7 +180,6 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
 
     // Client Settings (CRUD)
     Route::post('/clients', [ClientSettingsController::class, 'store'])->name('client.store');
-    Route::put('/clients/{id}', [ClientSettingsController::class, 'update'])->name('client.update');
     Route::delete('/clients/{id}', [ClientSettingsController::class, 'destroy'])->name('client.destroy');
     Route::patch('/clients/{id}/archive', [ClientSettingsController::class, 'archive'])->name('client.archive');
     Route::patch('/clients/{id}/approve', [ClientSettingsController::class, 'approve'])->name('client.approve');
@@ -244,6 +246,8 @@ Route::prefix('client')->name('client.')->middleware(['role:client', 'profile.co
     Route::get('/messages/unread-count', [MessageController::class, 'unreadCount'])->name('messages.unread_count');
     Route::get('/payments', [ClientController::class, 'payments'])->name('payments');
     Route::get('/payments/{id}', [PaymentController::class, 'clientShow'])->name('payments.show');
+    Route::get('/payments/{id}/billing-statements/{statementId}', [PaymentController::class, 'clientShowBillingStatement'])->name('payments.billing_statements.show');
+    Route::post('/payments/{id}/proof', [PaymentController::class, 'uploadProof'])->name('payments.proof.store');
     Route::get('/project-view/{id}', [ProjectController::class, 'clientView'])->name('project_view');
     Route::post('/project/{id}/shop-drawing/approve', [ProjectController::class, 'approveShopDrawing'])->name('project.shop_drawing.approve');
     Route::post('/project/{id}/shop-drawing/request-revision', [ProjectController::class, 'requestShopDrawingRevision'])->name('project.shop_drawing.request_revision');

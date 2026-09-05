@@ -12,6 +12,7 @@ class PaymentTransaction extends Model
         'amount_paid',
         'payment_date',
         'reference_number',
+        'receipt_url',
         'notes',
         'mode_of_payment',
         'recorded_by',

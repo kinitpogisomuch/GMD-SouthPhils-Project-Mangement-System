@@ -140,19 +140,6 @@
                                         <i data-lucide="x"></i>
                                     </button>
                                     @else
-                                    <button class="action-btn view edit-client-btn" type="button"
-                                            title="Edit Client Information"
-                                            data-id="{{ $client->id }}"
-                                            data-name="{{ $client->full_name }}"
-                                            data-contact="{{ $client->contact }}"
-                                            data-email="{{ $client->email }}"
-                                            data-region="{{ $client->region }}"
-                                            data-province="{{ $client->province }}"
-                                            data-city="{{ $client->city }}"
-                                            data-barangay="{{ $client->barangay }}"
-                                            data-street-address="{{ $client->street_address }}">
-                                        <i data-lucide="pencil"></i>
-                                    </button>
                                     <button class="action-btn view archive-client-btn" type="button"
                                             title="{{ $client->status === 'Inactive' ? 'Restore Client' : 'Archive Client' }}"
                                             data-id="{{ $client->id }}"
@@ -380,66 +367,6 @@
         </div>
     </div>
 
-    <!-- ===== EDIT CLIENT MODAL ===== -->
-    <div class="modal-overlay" id="editClientModal">
-        <div class="modal-card" style="max-width:560px;">
-            <div class="modal-header">
-                <div>
-                    <h2>Edit Client Information</h2>
-                    <p id="editClientSubtitle">Update client information.</p>
-                </div>
-                <button class="modal-close" type="button" id="closeEditClientModal">
-                    <i data-lucide="x"></i>
-                </button>
-            </div>
-            <form method="POST" id="editClientForm">
-                @csrf
-                @method('PUT')
-                <div class="form-grid">
-                    <div class="form-group form-group-full">
-                        <label>Full Name / Company Name </label>
-                        <input type="text" name="full_name" id="editClientFullName" required
-                               placeholder="e.g. Juan Dela Cruz or ABC Construction Co.">
-                    </div>
-                    <div class="form-group">
-                        <label>Contact Number </label>
-                        <input type="text" name="contact" id="editClientContact" required placeholder="e.g. 0930-147-6598" maxlength="13"
-                               oninput="formatClientContact(this)"
-                               onkeypress="return /[0-9\-]/.test(event.key)">
-                    </div>
-                    <div class="form-group">
-                        <label>Email Address</label>
-                        <input type="email" name="email" id="editClientEmail" placeholder="Email address">
-                    </div>
-                    <div class="form-group">
-                        <label>Province</label>
-                        <input type="text" name="province" id="editClientProvince" placeholder="e.g. Laguna"
-                               oninput="clientStripDigits(this); clientCapName(this)">
-                    </div>
-                    <div class="form-group">
-                        <label>City / Municipality</label>
-                        <input type="text" name="city" id="editClientCity" placeholder="e.g. Santa Cruz"
-                               oninput="clientStripDigits(this); clientCapName(this)">
-                    </div>
-                    <div class="form-group">
-                        <label>Region</label>
-                        <input type="text" name="region" id="editClientRegion" placeholder="e.g. Region IV-A"
-                               oninput="clientCapName(this)">
-                    </div>
-                    <div class="form-group">
-                        <label>Street Address</label>
-                        <input type="text" name="street_address" id="editClientStreetAddress" placeholder="e.g. Poblacion Street"
-                               oninput="clientCapName(this)">
-                    </div>
-                </div>
-                <div class="modal-actions">
-                    <button type="button" class="cancel-btn" id="cancelEditClient">Cancel</button>
-                    <button type="submit" class="save-btn"><i data-lucide="save"></i> Save Changes</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
     <!-- ===== ARCHIVE CLIENT MODAL ===== -->
     <div class="modal-overlay" id="archiveClientModal">
         <div class="modal-card" style="max-width:460px;">
@@ -602,26 +529,6 @@
             });
             document.getElementById('closeViewClientModal')
                 .addEventListener('click', function () { closeModal('viewClientModal'); });
-
-            // ---- Edit Client Modal ----
-            document.querySelectorAll('.edit-client-btn').forEach(function (btn) {
-                btn.addEventListener('click', function () {
-                    document.getElementById('editClientFullName').value     = this.dataset.name || '';
-                    document.getElementById('editClientContact').value      = this.dataset.contact || '';
-                    document.getElementById('editClientEmail').value        = this.dataset.email || '';
-                    document.getElementById('editClientProvince').value     = this.dataset.province || '';
-                    document.getElementById('editClientCity').value         = this.dataset.city || '';
-                    document.getElementById('editClientRegion').value       = this.dataset.region || '';
-                    document.getElementById('editClientStreetAddress').value = this.dataset.streetAddress || '';
-                    document.getElementById('editClientSubtitle').textContent = 'Editing: ' + (this.dataset.name || '');
-                    document.getElementById('editClientForm').action = '/admin/clients/' + this.dataset.id;
-                    openModal('editClientModal');
-                });
-            });
-            document.getElementById('closeEditClientModal')
-                .addEventListener('click', function () { closeModal('editClientModal'); });
-            document.getElementById('cancelEditClient')
-                .addEventListener('click', function () { closeModal('editClientModal'); });
 
             // ---- Archive Client Modal ----
             document.querySelectorAll('.archive-client-btn').forEach(function (btn) {

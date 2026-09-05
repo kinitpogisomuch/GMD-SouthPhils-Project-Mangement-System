@@ -8,9 +8,18 @@ use App\Models\PaymentTransaction;
 use App\Models\Project;
 use App\Models\Client;
 use App\Models\FundTransaction;
+use App\Models\BillingStatement;
+use App\Services\SupabaseStorageService;
 
 class PaymentController extends Controller
 {
+    protected $storage;
+
+    public function __construct(SupabaseStorageService $storage)
+    {
+        $this->storage = $storage;
+    }
+
     public function index()
     {
         $payments = Payment::with(['project', 'transactions'])->orderBy('created_at', 'desc')->get();
@@ -25,25 +34,67 @@ class PaymentController extends Controller
         ]))->count();
         $pendingDown = $payments->filter(fn($p) => $p->computeStatus() === 'Pending Down Payment')->count();
 
-        // Projects that do NOT yet have a payment record
+        // Every client with at least one active project shows up here — not
+        // just clients who already have a payment record — so admin can spot
+        // who still needs a payment setup done, right from this list.
+        $paymentsByClient = $payments->groupBy('client');
+
+        $projectCountsByClient = Project::where('status', '!=', 'archived')
+            ->selectRaw('client, count(*) as cnt')
+            ->groupBy('client')
+            ->pluck('cnt', 'client');
+
+        $clientGroups = $projectCountsByClient->keys()->map(function ($clientName) use ($paymentsByClient, $projectCountsByClient) {
+            $group = $paymentsByClient->get($clientName, collect());
+
+            $contractTotal = $group->sum('contract_amount');
+            $receivedTotal = $group->sum(fn($p) => $p->totalPaid());
+            $statuses      = $group->map(fn($p) => $p->computeStatus());
+
+            return [
+                'client'          => $clientName,
+                'project_count'   => $projectCountsByClient[$clientName],
+                'contract_total'  => $contractTotal,
+                'received_total'  => $receivedTotal,
+                'balance_total'   => max(0, $contractTotal - $receivedTotal),
+                'has_payments'    => $group->isNotEmpty(),
+                'has_pending'     => $statuses->contains('Pending Down Payment'),
+                'has_in_progress' => $statuses->contains(fn($s) => in_array($s, ['Down Payment Paid', 'Progress Payment Paid'])),
+                'all_fully_paid'  => $statuses->isNotEmpty() && $statuses->every(fn($s) => $s === 'Fully Paid'),
+            ];
+        })->sortBy('client')->values();
+
+        return view('admin.payments', compact(
+            'clientGroups',
+            'totalContractValue',
+            'totalReceived',
+            'outstanding',
+            'fullyPaid',
+            'inProgress',
+            'pendingDown'
+        ));
+    }
+
+    public function clientPayments($client)
+    {
+        $clientName = urldecode($client);
+
+        $payments = Payment::with(['project', 'transactions'])
+            ->where('client', $clientName)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // This client's projects that do NOT yet have a payment record
         $existingProjectIds = Payment::pluck('project_id')->filter()->all();
         $availableProjects  = Project::whereNotIn('id', $existingProjectIds)
+            ->where('client', $clientName)
             ->where('status', '!=', 'archived')
             ->orderBy('name')
             ->withSum('activeMaterials as bom_total', 'total_cost')
             ->withSum('activeLabor as labor_total', 'total_cost')
             ->get(['id', 'name', 'client', 'client_type', 'status', 'created_at']);
 
-        return view('admin.payments', compact(
-            'payments',
-            'totalContractValue',
-            'totalReceived',
-            'outstanding',
-            'fullyPaid',
-            'inProgress',
-            'pendingDown',
-            'availableProjects'
-        ));
+        return view('admin.payments_client', compact('payments', 'clientName', 'availableProjects'));
     }
 
     public function setup(Request $request)
@@ -120,6 +171,7 @@ class PaymentController extends Controller
             'mode_of_payment'  => 'nullable|string|in:cheque,bank_transfer,cash',
             'reference_number' => 'nullable|string|max:100',
             'notes'            => 'nullable|string|max:1000',
+            'receipt_file'     => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
         ]);
 
         $paidStages  = $payment->paidStages();
@@ -133,6 +185,14 @@ class PaymentController extends Controller
             return back()->withErrors(['payment_stage' => 'Earlier payment stages must be recorded first.']);
         }
 
+        $receiptUrl = null;
+        if ($request->hasFile('receipt_file')) {
+            $receiptUrl = $this->storage->upload(
+                $request->file('receipt_file'),
+                'payments/' . $payment->id . '/receipts'
+            );
+        }
+
         PaymentTransaction::create([
             'payment_id'       => $payment->id,
             'payment_stage'    => $validated['payment_stage'],
@@ -140,6 +200,7 @@ class PaymentController extends Controller
             'payment_date'     => $validated['payment_date'],
             'mode_of_payment'  => $validated['mode_of_payment'] ?? null,
             'reference_number' => $validated['reference_number'] ?? null,
+            'receipt_url'      => $receiptUrl,
             'notes'            => $validated['notes'] ?? null,
             'recorded_by'      => auth()->user()->name ?? 'Admin',
         ]);
@@ -154,6 +215,60 @@ class PaymentController extends Controller
 
         return redirect()->route('admin.payments.show', $payment->id)
             ->with('success', 'Payment recorded successfully.');
+    }
+
+    public function storeBillingStatement(Request $request, $id)
+    {
+        $payment = Payment::findOrFail($id);
+
+        $validated = $request->validate([
+            'attention'            => 'nullable|string|max:255',
+            'bill_to'              => 'nullable|string|max:255',
+            'statement_date'       => 'required|date',
+            'reference_no'         => 'nullable|string|max:100',
+            'tin_number'           => 'nullable|string|max:100',
+            'project_title'        => 'nullable|string|max:255',
+            'project_location'     => 'nullable|string|max:500',
+            'po_number'            => 'nullable|string|max:100',
+            'pr_number'            => 'nullable|string|max:100',
+            'subject'              => 'nullable|string|max:255',
+            'deposit_instructions' => 'nullable|string|max:1000',
+            'prepared_by_name'     => 'nullable|string|max:255',
+            'prepared_by_role'     => 'nullable|string|max:255',
+            'approved_by_name'     => 'nullable|string|max:255',
+            'approved_by_role'     => 'nullable|string|max:255',
+        ]);
+
+        $statement = $payment->billingStatements()->create($validated);
+
+        return redirect()->route('admin.payments.billing_statements.show', [$payment->id, $statement->id])
+            ->with('success', 'Billing statement generated.');
+    }
+
+    public function showBillingStatement($id, $statementId)
+    {
+        $payment   = Payment::with(['project', 'transactions'])->findOrFail($id);
+        $statement = $payment->billingStatements()->findOrFail($statementId);
+
+        return view('admin.billing_statement', compact('payment', 'statement'));
+    }
+
+    public function clientShowBillingStatement($id, $statementId)
+    {
+        $clientEmail = session('email');
+        $clientName  = $clientEmail
+            ? Client::where('email', $clientEmail)->value('name')
+            : null;
+
+        $payment = Payment::with(['project', 'transactions'])->findOrFail($id);
+
+        if (!$clientName || $payment->client !== $clientName) {
+            abort(403);
+        }
+
+        $statement = $payment->billingStatements()->findOrFail($statementId);
+
+        return view('client.billing_statement', compact('payment', 'statement'));
     }
 
     public function clientShow($id)
@@ -185,5 +300,45 @@ class PaymentController extends Controller
             'paidStages',
             'stageTransactions'
         ));
+    }
+
+    public function uploadProof(Request $request, $id)
+    {
+        $clientEmail = session('email');
+        $clientName  = $clientEmail
+            ? Client::where('email', $clientEmail)->value('name')
+            : null;
+
+        $payment = Payment::findOrFail($id);
+
+        if (!$clientName || $payment->client !== $clientName) {
+            abort(403);
+        }
+
+        $stageIn = implode(',', $payment->stages());
+
+        $validated = $request->validate([
+            'payment_stage' => "required|string|in:{$stageIn}",
+            'proof_file'    => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
+            'notes'         => 'nullable|string|max:1000',
+        ]);
+
+        $fileUrl = $this->storage->upload(
+            $request->file('proof_file'),
+            'payments/' . $payment->id . '/proofs'
+        );
+
+        if (!$fileUrl) {
+            return back()->with('error', 'Upload failed. Please check your connection and try again.');
+        }
+
+        $payment->proofs()->create([
+            'payment_stage' => $validated['payment_stage'],
+            'file_url'      => $fileUrl,
+            'notes'         => $validated['notes'] ?? null,
+        ]);
+
+        return redirect()->route('client.payments.show', $payment->id)
+            ->with('success', 'Proof of payment submitted. Our team will verify it shortly.');
     }
 }

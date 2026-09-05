@@ -187,18 +187,20 @@
                 <div class="table-wrapper">
                     <table class="data-table" id="projectsTable">
                         <colgroup>
-                            <col style="width:28%;">
-                            <col style="width:13%;">
-                            <col style="width:11%;">
-                            <col style="width:11%;">
-                            <col style="width:11%;">
+                            <col style="width:25%;">
+                            <col style="width:12%;">
+                            <col style="width:9%;">
                             <col style="width:10%;">
-                            <col style="width:16%;">
+                            <col style="width:10%;">
+                            <col style="width:10%;">
+                            <col style="width:9%;">
+                            <col style="width:15%;">
                         </colgroup>
                         <thead>
                             <tr>
                                 <th>Project Name</th>
                                 <th>Client</th>
+                                <th style="text-align:center;">Capacity</th>
                                 <th style="text-align:center;">Start Date</th>
                                 <th style="text-align:center;">End Date</th>
                                 <th style="text-align:center;">Status</th>
@@ -226,10 +228,14 @@
                                     </span>
                                 </td>
                                 <td><span class="client-pill">{{ $project->client }}</span></td>
+                                <td style="white-space:nowrap;text-align:center;color:var(--muted);font-weight:700;">{{ $project->capacity ?: '—' }}</td>
                                 <td style="white-space:nowrap;text-align:center;">{{ $project->start_date->format('M d, Y') }}</td>
                                 <td style="white-space:nowrap;text-align:center;">{{ $project->end_date->format('M d, Y') }}</td>
                                 @php
                                     $phase = strtolower($project->current_phase ?? 'planning');
+                                    if ($project->status === 'completed') {
+                                        $phase = 'completed';
+                                    }
                                     $phaseColors = [
                                         'planning'    => ['bg'=>'#FEF3C7','color'=>'#92400E','shadow'=>'rgba(245,158,11,.2)'],
                                         'procurement' => ['bg'=>'#EDE9FE','color'=>'#5B21B6','shadow'=>'rgba(139,92,246,.2)'],
@@ -240,6 +246,7 @@
                                         'completion'  => ['bg'=>'#10B981','color'=>'#fff','shadow'=>'rgba(16,185,129,.3)'],
                                         'delivery'    => ['bg'=>'#059669','color'=>'#fff','shadow'=>'rgba(5,150,105,.3)'],
                                         'delayed'     => ['bg'=>'#EF4444','color'=>'#fff','shadow'=>'rgba(239,68,68,.3)'],
+                                        'completed'   => ['bg'=>'#E7F6EC','color'=>'#207A3A','shadow'=>'rgba(32,122,58,.15)'],
                                     ];
                                     $pc = $phaseColors[$phase] ?? ['bg'=>'#F3F4F6','color'=>'#6B7280','shadow'=>'rgba(0,0,0,.1)'];
                                     $phaseLabel = ucwords(str_replace('_', ' ', $phase));
@@ -302,14 +309,14 @@
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="7" style="text-align:center; padding:40px; color:var(--muted);">
+                                <td colspan="8" style="text-align:center; padding:40px; color:var(--muted);">
                                     No projects found. Click <strong>Add Project</strong> to get started.
                                 </td>
                             </tr>
                             @endforelse
                             @if($projects->isNotEmpty())
                             <tr id="noProjectsRow" style="display:none;">
-                                <td colspan="7" style="text-align:center;padding:60px 20px;color:var(--muted);">
+                                <td colspan="8" style="text-align:center;padding:60px 20px;color:var(--muted);">
                                     <i data-lucide="folder-open" style="width:36px;height:36px;opacity:.35;display:block;margin:0 auto 12px;"></i>
                                     <div style="font-size:14px;font-weight:700;" id="noProjectsMsg">No projects in this category.</div>
                                     <div style="font-size:13px;margin-top:4px;">Try switching to a different tab or add a new project.</div>

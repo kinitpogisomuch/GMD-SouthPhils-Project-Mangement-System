@@ -28,6 +28,10 @@
                     Payments
                 </a>
                 <i data-lucide="chevron-right" style="width:14px;height:14px;"></i>
+                <a href="{{ route('admin.payments.client', urlencode($payment->client)) }}" style="color:var(--muted);text-decoration:none;font-weight:600;">
+                    {{ $payment->client }}
+                </a>
+                <i data-lucide="chevron-right" style="width:14px;height:14px;"></i>
                 <span style="color:var(--dark);font-weight:700;">{{ $payment->project->name ?? 'Payment Detail' }}</span>
             </div>
 
@@ -37,12 +41,18 @@
                     <h1>{{ $payment->project->name ?? 'Payment Detail' }}</h1>
                     <p><span class="client-pill">{{ $payment->client }}</span> &nbsp;·&nbsp; {{ $payment->payment_terms }}</p>
                 </div>
-                @if($status !== 'Fully Paid')
-                <button class="add-btn" type="button" id="openRecordModal">
-                    <i data-lucide="plus"></i>
-                    Record Payment
-                </button>
-                @endif
+                <div style="display:flex;gap:10px;align-items:center;">
+                    <button class="cancel-btn" type="button" id="generateBillingBtn">
+                        <i data-lucide="file-text"></i>
+                        Generate Billing Statement
+                    </button>
+                    @if($status !== 'Fully Paid')
+                    <button class="add-btn" type="button" id="openRecordModal">
+                        <i data-lucide="plus"></i>
+                        Record Payment
+                    </button>
+                    @endif
+                </div>
             </div>
 
             @if(session('success'))
@@ -109,16 +119,18 @@
                                 <th style="text-align:center;">Total Paid</th>
                                 <th style="text-align:center;">Remaining</th>
                                 <th style="text-align:center;">Status</th>
+                                <th style="text-align:center;">Client Proof</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach($payment->stages() as $stage)
                             @php
-                                $expected   = $stageAmounts[$stage] ?? 0;
-                                $stagePaid  = isset($stageTransactions[$stage]) ? $stageTransactions[$stage]->sum('amount_paid') : 0;
-                                $stageLeft  = max(0, $expected - $stagePaid);
-                                $isPaid     = in_array($stage, $paidStages);
-                                $stageLabel = \App\Models\PaymentTransaction::stageLabel($stage);
+                                $expected    = $stageAmounts[$stage] ?? 0;
+                                $stagePaid   = isset($stageTransactions[$stage]) ? $stageTransactions[$stage]->sum('amount_paid') : 0;
+                                $stageLeft   = max(0, $expected - $stagePaid);
+                                $isPaid      = in_array($stage, $paidStages);
+                                $stageLabel  = \App\Models\PaymentTransaction::stageLabel($stage);
+                                $stageProofs = $payment->proofs->where('payment_stage', $stage);
                             @endphp
                             <tr>
                                 <td><strong>{{ $stageLabel }}</strong></td>
@@ -132,6 +144,21 @@
                                         <span class="status-badge partial">Partial</span>
                                     @else
                                         <span class="status-badge pending">Unpaid</span>
+                                    @endif
+                                </td>
+                                <td style="text-align:center;">
+                                    @if($stageProofs->isNotEmpty())
+                                    <div style="display:flex;flex-direction:column;gap:3px;align-items:center;">
+                                        @foreach($stageProofs as $proof)
+                                        <a href="{{ $proof->file_url }}" target="_blank" title="{{ $proof->notes ?? 'View submitted proof' }}"
+                                           style="display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:700;color:var(--accent);text-decoration:none;">
+                                            <i data-lucide="file-check" style="width:12px;height:12px;"></i>
+                                            {{ $proof->created_at->format('M d, Y') }}
+                                        </a>
+                                        @endforeach
+                                    </div>
+                                    @else
+                                    <span style="color:var(--muted);">—</span>
                                     @endif
                                 </td>
                             </tr>
@@ -169,6 +196,7 @@
                                 <th style="text-align:left;">Stage</th>
                                 <th style="text-align:center;">Amount Paid</th>
                                 <th style="text-align:center;">Mode</th>
+                                <th style="text-align:center;">Receipt</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -192,10 +220,19 @@
                                     <span style="color:var(--muted);">—</span>
                                     @endif
                                 </td>
+                                <td style="text-align:center;">
+                                    @if($tx->receipt_url)
+                                    <a href="{{ $tx->receipt_url }}" target="_blank" class="action-btn view" title="View Receipt">
+                                        <i data-lucide="receipt"></i>
+                                    </a>
+                                    @else
+                                    <span style="color:var(--muted);">—</span>
+                                    @endif
+                                </td>
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="4" style="text-align:center;padding:40px;color:var(--muted);">
+                                <td colspan="5" style="text-align:center;padding:40px;color:var(--muted);">
                                     <i data-lucide="receipt" style="width:32px;height:32px;opacity:.3;display:block;margin:0 auto 10px;"></i>
                                     No payment transactions recorded yet.
                                 </td>
@@ -222,7 +259,7 @@
                 </button>
             </div>
 
-            <form method="POST" action="{{ route('admin.payments.record', $payment->id) }}" id="recordPaymentForm">
+            <form method="POST" action="{{ route('admin.payments.record', $payment->id) }}" id="recordPaymentForm" enctype="multipart/form-data">
                 @csrf
                 <div class="form-grid">
                     <div class="form-group form-group-full">
@@ -298,6 +335,17 @@
                             </label>
                         </div>
                     </div>
+
+                    <div class="form-group form-group-full">
+                        <label>Upload Collection Receipt <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
+                        <label class="pv-upload-dropzone" id="receiptDropzone">
+                            <i data-lucide="upload-cloud" style="width:22px;height:22px;color:var(--accent);"></i>
+                            <span style="font-size:13px;font-weight:700;color:var(--text-primary);">Click to upload collection receipt</span>
+                            <span style="font-size:11px;color:var(--muted);">PDF or image, max 10MB</span>
+                            <input type="file" name="receipt_file" id="receiptFileInput" accept=".pdf,image/*" style="display:none;">
+                        </label>
+                        <div id="receiptFilePreview" style="margin-top:6px;"></div>
+                    </div>
                 </div>
 
                 <div style="background:var(--cream-soft);border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:var(--muted);">
@@ -310,6 +358,95 @@
                     <button type="submit" class="save-btn">
                         <i data-lucide="save"></i>
                         Record Payment
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Generate Billing Statement Modal -->
+    <div class="modal-overlay" id="billingStatementModal">
+        <div class="modal-card" style="max-width:640px;max-height:90vh;overflow-y:auto;">
+            <div class="modal-header">
+                <div>
+                    <h2>Generate Billing Statement</h2>
+                    <p>Fill in the statement details for <strong>{{ $payment->project->name ?? 'this project' }}</strong></p>
+                </div>
+                <button class="modal-close" type="button" id="closeBillingStatementModal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+
+            <form method="POST" action="{{ route('admin.payments.billing_statements.store', $payment->id) }}" id="billingStatementForm">
+                @csrf
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Attention</label>
+                        <input type="text" name="attention" placeholder="e.g. Mr. Juan Dela Cruz">
+                    </div>
+                    <div class="form-group">
+                        <label>Bill To</label>
+                        <input type="text" name="bill_to" value="{{ $payment->client }}">
+                    </div>
+                    <div class="form-group">
+                        <label>Statement Date</label>
+                        <input type="date" name="statement_date" required value="{{ now()->format('Y-m-d') }}">
+                    </div>
+                    <div class="form-group">
+                        <label>Reference No.</label>
+                        <input type="text" name="reference_no" placeholder="e.g. BS-2026-001">
+                    </div>
+                    <div class="form-group">
+                        <label>Client TIN#</label>
+                        <input type="text" name="tin_number" placeholder="e.g. 123-456-789-000">
+                    </div>
+                    <div class="form-group">
+                        <label>Project Title</label>
+                        <input type="text" name="project_title" value="{{ $payment->project->name ?? '' }}">
+                    </div>
+                    <div class="form-group form-group-full">
+                        <label>Project Location</label>
+                        <input type="text" name="project_location" value="{{ $payment->project->address ?? '' }}">
+                    </div>
+                    <div class="form-group">
+                        <label>P.O. Number</label>
+                        <input type="text" name="po_number">
+                    </div>
+                    <div class="form-group">
+                        <label>P.R. Number</label>
+                        <input type="text" name="pr_number">
+                    </div>
+                    <div class="form-group form-group-full">
+                        <label>Subject</label>
+                        <input type="text" name="subject">
+                    </div>
+                    <div class="form-group form-group-full">
+                        <label>Deposit Instructions</label>
+                        <textarea name="deposit_instructions" rows="2" placeholder="e.g. Bank name, account name, account number..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Prepared By (Name)</label>
+                        <input type="text" name="prepared_by_name">
+                    </div>
+                    <div class="form-group">
+                        <label>Prepared By (Role)</label>
+                        <input type="text" name="prepared_by_role" value="Accounting Dept.">
+                    </div>
+                    <div class="form-group">
+                        <label>Approved By (Name)</label>
+                        <input type="text" name="approved_by_name">
+                    </div>
+                    <div class="form-group">
+                        <label>Approved By (Role)</label>
+                        <input type="text" name="approved_by_role" value="Operation Manager">
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="cancel-btn" id="cancelBillingStatement">Cancel</button>
+                    <button type="submit" class="save-btn">
+                        <i data-lucide="file-text"></i>
+                        Generate Statement
                     </button>
                 </div>
             </form>
@@ -338,10 +475,43 @@
     function openModal()  { modal.classList.add('show');    document.body.style.overflow = 'hidden'; }
     function closeModal() { modal.classList.remove('show'); document.body.style.overflow = ''; }
 
-    openBtn.addEventListener('click', openModal);
-    closeBtn.addEventListener('click', closeModal);
-    cancelBtn.addEventListener('click', closeModal);
-    modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+    // openBtn (and the whole Record Payment section) only renders when the
+    // payment isn't fully paid yet — guard so a fully-paid payment doesn't
+    // throw here and block the rest of this script (billing statement modal included).
+    if (openBtn) {
+        openBtn.addEventListener('click', openModal);
+        closeBtn.addEventListener('click', closeModal);
+        cancelBtn.addEventListener('click', closeModal);
+        modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+    }
+
+    // ── Generate Billing Statement modal ──────────────────────────────────
+    const billingBtn      = document.getElementById('generateBillingBtn');
+    const billingModal    = document.getElementById('billingStatementModal');
+    const closeBillingBtn = document.getElementById('closeBillingStatementModal');
+    const cancelBillingBtn = document.getElementById('cancelBillingStatement');
+
+    function openBillingModal()  { billingModal.classList.add('show');    document.body.style.overflow = 'hidden'; }
+    function closeBillingModal() { billingModal.classList.remove('show'); document.body.style.overflow = ''; }
+
+    if (billingBtn) {
+        billingBtn.addEventListener('click', openBillingModal);
+        closeBillingBtn.addEventListener('click', closeBillingModal);
+        cancelBillingBtn.addEventListener('click', closeBillingModal);
+        billingModal.addEventListener('click', e => { if (e.target === billingModal) closeBillingModal(); });
+    }
+
+    // ── Collection receipt upload preview ─────────────────────────────────
+    const receiptFileInput = document.getElementById('receiptFileInput');
+    if (receiptFileInput) {
+        receiptFileInput.addEventListener('change', function () {
+            var preview = document.getElementById('receiptFilePreview');
+            var file = this.files[0];
+            preview.innerHTML = file
+                ? '<span style="font-size:12px;color:var(--text-secondary);">📎 ' + file.name + '</span>'
+                : '';
+        });
+    }
 
     stageTrigger.addEventListener('click', function (e) {
         e.stopPropagation();

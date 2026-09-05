@@ -36,6 +36,16 @@ class Payment extends Model
         return $this->hasMany(PaymentTransaction::class)->orderBy('payment_date');
     }
 
+    public function billingStatements()
+    {
+        return $this->hasMany(BillingStatement::class)->latest();
+    }
+
+    public function proofs()
+    {
+        return $this->hasMany(PaymentProof::class)->latest();
+    }
+
     // -------------------------------------------------------------------------
     // Computed helpers
     // -------------------------------------------------------------------------

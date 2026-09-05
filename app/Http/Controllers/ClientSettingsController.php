@@ -111,47 +111,6 @@ class ClientSettingsController extends Controller
             ->with('success', 'Client added successfully!');
     }
 
-    public function update(Request $request, $id)
-    {
-        $request->validate([
-            'full_name'      => 'required|string|max:255',
-            'contact'        => 'required|string',
-            'email'          => 'nullable|email',
-            'province'       => ['nullable', 'string', 'max:255', 'regex:/^[^0-9]*$/u'],
-            'city'           => ['nullable', 'string', 'max:255', 'regex:/^[^0-9]*$/u'],
-            'region'         => 'nullable|string|max:255',
-            'street_address' => 'nullable|string|max:500',
-        ]);
-
-        $fullAddress = null;
-        if ($request->filled('street_address') && $request->filled('city') && $request->filled('province')) {
-            $fullAddress = implode(', ', array_filter([
-                $request->street_address,
-                $request->barangay,
-                $request->city,
-                $request->province,
-                $request->region,
-            ]));
-        }
-
-        Client::findOrFail($id)->update([
-            'name'           => trim($request->full_name),
-            'first_name'     => null,
-            'last_name'      => null,
-            'address'        => $fullAddress,
-            'region'         => ucwords(strtolower(trim($request->region ?? ''))),
-            'province'       => ucwords(strtolower(trim($request->province ?? ''))),
-            'city'           => ucwords(strtolower(trim($request->city ?? ''))),
-            'barangay'       => $request->barangay,
-            'street_address' => ucfirst(strtolower(trim($request->street_address ?? ''))),
-            'contact'        => $request->contact,
-            'email'          => $request->email,
-        ]);
-
-        return redirect()->route('admin.clients')
-            ->with('success', 'Client updated successfully!');
-    }
-
     public function destroy($id)
     {
         Client::findOrFail($id)->delete();

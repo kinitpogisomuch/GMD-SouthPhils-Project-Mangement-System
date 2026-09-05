@@ -1,0 +1,236 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    background: #e5e5e5;
+    font-family: 'Inter', Arial, Helvetica, sans-serif;
+    color: #1a1a1a;
+}
+
+.bs-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 850px;
+    margin: 0 auto;
+    padding: 16px 0;
+}
+
+.bs-toolbar a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #444;
+    text-decoration: none;
+}
+
+.bs-toolbar button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #1a1a1a;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 18px;
+    font-size: 13.5px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.bs-sheet {
+    max-width: 850px;
+    margin: 0 auto 40px;
+    background: #fff;
+    border: 1px solid #ccc;
+    padding: 30px 36px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.12);
+    font-size: 12.5px;
+    line-height: 1.5;
+}
+
+/* Letterhead */
+.bs-letterhead {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 3px solid #1a1a1a;
+    padding-bottom: 14px;
+    margin-bottom: 10px;
+}
+
+.bs-brand-gmd {
+    font-size: 34px;
+    font-weight: 900;
+    color: #c81e1e;
+    letter-spacing: -1px;
+    line-height: 1;
+}
+
+.bs-brand-sub {
+    font-size: 12px;
+    font-weight: 800;
+    color: #444;
+    letter-spacing: 3px;
+    margin-top: 2px;
+}
+
+.bs-company-info {
+    text-align: right;
+    font-size: 11.5px;
+    color: #222;
+    line-height: 1.6;
+}
+
+.bs-company-name {
+    font-weight: 800;
+    font-size: 13px;
+    margin-bottom: 2px;
+}
+
+.bs-title {
+    text-align: right;
+    font-size: 20px;
+    font-weight: 900;
+    color: #1e5fbf;
+    letter-spacing: 1px;
+    margin: 14px 0 18px;
+}
+
+/* Fields grid */
+.bs-fields {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 18px;
+}
+
+.bs-fields td {
+    padding: 5px 0;
+    vertical-align: bottom;
+    font-size: 12.5px;
+}
+
+.bs-field-label {
+    font-weight: 700;
+    color: #1a1a1a;
+    white-space: nowrap;
+    padding-right: 10px;
+    width: 1%;
+}
+
+.bs-field-value {
+    border-bottom: 1px solid #999;
+    padding-left: 6px;
+    padding-right: 24px;
+    min-width: 120px;
+}
+
+/* Particulars table */
+.bs-particulars {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 14px;
+    border: 1px solid #999;
+}
+
+.bs-particulars th {
+    background: #cfe0f5;
+    border: 1px solid #999;
+    padding: 8px 10px;
+    font-size: 11.5px;
+    font-weight: 800;
+    letter-spacing: .04em;
+    text-align: left;
+}
+
+.bs-particulars td {
+    border: 1px solid #ccc;
+    padding: 7px 10px;
+    font-size: 12.5px;
+}
+
+.bs-stage-row {
+    color: #1a1a1a;
+    padding-left: 26px !important;
+}
+
+.bs-less-row {
+    color: #444;
+    padding-left: 26px !important;
+}
+
+.bs-subtotal-row td {
+    font-weight: 800;
+    border-top: 1.5px solid #1a1a1a;
+}
+
+.bs-total-row td {
+    background: #cfe0f5;
+    font-weight: 800;
+    border-top: 2px solid #1a1a1a;
+}
+
+.bs-final-balance {
+    font-size: 13.5px;
+    font-weight: 700;
+    margin: 14px 0 22px;
+}
+
+.bs-deposit {
+    margin-bottom: 22px;
+    font-size: 12.5px;
+}
+
+.bs-deposit-text {
+    margin-top: 8px;
+    min-height: 40px;
+    border-bottom: 1px solid #999;
+    padding-bottom: 6px;
+    white-space: pre-line;
+}
+
+.bs-questions {
+    font-size: 12.5px;
+    color: #1e5fbf;
+    margin-bottom: 40px;
+}
+
+.bs-signatures {
+    display: flex;
+    justify-content: space-between;
+    gap: 40px;
+    margin-top: 30px;
+}
+
+.bs-sig-block {
+    flex: 1;
+}
+
+.bs-sig-label {
+    font-weight: 700;
+    margin-bottom: 30px;
+}
+
+.bs-sig-name {
+    font-weight: 700;
+    border-top: 1px solid #1a1a1a;
+    padding-top: 6px;
+    font-family: 'Brush Script MT', cursive;
+    font-size: 18px;
+}
+
+.bs-sig-role {
+    font-size: 11.5px;
+    color: #444;
+    margin-top: 2px;
+}
+
+@media print {
+    body { background: #fff; }
+    .bs-toolbar { display: none; }
+    .bs-sheet { box-shadow: none; border: none; margin: 0; max-width: 100%; }
+}
