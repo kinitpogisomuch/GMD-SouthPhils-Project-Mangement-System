@@ -270,6 +270,7 @@
     </div>
 </div>
 
+<script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
 <script>
 (function () {
     const RECENT_URL   = '{{ route("client.notifications.recent") }}';
@@ -458,6 +459,7 @@
     loadUnreadMessages();
     setInterval(loadUnreadMessages, 15000);
     window.__setMsgBadgeRefresh = function(fn) { window.__clientLoadUnreadMessages = fn; };
+    window.__refreshUnreadBadge = loadUnreadMessages;
 })();
 
 // ─── Chat Popup ────────────────────────────────────────────────────────────
@@ -743,6 +745,27 @@
             window.openChatWith(savedChat.type, savedChat.id, savedChat.name);
         }
     } catch (e) {}
+
+    // ── Real-time: instant push instead of waiting for the next poll ───────
+    // Silently does nothing until PUSHER_APP_KEY is configured in .env —
+    // the existing polling above keeps working either way.
+    var PUSHER_KEY = @json(config('broadcasting.connections.pusher.key'));
+    if (PUSHER_KEY && typeof Pusher !== 'undefined') {
+        var pusher = new Pusher(PUSHER_KEY, {
+            cluster: @json(config('broadcasting.connections.pusher.options.cluster')),
+            authEndpoint: '{{ url('/broadcasting/auth') }}',
+            auth: { headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' } }
+        });
+        pusher.subscribe('private-inbox.{{ session('role') }}.{{ session('user_id') }}')
+            .bind('message.sent', function (data) {
+                if (window.__refreshUnreadBadge) window.__refreshUnreadBadge();
+                if (chatContact && data.from && chatContact.type === data.from.type && String(chatContact.id) === String(data.from.id)) {
+                    fetch(THREAD_URL + '/' + chatContact.type + '/' + chatContact.id, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                        .then(function (r) { return r.json(); })
+                        .then(function (d) { renderMessages(d.messages || []); });
+                }
+            });
+    }
 })();
 @endif
 </script>

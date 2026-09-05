@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\MessageSent;
 use App\Models\Client;
 use App\Models\Employee;
 use App\Models\Message;
@@ -115,6 +116,26 @@ class MessageController extends Controller
             'body'           => $validated['body'] ?? '',
             'attachments'    => $attachments,
         ]);
+
+        // Push it live to the recipient's own channel — formatted from *their*
+        // perspective (is_mine = false), since $me here is the sender. Guarded:
+        // until real Pusher credentials are configured (or if Pusher hiccups),
+        // this must never break sending — the existing polling still covers it.
+        try {
+            broadcast(new MessageSent(
+                $validated['recipient_type'],
+                $validated['recipient_id'],
+                [
+                    'message' => $this->format($message, [
+                        'type' => $validated['recipient_type'],
+                        'id'   => $validated['recipient_id'],
+                    ]),
+                    'from' => $me,
+                ]
+            ));
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         return response()->json(['message' => $this->format($message, $me)]);
     }

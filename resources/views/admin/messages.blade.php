@@ -388,6 +388,44 @@
             el.parentNode.prepend(el);
         }
 
+        /* ── Real-time: instant push instead of waiting for the next poll ───────
+           Silently does nothing until PUSHER_APP_KEY is configured in .env —
+           the existing polling above keeps working either way. */
+        var PUSHER_KEY = @json(config('broadcasting.connections.pusher.key'));
+        if (PUSHER_KEY && typeof Pusher !== 'undefined') {
+            var pusher = new Pusher(PUSHER_KEY, {
+                cluster: @json(config('broadcasting.connections.pusher.options.cluster')),
+                authEndpoint: '{{ url('/broadcasting/auth') }}',
+                auth: { headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' } }
+            });
+            pusher.subscribe('private-inbox.{{ session('role') }}.{{ session('user_id') }}')
+                .bind('message.sent', function (data) {
+                    if (window.__refreshUnreadBadge) window.__refreshUnreadBadge();
+                    const from = data.from;
+                    if (!from) return;
+
+                    if (activeContact && activeContact.type === from.type && String(activeContact.id) === String(from.id)) {
+                        loadThread(true);
+                    } else {
+                        const el = document.querySelector(`.message-thread[data-type="${from.type}"][data-id="${from.id}"]`);
+                        if (el) {
+                            el.classList.add('unread');
+                            let badge = el.querySelector('.unread-badge');
+                            if (!badge) {
+                                badge = document.createElement('span');
+                                badge.className = 'unread-badge';
+                                badge.textContent = '1';
+                                el.querySelector('.message-thread-body > div:last-child').appendChild(badge);
+                            } else {
+                                badge.textContent = String((parseInt(badge.textContent, 10) || 0) + 1);
+                            }
+                        }
+                    }
+
+                    updateSidebarPreview(from, data.message);
+                });
+        }
+
         document.getElementById('chatSendBtn').addEventListener('click', sendMessage);
         document.getElementById('chatInput').addEventListener('keydown', e => {
             if (e.key === 'Enter') sendMessage();
