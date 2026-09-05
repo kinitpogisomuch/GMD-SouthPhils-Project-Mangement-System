@@ -44,7 +44,7 @@
                 </div>
 
                 {{-- Contact list --}}
-                <div id="chatContactList" style="max-height:320px;overflow-y:auto;">
+                <div id="chatContactList" style="height:320px;overflow-y:auto;scrollbar-gutter:stable;position:relative;">
                     <div style="text-align:center;padding:32px;color:var(--muted);font-size:13px;">Loading...</div>
                 </div>
 
@@ -508,15 +508,22 @@ document.addEventListener('DOMContentLoaded', function () {
                         +   '<div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+preview+'</div>'
                         + '</div>'
                         + '</div>';
-                }).join('');
+                }).join('') + '<div id="chatContactNoMatch" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;text-align:center;padding:32px;color:var(--muted);font-size:13px;background:var(--white);">No contacts match your search.</div>';
             });
     }
 
     window.filterChatContacts = function(q) {
         q = (q || '').toLowerCase();
+        var visible = 0;
+        // Remove non-matches from flow entirely so the matching rows
+        // compress together with no gaps between them.
         document.querySelectorAll('#chatContactList [data-name]').forEach(function(el) {
-            el.style.display = (!q || el.dataset.name.includes(q)) ? '' : 'none';
+            var show = !q || el.dataset.name.includes(q);
+            el.style.display = show ? '' : 'none';
+            if (show) visible++;
         });
+        var noMatch = document.getElementById('chatContactNoMatch');
+        if (noMatch) noMatch.style.display = visible ? 'none' : 'flex';
     };
 
     window.openChatWith = function(type, id, name) {

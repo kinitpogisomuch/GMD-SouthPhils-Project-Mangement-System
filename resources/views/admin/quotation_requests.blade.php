@@ -69,7 +69,9 @@
                             <tr>
                                 <th>Client</th>
                                 <th>Contact</th>
-                                <th>Tank(s)</th>
+                                <th>Tank Type</th>
+                                <th>Capacity</th>
+                                <th>Timeline</th>
                                 <th>Location</th>
                                 <th>Submitted</th>
                                 <th>Status</th>
@@ -108,24 +110,30 @@
                                     <div style="font-size:12px;color:var(--muted);">{{ $qr->client->email ?? '' }}</div>
                                 </td>
                                 <td>
-                                    <div class="qr-tank-row">
-                                        <span class="qr-spec-chip qr-chip-type">
-                                            <i data-lucide="package" style="width:11px;height:11px;"></i>
-                                            {{ $qr->tank_type ?? '—' }}{{ $qr->quantity > 1 ? ' ×' . $qr->quantity : '' }}
-                                        </span>
-                                        @if(!empty($qr->capacity))
-                                        <span class="qr-spec-chip qr-chip-capacity">
-                                            <i data-lucide="droplet" style="width:11px;height:11px;"></i>
-                                            {{ $qr->capacity }}
-                                        </span>
-                                        @endif
-                                        @if(!empty($qr->target_timeline))
-                                        <span class="qr-spec-chip qr-chip-timeline">
-                                            <i data-lucide="clock" style="width:11px;height:11px;"></i>
-                                            {{ $qr->target_timeline }}
-                                        </span>
-                                        @endif
-                                    </div>
+                                    <span class="qr-spec-chip qr-chip-type">
+                                        <i data-lucide="package" style="width:11px;height:11px;"></i>
+                                        {{ $qr->tank_type ?? '—' }}{{ $qr->quantity > 1 ? ' ×' . $qr->quantity : '' }}
+                                    </span>
+                                </td>
+                                <td>
+                                    @if(!empty($qr->capacity))
+                                    <span class="qr-spec-chip qr-chip-capacity">
+                                        <i data-lucide="droplet" style="width:11px;height:11px;"></i>
+                                        {{ $qr->capacity }}
+                                    </span>
+                                    @else
+                                    <span style="color:var(--muted);">—</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    @if(!empty($qr->target_timeline))
+                                    <span class="qr-spec-chip qr-chip-timeline">
+                                        <i data-lucide="clock" style="width:11px;height:11px;"></i>
+                                        {{ $qr->target_timeline }}
+                                    </span>
+                                    @else
+                                    <span style="color:var(--muted);">—</span>
+                                    @endif
                                 </td>
                                 <td style="max-width:220px;white-space:normal;">{{ $qr->location }}</td>
                                 <td>{{ $qr->created_at->format('M d, Y') }}</td>
@@ -164,13 +172,13 @@
                             </tr>
                             @empty
                             <tr id="quotationBladeEmpty">
-                                <td colspan="7" style="text-align:center;padding:40px;color:var(--muted);">
+                                <td colspan="9" style="text-align:center;padding:40px;color:var(--muted);">
                                     No quotation requests yet.
                                 </td>
                             </tr>
                             @endforelse
                             <tr id="quotationEmptyState" style="display:none;">
-                                <td colspan="7" style="text-align:center;padding:48px 20px;">
+                                <td colspan="9" style="text-align:center;padding:48px 20px;">
                                     <div style="display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--muted);">
                                         <i data-lucide="inbox" style="width:36px;height:36px;opacity:0.4;"></i>
                                         <span id="quotationEmptyMsg">No requests match your search.</span>

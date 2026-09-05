@@ -43,7 +43,7 @@
                             </div>
                         </div>
 
-                        <div id="contactList">
+                        <div id="contactList" style="position:relative;flex:1;">
                             @forelse($contacts as $c)
                             <div class="message-thread {{ $c['unread'] > 0 ? 'unread' : '' }}"
                                  data-type="{{ $c['type'] }}"
@@ -71,6 +71,10 @@
                                 <p>No contacts available</p>
                             </div>
                             @endforelse
+                            <div class="message-empty-state" id="contactListNoMatch" style="display:none;position:absolute;inset:0;background:var(--white);">
+                                <i data-lucide="search-x"></i>
+                                <p>No contacts match your search</p>
+                            </div>
                         </div>
                     </div>
 
@@ -415,10 +419,17 @@
 
         document.getElementById('contactSearch').addEventListener('input', e => {
             const term = e.target.value.trim().toLowerCase();
+            let visible = 0;
+            // Remove non-matches from flow entirely so the matching rows
+            // compress together with no gaps between them.
             document.querySelectorAll('#contactList .message-thread').forEach(el => {
                 const name = el.dataset.name.toLowerCase();
-                el.style.display = name.includes(term) ? 'flex' : 'none';
+                const show = name.includes(term);
+                el.style.display = show ? 'flex' : 'none';
+                if (show) visible++;
             });
+            const noMatch = document.getElementById('contactListNoMatch');
+            if (noMatch) noMatch.style.display = visible ? 'none' : 'flex';
         });
 
         /* ── Attachment pickers (UI preview only, not yet sent) ──────────── */

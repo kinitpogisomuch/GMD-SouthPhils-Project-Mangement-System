@@ -2566,6 +2566,7 @@ body {
     width: 320px;
     border-right: 1px solid var(--border);
     overflow-y: auto;
+    scrollbar-gutter: stable;
     flex-shrink: 0;
     display: flex;
     flex-direction: column;

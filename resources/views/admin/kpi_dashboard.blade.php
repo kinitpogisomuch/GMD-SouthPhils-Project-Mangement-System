@@ -12,7 +12,33 @@
            buttons reuse .add-btn/.cancel-btn/.save-btn; modal reuses .modal-overlay/.modal-card/.form-group —
            only the pieces with no existing equivalent (cards, insight box, chips, progress bar) are custom here. */
 
-        .kd-header-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+        .kd-header-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; flex-wrap: wrap; }
+        .kd-header-actions .cancel-btn,
+        .kd-header-actions .add-btn { height: 44px; padding-top: 0; padding-bottom: 0; }
+        .kd-header-actions-divider { width: 1px; height: 24px; background: var(--border); flex-shrink: 0; }
+
+        /* Quarter + year merged into one bordered control */
+        .kd-period-picker {
+            display: flex;
+            align-items: center;
+            height: 44px;
+            border: 1px solid var(--border);
+            background: var(--cream-soft);
+            border-radius: 14px;
+            overflow: hidden;
+        }
+        .kd-period-select {
+            height: 100%;
+            border: none;
+            background: transparent;
+            color: var(--dark);
+            padding: 0 14px;
+            font-size: 13px;
+            font-weight: 700;
+            outline: none;
+            cursor: pointer;
+        }
+        .kd-period-divider { width: 1px; height: 22px; background: var(--border); flex-shrink: 0; }
 
         .kd-panel { display: none; }
         .kd-panel.active { display: block; }
@@ -113,13 +139,17 @@
                     <p class="page-subtitle kd-subtitle">GMD South Phils Metal Fabrication Works</p>
                 </div>
                 <div class="kd-header-actions">
-                    <select class="filter-select" id="kdQuarterSelect" style="min-width:90px;">
-                        <option value="1">Q1</option>
-                        <option value="2">Q2</option>
-                        <option value="3">Q3</option>
-                        <option value="4">Q4</option>
-                    </select>
-                    <select class="filter-select" id="kdYearSelect" style="min-width:100px;"></select>
+                    <div class="kd-period-picker">
+                        <select class="kd-period-select" id="kdQuarterSelect" style="min-width:60px;">
+                            <option value="1">Q1</option>
+                            <option value="2">Q2</option>
+                            <option value="3">Q3</option>
+                            <option value="4">Q4</option>
+                        </select>
+                        <div class="kd-period-divider"></div>
+                        <select class="kd-period-select" id="kdYearSelect" style="min-width:80px;"></select>
+                    </div>
+                    <div class="kd-header-actions-divider"></div>
                     <button type="button" class="cancel-btn" id="kdOpenReportBtn">
                         <i data-lucide="file-text"></i> Generate report
                     </button>
