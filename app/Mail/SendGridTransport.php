@@ -31,11 +31,12 @@ class SendGridTransport extends AbstractTransport
             'content'          => [],
         ];
 
-        if ($html = $email->getHtmlBody()) {
-            $payload['content'][] = ['type' => 'text/html', 'value' => $html];
-        }
+        // SendGrid requires text/plain to precede text/html when both are present.
         if ($text = $email->getTextBody()) {
             $payload['content'][] = ['type' => 'text/plain', 'value' => $text];
+        }
+        if ($html = $email->getHtmlBody()) {
+            $payload['content'][] = ['type' => 'text/html', 'value' => $html];
         }
         if (empty($payload['content'])) {
             $payload['content'][] = ['type' => 'text/plain', 'value' => ' '];

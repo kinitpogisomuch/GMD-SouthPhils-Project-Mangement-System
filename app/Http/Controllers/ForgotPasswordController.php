@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\HtmlString;
 use App\Models\PasswordReset;
 use App\Models\User;
 use App\Models\Employee;
@@ -70,8 +71,9 @@ class ForgotPasswordController extends Controller
         ]);
 
         try {
-            Mail::html(
-                $this->buildCodeEmail($code),
+            Mail::send(
+                ['html' => new HtmlString($this->buildCodeEmail($code)), 'text' => new HtmlString($this->buildCodeEmailText($code))],
+                [],
                 fn ($m) => $m->to($email)
                     ->from(config('mail.from.address'), config('mail.from.name'))
                     ->replyTo(config('mail.from.address'), config('mail.from.name'))
@@ -178,8 +180,9 @@ class ForgotPasswordController extends Controller
         ]);
 
         try {
-            Mail::html(
-                $this->buildCodeEmail($code),
+            Mail::send(
+                ['html' => new HtmlString($this->buildCodeEmail($code)), 'text' => new HtmlString($this->buildCodeEmailText($code))],
+                [],
                 fn ($m) => $m->to($email)
                     ->from(config('mail.from.address'), config('mail.from.name'))
                     ->replyTo(config('mail.from.address'), config('mail.from.name'))
@@ -293,6 +296,21 @@ class ForgotPasswordController extends Controller
         if ($client) return ['client', $client->id];
 
         return [null, null];
+    }
+
+    /**
+     * Plain-text alternative alongside the HTML body — mail without one is a
+     * real (if minor) spam-filter signal, since legitimate senders virtually
+     * always include both parts.
+     */
+    private function buildCodeEmailText(string $code): string
+    {
+        return "GMD South Phils — Password Reset Verification\n\n"
+            . "We received a request to reset the password for your GMD account.\n\n"
+            . "Your verification code is: {$code}\n\n"
+            . "This code expires in 10 minutes.\n\n"
+            . "If you did not request a password reset, please ignore this email. Your account remains secure.\n\n"
+            . "Thank you,\nGMD Construction Management Team";
     }
 
     private function buildCodeEmail(string $code): string
