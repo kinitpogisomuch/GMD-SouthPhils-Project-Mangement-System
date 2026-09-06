@@ -393,6 +393,9 @@ class AdminController extends Controller
         $projects = Project::with('assignedEmployees', 'tankItems')->orderBy('created_at', 'desc')->get();
         $projectTemplates = \App\Models\ProjectTemplate::orderBy('name')->get();
 
+        // Per-client rollup powering the Projects page's client drill-down list.
+        $clientGroups = $this->buildClientGroups($projects);
+
         // Materials actually recorded on projects' Bill of Materials (Project Quotation module),
         // deduped to the most recently used unit per material name — powers the "Previously Used"
         // suggestions in the Add Project materials picker.
@@ -437,6 +440,7 @@ class AdminController extends Controller
 
         return view('admin.projects', compact(
             'projects',
+            'clientGroups',
             'projectTemplates',
             'usedMaterials',
             'activeProjectsCount',
@@ -446,6 +450,62 @@ class AdminController extends Controller
             'actualOverheadCost',
             'netProfit'
         ));
+    }
+
+    public function projectsClient($client)
+    {
+        $client   = urldecode($client);
+        $projects = Project::with('assignedEmployees', 'tankItems')
+            ->where('client', $client)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        abort_if($projects->isEmpty(), 404);
+
+        return view('admin.projects_client', compact('client', 'projects'));
+    }
+
+    /** GET /admin/projects/client-groups — live re-sort feed for the client list (AJAX/Pusher-driven refresh) */
+    public function projectClientGroups()
+    {
+        $projects = Project::orderBy('created_at', 'desc')->get();
+
+        return response()->json($this->buildClientGroups($projects)->values());
+    }
+
+    /**
+     * Per-client rollup for the Projects page's client list, sorted so that:
+     *   1. Clients with active projects come before clients with none.
+     *   2. Among those, more active projects ranks higher.
+     *   3. Ties (including the "no active projects" group) break by most recent
+     *      project activity (latest updated_at across that client's projects).
+     *   4. Remaining ties break alphabetically — Postgres doesn't guarantee a
+     *      stable row order for equal timestamps, so without this the order
+     *      could flap between two otherwise-identical calls.
+     */
+    private function buildClientGroups($projects)
+    {
+        return $projects->groupBy('client')->map(function ($group, $client) {
+            return [
+                'client'        => $client,
+                'total'         => $group->count(),
+                'active'        => $group->whereNotIn('status', ['completed', 'archived'])->count(),
+                'completed'     => $group->where('status', 'completed')->count(),
+                'archived'      => $group->where('status', 'archived')->count(),
+                'last_activity' => $group->max('updated_at'),
+            ];
+        })
+        ->sort(function ($a, $b) {
+            if ($a['active'] > 0 !== $b['active'] > 0) {
+                return $a['active'] > 0 ? -1 : 1;
+            }
+            if ($a['active'] !== $b['active']) {
+                return $b['active'] <=> $a['active'];
+            }
+            $byActivity = strtotime($b['last_activity']) <=> strtotime($a['last_activity']);
+            return $byActivity !== 0 ? $byActivity : strcasecmp($a['client'], $b['client']);
+        })
+        ->values();
     }
 
     public function employees()

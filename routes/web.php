@@ -122,6 +122,8 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::post('/revolving-fund/release', [FundController::class, 'release'])->name('revolving_fund.release');
     Route::post('/revolving-fund/replenish', [FundController::class, 'replenish'])->name('revolving_fund.replenish');
     Route::get('/projects', [AdminController::class, 'projects'])->name('projects');
+    Route::get('/projects/client/{client}', [AdminController::class, 'projectsClient'])->name('projects.client');
+    Route::get('/projects/client-groups', [AdminController::class, 'projectClientGroups'])->name('projects.client_groups');
     Route::get('/settings', [AdminController::class, 'settings'])->name('settings');
     Route::get('/clients', [AdminController::class, 'clients'])->name('clients');
 
