@@ -134,6 +134,14 @@ class QuotationRequestController extends Controller
         return view('admin.quotation_requests', compact('requests'));
     }
 
+    /** GET /admin/quotation-requests/pending-count — powers the sidebar nav badge */
+    public function pendingCount()
+    {
+        return response()->json([
+            'count' => QuotationRequest::where('status', 'pending')->count(),
+        ]);
+    }
+
     public function decline(Request $request, $id)
     {
         $quotationRequest = QuotationRequest::findOrFail($id);

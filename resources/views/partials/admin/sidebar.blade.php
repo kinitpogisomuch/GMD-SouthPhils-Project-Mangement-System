@@ -34,10 +34,14 @@
             <span>Projects</span>
         </a>
 
+        @php $pendingQuotationCount = \App\Models\QuotationRequest::where('status', 'pending')->count(); @endphp
         <a href="{{ route('admin.quotation_requests') }}"
            class="{{ request()->routeIs('admin.quotation_requests') ? 'active' : '' }}"
            title="Quotation Requests">
-            <div class="sidebar-icon"><i data-lucide="inbox"></i></div>
+            <div class="sidebar-icon">
+                <i data-lucide="inbox"></i>
+                <span class="sidebar-badge" id="quotationRequestsBadge" style="{{ $pendingQuotationCount > 0 ? '' : 'display:none;' }}">{{ $pendingQuotationCount > 99 ? '99+' : $pendingQuotationCount }}</span>
+            </div>
             <span>Quotation Requests</span>
         </a>
 
@@ -95,3 +99,28 @@
     </nav>
 </aside>
 <div class="sidebar-overlay"></div>
+
+<script>
+    (function () {
+        var QUOTATION_PENDING_COUNT_URL = '{{ route('admin.quotation_requests.pending_count') }}';
+
+        function refreshQuotationRequestsBadge() {
+            fetch(QUOTATION_PENDING_COUNT_URL, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    var badge = document.getElementById('quotationRequestsBadge');
+                    if (!badge) return;
+                    var count = data.count || 0;
+                    if (count > 0) {
+                        badge.textContent = count > 99 ? '99+' : count;
+                        badge.style.display = 'flex';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                })
+                .catch(function () {});
+        }
+
+        setInterval(refreshQuotationRequestsBadge, 30000);
+    })();
+</script>

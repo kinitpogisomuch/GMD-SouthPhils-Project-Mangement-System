@@ -129,6 +129,7 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
 
     // Quotation Requests
     Route::get('/quotation-requests', [QuotationRequestController::class, 'adminIndex'])->name('quotation_requests');
+    Route::get('/quotation-requests/pending-count', [QuotationRequestController::class, 'pendingCount'])->name('quotation_requests.pending_count');
     Route::patch('/quotation-requests/{id}/decline', [QuotationRequestController::class, 'decline'])->name('quotation_requests.decline');
     Route::post('/quotation-requests/{id}/send-quotation', [QuotationRequestController::class, 'sendQuotation'])->name('quotation_requests.send_quotation');
     Route::get('/quotation-requests/{id}/convert', [QuotationRequestController::class, 'convert'])->name('quotation_requests.convert');
