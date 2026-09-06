@@ -465,7 +465,7 @@ class AdminController extends Controller
         return view('admin.projects_client', compact('client', 'projects'));
     }
 
-    /** GET /admin/projects/client-groups — live re-sort feed for the client list (AJAX/Pusher-driven refresh) */
+    /** GET /admin/projects/client-groups — polled to keep the client list live-sorted */
     public function projectClientGroups()
     {
         $projects = Project::orderBy('created_at', 'desc')->get();

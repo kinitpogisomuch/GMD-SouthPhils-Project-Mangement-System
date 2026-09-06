@@ -1683,14 +1683,9 @@
         });
 
         // ── Real-time: live-resort the client list when any project's status changes ──
-        // Public channel (no per-user targeting needed) — reuses the Pusher connection
-        // the header partial already opened, if Pusher is configured at all.
-        if (window.__pusherClient) {
-            window.__pusherClient.subscribe('admin-projects-updates')
-                .bind('project.status.changed', function () {
-                    refreshClientList();
-                });
-        }
+        // No push channel — just poll the same endpoint the sort/search UI already
+        // uses, so status changes made elsewhere still surface without a refresh.
+        setInterval(refreshClientList, 15000);
     </script>
 </body>
 </html>

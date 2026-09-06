@@ -108,7 +108,6 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::get('/messages/contacts', [MessageController::class, 'contacts'])->name('messages.contacts');
     Route::get('/messages/thread/{type}/{id}', [MessageController::class, 'thread'])->name('messages.thread');
     Route::post('/messages/send', [MessageController::class, 'send'])->name('messages.send');
-    Route::post('/messages/typing', [MessageController::class, 'typing'])->name('messages.typing');
     Route::get('/messages/unread-count', [MessageController::class, 'unreadCount'])->name('messages.unread_count');
     Route::get('/payments', [PaymentController::class, 'index'])->name('payments');
     Route::post('/payments/setup', [PaymentController::class, 'setup'])->name('payments.setup');
@@ -247,7 +246,6 @@ Route::prefix('client')->name('client.')->middleware(['role:client', 'profile.co
     Route::get('/messages/contacts', [MessageController::class, 'contacts'])->name('messages.contacts');
     Route::get('/messages/thread/{type}/{id}', [MessageController::class, 'thread'])->name('messages.thread');
     Route::post('/messages/send', [MessageController::class, 'send'])->name('messages.send');
-    Route::post('/messages/typing', [MessageController::class, 'typing'])->name('messages.typing');
     Route::get('/messages/unread-count', [MessageController::class, 'unreadCount'])->name('messages.unread_count');
     Route::get('/payments', [ClientController::class, 'payments'])->name('payments');
     Route::get('/payments/{id}', [PaymentController::class, 'clientShow'])->name('payments.show');
@@ -283,7 +281,6 @@ Route::prefix('employee')->name('employee.')->middleware(['role:employee', 'prof
     Route::get('/messages/contacts', [MessageController::class, 'contacts'])->name('messages.contacts');
     Route::get('/messages/thread/{type}/{id}', [MessageController::class, 'thread'])->name('messages.thread');
     Route::post('/messages/send', [MessageController::class, 'send'])->name('messages.send');
-    Route::post('/messages/typing', [MessageController::class, 'typing'])->name('messages.typing');
     Route::get('/messages/unread-count', [MessageController::class, 'unreadCount'])->name('messages.unread_count');
     Route::get('/projects', [EmployeeController::class, 'projects'])->name('projects');
     Route::get('/project-view/{id}', [ProjectController::class, 'employeeView'])->name('project_view');

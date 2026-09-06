@@ -10,9 +10,6 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
-    ->withBroadcasting(
-        __DIR__.'/../routes/channels.php',
-    )
     ->withMiddleware(function (Middleware $middleware) {
     $middleware->trustProxies(at: '*');
     $middleware->alias([

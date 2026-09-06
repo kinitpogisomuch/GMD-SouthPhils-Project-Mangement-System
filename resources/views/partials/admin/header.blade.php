@@ -154,7 +154,6 @@
             <i data-lucide="arrow-down" style="width:12px;height:12px;"></i> New message
         </button>
     </div>
-    <div id="chatWinTyping" style="display:none;padding:2px 14px 6px;font-size:11.5px;color:#888;font-style:italic;background:#f7f8fa;"></div>
 
     {{-- Hidden file inputs --}}
     <input type="file" id="chatCameraInput"     accept="image/*" capture="environment" style="display:none;" onchange="sendChatFile(this)">
@@ -194,7 +193,6 @@
     </div>
 </div>
 
-<script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     var toggleBtn = document.getElementById('sidebarToggleBtn');
@@ -432,7 +430,6 @@ document.addEventListener('DOMContentLoaded', function () {
     var CONTACTS_URL = '{{ route("admin.messages.contacts") }}';
     var THREAD_URL   = '{{ url("admin/messages/thread") }}';
     var SEND_URL     = '{{ route("admin.messages.send") }}';
-    var TYPING_URL   = '{{ route("admin.messages.typing") }}';
     var CSRF         = '{{ csrf_token() }}';
 
     var chatContact = null; // { type, id, name }
@@ -443,10 +440,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var window_  = document.getElementById('chatWindow');
     var msgList  = document.getElementById('chatWinMessages');
     var newMsgPill   = document.getElementById('chatWinNewMsgPill');
-    var typingEl     = document.getElementById('chatWinTyping');
-    var isTypingSent = false;
-    var typingSendTimer = null;
-    var typingHideTimer = null;
+    var openThreadPollTimer = null;
 
     msgList.addEventListener('scroll', function () {
         if (isNearBottom()) newMsgPill.style.display = 'none';
@@ -461,26 +455,22 @@ document.addEventListener('DOMContentLoaded', function () {
         newMsgPill.style.display = 'none';
     };
 
-    function notifyTyping(isTyping) {
-        if (!chatContact || isTyping === isTypingSent) return;
-        isTypingSent = isTyping;
-        fetch(TYPING_URL, {
-            method: 'POST',
-            headers: { 'X-CSRF-TOKEN': CSRF, 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-            body: JSON.stringify({ recipient_type: chatContact.type, recipient_id: chatContact.id, typing: isTyping })
-        }).catch(function () {});
-    }
-
-    function showTypingIndicator(name) {
-        typingEl.textContent = (name || 'Someone') + ' is typing…';
-        typingEl.style.display = 'block';
-        clearTimeout(typingHideTimer);
-        typingHideTimer = setTimeout(hideTypingIndicator, 4000);
-    }
-
-    function hideTypingIndicator() {
-        typingEl.style.display = 'none';
-        typingEl.textContent = '';
+    // Poll the open thread for anything new — messages the OTHER person sent
+    // arrive this way; our own sends are already shown optimistically by
+    // sendChatMsg(), so those are skipped here to avoid a duplicate bubble.
+    function pollOpenThread() {
+        if (!chatContact) return;
+        fetch(THREAD_URL + '/' + chatContact.type + '/' + chatContact.id, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                (data.messages || []).forEach(function (m) {
+                    if (m.is_mine) return;
+                    if (m.id && msgList.querySelector('[data-msg-id="' + m.id + '"]')) return;
+                    appendIncomingMessage(m);
+                });
+                if (window.__refreshUnreadBadge) window.__refreshUnreadBadge();
+            })
+            .catch(function () {});
     }
 
     window.closeChatPopup = function () {
@@ -576,9 +566,6 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     window.openChatWith = function(type, id, name) {
-        notifyTyping(false);
-        isTypingSent = false;
-        hideTypingIndicator();
         newMsgPill.style.display = 'none';
 
         chatContact = { type: type, id: id, name: name };
@@ -601,6 +588,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 // update header badge
                 loadUnreadMessages && loadUnreadMessages();
             });
+
+        if (openThreadPollTimer) clearInterval(openThreadPollTimer);
+        openThreadPollTimer = setInterval(pollOpenThread, 3000);
     };
 
     function renderMessages(messages) {
@@ -678,7 +668,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         var cInit = (chatContact && chatContact.name || '?').charAt(0).toUpperCase();
-        var html = '<div style="display:flex;justify-content:flex-start;align-items:flex-end;gap:5px;margin-bottom:' + mb + ';">';
+        var html = '<div' + (m.id ? ' data-msg-id="' + m.id + '"' : '') + ' style="display:flex;justify-content:flex-start;align-items:flex-end;gap:5px;margin-bottom:' + mb + ';">';
         html += '<div style="' + avatarStyle + 'background:var(--dark);">' + cInit + '</div>';
         html += '<div style="display:flex;flex-direction:column;align-items:flex-start;max-width:75%;">';
         if (m.body) {
@@ -718,8 +708,6 @@ document.addEventListener('DOMContentLoaded', function () {
         var body  = input.value.trim();
         if (!body || !chatContact) return;
         input.value = '';
-        clearTimeout(typingSendTimer);
-        notifyTyping(false);
 
         var fd = new FormData();
         fd.append('recipient_type', chatContact.type);
@@ -786,20 +774,12 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     window.closeChatWindow = function() {
-        notifyTyping(false);
-        isTypingSent = false;
-        hideTypingIndicator();
+        if (openThreadPollTimer) { clearInterval(openThreadPollTimer); openThreadPollTimer = null; }
         window_.style.display = 'none';
         chatContact = null;
         try { localStorage.removeItem('gmd_open_chat'); } catch (e) {}
         if (window.lucide) lucide.createIcons();
     };
-
-    document.getElementById('chatWinInput').addEventListener('input', function () {
-        notifyTyping(true);
-        clearTimeout(typingSendTimer);
-        typingSendTimer = setTimeout(function () { notifyTyping(false); }, 2500);
-    });
 
     function escHtml(s) {
         return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -823,44 +803,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     } catch (e) {}
 
-    // ── Real-time: instant push instead of waiting for the next poll ───────
-    // Silently does nothing until PUSHER_APP_KEY is configured in .env —
-    // the existing polling above keeps working either way.
-    var PUSHER_KEY = @json(config('broadcasting.connections.pusher.key'));
-    if (PUSHER_KEY && typeof Pusher !== 'undefined') {
-        // One shared client + channel per page — the full Messages page (if present
-        // on this page) reuses window.__pusherChannel instead of opening a second
-        // connection of its own.
-        var pusher = window.__pusherClient || new Pusher(PUSHER_KEY, {
-            cluster: @json(config('broadcasting.connections.pusher.options.cluster')),
-            authEndpoint: '{{ url('/broadcasting/auth') }}',
-            auth: { headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' } }
-        });
-        window.__pusherClient = pusher;
-        var pusherChannel = window.__pusherChannel || pusher.subscribe('private-inbox.{{ session('role') }}.{{ session('user_id') }}');
-        window.__pusherChannel = pusherChannel;
-
-        pusherChannel.bind('message.sent', function (data) {
-            if (window.__refreshUnreadBadge) window.__refreshUnreadBadge();
-            if (chatContact && data.from && chatContact.type === data.from.type && String(chatContact.id) === String(data.from.id)) {
-                hideTypingIndicator();
-                appendIncomingMessage(data.message);
-                // Fire-and-forget: marks it read server-side; response is ignored so it
-                // can't clobber a bubble the user is mid-sending in this same panel.
-                fetch(THREAD_URL + '/' + chatContact.type + '/' + chatContact.id, { headers: { 'X-Requested-With': 'XMLHttpRequest' } }).catch(function () {});
-            }
-        });
-
-        pusherChannel.bind('user.typing', function (data) {
-            if (!chatContact || !data.from) return;
-            if (chatContact.type !== data.from.type || String(chatContact.id) !== String(data.from.id)) return;
-            if (data.typing) {
-                showTypingIndicator(data.from.name);
-            } else {
-                hideTypingIndicator();
-            }
-        });
-    }
 })();
 
 (function () {

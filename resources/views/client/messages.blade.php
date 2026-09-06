@@ -98,8 +98,6 @@
                                     <i data-lucide="arrow-down"></i> New message
                                 </button>
                             </div>
-                            <div class="message-typing-indicator" id="chatTypingIndicator"></div>
-
                             <div class="message-attachment-preview" id="attachmentPreview"></div>
 
                             <div class="message-input-area">
@@ -205,14 +203,10 @@
         const MY_PHOTO = @json($myPhoto);
         const THREAD_URL_TEMPLATE = "{{ route('client.messages.thread', ['type' => '__TYPE__', 'id' => '__ID__']) }}";
         const SEND_URL = "{{ route('client.messages.send') }}";
-        const TYPING_URL = "{{ route('client.messages.typing') }}";
 
         let activeContact = null;
         let activeContactInfo = null;
         let pollTimer = null;
-        let isTypingSent = false;
-        let typingSendTimer = null;
-        let typingHideTimer = null;
 
         function isChatNearBottom() {
             const c = document.getElementById('chatMessages');
@@ -228,30 +222,6 @@
         document.getElementById('chatMessages').addEventListener('scroll', () => {
             if (isChatNearBottom()) document.getElementById('chatNewMsgPill').style.display = 'none';
         });
-
-        function notifyTyping(isTyping) {
-            if (!activeContact || isTyping === isTypingSent) return;
-            isTypingSent = isTyping;
-            fetch(TYPING_URL, {
-                method: 'POST',
-                headers: { 'X-CSRF-TOKEN': CSRF, 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                body: JSON.stringify({ recipient_type: activeContact.type, recipient_id: activeContact.id, typing: isTyping })
-            }).catch(() => {});
-        }
-
-        function showTypingIndicator(name) {
-            const el = document.getElementById('chatTypingIndicator');
-            el.textContent = (name || 'Someone') + ' is typing…';
-            el.style.display = 'block';
-            clearTimeout(typingHideTimer);
-            typingHideTimer = setTimeout(hideTypingIndicator, 4000);
-        }
-
-        function hideTypingIndicator() {
-            const el = document.getElementById('chatTypingIndicator');
-            el.style.display = 'none';
-            el.textContent = '';
-        }
 
         function threadUrl(type, id) {
             return THREAD_URL_TEMPLATE.replace('__TYPE__', type).replace('__ID__', id);
@@ -287,9 +257,6 @@
         });
 
         function openThread(el) {
-            notifyTyping(false);
-            isTypingSent = false;
-            hideTypingIndicator();
             document.getElementById('chatNewMsgPill').style.display = 'none';
 
             document.querySelectorAll('.message-thread').forEach(t => t.classList.remove('active'));
@@ -317,12 +284,8 @@
 
             loadThread(true);
 
-            // Pusher covers live updates when configured; polling is only a fallback
-            // for when real-time credentials aren't set up yet.
             if (pollTimer) clearInterval(pollTimer);
-            if (!window.__pusherChannel) {
-                pollTimer = setInterval(loadThread, 4000);
-            }
+            pollTimer = setInterval(loadThread, 4000);
         }
 
         document.getElementById('chatBackBtn').addEventListener('click', () => {
@@ -406,9 +369,6 @@
             const body = input.value.trim();
             if (!body && !pendingAttachments.length) return;
 
-            clearTimeout(typingSendTimer);
-            notifyTyping(false);
-
             const formData = new FormData();
             formData.append('recipient_type', activeContact.type);
             formData.append('recipient_id', activeContact.id);
@@ -451,6 +411,48 @@
             el.parentNode.prepend(el);
         }
 
+        // Polls the contact list for messages received from a thread that isn't
+        // currently open — those never pass through appendIncomingMessage/loadThread,
+        // so this is what surfaces their unread badge/preview without Pusher.
+        const CONTACTS_URL = "{{ route('client.messages.contacts') }}";
+
+        function refreshContactSidebar() {
+            fetch(CONTACTS_URL, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(r => r.json())
+                .then(contacts => {
+                    contacts.forEach(c => {
+                        const el = document.querySelector(`.message-thread[data-type="${c.type}"][data-id="${c.id}"]`);
+                        if (!el) return;
+
+                        const preview = el.querySelector('.message-thread-preview');
+                        if (preview) preview.textContent = c.last_message || 'No messages yet';
+                        const time = el.querySelector('.message-thread-time');
+                        if (time) time.textContent = c.last_time || '';
+
+                        const isActive = activeContact && activeContact.type === c.type && String(activeContact.id) === String(c.id);
+                        if (isActive) return;
+
+                        if (c.unread > 0) {
+                            el.classList.add('unread');
+                            let badge = el.querySelector('.unread-badge');
+                            if (!badge) {
+                                badge = document.createElement('span');
+                                badge.className = 'unread-badge';
+                                el.querySelector('.message-thread-body > div:last-child').appendChild(badge);
+                            }
+                            badge.textContent = c.unread;
+                        } else {
+                            el.classList.remove('unread');
+                            const badge = el.querySelector('.unread-badge');
+                            if (badge) badge.remove();
+                        }
+                    });
+                })
+                .catch(() => {});
+        }
+
+        setInterval(refreshContactSidebar, 10000);
+
         // Append a single pushed message instead of re-fetching + re-rendering the
         // whole thread — avoids wiping out an outgoing message still mid-send, and
         // keeps scroll position/read state intact for someone reading older messages.
@@ -472,56 +474,6 @@
                 document.getElementById('chatNewMsgPill').style.display = 'flex';
             }
         }
-
-        /* ── Real-time: instant push instead of waiting for the next poll ───────
-           Reuses the Pusher connection already opened by the header partial
-           (included above) instead of opening a second one. Silently does
-           nothing until PUSHER_APP_KEY is configured in .env — the poll
-           started in openThread() covers that case instead. */
-        if (window.__pusherChannel) {
-            window.__pusherChannel.bind('message.sent', function (data) {
-                if (window.__refreshUnreadBadge) window.__refreshUnreadBadge();
-                const from = data.from;
-                if (!from) return;
-
-                if (activeContact && activeContact.type === from.type && String(activeContact.id) === String(from.id)) {
-                    hideTypingIndicator();
-                    appendIncomingMessage(data.message);
-                } else {
-                    const el = document.querySelector(`.message-thread[data-type="${from.type}"][data-id="${from.id}"]`);
-                    if (el) {
-                        el.classList.add('unread');
-                        let badge = el.querySelector('.unread-badge');
-                        if (!badge) {
-                            badge = document.createElement('span');
-                            badge.className = 'unread-badge';
-                            badge.textContent = '1';
-                            el.querySelector('.message-thread-body > div:last-child').appendChild(badge);
-                        } else {
-                            badge.textContent = String((parseInt(badge.textContent, 10) || 0) + 1);
-                        }
-                    }
-                }
-
-                updateSidebarPreview(from, data.message);
-            });
-
-            window.__pusherChannel.bind('user.typing', function (data) {
-                if (!activeContact || !data.from) return;
-                if (activeContact.type !== data.from.type || String(activeContact.id) !== String(data.from.id)) return;
-                if (data.typing) {
-                    showTypingIndicator(data.from.name);
-                } else {
-                    hideTypingIndicator();
-                }
-            });
-        }
-
-        document.getElementById('chatInput').addEventListener('input', () => {
-            notifyTyping(true);
-            clearTimeout(typingSendTimer);
-            typingSendTimer = setTimeout(() => notifyTyping(false), 2500);
-        });
 
         document.getElementById('chatSendBtn').addEventListener('click', sendMessage);
         document.getElementById('chatInput').addEventListener('keydown', e => {

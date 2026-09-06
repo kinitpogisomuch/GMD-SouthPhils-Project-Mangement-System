@@ -17,7 +17,6 @@ use App\Models\FundTransaction;
 use App\Models\PaymentTransaction;
 use App\Services\SupabaseStorageService;
 use App\Services\NotificationService;
-use App\Events\ProjectStatusChanged;
 
 class ProjectController extends Controller
 {
@@ -459,7 +458,6 @@ class ProjectController extends Controller
         }
 
         NotificationService::projectCreated($project);
-        $this->broadcastProjectStatusChanged($project->client);
 
         return redirect()->route('admin.projects.client', $project->client)->with('success', 'Project created successfully!');
     }
@@ -474,20 +472,6 @@ class ProjectController extends Controller
         ProjectTemplate::findOrFail($id)->delete();
 
         return response()->json(['success' => true]);
-    }
-
-    /**
-     * Notify the Projects client list to live-resort itself. Never breaks the
-     * status change it's reporting on — mirrors the guarded pattern already
-     * used for chat's MessageSent/UserTyping broadcasts.
-     */
-    private function broadcastProjectStatusChanged(string $client): void
-    {
-        try {
-            broadcast(new ProjectStatusChanged($client));
-        } catch (\Throwable $e) {
-            report($e);
-        }
     }
 
     /**
@@ -568,12 +552,10 @@ class ProjectController extends Controller
 
         if ($project->status === 'archived') {
             $project->update(['status' => 'planning']);
-            $this->broadcastProjectStatusChanged($project->client);
             return redirect()->route('admin.projects.client', $project->client)->with('success', 'Project restored successfully.');
         }
 
         $project->update(['status' => 'archived']);
-        $this->broadcastProjectStatusChanged($project->client);
         return redirect()->route('admin.projects.client', $project->client)->with('success', 'Project archived.');
     }
 
@@ -873,7 +855,6 @@ class ProjectController extends Controller
             'procurement',
             "Your project \"{$project->name}\" has advanced to the Procurement phase."
         );
-        $this->broadcastProjectStatusChanged($project->client);
 
         return redirect()->route('admin.project_view', $project->id)
             ->with('success', "Payment confirmed! Project advanced to the Procurement phase ({$newProgress}% complete).");
@@ -1202,7 +1183,6 @@ class ProjectController extends Controller
         ]);
 
         NotificationService::projectCompleted($project);
-        $this->broadcastProjectStatusChanged($project->client);
 
         return redirect()->route('admin.project_view', $project->id)
             ->with('success', 'Project delivered! Marked as completed (100%).');
@@ -1515,7 +1495,6 @@ class ProjectController extends Controller
 
             $project->refresh();
             NotificationService::progressApproved($project, $nextPhase, $update->submitted_by, $update->id);
-            $this->broadcastProjectStatusChanged($project->client);
 
             return redirect()->route('admin.project_view', $project->id)
                 ->with('success', 'Update approved! Project advanced to ' . ucfirst(str_replace('_', ' ', $nextPhase)) . ' phase (' . $newProgress . '% complete).');
@@ -1526,7 +1505,6 @@ class ProjectController extends Controller
 
         $project->refresh();
         NotificationService::progressApproved($project, 'delivery', $update->submitted_by, $update->id);
-        $this->broadcastProjectStatusChanged($project->client);
 
         return redirect()->route('admin.project_view', $project->id)
             ->with('success', 'Update approved! Project is now complete.');
@@ -1551,7 +1529,6 @@ class ProjectController extends Controller
                 'progress'      => $newProgress,
                 'status'        => $nextPhase === 'delivery' ? 'completed' : 'ongoing',
             ]);
-            $this->broadcastProjectStatusChanged($project->client);
 
             return redirect()->route('admin.project_view', $id)
                 ->with('success', 'Project advanced to ' . ucfirst(str_replace('_', ' ', $nextPhase)) . ' phase!');
