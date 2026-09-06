@@ -733,6 +733,16 @@ body {
     transform: translateX(0);
 }
 
+/* The count badge is also a <span>, but it must stay visible whether the
+   sidebar is collapsed or open — override the label-hiding rules above. */
+.admin-sidebar-nav a .sidebar-badge {
+    opacity: 1;
+    visibility: visible;
+    max-width: none;
+    margin-left: 0;
+    transform: none;
+}
+
 .admin-sidebar-nav a:hover {
     background-color: var(--cream-deep);
     color: var(--dark);
@@ -1580,6 +1590,16 @@ body {
 
 .data-table tbody tr:hover {
     background-color: rgba(0, 0, 0, 0.03);
+}
+
+/* Rows still awaiting admin action (e.g. a pending quotation request) */
+.data-table tbody tr.row-needs-action {
+    background-color: #fffbeb;
+    box-shadow: inset 3px 0 0 #f59e0b;
+}
+
+.data-table tbody tr.row-needs-action:hover {
+    background-color: #fef3c7;
 }
 
 .data-table tbody tr:last-child td {

@@ -81,6 +81,7 @@
                         <tbody>
                             @forelse($requests as $qr)
                             <tr
+                                class="{{ $qr->status === 'pending' ? 'row-needs-action' : '' }}"
                                 data-status="{{ $qr->status }}"
                                 data-name="{{ strtolower($qr->client->name ?? '') }}"
                                 data-request="{{ json_encode([
