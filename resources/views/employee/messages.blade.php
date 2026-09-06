@@ -92,7 +92,13 @@
                                 </button>
                             </div>
 
-                            <div class="message-thread-content" id="chatMessages"></div>
+                            <div style="position:relative;flex:1;min-height:0;display:flex;flex-direction:column;">
+                                <div class="message-thread-content" id="chatMessages"></div>
+                                <button type="button" class="message-new-indicator" id="chatNewMsgPill" onclick="scrollChatToBottom()">
+                                    <i data-lucide="arrow-down"></i> New message
+                                </button>
+                            </div>
+                            <div class="message-typing-indicator" id="chatTypingIndicator"></div>
 
                             <div class="message-attachment-preview" id="attachmentPreview"></div>
 
@@ -199,10 +205,53 @@
         const MY_PHOTO = @json($myPhoto);
         const THREAD_URL_TEMPLATE = "{{ route('employee.messages.thread', ['type' => '__TYPE__', 'id' => '__ID__']) }}";
         const SEND_URL = "{{ route('employee.messages.send') }}";
+        const TYPING_URL = "{{ route('employee.messages.typing') }}";
 
         let activeContact = null;
         let activeContactInfo = null;
         let pollTimer = null;
+        let isTypingSent = false;
+        let typingSendTimer = null;
+        let typingHideTimer = null;
+
+        function isChatNearBottom() {
+            const c = document.getElementById('chatMessages');
+            return c.scrollHeight - c.scrollTop - c.clientHeight < 80;
+        }
+
+        window.scrollChatToBottom = function () {
+            const c = document.getElementById('chatMessages');
+            c.scrollTop = c.scrollHeight;
+            document.getElementById('chatNewMsgPill').style.display = 'none';
+        };
+
+        document.getElementById('chatMessages').addEventListener('scroll', () => {
+            if (isChatNearBottom()) document.getElementById('chatNewMsgPill').style.display = 'none';
+        });
+
+        function notifyTyping(isTyping) {
+            if (!activeContact || isTyping === isTypingSent) return;
+            isTypingSent = isTyping;
+            fetch(TYPING_URL, {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': CSRF, 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                body: JSON.stringify({ recipient_type: activeContact.type, recipient_id: activeContact.id, typing: isTyping })
+            }).catch(() => {});
+        }
+
+        function showTypingIndicator(name) {
+            const el = document.getElementById('chatTypingIndicator');
+            el.textContent = (name || 'Someone') + ' is typing…';
+            el.style.display = 'block';
+            clearTimeout(typingHideTimer);
+            typingHideTimer = setTimeout(hideTypingIndicator, 4000);
+        }
+
+        function hideTypingIndicator() {
+            const el = document.getElementById('chatTypingIndicator');
+            el.style.display = 'none';
+            el.textContent = '';
+        }
 
         function threadUrl(type, id) {
             return THREAD_URL_TEMPLATE.replace('__TYPE__', type).replace('__ID__', id);
@@ -238,6 +287,11 @@
         });
 
         function openThread(el) {
+            notifyTyping(false);
+            isTypingSent = false;
+            hideTypingIndicator();
+            document.getElementById('chatNewMsgPill').style.display = 'none';
+
             document.querySelectorAll('.message-thread').forEach(t => t.classList.remove('active'));
             el.classList.add('active');
             el.classList.remove('unread');
@@ -263,8 +317,12 @@
 
             loadThread(true);
 
+            // Pusher covers live updates when configured; polling is only a fallback
+            // for when real-time credentials aren't set up yet.
             if (pollTimer) clearInterval(pollTimer);
-            pollTimer = setInterval(loadThread, 4000);
+            if (!window.__pusherChannel) {
+                pollTimer = setInterval(loadThread, 4000);
+            }
         }
 
         document.getElementById('chatBackBtn').addEventListener('click', () => {
@@ -283,51 +341,57 @@
             });
         }
 
+        function buildMessageBubble(m) {
+            const bubble = document.createElement('div');
+            bubble.className = 'message-bubble ' + (m.is_mine ? 'sent' : 'received');
+            if (m.id) bubble.dataset.msgId = m.id;
+
+            const avatar = document.createElement('div');
+            avatar.className = 'message-bubble-avatar';
+            setAvatar(avatar, m.is_mine ? MY_NAME : activeContact.name, m.is_mine ? MY_PHOTO : activeContact.photo);
+            bubble.appendChild(avatar);
+
+            const content = document.createElement('div');
+            content.className = 'message-bubble-content';
+
+            let html = '';
+            if (m.body) {
+                html += `<div class="message-text">${escapeHtml(m.body)}</div>`;
+            }
+            if (m.attachments && m.attachments.length) {
+                html += '<div class="message-attachments">';
+                m.attachments.forEach(att => {
+                    if (att.mime && att.mime.startsWith('image/')) {
+                        html += `<a href="${att.url}" target="_blank" rel="noopener"><img src="${att.url}" class="message-attachment-img" alt="${escapeHtml(att.name)}"></a>`;
+                    } else {
+                        html += `<a href="${att.url}" target="_blank" rel="noopener" class="message-attachment-file"><i data-lucide="file-text"></i><span>${escapeHtml(att.name)}</span></a>`;
+                    }
+                });
+                html += '</div>';
+            }
+            html += `<div class="message-time">${m.time}</div>`;
+            content.innerHTML = html;
+            bubble.appendChild(content);
+            return bubble;
+        }
+
         function renderMessages(messages, forceScroll = false) {
             const container = document.getElementById('chatMessages');
             const wasNearBottom = forceScroll
                 || (container.scrollHeight - container.scrollTop - container.clientHeight < 80);
 
             if (!messages.length) {
+                // This fetch may have been in flight when a message was sent/received
+                // in the meantime (already appended directly) — don't clobber it with
+                // a stale "no messages" result.
+                if (container.querySelector('.message-bubble')) return;
                 container.innerHTML = '<div class="message-empty-state"><i data-lucide="message-circle"></i><p>No messages yet. Say hello!</p></div>';
                 lucide.createIcons();
                 return;
             }
 
             container.innerHTML = '';
-            messages.forEach(m => {
-                const bubble = document.createElement('div');
-                bubble.className = 'message-bubble ' + (m.is_mine ? 'sent' : 'received');
-
-                const avatar = document.createElement('div');
-                avatar.className = 'message-bubble-avatar';
-                setAvatar(avatar, m.is_mine ? MY_NAME : activeContact.name, m.is_mine ? MY_PHOTO : activeContact.photo);
-                bubble.appendChild(avatar);
-
-                const content = document.createElement('div');
-                content.className = 'message-bubble-content';
-
-                let html = '';
-                if (m.body) {
-                    html += `<div class="message-text">${escapeHtml(m.body)}</div>`;
-                }
-                if (m.attachments && m.attachments.length) {
-                    html += '<div class="message-attachments">';
-                    m.attachments.forEach(att => {
-                        if (att.mime && att.mime.startsWith('image/')) {
-                            html += `<a href="${att.url}" target="_blank" rel="noopener"><img src="${att.url}" class="message-attachment-img" alt="${escapeHtml(att.name)}"></a>`;
-                        } else {
-                            html += `<a href="${att.url}" target="_blank" rel="noopener" class="message-attachment-file"><i data-lucide="file-text"></i><span>${escapeHtml(att.name)}</span></a>`;
-                        }
-                    });
-                    html += '</div>';
-                }
-                html += `<div class="message-time">${m.time}</div>`;
-                content.innerHTML = html;
-                bubble.appendChild(content);
-
-                container.appendChild(bubble);
-            });
+            messages.forEach(m => container.appendChild(buildMessageBubble(m)));
 
             lucide.createIcons();
 
@@ -341,6 +405,9 @@
             const input = document.getElementById('chatInput');
             const body = input.value.trim();
             if (!body && !pendingAttachments.length) return;
+
+            clearTimeout(typingSendTimer);
+            notifyTyping(false);
 
             const formData = new FormData();
             formData.append('recipient_type', activeContact.type);
@@ -365,7 +432,11 @@
                     alert(data.message || 'Failed to send message.');
                     return;
                 }
-                loadThread(true);
+                const container = document.getElementById('chatMessages');
+                if (container.querySelector('.message-empty-state')) container.innerHTML = '';
+                container.appendChild(buildMessageBubble(data.message));
+                lucide.createIcons();
+                window.scrollChatToBottom();
                 updateSidebarPreview(activeContact, data.message);
             });
         }
@@ -380,43 +451,77 @@
             el.parentNode.prepend(el);
         }
 
-        /* ── Real-time: instant push instead of waiting for the next poll ───────
-           Silently does nothing until PUSHER_APP_KEY is configured in .env —
-           the existing polling above keeps working either way. */
-        var PUSHER_KEY = @json(config('broadcasting.connections.pusher.key'));
-        if (PUSHER_KEY && typeof Pusher !== 'undefined') {
-            var pusher = new Pusher(PUSHER_KEY, {
-                cluster: @json(config('broadcasting.connections.pusher.options.cluster')),
-                authEndpoint: '{{ url('/broadcasting/auth') }}',
-                auth: { headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' } }
-            });
-            pusher.subscribe('private-inbox.{{ session('role') }}.{{ session('user_id') }}')
-                .bind('message.sent', function (data) {
-                    if (window.__refreshUnreadBadge) window.__refreshUnreadBadge();
-                    const from = data.from;
-                    if (!from) return;
+        // Append a single pushed message instead of re-fetching + re-rendering the
+        // whole thread — avoids wiping out an outgoing message still mid-send, and
+        // keeps scroll position/read state intact for someone reading older messages.
+        function appendIncomingMessage(m) {
+            const container = document.getElementById('chatMessages');
+            if (m.id && container.querySelector(`[data-msg-id="${m.id}"]`)) return; // already rendered
 
-                    if (activeContact && activeContact.type === from.type && String(activeContact.id) === String(from.id)) {
-                        loadThread(true);
-                    } else {
-                        const el = document.querySelector(`.message-thread[data-type="${from.type}"][data-id="${from.id}"]`);
-                        if (el) {
-                            el.classList.add('unread');
-                            let badge = el.querySelector('.unread-badge');
-                            if (!badge) {
-                                badge = document.createElement('span');
-                                badge.className = 'unread-badge';
-                                badge.textContent = '1';
-                                el.querySelector('.message-thread-body > div:last-child').appendChild(badge);
-                            } else {
-                                badge.textContent = String((parseInt(badge.textContent, 10) || 0) + 1);
-                            }
+            const wasEmpty      = !!container.querySelector('.message-empty-state') || !container.children.length;
+            const wasNearBottom = isChatNearBottom();
+
+            if (wasEmpty) container.innerHTML = '';
+            container.appendChild(buildMessageBubble(m));
+            lucide.createIcons();
+
+            if (wasEmpty || wasNearBottom) {
+                container.scrollTop = container.scrollHeight;
+                document.getElementById('chatNewMsgPill').style.display = 'none';
+            } else {
+                document.getElementById('chatNewMsgPill').style.display = 'flex';
+            }
+        }
+
+        /* ── Real-time: instant push instead of waiting for the next poll ───────
+           Reuses the Pusher connection already opened by the header partial
+           (included above) instead of opening a second one. Silently does
+           nothing until PUSHER_APP_KEY is configured in .env — the poll
+           started in openThread() covers that case instead. */
+        if (window.__pusherChannel) {
+            window.__pusherChannel.bind('message.sent', function (data) {
+                if (window.__refreshUnreadBadge) window.__refreshUnreadBadge();
+                const from = data.from;
+                if (!from) return;
+
+                if (activeContact && activeContact.type === from.type && String(activeContact.id) === String(from.id)) {
+                    hideTypingIndicator();
+                    appendIncomingMessage(data.message);
+                } else {
+                    const el = document.querySelector(`.message-thread[data-type="${from.type}"][data-id="${from.id}"]`);
+                    if (el) {
+                        el.classList.add('unread');
+                        let badge = el.querySelector('.unread-badge');
+                        if (!badge) {
+                            badge = document.createElement('span');
+                            badge.className = 'unread-badge';
+                            badge.textContent = '1';
+                            el.querySelector('.message-thread-body > div:last-child').appendChild(badge);
+                        } else {
+                            badge.textContent = String((parseInt(badge.textContent, 10) || 0) + 1);
                         }
                     }
+                }
 
-                    updateSidebarPreview(from, data.message);
-                });
+                updateSidebarPreview(from, data.message);
+            });
+
+            window.__pusherChannel.bind('user.typing', function (data) {
+                if (!activeContact || !data.from) return;
+                if (activeContact.type !== data.from.type || String(activeContact.id) !== String(data.from.id)) return;
+                if (data.typing) {
+                    showTypingIndicator(data.from.name);
+                } else {
+                    hideTypingIndicator();
+                }
+            });
         }
+
+        document.getElementById('chatInput').addEventListener('input', () => {
+            notifyTyping(true);
+            clearTimeout(typingSendTimer);
+            typingSendTimer = setTimeout(() => notifyTyping(false), 2500);
+        });
 
         document.getElementById('chatSendBtn').addEventListener('click', sendMessage);
         document.getElementById('chatInput').addEventListener('keydown', e => {

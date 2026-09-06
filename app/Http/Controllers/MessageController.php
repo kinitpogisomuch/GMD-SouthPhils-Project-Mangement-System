@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Events\MessageSent;
+use App\Events\UserTyping;
 use App\Models\Client;
 use App\Models\Employee;
 use App\Models\Message;
@@ -138,6 +139,33 @@ class MessageController extends Controller
         }
 
         return response()->json(['message' => $this->format($message, $me)]);
+    }
+
+    /** POST /{portal}/messages/typing — ephemeral, never persisted */
+    public function typing(Request $request)
+    {
+        $me = $this->currentActor();
+
+        $validated = $request->validate([
+            'recipient_type' => 'required|in:admin,employee,client',
+            'recipient_id'   => 'required|integer',
+            'typing'         => 'required|boolean',
+        ]);
+
+        try {
+            broadcast(new UserTyping(
+                $validated['recipient_type'],
+                $validated['recipient_id'],
+                [
+                    'from'   => ['type' => $me['type'], 'id' => $me['id'], 'name' => session('name', session('full_name', 'Someone'))],
+                    'typing' => $validated['typing'],
+                ]
+            ));
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        return response()->json(['ok' => true]);
     }
 
     /** GET /{portal}/messages/unread-count */

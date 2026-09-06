@@ -178,7 +178,13 @@
     </div>
 
     {{-- Messages --}}
-    <div id="chatWinMessages" style="flex:1;overflow-y:auto;padding:14px 12px;display:flex;flex-direction:column;gap:2px;background:#f7f8fa;"></div>
+    <div style="flex:1;position:relative;min-height:0;display:flex;flex-direction:column;">
+        <div id="chatWinMessages" style="flex:1;overflow-y:auto;padding:14px 12px;display:flex;flex-direction:column;gap:2px;background:#f7f8fa;"></div>
+        <button type="button" id="chatWinNewMsgPill" onclick="scrollChatWinToBottom()" style="display:none;position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:var(--dark);color:#fff;border:none;border-radius:999px;padding:6px 14px;font-size:11.5px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.2);align-items:center;gap:5px;">
+            <i data-lucide="arrow-down" style="width:12px;height:12px;"></i> New message
+        </button>
+    </div>
+    <div id="chatWinTyping" style="display:none;padding:2px 14px 6px;font-size:11.5px;color:#888;font-style:italic;background:#f7f8fa;"></div>
 
     {{-- Hidden file inputs --}}
     <input type="file" id="chatCameraInput"     accept="image/*" capture="environment" style="display:none;" onchange="sendChatFile(this)">
@@ -404,6 +410,7 @@
     var CONTACTS_URL = '{{ route("employee.messages.contacts") }}';
     var THREAD_URL   = '{{ url("employee/messages/thread") }}';
     var SEND_URL     = '{{ route("employee.messages.send") }}';
+    var TYPING_URL   = '{{ route("employee.messages.typing") }}';
     var CSRF         = '{{ csrf_token() }}';
 
     var chatContact = null; // { type, id, name }
@@ -414,6 +421,46 @@
     var dropdown = document.getElementById('chatPopupDropdown');
     var window_  = document.getElementById('chatFloatWindow');
     var msgList  = document.getElementById('chatWinMessages');
+    var newMsgPill   = document.getElementById('chatWinNewMsgPill');
+    var typingEl     = document.getElementById('chatWinTyping');
+    var isTypingSent = false;
+    var typingSendTimer = null;
+    var typingHideTimer = null;
+
+    msgList.addEventListener('scroll', function () {
+        if (isNearBottom()) newMsgPill.style.display = 'none';
+    });
+
+    function isNearBottom() {
+        return msgList.scrollHeight - msgList.scrollTop - msgList.clientHeight < 80;
+    }
+
+    window.scrollChatWinToBottom = function () {
+        msgList.scrollTop = msgList.scrollHeight;
+        newMsgPill.style.display = 'none';
+    };
+
+    function notifyTyping(isTyping) {
+        if (!chatContact || isTyping === isTypingSent) return;
+        isTypingSent = isTyping;
+        fetch(TYPING_URL, {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': CSRF, 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            body: JSON.stringify({ recipient_type: chatContact.type, recipient_id: chatContact.id, typing: isTyping })
+        }).catch(function () {});
+    }
+
+    function showTypingIndicator(name) {
+        typingEl.textContent = (name || 'Someone') + ' is typing…';
+        typingEl.style.display = 'block';
+        clearTimeout(typingHideTimer);
+        typingHideTimer = setTimeout(hideTypingIndicator, 4000);
+    }
+
+    function hideTypingIndicator() {
+        typingEl.style.display = 'none';
+        typingEl.textContent = '';
+    }
 
     window.closeChatPopup = function () {
         popupOpen = false;
@@ -501,6 +548,11 @@
     };
 
     window.openChatWith = function(type, id, name) {
+        notifyTyping(false);
+        isTypingSent = false;
+        hideTypingIndicator();
+        newMsgPill.style.display = 'none';
+
         chatContact = { type: type, id: id, name: name };
         dropdown.style.display = 'none';
         popupOpen = false;
@@ -525,6 +577,10 @@
 
     function renderMessages(messages) {
         if (!messages.length) {
+            // This fetch may have been in flight when a message was sent/received in
+            // the meantime (already appended directly) — don't clobber it with a
+            // stale "no messages" result.
+            if (msgList.children.length && !msgList.querySelector('img[alt="wave"]')) return;
             msgList.innerHTML = '<div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#888;font-size:13px;"><img src="{{ asset("images/wave-hand.png") }}" alt="wave" style="width:48px;height:48px;object-fit:contain;opacity:.7;margin-bottom:10px;"><div>No messages yet.</div><div>Say hello!</div></div>';
             return;
         }
@@ -612,14 +668,18 @@
     // update, wiping it back out until the panel is reopened.
     function appendIncomingMessage(m) {
         var wasEmpty      = !msgList.querySelector(':scope > div');
-        var wasNearBottom = msgList.scrollHeight - msgList.scrollTop - msgList.clientHeight < 80;
+        var wasNearBottom = isNearBottom();
 
         if (wasEmpty) msgList.innerHTML = '';
         var wrap = document.createElement('div');
         wrap.innerHTML = receivedBubbleHtml(m, '8px');
         msgList.appendChild(wrap.firstChild);
 
-        if (wasEmpty || wasNearBottom) msgList.scrollTop = msgList.scrollHeight;
+        if (wasEmpty || wasNearBottom) {
+            msgList.scrollTop = msgList.scrollHeight;
+        } else {
+            newMsgPill.style.display = 'flex';
+        }
         if (window.lucide) lucide.createIcons();
     }
 
@@ -628,6 +688,8 @@
         var body  = input.value.trim();
         if (!body || !chatContact) return;
         input.value = '';
+        clearTimeout(typingSendTimer);
+        notifyTyping(false);
 
         var fd = new FormData();
         fd.append('recipient_type', chatContact.type);
@@ -693,12 +755,21 @@
     };
 
     window.closeChatWindow = function() {
+        notifyTyping(false);
+        isTypingSent = false;
+        hideTypingIndicator();
         window_.style.display = 'none';
         if (wrap) wrap.style.display = '';
         chatContact = null;
         try { localStorage.removeItem('gmd_employee_open_chat'); } catch (e) {}
         if (window.lucide) lucide.createIcons();
     };
+
+    document.getElementById('chatWinInput').addEventListener('input', function () {
+        notifyTyping(true);
+        clearTimeout(typingSendTimer);
+        typingSendTimer = setTimeout(function () { notifyTyping(false); }, 2500);
+    });
 
     function escHtml(s) {
         return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -723,21 +794,38 @@
     // the existing polling above keeps working either way.
     var PUSHER_KEY = @json(config('broadcasting.connections.pusher.key'));
     if (PUSHER_KEY && typeof Pusher !== 'undefined') {
-        var pusher = new Pusher(PUSHER_KEY, {
+        // One shared client + channel per page — the full Messages page (if present
+        // on this page) reuses window.__pusherChannel instead of opening a second
+        // connection of its own.
+        var pusher = window.__pusherClient || new Pusher(PUSHER_KEY, {
             cluster: @json(config('broadcasting.connections.pusher.options.cluster')),
             authEndpoint: '{{ url('/broadcasting/auth') }}',
             auth: { headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' } }
         });
-        pusher.subscribe('private-inbox.{{ session('role') }}.{{ session('user_id') }}')
-            .bind('message.sent', function (data) {
-                if (window.__refreshUnreadBadge) window.__refreshUnreadBadge();
-                if (chatContact && data.from && chatContact.type === data.from.type && String(chatContact.id) === String(data.from.id)) {
-                    appendIncomingMessage(data.message);
-                    // Fire-and-forget: marks it read server-side; response is ignored so it
-                    // can't clobber a bubble the user is mid-sending in this same panel.
-                    fetch(THREAD_URL + '/' + chatContact.type + '/' + chatContact.id, { headers: { 'X-Requested-With': 'XMLHttpRequest' } }).catch(function () {});
-                }
-            });
+        window.__pusherClient = pusher;
+        var pusherChannel = window.__pusherChannel || pusher.subscribe('private-inbox.{{ session('role') }}.{{ session('user_id') }}');
+        window.__pusherChannel = pusherChannel;
+
+        pusherChannel.bind('message.sent', function (data) {
+            if (window.__refreshUnreadBadge) window.__refreshUnreadBadge();
+            if (chatContact && data.from && chatContact.type === data.from.type && String(chatContact.id) === String(data.from.id)) {
+                hideTypingIndicator();
+                appendIncomingMessage(data.message);
+                // Fire-and-forget: marks it read server-side; response is ignored so it
+                // can't clobber a bubble the user is mid-sending in this same panel.
+                fetch(THREAD_URL + '/' + chatContact.type + '/' + chatContact.id, { headers: { 'X-Requested-With': 'XMLHttpRequest' } }).catch(function () {});
+            }
+        });
+
+        pusherChannel.bind('user.typing', function (data) {
+            if (!chatContact || !data.from) return;
+            if (chatContact.type !== data.from.type || String(chatContact.id) !== String(data.from.id)) return;
+            if (data.typing) {
+                showTypingIndicator(data.from.name);
+            } else {
+                hideTypingIndicator();
+            }
+        });
     }
 })();
 </script>

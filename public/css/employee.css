@@ -2462,6 +2462,35 @@ body {
     text-align: right;
 }
 
+.message-typing-indicator {
+    display: none;
+    padding: 0 24px 10px;
+    font-size: 12px;
+    font-style: italic;
+    color: var(--muted-light);
+    flex-shrink: 0;
+}
+
+.message-new-indicator {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--dark);
+    color: var(--white);
+    border: none;
+    border-radius: 999px;
+    padding: 7px 16px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+    z-index: 5;
+}
+
 .message-attachment-preview {
     display: none;
     flex-wrap: wrap;
