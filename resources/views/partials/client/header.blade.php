@@ -497,6 +497,41 @@
         newMsgPill.style.display = 'none';
     };
 
+    function dateKey(d) {
+        return d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate();
+    }
+
+    function dayLabel(d) {
+        var now = new Date();
+        function startOfDay(x) { return new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime(); }
+        var diffDays = Math.round((startOfDay(now) - startOfDay(d)) / 86400000);
+        if (diffDays === 0) return 'Today';
+        if (diffDays === 1) return 'Yesterday';
+        return d.toLocaleDateString(undefined, {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+        });
+    }
+
+    function dayDividerHtml(d) {
+        return '<div class="message-day-divider"><span>' + dayLabel(d) + '</span></div>';
+    }
+
+    function appendDayDividerIfNeeded(d) {
+        var rows = msgList.querySelectorAll('[data-ts]');
+        var lastRow = rows.length ? rows[rows.length - 1] : null;
+        var needsDivider = true;
+        if (lastRow) {
+            needsDivider = dateKey(new Date(lastRow.dataset.ts)) !== dateKey(d);
+        }
+        if (needsDivider) {
+            var wrap = document.createElement('div');
+            wrap.innerHTML = dayDividerHtml(d);
+            msgList.appendChild(wrap.firstChild);
+        }
+    }
+
     function pollOpenThread() {
         if (!chatContact) return;
         fetch(THREAD_URL + '/' + chatContact.type + '/' + chatContact.id, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
@@ -636,13 +671,20 @@
         }
         var myInit = '{{ strtoupper(substr(session("full_name", "C"), 0, 1)) }}';
         var html = '';
+        var prevDateKey = null;
         messages.forEach(function(m, i) {
+            var d = new Date(m.created_at);
+            var dKey = dateKey(d);
+            if (prevDateKey !== dKey) {
+                html += dayDividerHtml(d);
+            }
+            prevDateKey = dKey;
+
             var isMe     = !!m.is_mine;
             var next     = i < messages.length - 1 ? messages[i + 1] : null;
-            var sameNext = next && (!!next.is_mine) === isMe;
+            var sameNext = next && (!!next.is_mine) === isMe && dateKey(new Date(next.created_at)) === dKey;
             var mb       = sameNext ? '2px' : '8px';
-            var timeId   = 'chatMsgTime-' + (m.id || i) + '-' + i;
-            var timeLabel = [m.date_label, m.time].filter(Boolean).join(' · ');
+            var timeLabel = m.time;
 
             // Images / attachments
             var imgHtml = '', fileHtml = '';
@@ -651,7 +693,7 @@
                     if (a.url && /\.(jpg|jpeg|png|gif|webp)/i.test(a.url)) {
                         imgHtml += '<img src="' + a.url + '" style="max-width:180px;width:100%;border-radius:10px;display:block;margin-top:4px;cursor:pointer;" onclick="window.open(\'' + a.url + '\',\'_blank\')">';
                     } else {
-                        fileHtml += '<div style="font-size:11px;margin-top:4px;opacity:.7;">📎 ' + escHtml(a.name || 'File') + '</div>';
+                        fileHtml += '<a href="' + a.url + '" target="_blank" rel="noopener" class="message-attachment-file" style="margin-top:4px;"><i data-lucide="file-text"></i><span>' + escHtml(a.name || 'File') + '</span></a>';
                     }
                 });
             }
@@ -660,14 +702,17 @@
 
             if (isMe) {
                 // SENT — right side
-                html += '<div style="display:flex;justify-content:flex-end;align-items:flex-end;gap:5px;margin-bottom:' + mb + ';">';
+                html += '<div data-ts="' + m.created_at + '" style="display:flex;justify-content:flex-end;align-items:flex-end;gap:5px;margin-bottom:' + mb + ';">';
                 html += '<div style="display:flex;flex-direction:column;align-items:flex-end;max-width:75%;">';
                 if (m.body) {
-                    html += '<div onclick="toggleChatMsgTime(\''+timeId+'\')" style="cursor:pointer;background:var(--dark);color:#fff;border-radius:16px 16px 3px 16px;padding:8px 12px;font-size:13px;line-height:1.45;word-break:break-word;">' + escHtml(m.body) + '</div>';
+                    html += '<div style="background:var(--dark);color:#fff;border-radius:16px 16px 3px 16px;padding:8px 12px 6px;font-size:13px;line-height:1.45;word-break:break-word;">'
+                        + escHtml(m.body)
+                        + (timeLabel ? '<div style="font-size:10px;color:rgba(255,255,255,.6);margin-top:2px;text-align:right;">' + escHtml(timeLabel) + '</div>' : '')
+                        + '</div>';
                 }
                 if (imgHtml) html += imgHtml;
                 if (fileHtml) html += fileHtml;
-                if (timeLabel) html += '<div id="'+timeId+'" style="display:none;font-size:10px;color:#aaa;margin-top:3px;text-align:right;">' + escHtml(timeLabel) + '</div>';
+                if (!m.body && timeLabel) html += '<div style="font-size:10px;color:#aaa;margin-top:3px;text-align:right;">' + escHtml(timeLabel) + '</div>';
                 html += '</div>';
                 html += '<div style="' + avatarStyle + 'background:#444;">' + myInit + '</div>';
                 html += '</div>';
@@ -683,8 +728,7 @@
 
     function receivedBubbleHtml(m, mb) {
         var avatarStyle = 'width:26px;height:26px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;';
-        var timeId    = 'chatMsgTime-' + (m.id || Date.now()) + '-' + Math.floor(Math.random() * 1000);
-        var timeLabel = [m.date_label, m.time].filter(Boolean).join(' · ');
+        var timeLabel = m.time;
 
         var imgHtml = '', fileHtml = '';
         if (m.attachments && m.attachments.length) {
@@ -692,21 +736,24 @@
                 if (a.url && /\.(jpg|jpeg|png|gif|webp)/i.test(a.url)) {
                     imgHtml += '<img src="' + a.url + '" style="max-width:180px;width:100%;border-radius:10px;display:block;margin-top:4px;cursor:pointer;" onclick="window.open(\'' + a.url + '\',\'_blank\')">';
                 } else {
-                    fileHtml += '<div style="font-size:11px;margin-top:4px;opacity:.7;">📎 ' + escHtml(a.name || 'File') + '</div>';
+                    fileHtml += '<a href="' + a.url + '" target="_blank" rel="noopener" class="message-attachment-file" style="margin-top:4px;"><i data-lucide="file-text"></i><span>' + escHtml(a.name || 'File') + '</span></a>';
                 }
             });
         }
 
         var cInit = (chatContact && chatContact.name || '?').charAt(0).toUpperCase();
-        var html = '<div' + (m.id ? ' data-msg-id="' + m.id + '"' : '') + ' style="display:flex;justify-content:flex-start;align-items:flex-end;gap:5px;margin-bottom:' + mb + ';">';
+        var html = '<div' + (m.id ? ' data-msg-id="' + m.id + '"' : '') + ' data-ts="' + m.created_at + '" style="display:flex;justify-content:flex-start;align-items:flex-end;gap:5px;margin-bottom:' + mb + ';">';
         html += '<div style="' + avatarStyle + 'background:var(--dark);">' + cInit + '</div>';
         html += '<div style="display:flex;flex-direction:column;align-items:flex-start;max-width:75%;">';
         if (m.body) {
-            html += '<div onclick="toggleChatMsgTime(\''+timeId+'\')" style="cursor:pointer;background:#fff;color:#050505;border:1px solid #e8e8e8;border-radius:16px 16px 16px 3px;padding:8px 12px;font-size:13px;line-height:1.45;word-break:break-word;box-shadow:0 1px 2px rgba(0,0,0,.05);">' + escHtml(m.body) + '</div>';
+            html += '<div style="background:#fff;color:#050505;border:1px solid #e8e8e8;border-radius:16px 16px 16px 3px;padding:8px 12px 6px;font-size:13px;line-height:1.45;word-break:break-word;box-shadow:0 1px 2px rgba(0,0,0,.05);">'
+                + escHtml(m.body)
+                + (timeLabel ? '<div style="font-size:10px;color:#999;margin-top:2px;">' + escHtml(timeLabel) + '</div>' : '')
+                + '</div>';
         }
         if (imgHtml) html += imgHtml;
         if (fileHtml) html += fileHtml;
-        if (timeLabel) html += '<div id="'+timeId+'" style="display:none;font-size:10px;color:#aaa;margin-top:3px;">' + escHtml(timeLabel) + '</div>';
+        if (!m.body && timeLabel) html += '<div style="font-size:10px;color:#aaa;margin-top:3px;">' + escHtml(timeLabel) + '</div>';
         html += '</div>';
         html += '</div>';
         return html;
@@ -721,9 +768,12 @@
         var wasNearBottom = isNearBottom();
 
         if (wasEmpty) msgList.innerHTML = '';
+        appendDayDividerIfNeeded(new Date(m.created_at));
         var wrap = document.createElement('div');
         wrap.innerHTML = receivedBubbleHtml(m, '8px');
-        msgList.appendChild(wrap.firstChild);
+        var row = wrap.firstChild;
+        row.classList.add('msg-enter');
+        msgList.appendChild(row);
 
         if (wasEmpty || wasNearBottom) {
             msgList.scrollTop = msgList.scrollHeight;
@@ -738,6 +788,7 @@
         var body  = input.value.trim();
         if (!body || !chatContact) return;
         input.value = '';
+        input.style.height = 'auto';
 
         var fd = new FormData();
         fd.append('recipient_type', chatContact.type);
@@ -748,7 +799,11 @@
         // Optimistic render
         var myInit   = '{{ strtoupper(substr(session("full_name", "C"), 0, 1)) }}';
         var statusId = 'chatMsgStatus-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+        var nowTs = new Date();
+        appendDayDividerIfNeeded(nowTs);
         var div = document.createElement('div');
+        div.dataset.ts = nowTs.toISOString();
+        div.className = 'msg-enter';
         div.style.cssText = 'display:flex;flex-direction:column;align-items:flex-end;margin-bottom:10px;';
         div.innerHTML = '<div style="display:flex;align-items:flex-end;gap:6px;">'
             + '<div style="max-width:72%;background:var(--dark);color:#fff;border-radius:18px 18px 4px 18px;padding:9px 14px;font-size:13px;line-height:1.5;word-break:break-word;">'+escHtml(body)+'</div>'
@@ -815,11 +870,10 @@
         return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
-    window.toggleChatMsgTime = function(id) {
-        var el = document.getElementById(id);
-        if (!el) return;
-        el.style.display = (el.style.display === 'none') ? 'block' : 'none';
-    };
+    document.getElementById('chatWinInput').addEventListener('input', function () {
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 72) + 'px';
+    });
 
     // Restore the chat window if it was left open on a previous page
     try {

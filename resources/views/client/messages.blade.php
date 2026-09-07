@@ -117,7 +117,7 @@
                                 <input type="file" id="imageInput" accept="image/*" multiple hidden>
                                 <input type="file" id="fileInput" multiple hidden>
 
-                                <input type="text" class="message-input-field" id="chatInput" placeholder="Type a message...">
+                                <textarea class="message-input-field" id="chatInput" placeholder="Type a message..." rows="1"></textarea>
                                 <button class="message-send-btn" id="chatSendBtn" type="button">
                                     <i data-lucide="send"></i> <span>Send</span>
                                 </button>
@@ -239,6 +239,31 @@
             return div.innerHTML;
         }
 
+        function dateKey(d) {
+            return d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate();
+        }
+
+        function dayDividerLabel(d) {
+            const now = new Date();
+            const startOfDay = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+            const diffDays = Math.round((startOfDay(now) - startOfDay(d)) / 86400000);
+            if (diffDays === 0) return 'Today';
+            if (diffDays === 1) return 'Yesterday';
+            return d.toLocaleDateString(undefined, {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+            });
+        }
+
+        function buildDayDivider(d) {
+            const div = document.createElement('div');
+            div.className = 'message-day-divider';
+            div.dataset.dateKey = dateKey(d);
+            div.innerHTML = `<span>${dayDividerLabel(d)}</span>`;
+            return div;
+        }
+
         function setAvatar(el, name, photo) {
             if (photo) {
                 el.innerHTML = `<img src="${photo}" alt="${escapeHtml(name)}">`;
@@ -308,6 +333,8 @@
             const bubble = document.createElement('div');
             bubble.className = 'message-bubble ' + (m.is_mine ? 'sent' : 'received');
             if (m.id) bubble.dataset.msgId = m.id;
+            bubble.dataset.ts = m.created_at;
+            bubble.dataset.dateKey = dateKey(new Date(m.created_at));
 
             const avatar = document.createElement('div');
             avatar.className = 'message-bubble-avatar';
@@ -348,19 +375,87 @@
                 // in the meantime (already appended directly) — don't clobber it with
                 // a stale "no messages" result.
                 if (container.querySelector('.message-bubble')) return;
-                container.innerHTML = '<div class="message-empty-state"><i data-lucide="message-circle"></i><p>No messages yet. Say hello!</p></div>';
-                lucide.createIcons();
+                container.innerHTML = '<div class="message-empty-state"><img src="{{ asset("images/wave-hand.png") }}" alt="wave"><p>No messages yet</p><span>Say hello to start the conversation</span></div>';
                 return;
             }
 
             container.innerHTML = '';
-            messages.forEach(m => container.appendChild(buildMessageBubble(m)));
+            const frag = document.createDocumentFragment();
+            let prev = null;
 
+            messages.forEach((m, i) => {
+                const d = new Date(m.created_at);
+                const dKey = dateKey(d);
+
+                if (!prev || prev.dateKey !== dKey) {
+                    frag.appendChild(buildDayDivider(d));
+                }
+
+                const next = messages[i + 1];
+                const nextD = next ? new Date(next.created_at) : null;
+                const isGroupStart = !prev
+                    || prev.dateKey !== dKey
+                    || prev.isMine !== m.is_mine
+                    || (d - prev.date) > 5 * 60 * 1000;
+                const isGroupEnd = !next
+                    || dateKey(nextD) !== dKey
+                    || next.is_mine !== m.is_mine
+                    || (nextD - d) > 5 * 60 * 1000;
+
+                const bubble = buildMessageBubble(m);
+                if (isGroupStart) bubble.classList.add('msg-group-start');
+                if (isGroupEnd) bubble.classList.add('msg-group-end');
+                frag.appendChild(bubble);
+
+                prev = { dateKey: dKey, isMine: m.is_mine, date: d };
+            });
+
+            container.appendChild(frag);
             lucide.createIcons();
 
             if (wasNearBottom) {
                 container.scrollTop = container.scrollHeight;
             }
+        }
+
+        // Appends one bubble onto the end of an already-rendered thread, inserting a
+        // day divider and/or breaking the sender group when needed. Shared by the
+        // polled "message received" path and the "message sent" success path so both
+        // stay visually consistent with a full renderMessages() pass.
+        function appendBubbleToThread(m) {
+            const container = document.getElementById('chatMessages');
+            if (container.querySelector('.message-empty-state')) container.innerHTML = '';
+
+            const existing = container.querySelectorAll('.message-bubble');
+            const prevBubble = existing.length ? existing[existing.length - 1] : null;
+
+            const d = new Date(m.created_at);
+            const dKey = dateKey(d);
+            let isGroupStart = true;
+
+            if (prevBubble) {
+                const prevTs = new Date(prevBubble.dataset.ts);
+                const sameDay = prevBubble.dataset.dateKey === dKey;
+                const sameSender = prevBubble.classList.contains('sent') === !!m.is_mine;
+                const withinGap = (d - prevTs) <= 5 * 60 * 1000;
+
+                if (sameDay && sameSender && withinGap) {
+                    isGroupStart = false;
+                    prevBubble.classList.remove('msg-group-end');
+                }
+                if (!sameDay) {
+                    container.appendChild(buildDayDivider(d));
+                }
+            } else {
+                container.appendChild(buildDayDivider(d));
+            }
+
+            const bubble = buildMessageBubble(m);
+            if (isGroupStart) bubble.classList.add('msg-group-start');
+            bubble.classList.add('msg-group-end', 'msg-enter');
+            container.appendChild(bubble);
+            lucide.createIcons();
+            return bubble;
         }
 
         function sendMessage() {
@@ -369,6 +464,11 @@
             const body = input.value.trim();
             if (!body && !pendingAttachments.length) return;
 
+            const sendBtn = document.getElementById('chatSendBtn');
+            sendBtn.disabled = true;
+            const sendIcon = sendBtn.querySelector('svg');
+            if (sendIcon) sendIcon.outerHTML = '<span class="send-spinner"></span>';
+
             const formData = new FormData();
             formData.append('recipient_type', activeContact.type);
             formData.append('recipient_id', activeContact.id);
@@ -376,6 +476,7 @@
             pendingAttachments.forEach(a => formData.append('attachments[]', a.file));
 
             input.value = '';
+            input.style.height = 'auto';
             clearAttachmentPreviews();
 
             fetch(SEND_URL, {
@@ -392,12 +493,17 @@
                     alert(data.message || 'Failed to send message.');
                     return;
                 }
-                const container = document.getElementById('chatMessages');
-                if (container.querySelector('.message-empty-state')) container.innerHTML = '';
-                container.appendChild(buildMessageBubble(data.message));
-                lucide.createIcons();
+                appendBubbleToThread(data.message);
                 window.scrollChatToBottom();
                 updateSidebarPreview(activeContact, data.message);
+            })
+            .catch(() => {
+                alert('Failed to send message.');
+            })
+            .finally(() => {
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = '<i data-lucide="send"></i> <span>Send</span>';
+                lucide.createIcons();
             });
         }
 
@@ -463,9 +569,7 @@
             const wasEmpty      = !!container.querySelector('.message-empty-state') || !container.children.length;
             const wasNearBottom = isChatNearBottom();
 
-            if (wasEmpty) container.innerHTML = '';
-            container.appendChild(buildMessageBubble(m));
-            lucide.createIcons();
+            appendBubbleToThread(m);
 
             if (wasEmpty || wasNearBottom) {
                 container.scrollTop = container.scrollHeight;
@@ -477,7 +581,14 @@
 
         document.getElementById('chatSendBtn').addEventListener('click', sendMessage);
         document.getElementById('chatInput').addEventListener('keydown', e => {
-            if (e.key === 'Enter') sendMessage();
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        document.getElementById('chatInput').addEventListener('input', function () {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
         });
 
         /* ── Contact info modal ──────────────────────────────────────── */
