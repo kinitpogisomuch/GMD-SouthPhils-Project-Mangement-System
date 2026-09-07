@@ -447,9 +447,12 @@
 
                     <!-- Table header -->
                     <div class="db-proj-table-head">
-                        <span style="flex:1;padding-left:17px;">Project</span>
-                        <span style="margin-right:auto;">Status</span>
-                        <span style="padding-right:20px;">Progress</span>
+                        <span></span>
+                        <span>Project</span>
+                        <span>Client</span>
+                        <span>Date</span>
+                        <span>Status</span>
+                        <span>Progress</span>
                     </div>
 
                     <!-- Rows -->
@@ -470,26 +473,20 @@
                             <!-- Status accent strip -->
                             <div class="db-row-accent" style="background:{{ $badge['color'] }};"></div>
 
-                            <div class="db-project-info" style="flex:1;min-width:0;">
-                                <div class="db-project-name-row">
-                                    <span class="project-code-badge db-code-sm">{{ $project->code }}</span>
-                                    <span class="db-project-name">{{ $project->name }}</span>
-                                </div>
-                                <div class="db-project-meta">
-                                    {{ $project->client }}
-                                    <span class="db-meta-sep">·</span>
-                                    {{ $project->start_date->format('M j, Y') }}
-                                </div>
+                            <div class="db-project-info">
+                                <span class="db-project-name">{{ $project->name }}</span>
                             </div>
 
-                            <div class="db-row-right">
-                                <span class="status-badge {{ $badge['css'] }}">{{ $badge['label'] }}</span>
-                                <div class="db-progress-wrap">
-                                    <div class="db-progress-bar">
-                                        <div class="db-progress-fill" data-width="{{ $progress }}" data-color="{{ $progressColor }}"></div>
-                                    </div>
-                                    <span class="db-progress-label">{{ $progress }}%</span>
+                            <div class="db-project-client">{{ $project->client }}</div>
+                            <div class="db-project-date">{{ $project->start_date->format('M j, Y') }}</div>
+
+                            <span class="status-badge {{ $badge['css'] }}" style="justify-self:start;">{{ $badge['label'] }}</span>
+
+                            <div class="db-progress-wrap">
+                                <div class="db-progress-bar">
+                                    <div class="db-progress-fill" data-width="{{ $progress }}" data-color="{{ $progressColor }}"></div>
                                 </div>
+                                <span class="db-progress-label">{{ $progress }}%</span>
                             </div>
                         </a>
                         @empty
@@ -1138,10 +1135,19 @@
             padding: 3px 10px;
             border-radius: 999px;
         }
-        .db-proj-table-head {
-            display: flex;
+        /* Grid columns shared by the header row and every project row, so
+           every column lines up regardless of how short/long each cell's
+           content is — avoids the old flex:1 layout where a short project
+           name left a big dead gap before the right-pinned status/progress. */
+        .db-proj-table-head,
+        .db-project-row {
+            display: grid;
+            grid-template-columns: 3px minmax(0, 1.8fr) minmax(0, 1fr) 100px 112px 160px;
+            column-gap: 16px;
             align-items: center;
-            padding: 9px 20px;
+        }
+        .db-proj-table-head {
+            padding: 9px 20px 9px 0;
             background: var(--cream-soft);
             border-bottom: 1px solid var(--border);
             font-size: 11px;
@@ -1149,17 +1155,14 @@
             color: var(--muted-light);
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            gap: 16px;
         }
+        .db-proj-table-head span:nth-child(2) { padding-left: 14px; }
 
         /* ── Project list rows ── */
         .db-project-row {
-            display: flex;
-            align-items: center;
-            gap: 0;
+            padding: 14px 20px 14px 0;
             border-bottom: 1px solid var(--border);
             transition: background 0.15s;
-            overflow: hidden;
             cursor: pointer;
         }
         .db-project-row:last-child { border-bottom: none; }
@@ -1167,29 +1170,16 @@
 
         /* Colored left accent strip */
         .db-row-accent {
-            width: 3px;
             align-self: stretch;
-            flex-shrink: 0;
             border-radius: 0;
             opacity: 0.7;
         }
 
         /* Info section */
-        .db-project-info { padding: 14px 16px 14px 14px; }
+        .db-project-info { min-width: 0; padding-left: 14px; }
 
-        .db-project-name-row {
-            display: flex;
-            align-items: center;
-            gap: 7px;
-            margin-bottom: 4px;
-        }
-        .db-code-sm {
-            font-size: 10px;
-            padding: 2px 6px;
-            border-radius: 4px;
-            flex-shrink: 0;
-        }
         .db-project-name {
+            display: block;
             font-size: 13px;
             font-weight: 700;
             color: var(--dark);
@@ -1197,27 +1187,18 @@
             text-overflow: ellipsis;
             white-space: nowrap;
         }
-        .db-project-meta {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 11.5px;
-            color: var(--muted-light);
-            font-weight: 500;
+        .db-project-client,
+        .db-project-date {
+            min-width: 0;
+            font-size: 12.5px;
+            color: var(--muted);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
-        .db-meta-sep {
-            color: var(--border);
-            font-size: 13px;
-        }
+        .db-project-date { color: var(--muted-light); }
 
         /* Right section: status + progress */
-        .db-row-right {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            padding: 14px 20px 14px 0;
-            flex-shrink: 0;
-        }
         .db-progress-wrap {
             display: flex;
             align-items: center;
@@ -1589,7 +1570,22 @@
             .db-proj-table-head    { display: none; }
             .db-chart-filters      { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
             .db-chart-wrap         { height: 190px; }
-            .db-row-right          { flex-direction: column; align-items: flex-end; gap: 6px; }
+            /* Project rows: fixed-width desktop grid columns don't fit a narrow
+               screen, so stack everything into one column instead. */
+            .db-project-row {
+                display: flex;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 4px;
+                padding: 12px 16px 12px 14px;
+                position: relative;
+            }
+            .db-row-accent         { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+            .db-project-info,
+            .db-project-client,
+            .db-project-date       { padding-left: 0; }
+            .db-project-row .status-badge { margin-top: 2px; }
+            .db-progress-wrap      { width: 100%; margin-top: 2px; }
             .db-progress-bar       { width: 70px; }
             .db-top-cards-grid     { grid-template-columns: 1fr !important; }
             .db-attention-grid     { grid-template-columns: 1fr !important; }
