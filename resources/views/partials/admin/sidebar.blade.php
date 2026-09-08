@@ -89,10 +89,14 @@
             <span>Employees</span>
         </a>
 
+        @php $pendingClientCount = \App\Models\Client::where('status', 'Pending')->count(); @endphp
         <a href="{{ route('admin.clients') }}"
            class="{{ request()->routeIs('admin.clients') ? 'active' : '' }}"
            title="Clients">
-            <div class="sidebar-icon"><i data-lucide="building-2"></i></div>
+            <div class="sidebar-icon">
+                <i data-lucide="building-2"></i>
+                <span class="sidebar-badge" id="clientsPendingBadge" style="{{ $pendingClientCount > 0 ? '' : 'display:none;' }}">{{ $pendingClientCount > 99 ? '99+' : $pendingClientCount }}</span>
+            </div>
             <span>Clients</span>
         </a>
 
@@ -103,6 +107,7 @@
 <script>
     (function () {
         var QUOTATION_PENDING_COUNT_URL = '{{ route('admin.quotation_requests.pending_count') }}';
+        var CLIENTS_PENDING_COUNT_URL   = '{{ route('admin.client.pending_count') }}';
 
         function refreshQuotationRequestsBadge() {
             fetch(QUOTATION_PENDING_COUNT_URL, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
@@ -121,6 +126,24 @@
                 .catch(function () {});
         }
 
+        function refreshClientsPendingBadge() {
+            fetch(CLIENTS_PENDING_COUNT_URL, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    var badge = document.getElementById('clientsPendingBadge');
+                    if (!badge) return;
+                    var count = data.count || 0;
+                    if (count > 0) {
+                        badge.textContent = count > 99 ? '99+' : count;
+                        badge.style.display = 'flex';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                })
+                .catch(function () {});
+        }
+
         setInterval(refreshQuotationRequestsBadge, 30000);
+        setInterval(refreshClientsPendingBadge, 30000);
     })();
 </script>

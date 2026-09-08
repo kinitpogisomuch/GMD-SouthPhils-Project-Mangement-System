@@ -146,18 +146,16 @@
                                 </div>
 
                                 @if(!$isPaid)
-                                <form method="POST" action="{{ route('client.payments.proof.store', $payment->id) }}" enctype="multipart/form-data">
+                                <form method="POST" action="{{ route('client.payments.proof.store', $payment->id) }}" enctype="multipart/form-data" class="proof-upload-form" data-stage="{{ $stage }}">
                                     @csrf
                                     <input type="hidden" name="payment_stage" value="{{ $stage }}">
-                                    <label style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;border:1.5px dashed var(--border);border-radius:12px;padding:14px;cursor:pointer;text-align:center;margin-bottom:8px;background:var(--white);">
+                                    <label for="proofFilesInput{{ $stage }}" class="qr-upload-dropzone" id="proofDropzone{{ $stage }}" style="margin-bottom:8px;">
                                         <i data-lucide="file-plus" style="width:18px;height:18px;color:var(--accent);"></i>
                                         <span style="font-size:12px;font-weight:700;color:var(--dark);">Click to upload receipt/screenshot</span>
-                                        <span style="font-size:10.5px;color:var(--muted);">PDF or image, max 10MB</span>
-                                        <input type="file" name="proof_file" accept=".pdf,image/*" required
-                                               style="display:none;"
-                                               onchange="this.closest('form').querySelector('.proof-filename-{{ $stage }}').textContent = this.files[0] ? '📎 ' + this.files[0].name : '';">
+                                        <span style="font-size:10.5px;color:var(--muted);">PDF or image, up to 5 files, max 10MB each</span>
                                     </label>
-                                    <div class="proof-filename-{{ $stage }}" style="font-size:11.5px;color:var(--muted);margin-bottom:8px;min-height:14px;"></div>
+                                    <input type="file" name="proof_files[]" id="proofFilesInput{{ $stage }}" accept=".pdf,image/*" multiple required style="display:none;">
+                                    <div id="proofFilesList{{ $stage }}" class="qr-file-list" style="display:none;"></div>
                                     <textarea name="notes" rows="2" placeholder="Optional note (e.g. reference number)"
                                               style="width:100%;border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-size:12px;font-family:inherit;box-sizing:border-box;resize:vertical;margin-bottom:8px;"></textarea>
                                     <button type="submit" class="save-btn" style="width:100%;justify-content:center;padding:9px;font-size:12.5px;">
@@ -242,10 +240,15 @@
                                         <td>{{ $tx->reference_number ?? '—' }}</td>
                                         <td>{{ $tx->notes ?? '—' }}</td>
                                         <td>
-                                            @if($tx->receipt_url)
-                                            <a href="{{ $tx->receipt_url }}" target="_blank" style="display:inline-flex;align-items:center;gap:5px;color:var(--accent);font-weight:700;text-decoration:none;">
-                                                <i data-lucide="receipt" style="width:14px;height:14px;"></i> View
-                                            </a>
+                                            @php $receiptUrls = !empty($tx->receipt_urls) ? $tx->receipt_urls : array_filter([$tx->receipt_url]); @endphp
+                                            @if(!empty($receiptUrls))
+                                            <div style="display:flex;flex-direction:column;gap:3px;">
+                                                @foreach($receiptUrls as $i => $url)
+                                                <a href="{{ $url }}" target="_blank" style="display:inline-flex;align-items:center;gap:5px;color:var(--accent);font-weight:700;text-decoration:none;">
+                                                    <i data-lucide="receipt" style="width:14px;height:14px;"></i> View{{ count($receiptUrls) > 1 ? ' ' . ($i + 1) : '' }}
+                                                </a>
+                                                @endforeach
+                                            </div>
                                             @else
                                             —
                                             @endif
@@ -262,6 +265,101 @@
 
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="{{ asset('js/client.js') }}"></script>
-    <script>lucide.createIcons();</script>
+    <script>
+        lucide.createIcons();
+
+        // ── Proof-of-payment upload — chip UI (mirrors the "Request a
+        // Quotation" reference-files upload: dropzone until something's
+        // picked, then compact chips with a "+" tile to add more) ──
+        document.querySelectorAll('.proof-upload-form').forEach(function (form) {
+            var stage    = form.dataset.stage;
+            var input    = document.getElementById('proofFilesInput' + stage);
+            var dropzone = document.getElementById('proofDropzone' + stage);
+            var list     = document.getElementById('proofFilesList' + stage);
+            if (!input) return;
+
+            var MAX_FILES = 5;
+            var selected  = [];
+
+            function formatSize(bytes) {
+                if (bytes < 1024) return bytes + ' B';
+                if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + ' KB';
+                return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+            }
+            function syncInput() {
+                var dt = new DataTransfer();
+                selected.forEach(function (f) { dt.items.add(f); });
+                input.files = dt.files;
+            }
+            function viewFile(index) {
+                var f = selected[index];
+                if (!f) return;
+                window.open(URL.createObjectURL(f), '_blank');
+            }
+            function removeFile(index) {
+                selected.splice(index, 1);
+                syncInput();
+                render();
+            }
+            function render() {
+                dropzone.style.display = selected.length ? 'none' : '';
+                list.style.display     = selected.length ? 'flex' : 'none';
+
+                list.innerHTML = selected.map(function (f, i) {
+                    var isImage = f.type.indexOf('image/') === 0;
+                    var thumb   = isImage
+                        ? '<img class="qr-file-thumb" src="' + URL.createObjectURL(f) + '" alt="">'
+                        : '<span class="qr-file-thumb"><i data-lucide="file-text"></i></span>';
+                    return '<div class="qr-file-chip" data-index="' + i + '" title="Click to view">'
+                        + thumb
+                        + '<div class="qr-file-meta">'
+                            + '<div class="qr-file-name" title="' + f.name.replace(/"/g, '&quot;') + '">' + f.name + '</div>'
+                            + '<div class="qr-file-size">' + formatSize(f.size) + '</div>'
+                        + '</div>'
+                        + '<button type="button" class="qr-file-remove" data-index="' + i + '" title="Remove"><i data-lucide="x"></i></button>'
+                    + '</div>';
+                }).join('');
+
+                if (selected.length && selected.length < MAX_FILES) {
+                    list.innerHTML += '<button type="button" class="qr-file-add" data-stage="' + stage + '" title="Add more"><i data-lucide="plus"></i></button>';
+                }
+
+                list.querySelectorAll('.qr-file-chip').forEach(function (chip) {
+                    chip.addEventListener('click', function (e) {
+                        if (e.target.closest('.qr-file-remove')) return;
+                        viewFile(Number(chip.dataset.index));
+                    });
+                });
+                list.querySelectorAll('.qr-file-remove').forEach(function (btn) {
+                    btn.addEventListener('click', function () { removeFile(Number(btn.dataset.index)); });
+                });
+                var addBtn = list.querySelector('.qr-file-add');
+                if (addBtn) addBtn.addEventListener('click', function () { input.value = ''; input.click(); });
+
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }
+
+            input.addEventListener('change', function () {
+                var rejected = [];
+                Array.from(input.files || []).forEach(function (f) {
+                    if (f.size > 10 * 1024 * 1024) { rejected.push(f.name); return; }
+                    var isDuplicate = selected.some(function (sf) {
+                        return sf.name === f.name && sf.size === f.size && sf.lastModified === f.lastModified;
+                    });
+                    if (!isDuplicate && selected.length < MAX_FILES) selected.push(f);
+                });
+                syncInput();
+                render();
+                if (rejected.length && typeof showFileTooLargeModal === 'function') showFileTooLargeModal(rejected.join(', '), 10);
+            });
+
+            form.addEventListener('submit', function (e) {
+                if (!selected.length) {
+                    e.preventDefault();
+                    alert('Please attach at least one receipt/screenshot.');
+                }
+            });
+        });
+    </script>
 </body>
 </html>

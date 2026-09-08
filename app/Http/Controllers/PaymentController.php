@@ -105,13 +105,14 @@ class PaymentController extends Controller
             'payment_term_type'=> 'required|in:big_project,small_project',
         ]);
 
+        $project = Project::findOrFail($request->project_id);
+
         // Guard: only one payment record per project
         if (Payment::where('project_id', $request->project_id)->exists()) {
-            return redirect()->route('admin.payments')
+            return redirect()->route('admin.payments.client', urlencode($project->client))
                 ->with('error', 'This project already has a payment record.');
         }
 
-        $project        = Project::findOrFail($request->project_id);
         $contractAmount = (float) $request->contract_amount;
         $termType       = $request->payment_term_type;
         $termLabel      = $termType === 'big_project'
@@ -131,7 +132,7 @@ class PaymentController extends Controller
             'date'              => now()->toDateString(),
         ]);
 
-        return redirect()->route('admin.payments')
+        return redirect()->route('admin.payments.client', urlencode($project->client))
             ->with('success', "Payment setup created for \"{$project->name}\".");
     }
 
@@ -171,7 +172,8 @@ class PaymentController extends Controller
             'mode_of_payment'  => 'nullable|string|in:cheque,bank_transfer,cash',
             'reference_number' => 'nullable|string|max:100',
             'notes'            => 'nullable|string|max:1000',
-            'receipt_file'     => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
+            'receipt_files'    => 'nullable|array|max:5',
+            'receipt_files.*'  => 'file|mimes:pdf,jpg,jpeg,png|max:10240',
         ]);
 
         $paidStages  = $payment->paidStages();
@@ -185,13 +187,10 @@ class PaymentController extends Controller
             return back()->withErrors(['payment_stage' => 'Earlier payment stages must be recorded first.']);
         }
 
-        $receiptUrl = null;
-        if ($request->hasFile('receipt_file')) {
-            $receiptUrl = $this->storage->upload(
-                $request->file('receipt_file'),
-                'payments/' . $payment->id . '/receipts'
-            );
-        }
+        $receiptUrls = $this->storage->uploadMultiple(
+            $request->file('receipt_files', []),
+            'payments/' . $payment->id . '/receipts'
+        );
 
         PaymentTransaction::create([
             'payment_id'       => $payment->id,
@@ -200,7 +199,8 @@ class PaymentController extends Controller
             'payment_date'     => $validated['payment_date'],
             'mode_of_payment'  => $validated['mode_of_payment'] ?? null,
             'reference_number' => $validated['reference_number'] ?? null,
-            'receipt_url'      => $receiptUrl,
+            'receipt_url'      => $receiptUrls[0] ?? null,
+            'receipt_urls'     => !empty($receiptUrls) ? $receiptUrls : null,
             'notes'            => $validated['notes'] ?? null,
             'recorded_by'      => auth()->user()->name ?? 'Admin',
         ]);
@@ -232,6 +232,7 @@ class PaymentController extends Controller
             'po_number'            => 'nullable|string|max:100',
             'pr_number'            => 'nullable|string|max:100',
             'subject'              => 'nullable|string|max:255',
+            'billing_stage'        => 'nullable|string|in:' . implode(',', array_diff($payment->stages(), $payment->paidStages())),
             'deposit_instructions' => 'nullable|string|max:1000',
             'prepared_by_name'     => 'nullable|string|max:255',
             'prepared_by_role'     => 'nullable|string|max:255',
@@ -318,25 +319,28 @@ class PaymentController extends Controller
         $stageIn = implode(',', $payment->stages());
 
         $validated = $request->validate([
-            'payment_stage' => "required|string|in:{$stageIn}",
-            'proof_file'    => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
-            'notes'         => 'nullable|string|max:1000',
+            'payment_stage'   => "required|string|in:{$stageIn}",
+            'proof_files'     => 'required|array|min:1|max:5',
+            'proof_files.*'   => 'file|mimes:pdf,jpg,jpeg,png|max:10240',
+            'notes'           => 'nullable|string|max:1000',
         ]);
 
-        $fileUrl = $this->storage->upload(
-            $request->file('proof_file'),
+        $fileUrls = $this->storage->uploadMultiple(
+            $request->file('proof_files', []),
             'payments/' . $payment->id . '/proofs'
         );
 
-        if (!$fileUrl) {
+        if (empty($fileUrls)) {
             return back()->with('error', 'Upload failed. Please check your connection and try again.');
         }
 
-        $payment->proofs()->create([
-            'payment_stage' => $validated['payment_stage'],
-            'file_url'      => $fileUrl,
-            'notes'         => $validated['notes'] ?? null,
-        ]);
+        foreach ($fileUrls as $fileUrl) {
+            $payment->proofs()->create([
+                'payment_stage' => $validated['payment_stage'],
+                'file_url'      => $fileUrl,
+                'notes'         => $validated['notes'] ?? null,
+            ]);
+        }
 
         return redirect()->route('client.payments.show', $payment->id)
             ->with('success', 'Proof of payment submitted. Our team will verify it shortly.');

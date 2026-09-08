@@ -289,6 +289,7 @@
         document.getElementById('avatarInput').addEventListener('change', function () {
             var file = this.files[0];
             if (!file) return;
+            if (!validateFileSize(this, 4)) return;
             var reader = new FileReader();
             reader.onload = function (e) {
                 document.getElementById('avatarDisplay').innerHTML =

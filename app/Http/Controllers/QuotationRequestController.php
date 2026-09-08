@@ -45,30 +45,59 @@ class QuotationRequestController extends Controller
         $client = Client::findOrFail(session('user_id'));
 
         $request->validate([
-            'tank_items'                    => 'required|array|min:1',
+            'tank_items'                    => 'nullable|array',
             'tank_items.*.tank_type'        => 'required|string|in:' . implode(',', ProjectTankItem::TANK_TYPES),
             'tank_items.*.capacity'         => 'nullable|string|max:255',
             'tank_items.*.quantity'         => 'nullable|integer|min:1',
             'tank_items.*.target_timeline'  => 'nullable|string|max:255',
             'location'                      => 'required|string|max:1000',
             'notes'                         => 'nullable|string|max:2000',
+            'reference_files'               => 'nullable|array|max:5',
+            // "extensions" (not "mimes") because CAD tools like AutoCAD don't produce a
+            // MIME type PHP's file-info can reliably sniff — Laravel's "mimes" rule would
+            // reject valid .dwg uploads, so we trust the file's extension instead.
+            'reference_files.*'             => 'file|extensions:pdf,jpg,jpeg,png,dwg|max:10240',
         ]);
+
+        $tankItems = $request->input('tank_items', []);
+
+        // A client can fill in tank specs, attach photos of a tank they already
+        // own, or both — but the request needs at least one of the two.
+        if (empty($tankItems) && !$request->hasFile('reference_files')) {
+            return redirect()->back()
+                ->withErrors(['tank_items' => 'Please add at least one tank requirement, or attach a photo of your existing tank.'])
+                ->withInput();
+        }
 
         // Each tank the client adds becomes its own independent quotation request —
         // its own status, its own quotation file, its own approve/decline — tagged
         // with a shared batch_id purely so the UI can show "submitted together".
         $batchId = (string) Str::uuid();
 
-        $created = collect($request->tank_items)->map(function ($item) use ($client, $batchId, $request) {
+        // Optional photos/files of a tank the client already owns — shared across
+        // the whole batch, not per tank, so it's uploaded once and copied to each row.
+        $referenceUrls = $this->storage->uploadMultiple(
+            $request->file('reference_files', []),
+            'quotation-requests/' . $batchId . '/reference'
+        );
+
+        // No tank specs at all means the client is only sending their own tank —
+        // still create one row so the reference photos have somewhere to live.
+        if (empty($tankItems)) {
+            $tankItems = [['tank_type' => null, 'capacity' => null, 'quantity' => 1, 'target_timeline' => null]];
+        }
+
+        $created = collect($tankItems)->map(function ($item) use ($client, $batchId, $request, $referenceUrls) {
             return QuotationRequest::create([
                 'client_id'       => $client->id,
                 'batch_id'        => $batchId,
-                'tank_type'       => $item['tank_type'],
+                'tank_type'       => $item['tank_type'] ?? null,
                 'capacity'        => $item['capacity'] ?? null,
                 'quantity'        => $item['quantity'] ?? 1,
                 'target_timeline' => $item['target_timeline'] ?? null,
                 'location'        => $request->location,
                 'notes'           => $request->notes,
+                'reference_files' => !empty($referenceUrls) ? $referenceUrls : null,
                 'status'          => 'pending',
             ]);
         });
@@ -221,6 +250,7 @@ class QuotationRequestController extends Controller
                 'location' => $quotationRequest->location,
                 'notes'    => $quotationRequest->notes,
             ],
+            'reference_files' => $quotationRequest->reference_files ?? [],
         ]);
     }
 }

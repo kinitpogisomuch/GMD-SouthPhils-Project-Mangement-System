@@ -15,6 +15,7 @@ class QuotationRequest extends Model
         'target_timeline',
         'location',
         'notes',
+        'reference_files',
         'quotation_files',
         'status',
         'quotation_sent_at',
@@ -26,6 +27,7 @@ class QuotationRequest extends Model
     protected $casts = [
         'quantity'          => 'integer',
         'quotation_files'   => 'array',
+        'reference_files'   => 'array',
         'quotation_sent_at' => 'datetime',
         'approved_at'       => 'datetime',
     ];

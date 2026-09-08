@@ -39,6 +39,9 @@ class NotificationService
     const TYPE_QUOTATION_REQUEST_DECLINED  = 'quotation_request_declined';
     const TYPE_QUOTATION_REQUEST_QUOTATION_SENT = 'quotation_request_quotation_sent';
     const TYPE_QUOTATION_REQUEST_APPROVED       = 'quotation_request_approved';
+    const TYPE_MONTHLY_EXPENSE_REMINDER         = 'monthly_expense_reminder';
+    const TYPE_MATERIAL_LOGGING_REMINDER        = 'material_logging_reminder';
+    const TYPE_SALARY_RECORDING_REMINDER        = 'salary_recording_reminder';
 
     // -------------------------------------------------------------------------
     // Core send — accepts any model with an id, or a raw integer ID + type
@@ -653,6 +656,80 @@ class NotificationService
             'info',
             null,
             "/client/project-view/{$project->id}"
+        );
+    }
+
+    /**
+     * No monthly expense has been recorded yet, and the month is about to end
+     * → remind admins, once per month (skipped if already notified this month).
+     */
+    public static function monthlyExpenseReminder(string $monthYear, string $monthEndDate): void
+    {
+        $alreadyNotified = Notification::where('user_type', 'admin')
+            ->where('notification_type', self::TYPE_MONTHLY_EXPENSE_REMINDER)
+            ->where('message', 'like', "%{$monthYear}%")
+            ->exists();
+
+        if ($alreadyNotified) {
+            return;
+        }
+
+        self::notifyAdmins(
+            'Monthly Expense Not Yet Recorded',
+            "No expenses have been recorded for {$monthYear} yet. The month ends on {$monthEndDate} — please add this month's expenses soon.",
+            self::TYPE_MONTHLY_EXPENSE_REMINDER,
+            'warning',
+            null,
+            null,
+            '/admin/monthly-expenses'
+        );
+    }
+
+    /**
+     * An active (ongoing) project has gone 5+ days without a material usage log
+     * entry → remind admins. The caller re-fires this every 5 days the gap
+     * continues, and it naturally stops once a new log entry is recorded.
+     */
+    public static function materialLoggingReminder(Project $project, int $daysSinceLastLog): void
+    {
+        self::notifyAdmins(
+            'Material Usage Not Logged',
+            "No material usage has been logged for Project: {$project->name} in {$daysSinceLastLog} day(s). Please check with the team and update the material usage log.",
+            self::TYPE_MATERIAL_LOGGING_REMINDER,
+            'warning',
+            $project->id,
+            null,
+            "/admin/material-usage/{$project->id}"
+        );
+    }
+
+    /**
+     * Saturday has arrived and no salary has been recorded yet for the current
+     * pay period (Monday–Sunday) → remind admins. Guarded so a re-run on the
+     * same Saturday doesn't send a duplicate for the same week.
+     */
+    public static function salaryRecordingReminder(string $payPeriod): void
+    {
+        $alreadyNotified = Notification::where('user_type', 'admin')
+            ->where('notification_type', self::TYPE_SALARY_RECORDING_REMINDER)
+            ->where('message', 'like', "%{$payPeriod}%")
+            ->exists();
+
+        if ($alreadyNotified) {
+            return;
+        }
+
+        $weekStart = \Carbon\Carbon::parse($payPeriod);
+        $weekEnd   = $weekStart->copy()->addDays(6);
+
+        self::notifyAdmins(
+            'Salary Not Yet Recorded This Week',
+            "No salary has been recorded yet for the week of {$weekStart->format('M j')} – {$weekEnd->format('M j, Y')} ({$payPeriod}). Please record salary before the week closes.",
+            self::TYPE_SALARY_RECORDING_REMINDER,
+            'warning',
+            null,
+            null,
+            '/admin/salary-records'
         );
     }
 

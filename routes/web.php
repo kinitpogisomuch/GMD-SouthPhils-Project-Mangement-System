@@ -28,6 +28,7 @@ use App\Http\Controllers\MonthlyExpenseController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\KpiDashboardController;
 use App\Http\Controllers\QuotationRequestController;
+use App\Http\Controllers\PerformanceTestReportController;
 
 /*
 |--------------------------------------------------------------------------
@@ -157,6 +158,10 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     // Request revision: hits ProjectController@requestRevision (single source of truth)
     Route::post('/project-updates/{updateId}/request-revision', [ProjectController::class, 'requestRevision'])->name('project-update.request-revision');
 
+    // Performance Test Reports (Inspection phase certificates)
+    Route::post('/projects/{projectId}/performance-test-reports', [PerformanceTestReportController::class, 'store'])->name('performance_test_reports.store');
+    Route::get('/projects/{projectId}/performance-test-reports/{reportId}', [PerformanceTestReportController::class, 'show'])->name('performance_test_reports.show');
+
     // Get update details (for modal)
     Route::get('/project-updates/{updateId}', [ProjectUpdateController::class, 'show'])->name('project-update.show');
 
@@ -190,6 +195,7 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
 
     // Client List API
     Route::get('/clients/list', [ClientSettingsController::class, 'list'])->name('client.list');
+    Route::get('/clients/pending-count', [ClientSettingsController::class, 'pendingCount'])->name('client.pending_count');
 
     // Client Account
     Route::post('/client-account/store', [ClientAccountController::class, 'store'])->name('client-account.store');
@@ -252,6 +258,7 @@ Route::prefix('client')->name('client.')->middleware(['role:client', 'profile.co
     Route::get('/payments/{id}/billing-statements/{statementId}', [PaymentController::class, 'clientShowBillingStatement'])->name('payments.billing_statements.show');
     Route::post('/payments/{id}/proof', [PaymentController::class, 'uploadProof'])->name('payments.proof.store');
     Route::get('/project-view/{id}', [ProjectController::class, 'clientView'])->name('project_view');
+    Route::get('/projects/{projectId}/performance-test-reports/{reportId}', [PerformanceTestReportController::class, 'clientShow'])->name('performance_test_reports.show');
     Route::post('/project/{id}/shop-drawing/approve', [ProjectController::class, 'approveShopDrawing'])->name('project.shop_drawing.approve');
     Route::post('/project/{id}/shop-drawing/request-revision', [ProjectController::class, 'requestShopDrawingRevision'])->name('project.shop_drawing.request_revision');
     Route::get('/projects', [ClientController::class, 'projectList'])->name('projects');

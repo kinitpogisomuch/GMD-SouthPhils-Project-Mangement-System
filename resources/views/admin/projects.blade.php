@@ -191,10 +191,10 @@
                             @forelse($clientGroups as $g)
                             <tr data-search="{{ strtolower($g['client']) }}" onclick="window.location='{{ route('admin.projects.client', $g['client']) }}'" style="cursor:pointer;">
                                 <td><span class="client-pill">{{ $g['client'] }}</span></td>
-                                <td style="text-align:center;font-weight:800;">{{ $g['total'] }}</td>
-                                <td style="text-align:center;color:#2563EB;font-weight:700;">{{ $g['active'] }}</td>
-                                <td style="text-align:center;color:#207A3A;font-weight:700;">{{ $g['completed'] }}</td>
-                                <td style="text-align:center;color:#6B7280;font-weight:700;">{{ $g['archived'] }}</td>
+                                <td style="text-align:center;"><span class="client-pill" style="background-color:#F3F4F6;color:#1F2937;border-color:#D1D5DB;">{{ $g['total'] }}</span></td>
+                                <td style="text-align:center;"><span class="client-pill" style="background-color:#EAF0FF;color:#2563EB;border-color:#BFDBFE;">{{ $g['active'] }}</span></td>
+                                <td style="text-align:center;"><span class="client-pill" style="background-color:#E7F6EC;color:#207A3A;border-color:#A7E3B8;">{{ $g['completed'] }}</span></td>
+                                <td style="text-align:center;"><span class="client-pill" style="background-color:#F3F4F6;color:#6B7280;border-color:#D1D5DB;">{{ $g['archived'] }}</span></td>
                                 <td class="action-cell" style="text-align:center;">
                                     <a href="{{ route('admin.projects.client', $g['client']) }}" class="action-btn view" title="View Client's Projects" onclick="event.stopPropagation()">
                                         <i data-lucide="eye"></i>
@@ -798,7 +798,7 @@
                     '</div>' +
                     '<div class="form-group" style="flex:1.5;">' +
                         '<label>Project Shape</label>' +
-                        '<select class="ti-shape" onchange="onTankShapeChange(this)">' +
+                        '<select name="' + prefix + '[shape]" class="ti-shape" required onchange="onTankShapeChange(this)">' +
                             (!type ? '<option value="" disabled selected hidden>—</option>' : tankShapeOptions(type, initShape)) +
                         '</select>' +
                     '</div>' +
@@ -1222,8 +1222,15 @@
         // so the specs are easy to tell apart at a glance, plus a notes line if present.
         function formatQuotationSummaryLine(data) {
             var tankItems = (data && data.tank_items) || [];
+            var refFiles  = (data && data.reference_files) || [];
+            var refChips  = refFiles.map(function (url, i) {
+                return '<a href="' + url + '" target="_blank" style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:800;color:#6d28d9;background:#ede9fe;border-radius:999px;padding:3px 10px;text-decoration:none;box-shadow:0 0 0 1px rgba(109,40,217,.18);">'
+                    + '<i data-lucide="paperclip" style="width:10px;height:10px;"></i> Client File ' + (i + 1)
+                + '</a>';
+            }).join('');
+
             var html = tankItems.length
-                ? tankItems.map(function (item) {
+                ? tankItems.map(function (item, i) {
                     var typeLabel = qrEscapeHtml(item.tank_type || 'Tank');
                     if ((item.quantity || 1) > 1) typeLabel += ' ×' + parseInt(item.quantity, 10);
                     var chips = '<span class="qr-spec-chip qr-chip-type"><i data-lucide="package" style="width:11px;height:11px;"></i>' + typeLabel + '</span>';
@@ -1233,14 +1240,18 @@
                     if (item.target_timeline) {
                         chips += '<span class="qr-spec-chip qr-chip-timeline"><i data-lucide="clock" style="width:11px;height:11px;"></i>' + qrEscapeHtml(item.target_timeline) + '</span>';
                     }
+                    // Attach the client's own reference files to the last tank line so
+                    // they sit right beside the tank chip instead of floating below.
+                    if (i === tankItems.length - 1) chips += refChips;
                     return '<div class="qr-tank-line">' + chips + '</div>';
                 }).join('')
-                : '<div class="qr-tank-line" style="font-weight:600;font-size:12.5px;">No tank details provided</div>';
+                : '<div class="qr-tank-line" style="font-weight:600;font-size:12.5px;">No tank details provided' + refChips + '</div>';
 
             var notes = data && data.summary && data.summary.notes;
             if (notes) {
                 html += '<div class="qr-tank-notes">Notes: ' + qrEscapeHtml(notes) + '</div>';
             }
+
             return html;
         }
 
@@ -1313,6 +1324,44 @@
                     alert('Please select a tank type for each tank row.');
                     return;
                 }
+                // Every tank row must also have its shape, quantity, capacity, and
+                // whichever dimension fields are relevant to the chosen shape filled in.
+                var firstInvalidField = null;
+                var missingFields = false;
+                tankRows.forEach(function(row) {
+                    var shapeSel = row.querySelector('.ti-shape');
+                    if (!shapeSel || !shapeSel.value) {
+                        missingFields = true;
+                        if (!firstInvalidField) firstInvalidField = shapeSel;
+                    }
+
+                    var qtyInput = row.querySelector('input[name$="[quantity]"]');
+                    if (!qtyInput || !qtyInput.value || parseInt(qtyInput.value, 10) < 1) {
+                        missingFields = true;
+                        if (!firstInvalidField) firstInvalidField = qtyInput;
+                    }
+
+                    var capInput = row.querySelector('.ti-cap-hidden');
+                    if (!capInput || !capInput.value.trim()) {
+                        missingFields = true;
+                        if (!firstInvalidField) firstInvalidField = capInput;
+                    }
+
+                    row.querySelectorAll('.ti-dims-section .ti-dim-input').forEach(function(dimInput) {
+                        var group = dimInput.closest('.form-group');
+                        var isVisible = !group || group.style.display !== 'none';
+                        if (isVisible && (!dimInput.value || parseFloat(dimInput.value) <= 0)) {
+                            missingFields = true;
+                            if (!firstInvalidField) firstInvalidField = dimInput;
+                        }
+                    });
+                });
+                if (missingFields) {
+                    e.preventDefault();
+                    alert('Please fill out all fields (shape, dimensions, quantity, and capacity) for every tank specification.');
+                    if (firstInvalidField) firstInvalidField.focus();
+                    return;
+                }
             });
         }
 
@@ -1337,10 +1386,10 @@
             tr.setAttribute('onclick', "window.location='" + url.replace(/'/g, "\\'") + "'");
             tr.innerHTML =
                 '<td><span class="client-pill"></span></td>' +
-                '<td style="text-align:center;font-weight:800;">' + g.total + '</td>' +
-                '<td style="text-align:center;color:#2563EB;font-weight:700;">' + g.active + '</td>' +
-                '<td style="text-align:center;color:#207A3A;font-weight:700;">' + g.completed + '</td>' +
-                '<td style="text-align:center;color:#6B7280;font-weight:700;">' + g.archived + '</td>' +
+                '<td style="text-align:center;"><span class="client-pill" style="background-color:#F3F4F6;color:#1F2937;border-color:#D1D5DB;">' + g.total + '</span></td>' +
+                '<td style="text-align:center;"><span class="client-pill" style="background-color:#EAF0FF;color:#2563EB;border-color:#BFDBFE;">' + g.active + '</span></td>' +
+                '<td style="text-align:center;"><span class="client-pill" style="background-color:#E7F6EC;color:#207A3A;border-color:#A7E3B8;">' + g.completed + '</span></td>' +
+                '<td style="text-align:center;"><span class="client-pill" style="background-color:#F3F4F6;color:#6B7280;border-color:#D1D5DB;">' + g.archived + '</span></td>' +
                 '<td class="action-cell" style="text-align:center;">' +
                     '<a href="' + url + '" class="action-btn view" title="View Client\'s Projects" onclick="event.stopPropagation()">' +
                         '<i data-lucide="eye"></i>' +

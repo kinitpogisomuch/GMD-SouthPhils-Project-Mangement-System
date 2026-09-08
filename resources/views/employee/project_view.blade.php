@@ -559,12 +559,15 @@
         }
 
         function previewPhotos(input) {
+            const rejected = [];
             for (const f of Array.from(input.files)) {
                 if (empPhotoFiles.length >= 5) break;
+                if (f.size > 5 * 1024 * 1024) { rejected.push(f.name); continue; }
                 empPhotoFiles.push(f);
             }
             syncInput(input, empPhotoFiles);
             buildPhotoPreview(empPhotoFiles, 'photoPreview', 'removeEmpPhoto');
+            if (rejected.length) showFileTooLargeModal(rejected.join(', '), 5);
         }
 
         function removeEmpPhoto(index) {
@@ -575,12 +578,15 @@
         }
 
         function previewRevisionPhotos(input) {
+            const rejected = [];
             for (const f of Array.from(input.files)) {
                 if (empRevisionFiles.length >= 5) break;
+                if (f.size > 5 * 1024 * 1024) { rejected.push(f.name); continue; }
                 empRevisionFiles.push(f);
             }
             syncInput(input, empRevisionFiles);
             buildPhotoPreview(empRevisionFiles, 'revisionPhotoPreview', 'removeRevisionPhoto');
+            if (rejected.length) showFileTooLargeModal(rejected.join(', '), 5);
         }
 
         function removeRevisionPhoto(index) {

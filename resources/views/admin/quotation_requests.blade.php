@@ -98,6 +98,7 @@
                                     ]],
                                     'location'          => $qr->location,
                                     'notes'             => $qr->notes,
+                                    'reference_files'   => $qr->reference_files ?? [],
                                     'quotation_files'   => !empty($qr->quotation_files) ? [$qr->quotation_files] : [],
                                     'decline_reason'    => $qr->decline_reason,
                                     'submitted_at'      => $qr->created_at->format('M d, Y \a\t g:i A'),
@@ -111,10 +112,22 @@
                                     <div style="font-size:12px;color:var(--muted);">{{ $qr->client->email ?? '' }}</div>
                                 </td>
                                 <td>
+                                    @if($qr->tank_type)
                                     <span class="qr-spec-chip qr-chip-type">
                                         <i data-lucide="package" style="width:11px;height:11px;"></i>
-                                        {{ $qr->tank_type ?? '—' }}{{ $qr->quantity > 1 ? ' ×' . $qr->quantity : '' }}
+                                        {{ $qr->tank_type }}{{ $qr->quantity > 1 ? ' ×' . $qr->quantity : '' }}
                                     </span>
+                                    @else
+                                    <span class="qr-spec-chip qr-chip-type" title="No tank spec — see attached reference photos">
+                                        <i data-lucide="image" style="width:11px;height:11px;"></i>
+                                        Client's Own Tank
+                                    </span>
+                                    @endif
+                                    @if(!empty($qr->reference_files))
+                                    <span title="{{ count($qr->reference_files) }} file(s) attached by the client" style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;font-size:10.5px;font-weight:800;color:#6d28d9;background:#ede9fe;border-radius:999px;padding:3px 8px;box-shadow:0 0 0 1px rgba(109,40,217,.18);">
+                                        <i data-lucide="paperclip" style="width:10px;height:10px;"></i>{{ count($qr->reference_files) }}
+                                    </span>
+                                    @endif
                                 </td>
                                 <td>
                                     @if(!empty($qr->capacity))
@@ -210,6 +223,14 @@
             <div style="padding:0 28px 4px;">
                 <div id="viewRequestStatusBadge" style="margin-bottom:16px;"></div>
 
+                <div id="viewRequestReferenceFilesWrap" style="display:none;margin-bottom:20px;background:#f5f3ff;border:1.5px solid #ddd6fe;border-radius:14px;padding:14px 16px;">
+                    <div style="display:flex;align-items:center;gap:7px;font-size:12px;font-weight:800;color:#6d28d9;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;">
+                        <i data-lucide="paperclip" style="width:14px;height:14px;"></i>
+                        Client Attached Their Own Tank Files
+                    </div>
+                    <div id="viewRequestReferenceFiles" style="display:flex;flex-wrap:wrap;gap:10px;"></div>
+                </div>
+
                 <label style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:8px;">
                     Tank Requirements
                 </label>
@@ -230,11 +251,11 @@
                     </div>
                     <div class="form-group form-group-full">
                         <label>Location</label>
-                        <textarea id="viewRequestLocation" rows="2" disabled></textarea>
+                        <textarea id="viewRequestLocation" rows="2" disabled style="resize:none;"></textarea>
                     </div>
                     <div class="form-group form-group-full" id="viewRequestNotesGroup" style="display:none;">
                         <label>Notes</label>
-                        <textarea id="viewRequestNotes" rows="3" disabled></textarea>
+                        <textarea id="viewRequestNotes" rows="3" disabled style="resize:none;"></textarea>
                     </div>
                 </div>
 
@@ -365,9 +386,11 @@
                     var tankItemsWrap = document.getElementById('viewRequestTankItems');
                     tankItemsWrap.innerHTML = (r.tank_items || []).map(function (item) {
                         var qty = item.quantity || 1;
-                        var typeLabel = (item.tank_type || '—') + (qty > 1 ? ' ×' + qty : '');
+                        var hasType = !!item.tank_type;
+                        var typeLabel = hasType ? (item.tank_type + (qty > 1 ? ' ×' + qty : '')) : "Client's Own Tank";
+                        var typeIcon = hasType ? 'package' : 'image';
                         return '<div class="qr-tank-row" style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;">'
-                            + '<span class="qr-spec-chip qr-chip-type"><i data-lucide="package" style="width:11px;height:11px;"></i>' + typeLabel + '</span>'
+                            + '<span class="qr-spec-chip qr-chip-type"><i data-lucide="' + typeIcon + '" style="width:11px;height:11px;"></i>' + typeLabel + '</span>'
                             + (item.capacity ? '<span class="qr-spec-chip qr-chip-capacity"><i data-lucide="droplet" style="width:11px;height:11px;"></i>Capacity: ' + item.capacity + '</span>' : '')
                             + (item.target_timeline ? '<span class="qr-spec-chip qr-chip-timeline"><i data-lucide="clock" style="width:11px;height:11px;"></i>Timeline: ' + item.target_timeline + '</span>' : '')
                             + '</div>';
@@ -379,6 +402,31 @@
                         document.getElementById('viewRequestNotes').value = r.notes;
                     } else {
                         notesGroup.style.display = 'none';
+                    }
+
+                    var refFilesWrap = document.getElementById('viewRequestReferenceFilesWrap');
+                    var refFilesList = document.getElementById('viewRequestReferenceFiles');
+                    var refFiles = r.reference_files || [];
+                    if (refFiles.length) {
+                        refFilesWrap.style.display = '';
+                        refFilesList.innerHTML = refFiles.map(function (url, i) {
+                            var ext      = (url.split('.').pop() || '').split('?')[0].toLowerCase();
+                            var isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].indexOf(ext) !== -1;
+                            var thumb   = isImage
+                                ? '<img src="' + url + '" alt="" style="width:64px;height:64px;border-radius:8px;object-fit:cover;flex-shrink:0;">'
+                                : '<span style="width:64px;height:64px;border-radius:8px;background:#fff;border:1px solid #e0e3f5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;flex-shrink:0;">'
+                                    + '<i data-lucide="file-text" style="width:20px;height:20px;color:#6d28d9;"></i>'
+                                    + '<span style="font-size:9.5px;font-weight:800;color:#6d28d9;text-transform:uppercase;">' + (ext || 'file') + '</span>'
+                                + '</span>';
+                            return '<a href="' + url + '" target="_blank" title="Open Reference File ' + (i + 1) + '" '
+                                + 'style="display:flex;flex-direction:column;align-items:center;gap:5px;text-decoration:none;width:64px;">'
+                                + thumb
+                                + '<span style="font-size:10.5px;font-weight:700;color:var(--dark);">File ' + (i + 1) + '</span>'
+                            + '</a>';
+                        }).join('');
+                    } else {
+                        refFilesWrap.style.display = 'none';
+                        refFilesList.innerHTML = '';
                     }
 
                     var meta = statusMeta[r.status] || statusMeta.pending;
@@ -451,23 +499,79 @@
             document.getElementById('closeViewRequestModal')
                 .addEventListener('click', function () { closeModal('viewRequestModal'); });
 
+            // Per-tank picked-file state — mirrors the client "Request a Quotation"
+            // upload UI: a dropzone until something's picked, then compact chips
+            // (thumbnail, name, size, remove) with a "+" tile to add more, capped at 5.
+            var SEND_QUOTATION_MAX_FILES = 5;
+            var sendQuotationSelected = {};
+
+            function sendQuotationFormatSize(bytes) {
+                if (bytes < 1024) return bytes + ' B';
+                if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + ' KB';
+                return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+            }
+
             function renderSendQuotationTankInputs(tankItems) {
+                sendQuotationSelected = {};
                 var list = document.getElementById('sendQuotationTankList');
                 list.innerHTML = (tankItems || []).map(function (item, i) {
+                    sendQuotationSelected[i] = [];
                     var qty = item.quantity || 1;
                     var label = (item.tank_type || 'Tank') + (qty > 1 ? ' (' + qty + 'x)' : '');
                     return '<div class="form-group" style="margin-bottom:0;">'
                         + '<label class="log-label">' + label.toUpperCase() + ' — QUOTATION FILE(S) *</label>'
-                        + '<label class="pv-upload-dropzone">'
+                        + '<label for="sendQuotationInput' + i + '" class="pv-upload-dropzone" id="sendQuotationDropzone' + i + '">'
                             + '<i data-lucide="upload-cloud" style="width:24px;height:24px;color:var(--accent);"></i>'
                             + '<span style="font-size:13px;font-weight:700;color:var(--text-primary);">Click to upload quotation document(s)</span>'
                             + '<span style="font-size:11px;color:var(--muted);">PDF or images, up to 5 files, max 10MB each</span>'
-                            + '<input type="file" name="quotation_files[' + i + '][]" multiple accept=".pdf,image/*" '
-                                + 'class="send-quotation-input" data-tank-index="' + i + '" style="display:none;" required>'
                         + '</label>'
-                        + '<div class="send-quotation-preview" data-tank-index="' + i + '" style="display:flex;flex-direction:column;gap:4px;margin-top:6px;"></div>'
+                        + '<input type="file" id="sendQuotationInput' + i + '" name="quotation_files[' + i + '][]" multiple accept=".pdf,image/*" '
+                            + 'class="send-quotation-input" data-tank-index="' + i + '" style="display:none;" required>'
+                        + '<div class="qr-file-list send-quotation-preview" data-tank-index="' + i + '" style="display:none;"></div>'
                         + '</div>';
                 }).join('');
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }
+
+            function sendQuotationSyncInput(idx) {
+                var input = document.getElementById('sendQuotationInput' + idx);
+                if (!input) return;
+                var dt = new DataTransfer();
+                sendQuotationSelected[idx].forEach(function (f) { dt.items.add(f); });
+                input.files = dt.files;
+            }
+
+            function sendQuotationRenderPreview(idx) {
+                var dropzone = document.getElementById('sendQuotationDropzone' + idx);
+                var preview  = document.querySelector('.send-quotation-preview[data-tank-index="' + idx + '"]');
+                var files    = sendQuotationSelected[idx] || [];
+                if (!dropzone || !preview) return;
+
+                dropzone.style.display = files.length ? 'none' : '';
+                preview.style.display  = files.length ? 'flex' : 'none';
+
+                preview.innerHTML = files.map(function (f, i) {
+                    var isImage = f.type.indexOf('image/') === 0;
+                    var thumb   = isImage
+                        ? '<img class="qr-file-thumb" src="' + URL.createObjectURL(f) + '" alt="">'
+                        : '<span class="qr-file-thumb"><i data-lucide="file-text"></i></span>';
+                    return '<div class="qr-file-chip" data-tank-index="' + idx + '" data-file-index="' + i + '">'
+                        + thumb
+                        + '<div class="qr-file-meta">'
+                            + '<div class="qr-file-name" title="' + f.name.replace(/"/g, '&quot;') + '">' + f.name + '</div>'
+                            + '<div class="qr-file-size">' + sendQuotationFormatSize(f.size) + '</div>'
+                        + '</div>'
+                        + '<button type="button" class="qr-file-remove" data-tank-index="' + idx + '" data-file-index="' + i + '" title="Remove">'
+                            + '<i data-lucide="x"></i>'
+                        + '</button>'
+                    + '</div>';
+                }).join('');
+
+                if (files.length && files.length < SEND_QUOTATION_MAX_FILES) {
+                    preview.innerHTML += '<button type="button" class="qr-file-add" data-tank-index="' + idx + '" title="Add more">'
+                        + '<i data-lucide="plus"></i></button>';
+                }
+
                 if (typeof lucide !== 'undefined') lucide.createIcons();
             }
 
@@ -476,10 +580,45 @@
                 sendQuotationTankList.addEventListener('change', function (e) {
                     if (!e.target.classList.contains('send-quotation-input')) return;
                     var idx = e.target.dataset.tankIndex;
-                    var preview = sendQuotationTankList.querySelector('.send-quotation-preview[data-tank-index="' + idx + '"]');
-                    preview.innerHTML = Array.from(e.target.files).map(function (f) {
-                        return '<span style="font-size:12px;color:var(--text-secondary);">📎 ' + f.name + '</span>';
-                    }).join('');
+                    var rejected = [];
+                    Array.from(e.target.files || []).forEach(function (f) {
+                        if (f.size > 10 * 1024 * 1024) { rejected.push(f.name); return; }
+                        var isDuplicate = sendQuotationSelected[idx].some(function (sf) {
+                            return sf.name === f.name && sf.size === f.size && sf.lastModified === f.lastModified;
+                        });
+                        if (!isDuplicate && sendQuotationSelected[idx].length < SEND_QUOTATION_MAX_FILES) {
+                            sendQuotationSelected[idx].push(f);
+                        }
+                    });
+                    sendQuotationSyncInput(idx);
+                    sendQuotationRenderPreview(idx);
+                    if (rejected.length) showFileTooLargeModal(rejected.join(', '), 10);
+                });
+
+                sendQuotationTankList.addEventListener('click', function (e) {
+                    var addBtn = e.target.closest('.qr-file-add');
+                    if (addBtn) {
+                        var addIdx = addBtn.dataset.tankIndex;
+                        var input  = document.getElementById('sendQuotationInput' + addIdx);
+                        if (input) { input.value = ''; input.click(); }
+                        return;
+                    }
+                    var removeBtn = e.target.closest('.qr-file-remove');
+                    if (removeBtn) {
+                        var rIdx = removeBtn.dataset.tankIndex;
+                        var fIdx = Number(removeBtn.dataset.fileIndex);
+                        sendQuotationSelected[rIdx].splice(fIdx, 1);
+                        sendQuotationSyncInput(rIdx);
+                        sendQuotationRenderPreview(rIdx);
+                        return;
+                    }
+                    var chip = e.target.closest('.qr-file-chip');
+                    if (chip) {
+                        var cIdx = chip.dataset.tankIndex;
+                        var cfIdx = Number(chip.dataset.fileIndex);
+                        var f = sendQuotationSelected[cIdx][cfIdx];
+                        if (f) window.open(URL.createObjectURL(f), '_blank');
+                    }
                 });
             }
 

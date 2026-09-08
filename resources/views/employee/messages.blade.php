@@ -638,6 +638,10 @@
         }
 
         function addAttachmentPreview(file) {
+            if (file.size > 10 * 1024 * 1024) {
+                showFileTooLargeModal(file.name, 10);
+                return;
+            }
             const id = 'att-' + Date.now() + '-' + Math.random().toString(36).slice(2);
             pendingAttachments.push({ id, file });
 

@@ -144,7 +144,7 @@
                             <span style="font-size:11.5px;color:var(--muted);">Share your experience with this project.</span>
                         @endif
                         <button type="button" class="btn btn-sm" style="background:#F59E0B;color:#fff;font-weight:700;padding:6px 14px;border-radius:10px;font-size:12px;display:flex;align-items:center;gap:5px;border:none;cursor:pointer;"
-                            onclick="openReviewModal({{ $project->id }}, {{ \Illuminate\Support\Js::from($project->name) }}, {{ $review->rating ?? 0 }}, {{ \Illuminate\Support\Js::from($review->comment ?? '') }})">
+                            onclick="openReviewModal({{ $project->id }}, {{ \Illuminate\Support\Js::from($project->name) }}, {{ $review->rating ?? 0 }}, {{ \Illuminate\Support\Js::from($review->comment ?? '') }}, {{ $review->is_anonymous ?? false ? 'true' : 'false' }})">
                             <i data-lucide="star" style="width:13px;height:13px;"></i> {{ $review ? 'Edit Review' : 'Leave a Review' }}
                         </button>
                     </div>
@@ -229,7 +229,20 @@
                     </div>
                     <div class="form-group form-group-full">
                         <label>Your Review </label>
-                        <textarea name="comment" id="reviewCommentInput" rows="4" maxlength="1000" placeholder="Tell us about your experience with this project..." required></textarea>
+                        <textarea name="comment" id="reviewCommentInput" rows="3" maxlength="1000" placeholder="Tell us about your experience with this project..." required style="min-height:auto;resize:none;"></textarea>
+                    </div>
+                    <div class="form-group form-group-full">
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;">
+                            <input type="checkbox" name="hide_name" id="reviewHideNameInput" value="1" style="width:16px;height:16px;">
+                            Hide my name on the public review
+                        </label>
+                        @php
+                            $clientDisplayName = session('full_name', 'Client');
+                            $maskedPreview = (new \App\Models\Review(['client_name' => $clientDisplayName]))->masked_client_name;
+                        @endphp
+                        <p style="font-size:11.5px;color:var(--muted);margin-top:6px;">
+                            Your name will show as <strong>"{{ $maskedPreview }}"</strong> instead of "{{ $clientDisplayName }}" on the public site.
+                        </p>
                     </div>
                 </div>
                 <div style="padding:14px 20px;border-top:1px solid rgba(0,0,0,0.06);display:flex;justify-content:flex-end;gap:10px;">
@@ -269,10 +282,11 @@
             });
         }
 
-        function openReviewModal(projectId, projectName, rating, comment) {
+        function openReviewModal(projectId, projectName, rating, comment, isAnonymous) {
             document.getElementById('reviewForm').action = '/client/projects/' + projectId + '/review';
             document.getElementById('reviewProjectName').textContent = 'Share your experience with "' + projectName + '".';
             document.getElementById('reviewCommentInput').value = comment || '';
+            document.getElementById('reviewHideNameInput').checked = !!isAnonymous;
             setReviewRating(rating || 0);
             openModal('reviewModal');
         }

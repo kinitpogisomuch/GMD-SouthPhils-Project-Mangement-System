@@ -39,6 +39,19 @@
             cursor: pointer;
         }
         .kd-period-divider { width: 1px; height: 22px; background: var(--border); flex-shrink: 0; }
+        .kd-period-apply-btn {
+            height: 100%;
+            border: none;
+            background: var(--dark);
+            color: #fff;
+            padding: 0 18px;
+            font-size: 13px;
+            font-weight: 800;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: background .15s ease;
+        }
+        .kd-period-apply-btn:hover { background: var(--dark-soft, #444); }
 
         .kd-panel { display: none; }
         .kd-panel.active { display: block; }
@@ -148,6 +161,7 @@
                         </select>
                         <div class="kd-period-divider"></div>
                         <select class="kd-period-select" id="kdYearSelect" style="min-width:80px;"></select>
+                        <button type="button" class="kd-period-apply-btn" id="kdApplyPeriodBtn">Set</button>
                     </div>
                     <div class="kd-header-actions-divider"></div>
                     <button type="button" class="cancel-btn" id="kdOpenReportBtn">
@@ -365,11 +379,11 @@
             };
         }
 
-        document.getElementById('kdYearSelect').addEventListener('change', function () {
-            var p = currentSelectedPeriod();
-            loadPeriod(p.year, p.quarter);
-        });
-        document.getElementById('kdQuarterSelect').addEventListener('change', function () {
+        // Quarter and year are picked independently, then applied together via
+        // "Set" — fetching on every change caused an intermediate load with the
+        // still-stale value (e.g. new quarter fetched against the old year)
+        // whose response would then reset the dropdown the user just touched.
+        document.getElementById('kdApplyPeriodBtn').addEventListener('click', function () {
             var p = currentSelectedPeriod();
             loadPeriod(p.year, p.quarter);
         });

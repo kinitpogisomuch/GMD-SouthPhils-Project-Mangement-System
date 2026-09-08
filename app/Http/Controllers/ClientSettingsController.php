@@ -17,6 +17,13 @@ class ClientSettingsController extends Controller
         return view('admin.settings', compact('clients'));
     }
 
+    public function pendingCount()
+    {
+        return response()->json([
+            'count' => Client::where('status', 'Pending')->count(),
+        ]);
+    }
+
     public function store(Request $request)
     {
         set_time_limit(120);

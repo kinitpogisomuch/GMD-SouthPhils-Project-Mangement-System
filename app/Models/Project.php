@@ -105,6 +105,12 @@ class Project extends Model
         'payment'      => 20,
     ];
 
+    // Relationship: Project has many performance test reports (Inspection phase certificates)
+    public function performanceTestReports()
+    {
+        return $this->hasMany(PerformanceTestReport::class)->latest();
+    }
+
     // Relationship: Project has many materials
     public function materials()
     {

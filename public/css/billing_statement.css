@@ -63,20 +63,25 @@ body {
     margin-bottom: 10px;
 }
 
-.bs-brand-gmd {
-    font-size: 34px;
-    font-weight: 900;
-    color: #c81e1e;
-    letter-spacing: -1px;
-    line-height: 1;
+.bs-logo-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
 }
 
-.bs-brand-sub {
-    font-size: 12px;
-    font-weight: 800;
-    color: #444;
-    letter-spacing: 3px;
-    margin-top: 2px;
+.bs-logo {
+    max-height: 64px;
+    max-width: 150px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
+.bs-logo-badge {
+    max-height: 50px;
+    max-width: 50px;
 }
 
 .bs-company-info {
@@ -229,8 +234,159 @@ body {
     margin-top: 2px;
 }
 
+/* ================= PERFORMANCE TEST REPORT (Inspection phase) ================= */
+
+.ptr-fields {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 18px;
+}
+.ptr-fields td {
+    padding: 5px 0;
+    vertical-align: top;
+    font-size: 12.5px;
+}
+.ptr-field-label {
+    font-weight: 700;
+    color: #1a1a1a;
+    white-space: nowrap;
+    padding-right: 14px;
+    width: 1%;
+}
+.ptr-field-value {
+    padding-left: 6px;
+}
+
+.ptr-title-bar {
+    background: #9dc3e6;
+    color: #1a1a1a;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 900;
+    letter-spacing: .5px;
+    padding: 9px 10px;
+    margin: 16px 0 0;
+    border: 1px solid #1a1a1a;
+    border-bottom: none;
+}
+
+.ptr-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 22px;
+    border: 1px solid #1a1a1a;
+}
+.ptr-table th {
+    background: #cfe0f5;
+    border: 1px solid #999;
+    padding: 8px 8px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .03em;
+    text-align: center;
+}
+.ptr-table td {
+    border: 1px solid #ccc;
+    padding: 8px;
+    font-size: 12px;
+    text-align: center;
+}
+
+.ptr-signatures {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+    margin-top: 30px;
+}
+.ptr-sig-block { max-width: 260px; }
+.ptr-sig-name {
+    font-weight: 700;
+    border-top: 1px solid #1a1a1a;
+    padding-top: 6px;
+    font-family: 'Brush Script MT', cursive;
+    font-size: 18px;
+}
+.ptr-sig-role {
+    font-size: 11.5px;
+    color: #444;
+    margin-top: 2px;
+}
+
+/* "Actual Test" photo appendix */
+.ptr-photo-page {
+    page-break-before: always;
+}
+.ptr-photo-page-title {
+    text-align: center;
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    margin: 16px 0;
+}
+.ptr-photo-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+}
+.ptr-photo-grid img {
+    width: 100%;
+    height: 260px;
+    object-fit: contain;
+    background: #f3f3f3;
+    border: 1px solid #999;
+    border-radius: 4px;
+}
+
 @media print {
+    @page {
+        size: letter;
+        margin: 8mm;
+    }
+
+    /* Browsers strip background colors/images from print output by default —
+       this forces table header fills, the title bar, etc. to actually print. */
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+
     body { background: #fff; }
     .bs-toolbar { display: none; }
-    .bs-sheet { box-shadow: none; border: none; margin: 0; max-width: 100%; }
+
+    .bs-sheet {
+        box-shadow: none;
+        border: none;
+        margin: 0;
+        padding: 0;
+        max-width: 100%;
+        font-size: 11.5px;
+    }
+
+    /* Trim the on-screen breathing room that pushes a mostly-empty extra
+       page — this document should always fit on a single sheet. */
+    .bs-title { margin: 10px 0 12px; }
+    .bs-fields { margin-bottom: 12px; }
+    .bs-particulars { margin-bottom: 10px; }
+    .bs-final-balance { margin: 10px 0 14px; }
+    .bs-deposit { margin-bottom: 14px; }
+    .bs-deposit-text { min-height: 24px; }
+    .bs-questions { margin-bottom: 20px; }
+    .bs-signatures { margin-top: 18px; }
+    .bs-sig-label { margin-bottom: 18px; }
+
+    /* Keep rows/blocks intact if the sheet is ever tight on space */
+    .bs-particulars tr,
+    .bs-signatures,
+    .bs-letterhead {
+        page-break-inside: avoid;
+    }
+
+    .ptr-fields { margin-bottom: 12px; }
+    .ptr-table { margin-bottom: 16px; }
+    .ptr-signatures { margin-top: 20px; gap: 22px; }
+    .ptr-table tr,
+    .ptr-sig-block {
+        page-break-inside: avoid;
+    }
 }

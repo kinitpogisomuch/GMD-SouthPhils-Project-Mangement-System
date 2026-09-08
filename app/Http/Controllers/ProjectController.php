@@ -343,10 +343,12 @@ class ProjectController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'tank_items'           => 'required|array|min:1',
-            'tank_items.*.tank_type' => 'required|string',
-            'tank_items.*.capacity'  => 'nullable|string',
-            'tank_items.*.quantity'  => 'nullable|integer|min:1',
+            'tank_items'              => 'required|array|min:1',
+            'tank_items.*.tank_type'  => 'required|string',
+            'tank_items.*.shape'      => 'required|string',
+            'tank_items.*.capacity'   => 'required|string',
+            'tank_items.*.dimensions' => 'required|string',
+            'tank_items.*.quantity'   => 'required|integer|min:1',
             'materials'                    => 'nullable|array',
             'materials.*.material_name'    => 'required|string|max:255',
             'materials.*.quantity'         => 'nullable|numeric|min:0.01',
@@ -499,10 +501,12 @@ class ProjectController extends Controller
             'start_date' => 'required|date',
             'end_date'   => 'required|date|after_or_equal:start_date',
             'notes'      => 'nullable|string',
-            'tank_items'             => 'required|array|min:1',
-            'tank_items.*.tank_type' => 'required|string',
-            'tank_items.*.capacity'  => 'nullable|string',
-            'tank_items.*.quantity'  => 'nullable|integer|min:1',
+            'tank_items'              => 'required|array|min:1',
+            'tank_items.*.tank_type'  => 'required|string',
+            'tank_items.*.shape'      => 'required|string',
+            'tank_items.*.capacity'   => 'required|string',
+            'tank_items.*.dimensions' => 'required|string',
+            'tank_items.*.quantity'   => 'required|integer|min:1',
         ]);
 
         $project  = Project::findOrFail($id);

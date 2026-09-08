@@ -675,7 +675,7 @@
                     '</div>' +
                     '<div class="form-group" style="flex:1.5;">' +
                         '<label>Project Shape</label>' +
-                        '<select class="ti-shape" onchange="onTankShapeChange(this)">' +
+                        '<select name="' + prefix + '[shape]" class="ti-shape" required onchange="onTankShapeChange(this)">' +
                             (!type ? '<option value="" disabled selected hidden>—</option>' : tankShapeOptions(type, initShape)) +
                         '</select>' +
                     '</div>' +

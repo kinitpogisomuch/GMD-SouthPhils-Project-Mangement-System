@@ -435,7 +435,12 @@
                                 @forelse($reviews as $review)
                                 <tr>
                                     <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><strong>{{ $review->project->name ?? 'N/A' }}</strong></td>
-                                    <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $review->client_name }}</td>
+                                    <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                                        {{ $review->client_name }}
+                                        @if($review->is_anonymous)
+                                        <span title="This client chose to hide their name publicly — shown as &quot;{{ $review->masked_client_name }}&quot; on the site" style="font-size:10px;font-weight:800;color:#6d28d9;background:#ede9fe;border-radius:999px;padding:2px 7px;margin-left:4px;">HIDDEN</span>
+                                        @endif
+                                    </td>
                                     <td>
                                         <div style="display:flex;gap:2px;">
                                             @for($i=1;$i<=5;$i++)
@@ -499,7 +504,7 @@
                 <div class="form-grid">
                     <div class="form-group form-group-full">
                         <label>Image <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
-                        <input type="file" name="image" accept="image/*">
+                        <input type="file" name="image" accept="image/*" onchange="validateFileSize(this, 10)">
                     </div>
                     <div class="form-group">
                         <label>Capacity / Badge </label>
@@ -838,6 +843,7 @@
         document.getElementById('editPortfolioImageInput')?.addEventListener('change', function () {
             var file = this.files && this.files[0];
             if (!file) return;
+            if (!validateFileSize(this, 10)) return;
 
             var preview = document.getElementById('editPortfolioImagePreview');
             var reader = new FileReader();
@@ -1038,6 +1044,7 @@
     document.getElementById('avatarInput').addEventListener('change', function () {
         var file = this.files[0];
         if (!file) return;
+        if (!validateFileSize(this, 4)) return;
         var reader = new FileReader();
         reader.onload = function (e) {
             document.getElementById('avatarDisplay').innerHTML =

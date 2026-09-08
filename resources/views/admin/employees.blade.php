@@ -1179,10 +1179,11 @@
         ->where('employee_type', 'Outsourced')
         ->map(function ($e) {
             return [
-                'id'         => $e->id,
-                'name'       => $e->full_name,
-                'role'       => $e->role ?? 'Employee',
-                'daily_rate' => (float) ($e->daily_rate ?? 0),
+                'id'            => $e->id,
+                'name'          => $e->full_name,
+                'role'          => $e->role ?? 'Employee',
+                'daily_rate'    => (float) ($e->daily_rate ?? 0),
+                'profile_photo' => $e->profile_photo,
             ];
         })->values();
     @endphp
@@ -1406,13 +1407,16 @@
         document.getElementById('recordPaymentForm').style.display = (step === 2) ? '' : 'none';
     }
 
-    function setSalarySelectedEmployee(name, role, rate, type, period) {
+    function setSalarySelectedEmployee(name, role, rate, type, period, photo) {
         var parts = (name || '').trim().split(/\s+/);
         var initials = parts.length >= 2
             ? parts[0].charAt(0).toUpperCase() + parts[parts.length-1].charAt(0).toUpperCase()
             : (parts[0] || '?').substring(0,2).toUpperCase();
 
-        document.getElementById('salarySelectedAvatar').textContent = initials;
+        var avatarEl = document.getElementById('salarySelectedAvatar');
+        avatarEl.innerHTML = photo
+            ? '<img src="' + photo + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'
+            : initials;
         document.getElementById('salarySelectedName').textContent   = name || '—';
         document.getElementById('salarySelectedRole').textContent   = role || 'Employee';
 
@@ -1501,7 +1505,7 @@
         document.getElementById('recordPaymentTitle').textContent    = rec.id ? 'Edit Salary Record' : 'Record Salary';
         document.getElementById('recordPaymentSubtitle').textContent = 'Update the weekly salary for ' + rec.employee_name + '.';
 
-        setSalarySelectedEmployee(rec.employee_name, rec.role, rec.daily_rate, rec.employee_type, rec.pay_period);
+        setSalarySelectedEmployee(rec.employee_name, rec.role, rec.daily_rate, rec.employee_type, rec.pay_period, rec.profile_photo);
         document.getElementById('rpDailyRate').value      = rec.daily_rate;
         var storedDays = parseFloat(rec.days_worked) || 0;
         var fullPart   = Math.floor(storedDays);
@@ -1624,7 +1628,7 @@
             if (!pickedSalaryEmployee) { alert('Please select an outsourced worker to continue.'); return; }
             document.getElementById('rpEmployee').value  = pickedSalaryEmployee.id;
             document.getElementById('rpDailyRate').value = pickedSalaryEmployee.daily_rate || '';
-            setSalarySelectedEmployee(pickedSalaryEmployee.name, pickedSalaryEmployee.role, pickedSalaryEmployee.daily_rate, 'Outsourced', currentSalaryPeriod || TODAY_PAY_PERIOD);
+            setSalarySelectedEmployee(pickedSalaryEmployee.name, pickedSalaryEmployee.role, pickedSalaryEmployee.daily_rate, 'Outsourced', currentSalaryPeriod || TODAY_PAY_PERIOD, pickedSalaryEmployee.profile_photo);
             document.getElementById('backSalaryStep2').style.display = '';
             showSalaryStep(2);
             updatePayPreview();

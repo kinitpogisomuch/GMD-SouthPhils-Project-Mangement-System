@@ -13,7 +13,7 @@
 
     <main class="admin-content">
 
-        <div class="page-header">
+        <div class="page-header" style="max-width:820px;margin:0 auto 24px;justify-content:center;text-align:center;">
             <div>
                 <h1 class="page-title">Your Quotation Requests</h1>
                 <p class="page-subtitle">Each tank you requested is reviewed and quoted independently.</p>
@@ -46,7 +46,10 @@
 
         <div style="display:flex;flex-direction:column;gap:24px;max-width:820px;margin:0 auto;">
         @foreach($requests as $batch)
-            @php $first = $batch->first(); @endphp
+            @php
+                $first = $batch->first();
+                $specifiedCount = $batch->filter(fn ($qr) => $qr->tank_type)->count();
+            @endphp
             <div class="pv-card">
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--border);">
                     <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);font-weight:700;">
@@ -54,7 +57,11 @@
                         Submitted {{ $first->created_at->format('M d, Y \a\t g:i A') }}
                     </div>
                     <span style="background:var(--cream-soft);border:1px solid var(--border);border-radius:20px;padding:4px 13px;font-size:11.5px;font-weight:800;color:var(--dark);text-transform:uppercase;letter-spacing:.04em;">
-                        {{ $batch->count() }} {{ Str::plural('tank', $batch->count()) }} requested
+                        @if($specifiedCount > 0)
+                            {{ $specifiedCount }} {{ Str::plural('tank', $specifiedCount) }} requested
+                        @else
+                            Own Tank Design Submitted
+                        @endif
                     </span>
                 </div>
 
@@ -69,10 +76,17 @@
                                 </div>
                                 <div>
                                     <div class="qr-tank-row" style="margin-top:0;">
+                                        @if($qr->tank_type)
                                         <span class="qr-spec-chip qr-chip-type">
                                             <i data-lucide="package" style="width:11px;height:11px;"></i>
-                                            {{ $qr->tank_type ?? '—' }}{{ $qr->quantity > 1 ? ' ×' . $qr->quantity : '' }}
+                                            {{ $qr->tank_type }}{{ $qr->quantity > 1 ? ' ×' . $qr->quantity : '' }}
                                         </span>
+                                        @else
+                                        <span class="qr-spec-chip qr-chip-type">
+                                            <i data-lucide="image" style="width:11px;height:11px;"></i>
+                                            Your Own Tank Design
+                                        </span>
+                                        @endif
                                         @if(!empty($qr->capacity))
                                         <span class="qr-spec-chip qr-chip-capacity">
                                             <i data-lucide="droplet" style="width:11px;height:11px;"></i>
@@ -103,14 +117,35 @@
                             @endif
                         </div>
 
+                        @if(!empty($qr->reference_files))
+                        <div style="margin-top:12px;padding-top:12px;border-top:1px dashed var(--border);">
+                            <div style="font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">
+                                Your Attached Files
+                            </div>
+                            <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                                @foreach($qr->reference_files as $i => $file)
+                                <a href="{{ $file }}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--accent);text-decoration:none;background:#fff;border:1px solid var(--border);border-radius:20px;padding:6px 13px;">
+                                    <i data-lucide="paperclip" style="width:12px;height:12px;"></i>
+                                    Attachment {{ $i + 1 }}
+                                </a>
+                                @endforeach
+                            </div>
+                        </div>
+                        @endif
+
                         @if(!empty($qr->quotation_files))
-                        <div style="margin-top:12px;padding-top:12px;border-top:1px dashed var(--border);display:flex;flex-wrap:wrap;gap:8px;">
-                            @foreach($qr->quotation_files as $i => $file)
-                            <a href="{{ $file }}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--accent);text-decoration:none;background:#fff;border:1px solid var(--border);border-radius:20px;padding:6px 13px;">
-                                <i data-lucide="file-text" style="width:12px;height:12px;"></i>
-                                Quotation File {{ $i + 1 }}
-                            </a>
-                            @endforeach
+                        <div style="margin-top:12px;padding-top:12px;border-top:1px dashed var(--border);">
+                            <div style="font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">
+                                Quotation From GMD South Phils
+                            </div>
+                            <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                                @foreach($qr->quotation_files as $i => $file)
+                                <a href="{{ $file }}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--accent);text-decoration:none;background:#fff;border:1px solid var(--border);border-radius:20px;padding:6px 13px;">
+                                    <i data-lucide="file-text" style="width:12px;height:12px;"></i>
+                                    Quotation File {{ $i + 1 }}
+                                </a>
+                                @endforeach
+                            </div>
                         </div>
                         @endif
 

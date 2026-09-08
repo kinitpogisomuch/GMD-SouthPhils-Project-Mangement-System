@@ -67,6 +67,7 @@ class SalaryController extends Controller
             'employee_name'    => $employee->full_name,
             'role'             => $employee->role ?? '—',
             'employee_type'    => $employee->employee_type ?? 'Regular',
+            'profile_photo'    => $employee->profile_photo,
             'pay_period'       => $payPeriod,
             'daily_rate'       => (float) ($employee->daily_rate ?? 0),
             'days_worked'      => 0,
@@ -210,6 +211,7 @@ class SalaryController extends Controller
             'employee_name'    => $r->employee->full_name ?? '—',
             'role'             => $r->employee->role ?? '—',
             'employee_type'    => $r->employee->employee_type ?? 'Regular',
+            'profile_photo'    => $r->employee->profile_photo ?? null,
             'pay_period'       => $r->pay_period,
             'daily_rate'       => $dailyRate,          // snapshot — not current employee rate
             'days_worked'      => $daysWorked,

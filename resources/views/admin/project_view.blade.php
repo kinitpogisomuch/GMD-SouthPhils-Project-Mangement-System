@@ -22,10 +22,18 @@
                     Projects
                 </a>
                 <i data-lucide="chevron-right" style="width:14px;height:14px;"></i>
+                <a href="{{ route('admin.projects.client', urlencode($project->client)) }}" style="color:var(--muted);text-decoration:none;font-weight:600;">
+                    {{ $project->client }}
+                </a>
+                <i data-lucide="chevron-right" style="width:14px;height:14px;"></i>
                 <span style="color:var(--dark);font-weight:700;">{{ $project->name }}</span>
             </div>
 
             <!-- Page Header -->
+            @php
+                $showPTRButton = in_array($project->current_phase, ['inspection', 'painting', 'completion', 'delivery'])
+                    || $project->status === 'completed';
+            @endphp
             <div class="page-header">
                 <div>
                     <h1>
@@ -43,7 +51,25 @@
                         @endif
                     </p>
                 </div>
+                @if($showPTRButton)
+                <button class="cancel-btn" type="button" id="openPTRModal">
+                    <i data-lucide="clipboard-check"></i>
+                    Performance Test Report
+                </button>
+                @endif
             </div>
+
+            @if($showPTRButton && $project->performanceTestReports->isNotEmpty())
+            <div style="display:flex;flex-wrap:wrap;gap:8px;margin:-16px 0 20px;">
+                @foreach($project->performanceTestReports as $ptr)
+                <a href="{{ route('admin.performance_test_reports.show', [$project->id, $ptr->id]) }}" target="_blank"
+                   style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--accent);background:var(--accent-soft);border-radius:20px;padding:5px 12px;text-decoration:none;">
+                    <i data-lucide="file-check" style="width:12px;height:12px;"></i>
+                    Report — {{ $ptr->report_date->format('M d, Y') }}
+                </a>
+                @endforeach
+            </div>
+            @endif
 
             @if(session('success'))
             <div class="alert-banner success">
@@ -319,6 +345,20 @@
                             <a href="{{ $paymentUrl }}" class="save-btn" style="display:inline-flex;align-items:center;gap:8px;font-size:13.5px;padding:11px 22px;text-decoration:none;">
                                 <i data-lucide="credit-card"></i>
                                 View Payment Status
+                            </a>
+                        </div>
+                    @elseif($project->current_phase === 'procurement' && !($project->activeMaterials()->exists() && $project->activeLabor()->exists()))
+                        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:16px;padding:30px 20px;">
+                            <div style="width:64px;height:64px;border-radius:50%;background:#EAF0FF;display:flex;align-items:center;justify-content:center;">
+                                <i data-lucide="info" style="width:32px;height:32px;color:#1e40af;"></i>
+                            </div>
+                            <div>
+                                <p style="font-size:16px;font-weight:800;color:var(--dark);margin-bottom:6px;">Quotation Pending</p>
+                                <p style="font-size:13.5px;color:var(--muted);max-width:320px;line-height:1.6;">Settle the project's quotation first before proceeding with procurement.</p>
+                            </div>
+                            <a href="{{ route('admin.project_materials.detail', $project->id) }}" class="save-btn" style="display:inline-flex;align-items:center;gap:8px;font-size:13.5px;padding:11px 22px;text-decoration:none;">
+                                <i data-lucide="clipboard-list"></i>
+                                View Project Quotation
                             </a>
                         </div>
                     @else
@@ -1038,6 +1078,90 @@
     </div>
     @endif
 
+    @if($showPTRButton)
+    <!-- ===== GENERATE PERFORMANCE TEST REPORT MODAL ===== -->
+    <div class="modal-overlay" id="ptrModal">
+        <div class="modal-card" style="max-width:700px;max-height:90vh;overflow-y:auto;">
+            <div class="modal-header">
+                <div>
+                    <h2>Generate Performance Test Report</h2>
+                    <p>Fill in the test details for <strong>{{ $project->name }}</strong></p>
+                </div>
+                <button class="modal-close" type="button" id="closePTRModal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+
+            <form method="POST" action="{{ route('admin.performance_test_reports.store', $project->id) }}" id="ptrForm" enctype="multipart/form-data">
+                @csrf
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Client Name</label>
+                        <input type="text" name="client_name" value="{{ $project->client }}">
+                    </div>
+                    <div class="form-group">
+                        <label>Report Date</label>
+                        <input type="date" name="report_date" required value="{{ now()->format('Y-m-d') }}">
+                    </div>
+                    <div class="form-group form-group-full">
+                        <label>Project Location</label>
+                        <input type="text" name="project_location" value="{{ $project->address }}">
+                    </div>
+                    <div class="form-group form-group-full">
+                        <label>Subject</label>
+                        <input type="text" name="subject" placeholder="e.g. Fuel Day Tank Performance Test (Pneumatic Testing Method)">
+                    </div>
+                </div>
+
+                <div class="form-section-label" style="margin-top:6px;">Test Items</div>
+                <div id="ptrItemsContainer"></div>
+                <button type="button" class="qr-add-tank-btn" id="ptrAddItemBtn" style="margin-bottom:16px;">
+                    <i data-lucide="plus-circle"></i>
+                    Add Another Item
+                </button>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Test Conducted By (Name)</label>
+                        <input type="text" name="conducted_by_name">
+                    </div>
+                    <div class="form-group">
+                        <label>Test Conducted By (Role)</label>
+                        <input type="text" name="conducted_by_role" value="Production Supervisor">
+                    </div>
+                    <div class="form-group">
+                        <label>Noted By (Name)</label>
+                        <input type="text" name="noted_by_name">
+                    </div>
+                    <div class="form-group">
+                        <label>Noted By (Role)</label>
+                        <input type="text" name="noted_by_role" value="Operation Manager">
+                    </div>
+                </div>
+
+                <div class="form-group form-group-full">
+                    <label>Actual Test Photos <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
+                    <label for="ptrPhotosInput" class="pv-upload-dropzone" id="ptrPhotosDropzone">
+                        <i data-lucide="upload-cloud" style="width:24px;height:24px;color:var(--accent);"></i>
+                        <span style="font-size:13px;font-weight:700;color:var(--text-primary);">Click to upload jobsite/gauge photos</span>
+                        <span style="font-size:11px;color:var(--muted);">PDF or images, up to 10 files, max 10MB each</span>
+                    </label>
+                    <input type="file" name="test_photos[]" id="ptrPhotosInput" accept=".pdf,image/*" multiple style="display:none;">
+                    <div id="ptrPhotosPreview" class="qr-file-list" style="display:none;"></div>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="cancel-btn" id="cancelPTRModal">Cancel</button>
+                    <button type="submit" class="save-btn">
+                        <i data-lucide="clipboard-check"></i>
+                        Generate Report
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    @endif
+
     <!-- ===== IMAGE LIGHTBOX ===== -->
     <div class="pv-lightbox-overlay" id="pvLightboxOverlay" onclick="closeFileLightbox()">
         <button type="button" class="pv-lightbox-close" onclick="closeFileLightbox()">
@@ -1114,7 +1238,7 @@
             syncAdminFileInput(input, files);
             renderAdminFilePreviews(input, files);
             if (rejected.length > 0) {
-                alert(`The following file(s) exceed the 10MB limit and were not added:\n${rejected.join('\n')}`);
+                showFileTooLargeModal(rejected.join(', '), 10);
             }
         }
 
@@ -1271,6 +1395,125 @@
         document.getElementById('requestUpdateModal').addEventListener('click', function(e) {
             if (e.target === this) { this.classList.remove('show'); document.body.style.overflow = ''; }
         });
+
+        // ── Generate Performance Test Report modal ──────────────────────────
+        (function () {
+            var openBtn  = document.getElementById('openPTRModal');
+            var modal    = document.getElementById('ptrModal');
+            if (!openBtn || !modal) return;
+
+            function open()  { modal.classList.add('show');    document.body.style.overflow = 'hidden'; }
+            function close() { modal.classList.remove('show'); document.body.style.overflow = ''; }
+
+            openBtn.addEventListener('click', open);
+            document.getElementById('closePTRModal').addEventListener('click', close);
+            document.getElementById('cancelPTRModal').addEventListener('click', close);
+            modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
+
+            // -- Dynamic test item rows --
+            var itemsContainer = document.getElementById('ptrItemsContainer');
+            var itemIndex = 0;
+
+            function addItemRow() {
+                var idx    = itemIndex++;
+                var prefix = 'test_items[' + idx + ']';
+                var row = document.createElement('div');
+                row.className = 'tank-item-row';
+                row.style.cssText = 'background:#fff;border:1.5px solid #333;border-radius:14px;padding:16px;margin-bottom:12px;position:relative;box-shadow:0 2px 8px rgba(0,0,0,.10);';
+                row.innerHTML =
+                    '<button type="button" class="ptr-row-remove" title="Remove item" style="position:absolute;top:12px;right:12px;background:none;border:none;cursor:pointer;color:var(--muted);line-height:1;">' +
+                        '<i data-lucide="x" style="width:15px;height:15px;"></i>' +
+                    '</button>' +
+                    '<div class="form-grid">' +
+                        '<div class="form-group"><label>Item</label><input type="text" name="' + prefix + '[item]" placeholder="e.g. FDT-1"></div>' +
+                        '<div class="form-group"><label>Tank Capacity</label><input type="text" name="' + prefix + '[tank_capacity]" placeholder="e.g. 2,484 Liters"></div>' +
+                        '<div class="form-group"><label>Applied Pressure (PSIG)</label><input type="text" name="' + prefix + '[applied_pressure]" placeholder="e.g. 5 PSI"></div>' +
+                        '<div class="form-group"><label>Date/Time of Testing</label><input type="text" name="' + prefix + '[tested_at]" placeholder="e.g. Oct 11, 2026, 8:00 AM – 4:00 PM"></div>' +
+                        '<div class="form-group"><label>No. of Hours Observed</label><input type="text" name="' + prefix + '[hours_observed]" placeholder="e.g. 8 hours"></div>' +
+                        '<div class="form-group"><label>Remarks</label><input type="text" name="' + prefix + '[remarks]" placeholder="e.g. Passed / No Leak"></div>' +
+                    '</div>';
+                itemsContainer.appendChild(row);
+                row.querySelector('.ptr-row-remove').addEventListener('click', function () {
+                    row.remove();
+                    updateItemRemoveVisibility();
+                });
+                updateItemRemoveVisibility();
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }
+
+            function updateItemRemoveVisibility() {
+                var rows = itemsContainer.querySelectorAll('.tank-item-row');
+                rows.forEach(function (row) {
+                    var btn = row.querySelector('.ptr-row-remove');
+                    if (btn) btn.style.display = rows.length > 1 ? '' : 'none';
+                });
+            }
+
+            document.getElementById('ptrAddItemBtn').addEventListener('click', addItemRow);
+            addItemRow();
+
+            // -- Actual test photos — chip UI (mirrors the client quotation-request upload) --
+            var photoInput    = document.getElementById('ptrPhotosInput');
+            var photoDropzone = document.getElementById('ptrPhotosDropzone');
+            var photoList     = document.getElementById('ptrPhotosPreview');
+            var PHOTO_MAX     = 10;
+            var selectedPhotos = [];
+
+            function formatSize(bytes) {
+                if (bytes < 1024) return bytes + ' B';
+                if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + ' KB';
+                return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+            }
+            function syncPhotoInput() {
+                var dt = new DataTransfer();
+                selectedPhotos.forEach(function (f) { dt.items.add(f); });
+                photoInput.files = dt.files;
+            }
+            function renderPhotos() {
+                photoDropzone.style.display = selectedPhotos.length ? 'none' : '';
+                photoList.style.display     = selectedPhotos.length ? 'flex' : 'none';
+                photoList.innerHTML = selectedPhotos.map(function (f, i) {
+                    var isImage = f.type.indexOf('image/') === 0;
+                    var thumb   = isImage
+                        ? '<img class="qr-file-thumb" src="' + URL.createObjectURL(f) + '" alt="">'
+                        : '<span class="qr-file-thumb"><i data-lucide="file-text"></i></span>';
+                    return '<div class="qr-file-chip" data-index="' + i + '">'
+                        + thumb
+                        + '<div class="qr-file-meta">'
+                            + '<div class="qr-file-name" title="' + f.name.replace(/"/g, '&quot;') + '">' + f.name + '</div>'
+                            + '<div class="qr-file-size">' + formatSize(f.size) + '</div>'
+                        + '</div>'
+                        + '<button type="button" class="qr-file-remove" data-index="' + i + '" title="Remove"><i data-lucide="x"></i></button>'
+                    + '</div>';
+                }).join('');
+                if (selectedPhotos.length && selectedPhotos.length < PHOTO_MAX) {
+                    photoList.innerHTML += '<button type="button" class="qr-file-add" id="ptrPhotosAddBtn" title="Add more"><i data-lucide="plus"></i></button>';
+                }
+                photoList.querySelectorAll('.qr-file-remove').forEach(function (btn) {
+                    btn.addEventListener('click', function () {
+                        selectedPhotos.splice(Number(btn.dataset.index), 1);
+                        syncPhotoInput();
+                        renderPhotos();
+                    });
+                });
+                var addBtn = document.getElementById('ptrPhotosAddBtn');
+                if (addBtn) addBtn.addEventListener('click', function () { photoInput.value = ''; photoInput.click(); });
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }
+            photoInput.addEventListener('change', function () {
+                var rejected = [];
+                Array.from(photoInput.files || []).forEach(function (f) {
+                    if (f.size > 10 * 1024 * 1024) { rejected.push(f.name); return; }
+                    var isDuplicate = selectedPhotos.some(function (sf) {
+                        return sf.name === f.name && sf.size === f.size && sf.lastModified === f.lastModified;
+                    });
+                    if (!isDuplicate && selectedPhotos.length < PHOTO_MAX) selectedPhotos.push(f);
+                });
+                syncPhotoInput();
+                renderPhotos();
+                if (rejected.length && typeof showFileTooLargeModal === 'function') showFileTooLargeModal(rejected.join(', '), 10);
+            });
+        })();
 
         function openUpdateModal(updateId) {
             markUpdateSeen(updateId);

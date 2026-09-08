@@ -7,9 +7,12 @@
 <div class="bs-sheet">
     <!-- Letterhead -->
     <div class="bs-letterhead">
-        <div class="bs-brand">
-            <div class="bs-brand-gmd">GMD</div>
-            <div class="bs-brand-sub">SOUTHPHILS</div>
+        <div class="bs-logo-group">
+            <img src="{{ asset('images/logo-left.png') }}" alt="GMD South Phils" class="bs-logo">
+            <img src="{{ asset('images/logo-right.png') }}" alt="" class="bs-logo">
+            @if(file_exists(public_path('images/logo-best.png')))
+            <img src="{{ asset('images/logo-best.png') }}" alt="" class="bs-logo bs-logo-badge">
+            @endif
         </div>
         <div class="bs-company-info">
             <div class="bs-company-name">GMD South Phils Metal Fabrication Works</div>
@@ -88,9 +91,14 @@
                     ? round((($stageAmounts[$stage] ?? 0) / $payment->contract_amount) * 100)
                     : 0;
             @endphp
-            <tr>
+            <tr @if($statement->billing_stage === $stage) style="background:#fff3d6;" @endif>
                 <td></td>
-                <td class="bs-stage-row">{{ $stageLabel }} ({{ $stagePct }}%)</td>
+                <td class="bs-stage-row">
+                    {{ $stageLabel }} ({{ $stagePct }}%)
+                    @if($statement->billing_stage === $stage)
+                    <strong>&nbsp;— BILLED THIS STATEMENT</strong>
+                    @endif
+                </td>
                 <td style="text-align:right;font-weight:700;">{{ number_format($stageAmounts[$stage] ?? 0, 2) }}</td>
             </tr>
             @endforeach
@@ -113,6 +121,13 @@
             </tr>
         </tbody>
     </table>
+
+    @if($statement->billing_stage)
+    <div class="bs-final-balance" style="background:#fff3d6;border:1px solid #f0c674;border-radius:6px;padding:10px 14px;">
+        This statement bills you for: <strong>{{ \App\Models\PaymentTransaction::stageLabel($statement->billing_stage) }}</strong>
+        &nbsp;—&nbsp; Amount Due: <strong>PHP {{ number_format($stageAmounts[$statement->billing_stage] ?? 0, 2) }}</strong>
+    </div>
+    @endif
 
     <div class="bs-final-balance">
         Final Amount balance: &nbsp; <strong>PHP {{ number_format($balance, 2) }}</strong>

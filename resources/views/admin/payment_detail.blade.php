@@ -115,9 +115,9 @@
                         <thead>
                             <tr>
                                 <th style="text-align:left;">Stage</th>
-                                <th style="text-align:center;">Expected Amount</th>
-                                <th style="text-align:center;">Total Paid</th>
-                                <th style="text-align:center;">Remaining</th>
+                                <th style="text-align:right;">Expected Amount</th>
+                                <th style="text-align:right;">Total Paid</th>
+                                <th style="text-align:right;">Remaining</th>
                                 <th style="text-align:center;">Status</th>
                                 <th style="text-align:center;">Client Proof</th>
                             </tr>
@@ -131,12 +131,13 @@
                                 $isPaid      = in_array($stage, $paidStages);
                                 $stageLabel  = \App\Models\PaymentTransaction::stageLabel($stage);
                                 $stageProofs = $payment->proofs->where('payment_stage', $stage);
+                                $stagePct    = $expected > 0 ? min(100, round(($stagePaid / $expected) * 100)) : 0;
                             @endphp
                             <tr>
                                 <td><strong>{{ $stageLabel }}</strong></td>
-                                <td style="text-align:center;">₱{{ number_format($expected, 2) }}</td>
-                                <td style="text-align:center;color:#16a34a;font-weight:700;">₱{{ number_format($stagePaid, 2) }}</td>
-                                <td style="text-align:center;color:{{ $stageLeft > 0 ? '#b91c1c' : 'var(--muted)' }};font-weight:700;">₱{{ number_format($stageLeft, 2) }}</td>
+                                <td style="text-align:right;font-weight:600;color:var(--muted);">₱{{ number_format($expected, 2) }}</td>
+                                <td style="text-align:right;color:#16a34a;font-weight:800;">₱{{ number_format($stagePaid, 2) }}</td>
+                                <td style="text-align:right;color:{{ $stageLeft > 0 ? '#b91c1c' : 'var(--muted)' }};font-weight:800;">₱{{ number_format($stageLeft, 2) }}</td>
                                 <td style="text-align:center;">
                                     @if($isPaid)
                                         <span class="status-badge completed">Paid</span>
@@ -148,10 +149,10 @@
                                 </td>
                                 <td style="text-align:center;">
                                     @if($stageProofs->isNotEmpty())
-                                    <div style="display:flex;flex-direction:column;gap:3px;align-items:center;">
+                                    <div style="display:flex;flex-direction:column;gap:4px;align-items:center;">
                                         @foreach($stageProofs as $proof)
                                         <a href="{{ $proof->file_url }}" target="_blank" title="{{ $proof->notes ?? 'View submitted proof' }}"
-                                           style="display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:700;color:var(--accent);text-decoration:none;">
+                                           style="display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:700;color:var(--accent);background:var(--accent-soft);border-radius:20px;padding:3px 10px;text-decoration:none;">
                                             <i data-lucide="file-check" style="width:12px;height:12px;"></i>
                                             {{ $proof->created_at->format('M d, Y') }}
                                         </a>
@@ -166,13 +167,14 @@
                         </tbody>
                         <tfoot>
                             <tr style="background:linear-gradient(180deg,#333333 0%,#2a2a2a 100%)">
-                                <td style="padding:14px 24px;font-weight:800;color:#fff;font-size:13px;">Total</td>
-                                <td style="padding:14px 14px;text-align:center;color:rgba(255,255,255,.7);font-weight:700;">₱{{ number_format($payment->contract_amount, 2) }}</td>
-                                <td style="padding:14px 14px;text-align:center;color:#4ade80;font-weight:800;">₱{{ number_format($totalPaid, 2) }}</td>
-                                <td style="padding:14px 14px;text-align:center;color:{{ $balance > 0 ? '#f87171' : '#4ade80' }};font-weight:800;">₱{{ number_format($balance, 2) }}</td>
-                                <td style="padding:14px 24px;text-align:center;">
+                                <td style="padding:16px 24px;font-weight:800;color:#fff;font-size:13.5px;">Total</td>
+                                <td style="padding:16px 14px;text-align:right;color:rgba(255,255,255,.7);font-weight:700;">₱{{ number_format($payment->contract_amount, 2) }}</td>
+                                <td style="padding:16px 14px;text-align:right;color:#4ade80;font-weight:800;">₱{{ number_format($totalPaid, 2) }}</td>
+                                <td style="padding:16px 14px;text-align:right;color:{{ $balance > 0 ? '#f87171' : '#4ade80' }};font-weight:800;">₱{{ number_format($balance, 2) }}</td>
+                                <td style="padding:16px 14px;text-align:center;">
                                     <span class="status-badge {{ \App\Models\Payment::statusBadgeClass($status) }}">{{ $status }}</span>
                                 </td>
+                                <td style="padding:16px 24px;"></td>
                             </tr>
                         </tfoot>
                     </table>
@@ -221,10 +223,15 @@
                                     @endif
                                 </td>
                                 <td style="text-align:center;">
-                                    @if($tx->receipt_url)
-                                    <a href="{{ $tx->receipt_url }}" target="_blank" class="action-btn view" title="View Receipt">
-                                        <i data-lucide="receipt"></i>
-                                    </a>
+                                    @php $receiptUrls = !empty($tx->receipt_urls) ? $tx->receipt_urls : array_filter([$tx->receipt_url]); @endphp
+                                    @if(!empty($receiptUrls))
+                                    <div style="display:inline-flex;gap:4px;">
+                                        @foreach($receiptUrls as $i => $url)
+                                        <a href="{{ $url }}" target="_blank" class="action-btn view" title="View Receipt {{ count($receiptUrls) > 1 ? $i + 1 : '' }}">
+                                            <i data-lucide="receipt"></i>
+                                        </a>
+                                        @endforeach
+                                    </div>
                                     @else
                                     <span style="color:var(--muted);">—</span>
                                     @endif
@@ -338,13 +345,13 @@
 
                     <div class="form-group form-group-full">
                         <label>Upload Collection Receipt <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
-                        <label class="pv-upload-dropzone" id="receiptDropzone">
+                        <label for="receiptFileInput" class="pv-upload-dropzone" id="receiptDropzone">
                             <i data-lucide="upload-cloud" style="width:22px;height:22px;color:var(--accent);"></i>
-                            <span style="font-size:13px;font-weight:700;color:var(--text-primary);">Click to upload collection receipt</span>
-                            <span style="font-size:11px;color:var(--muted);">PDF or image, max 10MB</span>
-                            <input type="file" name="receipt_file" id="receiptFileInput" accept=".pdf,image/*" style="display:none;">
+                            <span style="font-size:13px;font-weight:700;color:var(--text-primary);">Click to upload collection receipt(s)</span>
+                            <span style="font-size:11px;color:var(--muted);">PDF or image, up to 5 files, max 10MB each</span>
                         </label>
-                        <div id="receiptFilePreview" style="margin-top:6px;"></div>
+                        <input type="file" name="receipt_files[]" id="receiptFileInput" accept=".pdf,image/*" multiple style="display:none;">
+                        <div id="receiptFilePreview" class="qr-file-list" style="display:none;"></div>
                     </div>
                 </div>
 
@@ -419,6 +426,17 @@
                     <div class="form-group form-group-full">
                         <label>Subject</label>
                         <input type="text" name="subject">
+                    </div>
+                    <div class="form-group form-group-full">
+                        <label>Billing For <span style="font-weight:400;color:var(--muted);">(which payment stage the client should pay now)</span></label>
+                        <select name="billing_stage">
+                            <option value="">Full Statement — show all stages</option>
+                            @foreach($payment->stages() as $stage)
+                            <option value="{{ $stage }}" @if(in_array($stage, $paidStages)) disabled @endif>
+                                {{ \App\Models\PaymentTransaction::stageLabel($stage) }} (₱{{ number_format($stageAmounts[$stage] ?? 0, 2) }})@if(in_array($stage, $paidStages)) — Already Paid @endif
+                            </option>
+                            @endforeach
+                        </select>
                     </div>
                     <div class="form-group form-group-full">
                         <label>Deposit Instructions</label>
@@ -501,17 +519,102 @@
         billingModal.addEventListener('click', e => { if (e.target === billingModal) closeBillingModal(); });
     }
 
-    // ── Collection receipt upload preview ─────────────────────────────────
-    const receiptFileInput = document.getElementById('receiptFileInput');
-    if (receiptFileInput) {
-        receiptFileInput.addEventListener('change', function () {
-            var preview = document.getElementById('receiptFilePreview');
-            var file = this.files[0];
-            preview.innerHTML = file
-                ? '<span style="font-size:12px;color:var(--text-secondary);">📎 ' + file.name + '</span>'
-                : '';
+    // ── Collection receipt upload — chip UI (mirrors the client "Request a
+    // Quotation" reference-files upload: dropzone until something's picked,
+    // then compact chips with a "+" tile to add more, capped at 5) ──
+    (function () {
+        var input     = document.getElementById('receiptFileInput');
+        var dropzone  = document.getElementById('receiptDropzone');
+        var list      = document.getElementById('receiptFilePreview');
+        if (!input) return;
+
+        var MAX_FILES = 5;
+        var selected  = [];
+
+        function formatSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        function syncInput() {
+            var dt = new DataTransfer();
+            selected.forEach(function (f) { dt.items.add(f); });
+            input.files = dt.files;
+        }
+
+        function openPicker() {
+            input.value = '';
+            input.click();
+        }
+
+        function removeFile(index) {
+            selected.splice(index, 1);
+            syncInput();
+            render();
+        }
+
+        function viewFile(index) {
+            var f = selected[index];
+            if (!f) return;
+            window.open(URL.createObjectURL(f), '_blank');
+        }
+
+        function render() {
+            dropzone.style.display = selected.length ? 'none' : '';
+            list.style.display     = selected.length ? 'flex' : 'none';
+
+            list.innerHTML = selected.map(function (f, i) {
+                var isImage = f.type.indexOf('image/') === 0;
+                var thumb   = isImage
+                    ? '<img class="qr-file-thumb" src="' + URL.createObjectURL(f) + '" alt="">'
+                    : '<span class="qr-file-thumb"><i data-lucide="file-text"></i></span>';
+                return '<div class="qr-file-chip" data-index="' + i + '" title="Click to view">'
+                    + thumb
+                    + '<div class="qr-file-meta">'
+                        + '<div class="qr-file-name" title="' + f.name.replace(/"/g, '&quot;') + '">' + f.name + '</div>'
+                        + '<div class="qr-file-size">' + formatSize(f.size) + '</div>'
+                    + '</div>'
+                    + '<button type="button" class="qr-file-remove" data-index="' + i + '" title="Remove">'
+                        + '<i data-lucide="x"></i>'
+                    + '</button>'
+                + '</div>';
+            }).join('');
+
+            if (selected.length && selected.length < MAX_FILES) {
+                list.innerHTML += '<button type="button" class="qr-file-add" id="receiptFilesAddBtn" title="Add more">'
+                    + '<i data-lucide="plus"></i></button>';
+            }
+
+            list.querySelectorAll('.qr-file-chip').forEach(function (chip) {
+                chip.addEventListener('click', function (e) {
+                    if (e.target.closest('.qr-file-remove')) return;
+                    viewFile(Number(chip.dataset.index));
+                });
+            });
+            list.querySelectorAll('.qr-file-remove').forEach(function (btn) {
+                btn.addEventListener('click', function () { removeFile(Number(btn.dataset.index)); });
+            });
+            var addBtn = document.getElementById('receiptFilesAddBtn');
+            if (addBtn) addBtn.addEventListener('click', openPicker);
+
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        input.addEventListener('change', function () {
+            var rejected = [];
+            Array.from(input.files || []).forEach(function (f) {
+                if (f.size > 10 * 1024 * 1024) { rejected.push(f.name); return; }
+                var isDuplicate = selected.some(function (sf) {
+                    return sf.name === f.name && sf.size === f.size && sf.lastModified === f.lastModified;
+                });
+                if (!isDuplicate && selected.length < MAX_FILES) selected.push(f);
+            });
+            syncInput();
+            render();
+            if (rejected.length) showFileTooLargeModal(rejected.join(', '), 10);
         });
-    }
+    })();
 
     stageTrigger.addEventListener('click', function (e) {
         e.stopPropagation();

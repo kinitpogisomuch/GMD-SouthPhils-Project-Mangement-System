@@ -53,10 +53,10 @@
                 <form method="POST" action="{{ route('login.post') }}">
                     @csrf
                     <div class="form-group">
-                        <label>Email / Username</label>
+                        <label>Username</label>
                         <div class="input-wrapper">
                             <i data-lucide="user"></i>
-                            <input type="text" name="email" required placeholder="Enter your email or username"
+                            <input type="text" name="email" required placeholder="Enter your username"
                                    value="{{ old('email') }}" autofocus>
                         </div>
                     </div>

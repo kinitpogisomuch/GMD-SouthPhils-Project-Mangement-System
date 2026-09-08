@@ -13,6 +13,7 @@ class PaymentTransaction extends Model
         'payment_date',
         'reference_number',
         'receipt_url',
+        'receipt_urls',
         'notes',
         'mode_of_payment',
         'recorded_by',
@@ -21,6 +22,7 @@ class PaymentTransaction extends Model
     protected $casts = [
         'amount_paid'  => 'decimal:2',
         'payment_date' => 'date',
+        'receipt_urls' => 'array',
     ];
 
     public function payment()

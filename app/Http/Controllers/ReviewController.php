@@ -35,10 +35,11 @@ class ReviewController extends Controller
         Review::updateOrCreate(
             ['project_id' => $project->id],
             [
-                'client_name' => $clientName,
-                'rating'      => $data['rating'],
-                'comment'     => $data['comment'],
-                'status'      => 'active',
+                'client_name'  => $clientName,
+                'is_anonymous' => $request->boolean('hide_name'),
+                'rating'       => $data['rating'],
+                'comment'      => $data['comment'],
+                'status'       => 'active',
             ]
         );
 

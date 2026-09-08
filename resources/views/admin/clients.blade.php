@@ -82,6 +82,7 @@
                                 data-status="{{ $client->status }}"
                                 data-name="{{ strtolower($client->full_name) }}"
                                 data-username="{{ strtolower($client->username ?? '') }}"
+                                class="{{ $client->status === 'Pending' ? 'row-needs-action' : '' }}"
                                 data-client="{{ json_encode([
                                     'name'             => $client->full_name,
                                     'username'         => $client->username ?? '—',

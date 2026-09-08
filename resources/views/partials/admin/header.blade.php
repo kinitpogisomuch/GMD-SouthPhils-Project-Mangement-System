@@ -431,8 +431,9 @@ document.addEventListener('DOMContentLoaded', function () {
     var THREAD_URL   = '{{ url("admin/messages/thread") }}';
     var SEND_URL     = '{{ route("admin.messages.send") }}';
     var CSRF         = '{{ csrf_token() }}';
+    var MY_PHOTO     = '{{ session("profile_photo") ?: "" }}';
 
-    var chatContact = null; // { type, id, name }
+    var chatContact = null; // { type, id, name, photo }
     var popupOpen   = false;
 
     var btn      = document.getElementById('chatPopupBtn');
@@ -563,7 +564,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         : '<span style="font-size:12px;font-weight:900;color:#fff;letter-spacing:.5px;">'+init+'</span>';
                     var roleLabel = (c.role || c.type || '').toUpperCase();
 
-                    return '<div onclick="openChatWith(\''+c.type+'\','+c.id+',\''+escHtml(c.name)+'\')" data-name="'+c.name.toLowerCase()+'" '
+                    return '<div onclick="openChatWith(\''+c.type+'\','+c.id+',\''+escHtml(c.name)+'\',\''+(c.profile_photo||'')+'\')" data-name="'+c.name.toLowerCase()+'" '
                         + 'style="display:flex;align-items:center;gap:12px;padding:11px 16px;cursor:pointer;transition:background .12s;border-bottom:1px solid var(--border);" '
                         + 'onmouseover="this.style.background=\'var(--cream-soft)\'" onmouseout="this.style.background=\'\'">'
 
@@ -600,10 +601,10 @@ document.addEventListener('DOMContentLoaded', function () {
         if (noMatch) noMatch.style.display = visible ? 'none' : 'flex';
     };
 
-    window.openChatWith = function(type, id, name) {
+    window.openChatWith = function(type, id, name, photo) {
         newMsgPill.style.display = 'none';
 
-        chatContact = { type: type, id: id, name: name };
+        chatContact = { type: type, id: id, name: name, photo: photo || '' };
         dropdown.style.display = 'none';
         popupOpen = false;
 
@@ -611,7 +612,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         document.getElementById('chatWinName').textContent = name;
         document.getElementById('chatWinRole').textContent = type.charAt(0).toUpperCase() + type.slice(1);
-        document.getElementById('chatWinAvatar').textContent = name.charAt(0).toUpperCase();
+        document.getElementById('chatWinAvatarWrap').innerHTML = chatContact.photo
+            ? '<img src="' + chatContact.photo + '" style="width:100%;height:100%;object-fit:cover;">'
+            : '<span id="chatWinAvatar">' + name.charAt(0).toUpperCase() + '</span>';
         window_.style.display = 'flex';
         if (window.lucide) lucide.createIcons();
         msgList.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px;">Loading...</div>';
@@ -631,9 +634,11 @@ document.addEventListener('DOMContentLoaded', function () {
     function renderMessages(messages) {
         if (!messages.length) {
             // This fetch may have been in flight when a message was sent/received in
-            // the meantime (already appended directly) — don't clobber it with a
-            // stale "no messages" result.
-            if (msgList.children.length && !msgList.querySelector('img[alt="wave"]')) return;
+            // the meantime (already appended directly as a real [data-ts] row) — don't
+            // clobber it with a stale "no messages" result. The "Loading..." placeholder
+            // itself has no [data-ts], so a genuinely empty thread still renders here
+            // instead of getting stuck on "Loading..." forever.
+            if (msgList.querySelector('[data-ts]')) return;
             msgList.innerHTML = '<div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#888;font-size:13px;"><img src="{{ asset("images/wave-hand.png") }}" alt="wave" style="width:48px;height:48px;object-fit:contain;opacity:.7;margin-bottom:10px;"><div>No messages yet.</div><div>Say hello!</div></div>';
             return;
         }
@@ -684,7 +689,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (!m.body && timeLabel) html += '<div style="font-size:10px;color:#aaa;margin-top:3px;text-align:right;">' + escHtml(timeLabel) + '</div>';
                 html += '</div>';
                 // my avatar
-                html += '<div style="' + avatarStyle + 'background:#444;">' + myInit + '</div>';
+                html += MY_PHOTO
+                    ? '<img src="' + MY_PHOTO + '" style="width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0;">'
+                    : '<div style="' + avatarStyle + 'background:#444;">' + myInit + '</div>';
                 html += '</div>';
 
             } else {
@@ -711,9 +718,12 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
 
-        var cInit = (chatContact && chatContact.name || '?').charAt(0).toUpperCase();
+        var cInit  = (chatContact && chatContact.name || '?').charAt(0).toUpperCase();
+        var cPhoto = chatContact && chatContact.photo;
         var html = '<div' + (m.id ? ' data-msg-id="' + m.id + '"' : '') + ' data-ts="' + m.created_at + '" style="display:flex;justify-content:flex-start;align-items:flex-end;gap:5px;margin-bottom:' + mb + ';">';
-        html += '<div style="' + avatarStyle + 'background:var(--dark);">' + cInit + '</div>';
+        html += cPhoto
+            ? '<img src="' + cPhoto + '" style="width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0;">'
+            : '<div style="' + avatarStyle + 'background:var(--dark);">' + cInit + '</div>';
         html += '<div style="display:flex;flex-direction:column;align-items:flex-start;max-width:75%;">';
         if (m.body) {
             html += '<div style="background:#fff;color:#050505;border:1px solid #e8e8e8;border-radius:16px 16px 16px 3px;padding:8px 12px 6px;font-size:13px;line-height:1.45;word-break:break-word;box-shadow:0 1px 2px rgba(0,0,0,.05);">'
@@ -734,7 +744,9 @@ document.addEventListener('DOMContentLoaded', function () {
     // between an outgoing message's optimistic bubble and its "Sent" status
     // update, wiping it back out until the panel is reopened.
     function appendIncomingMessage(m) {
-        var wasEmpty      = !msgList.querySelector(':scope > div');
+        // Real message rows always carry [data-ts] — the "Loading..." placeholder and
+        // the "No messages yet" empty state don't, so both still count as "empty" here.
+        var wasEmpty      = !msgList.querySelector('[data-ts]');
         var wasNearBottom = isNearBottom();
 
         if (wasEmpty) msgList.innerHTML = '';
@@ -775,9 +787,12 @@ document.addEventListener('DOMContentLoaded', function () {
         div.dataset.ts = nowTs.toISOString();
         div.className = 'msg-enter';
         div.style.cssText = 'display:flex;flex-direction:column;align-items:flex-end;margin-bottom:10px;';
+        var myAvatarHtml = MY_PHOTO
+            ? '<img src="' + MY_PHOTO + '" style="width:30px;height:30px;border-radius:50%;object-fit:cover;flex-shrink:0;">'
+            : '<div style="width:30px;height:30px;border-radius:50%;background:#555;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0;">'+myInit+'</div>';
         div.innerHTML = '<div style="display:flex;align-items:flex-end;gap:6px;">'
             + '<div style="max-width:72%;background:var(--dark);color:#fff;border-radius:18px 18px 4px 18px;padding:9px 14px;font-size:13px;line-height:1.5;word-break:break-word;">'+escHtml(body)+'</div>'
-            + '<div style="width:30px;height:30px;border-radius:50%;background:#555;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0;">'+myInit+'</div>'
+            + myAvatarHtml
             + '</div>'
             + '<div id="'+statusId+'" style="font-size:10px;color:#aaa;margin-top:3px;margin-right:36px;">Sending…</div>';
         msgList.appendChild(div);
@@ -805,6 +820,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     window.sendChatFile = function(input) {
         if (!input.files.length || !chatContact) return;
+        if (!validateFileSize(input, 10)) return;
         var fd = new FormData();
         fd.append('recipient_type', chatContact.type);
         fd.append('recipient_id',   chatContact.id);
@@ -853,7 +869,7 @@ document.addEventListener('DOMContentLoaded', function () {
     try {
         var savedChat = JSON.parse(localStorage.getItem('gmd_open_chat') || 'null');
         if (savedChat && savedChat.type && savedChat.id) {
-            window.openChatWith(savedChat.type, savedChat.id, savedChat.name);
+            window.openChatWith(savedChat.type, savedChat.id, savedChat.name, savedChat.photo);
         }
     } catch (e) {}
 
@@ -923,3 +939,57 @@ document.addEventListener('DOMContentLoaded', function () {
         </div>
     </div>
 </div>
+
+<!-- File Too Large Modal -->
+<div class="modal-overlay" id="fileTooLargeModal">
+    <div class="modal-card" style="max-width:420px;">
+        <div class="modal-header">
+            <div>
+                <h2>File Too Large</h2>
+                <p>Please choose a smaller file to continue.</p>
+            </div>
+            <button class="modal-close" type="button" onclick="closeFileTooLargeModal()">
+                <i data-lucide="x"></i>
+            </button>
+        </div>
+        <div class="delete-confirm-body">
+            <div class="delete-confirm-icon" style="background:#fee2e2;color:#dc2626;"><i data-lucide="file-warning"></i></div>
+            <p id="fileTooLargeMsg">This file is too large.</p>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="save-btn" onclick="closeFileTooLargeModal()">Okay</button>
+        </div>
+    </div>
+</div>
+<script>
+    function showFileTooLargeModal(fileName, maxMB) {
+        var msg = document.getElementById('fileTooLargeMsg');
+        if (msg) msg.textContent = '"' + fileName + '" is too large. Please choose a file under ' + maxMB + 'MB.';
+        var modal = document.getElementById('fileTooLargeModal');
+        if (modal) { modal.classList.add('show'); document.body.style.overflow = 'hidden'; }
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+    function closeFileTooLargeModal() {
+        var modal = document.getElementById('fileTooLargeModal');
+        if (modal) { modal.classList.remove('show'); document.body.style.overflow = ''; }
+    }
+    /**
+     * Checks every file on `inputEl` against `maxMB`; if any exceed it, shows the
+     * "File Too Large" modal, clears the input, and returns false so the caller's
+     * own change handler can bail out before building previews / uploading.
+     */
+    function validateFileSize(inputEl, maxMB) {
+        maxMB = maxMB || 10;
+        var files = Array.from((inputEl && inputEl.files) || []);
+        var tooBig = files.find(function (f) { return f.size > maxMB * 1024 * 1024; });
+        if (tooBig) {
+            showFileTooLargeModal(tooBig.name, maxMB);
+            inputEl.value = '';
+            return false;
+        }
+        return true;
+    }
+    document.getElementById('fileTooLargeModal')?.addEventListener('click', function (e) {
+        if (e.target === this) closeFileTooLargeModal();
+    });
+</script>

@@ -18,6 +18,7 @@ class BillingStatement extends Model
         'po_number',
         'pr_number',
         'subject',
+        'billing_stage',
         'deposit_instructions',
         'prepared_by_name',
         'prepared_by_role',

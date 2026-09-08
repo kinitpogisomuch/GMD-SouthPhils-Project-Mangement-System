@@ -3252,3 +3252,54 @@ body.page-enter .admin-content {
         animation: none;
     }
 }
+
+/* ── Dashed "click to upload" dropzone + picked-file chips (mirrors the
+   "Request a Quotation" reference-files upload UI) ── */
+.qr-upload-dropzone {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+    border: 1.5px dashed var(--border); border-radius: 12px;
+    padding: 14px; cursor: pointer; text-align: center;
+    background: var(--white);
+    transition: background .2s ease, border-color .2s ease;
+}
+.qr-upload-dropzone:hover { background: var(--accent-soft, var(--surface-2)); border-color: var(--dark); }
+
+.qr-file-list {
+    display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 8px;
+}
+.qr-file-chip {
+    display: flex; align-items: center; gap: 8px; cursor: pointer;
+    background: #fff; border: 1px solid var(--border); border-radius: 12px;
+    padding: 6px 8px 6px 6px; max-width: 220px;
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+.qr-file-chip:hover { border-color: var(--dark); box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+.qr-file-thumb {
+    width: 34px; height: 34px; border-radius: 8px; flex-shrink: 0;
+    background: var(--surface-2); object-fit: cover;
+    display: flex; align-items: center; justify-content: center;
+}
+.qr-file-thumb i { width: 16px; height: 16px; color: var(--muted); }
+.qr-file-meta { min-width: 0; flex: 1; }
+.qr-file-name {
+    font-size: 12px; font-weight: 700; color: var(--dark);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.qr-file-size { font-size: 10.5px; color: var(--muted); font-weight: 600; }
+.qr-file-remove {
+    background: none; border: none; cursor: pointer; color: var(--muted);
+    display: flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border-radius: 7px; flex-shrink: 0;
+    transition: background .15s ease, color .15s ease;
+}
+.qr-file-remove:hover { background: #fee2e2; color: #dc2626; }
+.qr-file-remove svg { width: 13px; height: 13px; }
+.qr-file-add {
+    width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
+    border: 1.5px dashed var(--border); background: var(--surface-2);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: var(--dark);
+    transition: background .15s ease, border-color .15s ease;
+}
+.qr-file-add:hover { background: var(--accent-soft, var(--surface-2)); border-color: var(--dark); }
+.qr-file-add svg { width: 16px; height: 16px; }

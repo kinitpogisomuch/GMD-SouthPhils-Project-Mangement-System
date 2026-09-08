@@ -9,13 +9,15 @@ class Review extends Model
     protected $fillable = [
         'project_id',
         'client_name',
+        'is_anonymous',
         'rating',
         'comment',
         'status',
     ];
 
     protected $casts = [
-        'rating' => 'integer',
+        'rating'       => 'integer',
+        'is_anonymous' => 'boolean',
     ];
 
     public function project()
@@ -41,5 +43,11 @@ class Review extends Model
                 return mb_substr($word, 0, 1) . str_repeat('*', $len - 2) . mb_substr($word, -1);
             })
             ->implode(' ');
+    }
+
+    /** The name to show publicly — masked when the client chose to hide it, real name otherwise */
+    public function getDisplayNameAttribute(): string
+    {
+        return $this->is_anonymous ? $this->masked_client_name : $this->client_name;
     }
 }

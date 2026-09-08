@@ -194,6 +194,9 @@ class MessageController extends Controller
     private function adminContacts()
     {
         return User::where('role', 'admin')
+            // Excludes the default seeded admin account (admin@gmd.com) — a leftover
+            // test login, not a real admin staff member clients/employees should message.
+            ->where('email', '!=', 'admin@gmd.com')
             ->orderBy('full_name')
             ->get()
             ->map(fn (User $u) => [
