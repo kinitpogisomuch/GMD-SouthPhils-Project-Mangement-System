@@ -2,8 +2,21 @@
      page and the Add Project / Project Template materials picker. --}}
 <script>
     var MATERIAL_CATALOG = {
-        'Steel & Metal Stock':  ['MS Plates','Angular Bar'],
-        'Welding Supplies':     ['Electrode (6011)','Electrode (7018)','Welding Gloves'],
+        'Steel & Metal Stock':  [
+            'MS Plates - 6mm x 4ft. x 8ft.',
+            'MS Plates - 6mm x 4ft. x 20ft.',
+            'MS Plates - 8mm x 4ft. x 8ft.',
+            'MS Plates - 9mm x 4ft. x 8ft.',
+            'MS Plates - 9mm x 4ft. x 20ft.',
+            'Angular Bar - 2"x 6mm thick'
+        ],
+        'Welding Supplies':     [
+            'Electrode - 3.2mm (6011)',
+            'Electrode - 3.2mm (7018)',
+            'Electrode - 2.5mm (6011)',
+            'Electrode - 2.5mm (7018)',
+            'Welding Gloves'
+        ],
         'Cutting & Grinding':   ['Grinding Disc #4','Grinding Disc #5','Grinding Disc #7','Cutting Disc #4','Cutting Disc #5','Cutting Disc #7'],
         'Gas & Fuel':           ['Industrial Oxygen','Acetylene'],
         'Paint & Coating':      ['Epoxy Primer Gray','QDE Medium Gray','Lacquer Thinner','Paint Thinner','Polituff Putty'],
@@ -14,8 +27,15 @@
     };
 
     var MATERIAL_UNITS = {
-        'MS Plates': 'pcs', 'Angular Bar': 'pcs',
-        'Electrode (6011)': 'kilos', 'Electrode (7018)': 'kilos', 'Welding Gloves': 'pcs',
+        'MS Plates - 6mm x 4ft. x 8ft.': 'pcs',
+        'MS Plates - 6mm x 4ft. x 20ft.': 'pcs',
+        'MS Plates - 8mm x 4ft. x 8ft.': 'pcs',
+        'MS Plates - 9mm x 4ft. x 8ft.': 'pcs',
+        'MS Plates - 9mm x 4ft. x 20ft.': 'pcs',
+        'Angular Bar - 2"x 6mm thick': 'pcs',
+        'Electrode - 3.2mm (6011)': 'kilos', 'Electrode - 3.2mm (7018)': 'kilos',
+        'Electrode - 2.5mm (6011)': 'kilos', 'Electrode - 2.5mm (7018)': 'kilos',
+        'Welding Gloves': 'pcs',
         'Grinding Disc #4': 'pcs', 'Grinding Disc #5': 'pcs', 'Grinding Disc #7': 'pcs',
         'Cutting Disc #4': 'pcs', 'Cutting Disc #5': 'pcs', 'Cutting Disc #7': 'pcs',
         'Industrial Oxygen': 'cylinders', 'Acetylene': 'cylinders',
