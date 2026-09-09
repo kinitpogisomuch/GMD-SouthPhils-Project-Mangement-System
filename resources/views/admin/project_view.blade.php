@@ -497,6 +497,13 @@
 
                         @elseif($project->current_phase === 'fabrication')
 
+                            @if($isBigProject)
+                            <div class="alert-banner success" style="margin-bottom:14px;">
+                                <i data-lucide="check-circle"></i>
+                                30% Progress Payment confirmed — you may now log fabrication progress.
+                            </div>
+                            @endif
+
                             <label class="pv-checklist-item">
                                 <input type="checkbox" name="cutting_completed" value="1" required>
                                 <span>Cutting Completed</span>
@@ -607,6 +614,11 @@
                             @php $submitLabel = 'Save Progress Update'; @endphp
 
                         @elseif($project->current_phase === 'delivery')
+
+                            <div class="alert-banner success" style="margin-bottom:14px;">
+                                <i data-lucide="check-circle"></i>
+                                {{ $isBigProject ? 'Final 20% Payment' : 'Final 50% Payment' }} confirmed — you may now log delivery progress.
+                            </div>
 
                             <div class="form-group">
                                 <label class="log-label">DELIVERY PHOTOS *</label>
