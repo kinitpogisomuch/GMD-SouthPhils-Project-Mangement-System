@@ -28,6 +28,7 @@ class BillingStatement extends Model
 
     protected $casts = [
         'statement_date' => 'date',
+        'sent_at'        => 'datetime',
     ];
 
     public function payment()

@@ -119,6 +119,7 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::post('/payments/{id}/record', [PaymentController::class, 'recordPayment'])->name('payments.record');
     Route::post('/payments/{id}/billing-statements', [PaymentController::class, 'storeBillingStatement'])->name('payments.billing_statements.store');
     Route::get('/payments/{id}/billing-statements/{statementId}', [PaymentController::class, 'showBillingStatement'])->name('payments.billing_statements.show');
+    Route::post('/payments/{id}/billing-statements/{statementId}/send', [PaymentController::class, 'sendBillingStatement'])->name('payments.billing_statements.send');
     Route::get('/revolving-fund', [FundController::class, 'index'])->name('revolving_fund');
     Route::post('/revolving-fund/setup', [FundController::class, 'setupInitial'])->name('revolving_fund.setup_initial');
     Route::post('/revolving-fund/release', [FundController::class, 'release'])->name('revolving_fund.release');

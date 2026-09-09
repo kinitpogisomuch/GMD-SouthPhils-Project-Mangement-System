@@ -4336,8 +4336,8 @@ td.action-cell .action-btn + .action-btn {
 
 /* Status variants */
 .phase-step.done .phase-step-box {
-    background-color: #dbeafe;
-    border-color: #2563EB;
+    background-color: #dcfce7;
+    border-color: #16a34a;
 }
 
 .phase-step.active .phase-step-box {
@@ -4362,9 +4362,9 @@ td.action-cell .action-btn + .action-btn {
 }
 
 .phase-step.done .phase-step-icon {
-    background-color: #2563EB;
+    background-color: #16a34a;
     color: var(--white);
-    box-shadow: 0 0 8px rgba(37,99,235,.4);
+    box-shadow: 0 0 8px rgba(22,163,74,.4);
 }
 
 .phase-step.active .phase-step-icon {

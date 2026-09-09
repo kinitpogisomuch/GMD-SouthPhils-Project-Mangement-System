@@ -42,6 +42,7 @@ class NotificationService
     const TYPE_MONTHLY_EXPENSE_REMINDER         = 'monthly_expense_reminder';
     const TYPE_MATERIAL_LOGGING_REMINDER        = 'material_logging_reminder';
     const TYPE_SALARY_RECORDING_REMINDER        = 'salary_recording_reminder';
+    const TYPE_BILLING_STATEMENT_SENT           = 'billing_statement_sent';
 
     // -------------------------------------------------------------------------
     // Core send — accepts any model with an id, or a raw integer ID + type
@@ -531,6 +532,20 @@ class NotificationService
             'info',
             null,
             "/client/project-view/{$project->id}"
+        );
+    }
+
+    /** Owner sent a billing statement to the client */
+    public static function billingStatementSent(Project $project, int $paymentId, int $statementId): void
+    {
+        self::notifyProjectClient(
+            $project,
+            'Billing Statement Sent',
+            "A new billing statement for project \"{$project->name}\" is ready for your review.",
+            self::TYPE_BILLING_STATEMENT_SENT,
+            'info',
+            null,
+            "/client/payments/{$paymentId}/billing-statements/{$statementId}"
         );
     }
 

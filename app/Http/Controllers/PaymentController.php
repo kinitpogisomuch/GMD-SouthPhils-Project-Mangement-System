@@ -10,6 +10,7 @@ use App\Models\Client;
 use App\Models\FundTransaction;
 use App\Models\BillingStatement;
 use App\Services\SupabaseStorageService;
+use App\Services\NotificationService;
 
 class PaymentController extends Controller
 {
@@ -273,6 +274,22 @@ class PaymentController extends Controller
         $statement = $payment->billingStatements()->findOrFail($statementId);
 
         return view('admin.billing_statement', compact('payment', 'statement'));
+    }
+
+    public function sendBillingStatement($id, $statementId)
+    {
+        $payment   = Payment::with('project')->findOrFail($id);
+        $statement = $payment->billingStatements()->findOrFail($statementId);
+
+        $statement->sent_at = now();
+        $statement->save();
+
+        if ($payment->project) {
+            NotificationService::billingStatementSent($payment->project, $payment->id, $statement->id);
+        }
+
+        return redirect()->route('admin.payments.billing_statements.show', [$payment->id, $statement->id])
+            ->with('success', 'Billing statement sent to the client.');
     }
 
     public function clientShowBillingStatement($id, $statementId)
