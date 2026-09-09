@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Settings | GMD South Phils</title>
     <link href="{{ asset('css/employee.css') }}" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
 </head>
 <body class="page-enter">
 
@@ -50,8 +51,8 @@
                                 <img src="{{ session('profile_photo') }}" alt="Profile"
                                      style="width:100%;height:100%;object-fit:cover;">
                             @else
-                                <span style="font-size:32px;font-weight:900;color:var(--white);">
-                                    {{ strtoupper(substr($employee->last_name ?: $employee->first_name, 0, 1)) }}
+                                <span style="font-size:32px;font-weight:900;color:var(--dark);">
+                                    {{ strtoupper(substr($employee->first_name ?: $employee->last_name, 0, 1)) }}
                                 </span>
                             @endif
                         </div>
@@ -64,10 +65,22 @@
                             <input type="file" name="profile_photo" id="avatarInput"
                                    accept="image/jpeg,image/png,image/webp" style="display:none;">
                         </form>
-                        <label class="avatar-change-btn" onclick="document.getElementById('avatarInput').click()" style="cursor:pointer;">
-                            <i data-lucide="camera"></i>
-                            Change Photo
-                        </label>
+                        <form method="POST" action="{{ route('employee.settings.photo.remove') }}" id="removePhotoForm" style="display:none;">
+                            @csrf
+                            @method('DELETE')
+                        </form>
+                        <div style="display:flex;gap:8px;">
+                            <label class="avatar-change-btn" onclick="document.getElementById('avatarInput').click()" style="cursor:pointer;">
+                                <i data-lucide="camera"></i>
+                                Change Photo
+                            </label>
+                            @if(session('profile_photo'))
+                            <button type="button" class="avatar-change-btn" onclick="confirmRemovePhoto()">
+                                <i data-lucide="trash-2"></i>
+                                Remove
+                            </button>
+                            @endif
+                        </div>
                         <div class="settings-meta-list">
                             <div class="settings-meta-item">
                                 <i data-lucide="hard-hat"></i>
@@ -264,7 +277,60 @@
 
     </main>
 
+    <!-- ===== AVATAR CROP MODAL ===== -->
+    <div class="modal-overlay" id="avatarCropModal">
+        <div class="modal-card" style="max-width:420px;">
+            <div class="modal-header">
+                <div>
+                    <h2>Adjust Photo</h2>
+                    <p>Drag to reposition, scroll or pinch to zoom.</p>
+                </div>
+                <button class="modal-close" type="button" onclick="closeAvatarCropModal()">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="avatar-crop-wrap">
+                <img id="avatarCropImage" src="" alt="Crop preview">
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="cancel-btn" onclick="closeAvatarCropModal()">Cancel</button>
+                <button type="button" class="save-btn" onclick="saveAvatarCrop()">
+                    <i data-lucide="check"></i> Save Photo
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== REMOVE PHOTO CONFIRM MODAL ===== -->
+    <div class="modal-overlay" id="removePhotoModal">
+        <div class="modal-card" style="max-width:420px;">
+            <div class="modal-header">
+                <div>
+                    <h2>Remove Profile Photo?</h2>
+                    <p>This will clear your current photo.</p>
+                </div>
+                <button class="modal-close" type="button" onclick="closeRemovePhotoModal()">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="delete-confirm-body">
+                <div class="delete-confirm-icon" style="background:#fee2e2;color:#dc2626;"><i data-lucide="trash-2"></i></div>
+                <p>Are you sure you want to remove your profile photo?</p>
+                <p style="font-size:13px;color:var(--text-secondary);margin-top:8px;line-height:1.5;">
+                    You can upload a new one anytime.
+                </p>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="cancel-btn" onclick="closeRemovePhotoModal()">Cancel</button>
+                <button type="button" class="save-btn" style="background:#dc2626;" onclick="document.getElementById('removePhotoForm').submit();">
+                    <i data-lucide="trash-2"></i> Remove
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
     <script src="{{ asset('js/employee.js') }}"></script>
     <script>
     document.addEventListener('DOMContentLoaded', function () {
@@ -299,20 +365,69 @@
         enableEdit();
         @endif
 
-        // Avatar preview
+        // Avatar — open crop modal instead of uploading immediately
         document.getElementById('avatarInput').addEventListener('change', function () {
             var file = this.files[0];
             if (!file) return;
-            if (!validateFileSize(this, 4)) return;
+            if (!validateFileSize(this, 4)) { this.value = ''; return; }
+            avatarPendingFile = file;
             var reader = new FileReader();
             reader.onload = function (e) {
-                document.getElementById('avatarDisplay').innerHTML =
-                    '<img src="' + e.target.result + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
+                document.getElementById('avatarCropImage').src = e.target.result;
+                document.getElementById('avatarCropModal').classList.add('show');
+                if (avatarCropper) { avatarCropper.destroy(); avatarCropper = null; }
+                avatarCropper = new Cropper(document.getElementById('avatarCropImage'), {
+                    aspectRatio: 1,
+                    viewMode: 1,
+                    dragMode: 'move',
+                    background: false,
+                    autoCropArea: 1,
+                    cropBoxResizable: false,
+                    cropBoxMovable: false,
+                    toggleDragModeOnDblclick: false,
+                });
             };
             reader.readAsDataURL(file);
-            document.getElementById('photoUploadForm').submit();
         });
     });
+
+    function confirmRemovePhoto() {
+        document.getElementById('removePhotoModal').classList.add('show');
+    }
+    function closeRemovePhotoModal() {
+        document.getElementById('removePhotoModal').classList.remove('show');
+    }
+
+    var avatarCropper = null;
+    var avatarPendingFile = null;
+
+    function closeAvatarCropModal() {
+        document.getElementById('avatarCropModal').classList.remove('show');
+        if (avatarCropper) { avatarCropper.destroy(); avatarCropper = null; }
+        document.getElementById('avatarInput').value = '';
+        avatarPendingFile = null;
+    }
+
+    function saveAvatarCrop() {
+        if (!avatarCropper) return;
+        var outputType = (avatarPendingFile && avatarPendingFile.type === 'image/png') ? 'image/png' : 'image/jpeg';
+        avatarCropper.getCroppedCanvas({ width: 400, height: 400 }).toBlob(function (blob) {
+            if (!blob) return;
+            var fileName    = (avatarPendingFile && avatarPendingFile.name) || 'avatar.jpg';
+            var croppedFile = new File([blob], fileName, { type: blob.type });
+            var dt          = new DataTransfer();
+            dt.items.add(croppedFile);
+            document.getElementById('avatarInput').files = dt.files;
+
+            document.getElementById('avatarDisplay').innerHTML =
+                '<img src="' + URL.createObjectURL(blob) + '" style="width:100%;height:100%;object-fit:cover;">';
+
+            document.getElementById('avatarCropModal').classList.remove('show');
+            avatarCropper.destroy();
+            avatarCropper = null;
+            document.getElementById('photoUploadForm').submit();
+        }, outputType, 0.92);
+    }
 
     function activateTab(name) {
         document.querySelectorAll('.emp-tab').forEach(function (b) {

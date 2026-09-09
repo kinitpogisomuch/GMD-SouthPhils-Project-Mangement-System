@@ -227,6 +227,7 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::put('/settings/profile',       [ProfileController::class, 'updateAdmin'])->name('settings.profile');
     Route::put('/settings/password',      [ProfileController::class, 'updateAdminPassword'])->name('settings.password');
     Route::post('/settings/photo',        [ProfileController::class, 'uploadAdminPhoto'])->name('settings.photo');
+    Route::delete('/settings/photo',      [ProfileController::class, 'removeAdminPhoto'])->name('settings.photo.remove');
     Route::put('/settings/contact-info',  [AdminController::class, 'updateContactInfo'])->name('settings.contact_info');
     Route::put('/settings/kpi-targets',   [AdminController::class, 'updateKpiTargets'])->name('settings.kpi_targets');
 
@@ -269,6 +270,7 @@ Route::prefix('client')->name('client.')->middleware(['role:client', 'profile.co
     Route::put('/settings/profile',  [ProfileController::class, 'updateClient'])->name('settings.profile');
     Route::put('/settings/password', [ProfileController::class, 'updateClientPassword'])->name('settings.password');
     Route::post('/settings/photo',   [ProfileController::class, 'uploadClientPhoto'])->name('settings.photo');
+    Route::delete('/settings/photo', [ProfileController::class, 'removeClientPhoto'])->name('settings.photo.remove');
 
     // Notifications
     Route::get('/notifications', [NotificationController::class, 'page'])->name('notifications');
@@ -311,6 +313,7 @@ Route::prefix('employee')->name('employee.')->middleware(['role:employee', 'prof
     Route::put('/settings/profile',  [ProfileController::class, 'updateEmployee'])->name('settings.profile');
     Route::put('/settings/password', [ProfileController::class, 'updateEmployeePassword'])->name('settings.password');
     Route::post('/settings/photo',   [ProfileController::class, 'uploadEmployeePhoto'])->name('settings.photo');
+    Route::delete('/settings/photo', [ProfileController::class, 'removeEmployeePhoto'])->name('settings.photo.remove');
 
     // Notifications
     Route::get('/notifications', [NotificationController::class, 'page'])->name('notifications');

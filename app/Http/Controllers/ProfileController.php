@@ -309,4 +309,34 @@ class ProfileController extends Controller
         return redirect()->route('client.settings')
             ->with('success', 'Profile photo updated.');
     }
+
+    private function removePhoto($user): void
+    {
+        $user->update(['profile_photo' => null]);
+        session(['profile_photo' => null]);
+    }
+
+    public function removeAdminPhoto()
+    {
+        $this->removePhoto(User::findOrFail(session('user_id')));
+
+        return redirect()->route('admin.settings')
+            ->with(['success' => 'Profile photo removed.', 'active_tab' => 'profile']);
+    }
+
+    public function removeEmployeePhoto()
+    {
+        $this->removePhoto(Employee::findOrFail(session('user_id')));
+
+        return redirect()->route('employee.settings')
+            ->with('success', 'Profile photo removed.');
+    }
+
+    public function removeClientPhoto()
+    {
+        $this->removePhoto(Client::findOrFail(session('user_id')));
+
+        return redirect()->route('client.settings')
+            ->with('success', 'Profile photo removed.');
+    }
 }

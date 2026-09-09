@@ -262,15 +262,20 @@
                         $sdStatus       = $shopDrawing['status'] ?? 'not_submitted';
                         $subPhase       = $project->current_sub_phase ?? 'shop_drawing';
                         $paymentUrl     = $payment ? route('admin.payments.show', $payment->id) : route('admin.payments');
-                        $sparsePhase    = ($project->current_phase === 'planning' && $subPhase === 'payment' && $project->isPaymentStageSettled('down_payment'))
-                                          || $project->current_phase === 'procurement'
-                                          || $project->current_phase === 'matl_prep'
-                                          || $project->current_phase === 'inspection';
                         // Fabrication (big projects) and delivery both sit behind a payment
                         // gate — once settled, show a "Confirm Payment" step first instead of
                         // dropping straight into the checklist/upload fields.
-                        $showConfirmGate = ($project->current_phase === 'fabrication' && $isBigProject)
-                                          || $project->current_phase === 'delivery';
+                        $showConfirmGate = ($project->current_phase === 'fabrication' && $isBigProject && $project->isPaymentStageSettled('progress_payment'))
+                                          || ($project->current_phase === 'delivery' && $project->isPaymentStageSettled('final_payment'));
+                        // If this render is a redirect-back from a failed submission, the real
+                        // form fields must already be showing (that's what was submitted), so
+                        // skip the confirm step and go straight to the fields + errors.
+                        $revealFormFields = $errors->any();
+                        $sparsePhase    = ($project->current_phase === 'planning' && $subPhase === 'payment' && $project->isPaymentStageSettled('down_payment'))
+                                          || $project->current_phase === 'procurement'
+                                          || $project->current_phase === 'matl_prep'
+                                          || $project->current_phase === 'inspection'
+                                          || ($showConfirmGate && !$revealFormFields);
                     @endphp
 
                     @if($project->current_phase === 'delivery' && $project->progress === 100)
@@ -289,7 +294,9 @@
                     @php
                         $hideRequestBtn = $project->current_phase === 'planning'
                             || ($project->current_phase === 'fabrication' && $isBigProject && !$project->isPaymentStageSettled('progress_payment'))
-                            || ($project->current_phase === 'delivery' && !$project->isPaymentStageSettled('final_payment'));
+                            || ($project->current_phase === 'delivery' && !$project->isPaymentStageSettled('final_payment'))
+                            || ($project->current_phase === 'procurement' && !($project->activeMaterials()->exists() && $project->activeLabor()->exists()))
+                            || $showConfirmGate;
                     @endphp
                     @unless($hideRequestBtn)
                     <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
@@ -503,20 +510,16 @@
                         @elseif($project->current_phase === 'fabrication')
 
                             @if($isBigProject)
-                            <div id="fabricationConfirmStep" style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;padding:10px 20px;">
+                            <div id="fabricationConfirmStep" style="display:{{ $revealFormFields ? 'none' : 'flex' }};flex-direction:column;align-items:center;text-align:center;gap:14px;padding:10px 20px;">
                                 <div style="width:64px;height:64px;border-radius:50%;background:#dcfce7;display:flex;align-items:center;justify-content:center;">
                                     <i data-lucide="check-circle-2" style="width:32px;height:32px;color:#16a34a;"></i>
                                 </div>
                                 <div>
                                     <p style="font-size:16px;font-weight:800;color:var(--dark);margin-bottom:6px;">Progress Payment Confirmed</p>
-                                    <p style="font-size:13.5px;color:var(--muted);max-width:320px;line-height:1.6;">30% progress payment has been confirmed. Confirm below to proceed to the fabrication checklist.</p>
+                                    <p style="font-size:13.5px;color:var(--muted);max-width:320px;line-height:1.6;">30% progress payment has been confirmed. Click Confirm Payment below to proceed to the fabrication checklist.</p>
                                 </div>
-                                <button type="button" class="save-btn" onclick="proceedAfterPaymentConfirm('fabrication')" style="display:inline-flex;align-items:center;gap:8px;font-size:13.5px;padding:11px 22px;">
-                                    <i data-lucide="check"></i>
-                                    Confirm Payment
-                                </button>
                             </div>
-                            <div id="fabricationFormFields" style="display:none;">
+                            <div id="fabricationFormFields" style="display:{{ $revealFormFields ? 'block' : 'none' }};">
                             @endif
 
                             <label class="pv-checklist-item">
@@ -634,20 +637,16 @@
 
                         @elseif($project->current_phase === 'delivery')
 
-                            <div id="deliveryConfirmStep" style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;padding:10px 20px;">
+                            <div id="deliveryConfirmStep" style="display:{{ $revealFormFields ? 'none' : 'flex' }};flex-direction:column;align-items:center;text-align:center;gap:14px;padding:10px 20px;">
                                 <div style="width:64px;height:64px;border-radius:50%;background:#dcfce7;display:flex;align-items:center;justify-content:center;">
                                     <i data-lucide="check-circle-2" style="width:32px;height:32px;color:#16a34a;"></i>
                                 </div>
                                 <div>
                                     <p style="font-size:16px;font-weight:800;color:var(--dark);margin-bottom:6px;">{{ $isBigProject ? 'Final 20% Payment' : 'Final 50% Payment' }} Confirmed</p>
-                                    <p style="font-size:13.5px;color:var(--muted);max-width:320px;line-height:1.6;">Final payment has been confirmed. Confirm below to proceed to the delivery details.</p>
+                                    <p style="font-size:13.5px;color:var(--muted);max-width:320px;line-height:1.6;">Final payment has been confirmed. Click Confirm Payment below to proceed to the delivery details.</p>
                                 </div>
-                                <button type="button" class="save-btn" onclick="proceedAfterPaymentConfirm('delivery')" style="display:inline-flex;align-items:center;gap:8px;font-size:13.5px;padding:11px 22px;">
-                                    <i data-lucide="check"></i>
-                                    Confirm Payment
-                                </button>
                             </div>
-                            <div id="deliveryFormFields" style="display:none;">
+                            <div id="deliveryFormFields" style="display:{{ $revealFormFields ? 'block' : 'none' }};">
 
                             <div class="form-group">
                                 <label class="log-label">DELIVERY PHOTOS *</label>
@@ -686,7 +685,7 @@
 
                         </div>
 
-                        <div id="progressFormFooter" style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px;padding-top:18px;border-top:1px solid var(--border);{{ $showConfirmGate ? 'display:none;' : '' }}">
+                        <div id="progressFormFooter" style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px;padding-top:18px;border-top:1px solid var(--border);">
                             @if($project->current_phase === 'planning' && in_array($subPhase, ['shop_drawing', 'quotation']))
                             <button type="button" class="cancel-btn" id="openSkipStepModal"
                                     style="font-size:13.5px;padding:11px 20px;">
@@ -694,7 +693,15 @@
                                 Mark as Already Completed
                             </button>
                             @endif
-                            <button type="submit" class="save-btn" style="font-size:13.5px;padding:11px 24px;">
+                            @if($showConfirmGate)
+                            <button type="button" class="save-btn" id="paymentConfirmBtn"
+                                    onclick="proceedAfterPaymentConfirm('{{ $project->current_phase }}')"
+                                    style="font-size:13.5px;padding:11px 24px;{{ $revealFormFields ? 'display:none;' : '' }}">
+                                <i data-lucide="check"></i>
+                                Confirm Payment
+                            </button>
+                            @endif
+                            <button type="submit" class="save-btn" id="progressSubmitBtn" style="font-size:13.5px;padding:11px 24px;{{ ($showConfirmGate && !$revealFormFields) ? 'display:none;' : '' }}">
                                 <i data-lucide="save"></i>
                                 {{ $submitLabel ?? 'Save Progress Update' }}
                             </button>
@@ -1222,23 +1229,16 @@
     <script src="{{ asset('js/admin.js') }}"></script>
     <script>
         /* ── Payment-confirm gate (fabrication / delivery) ───────────────── */
-        const PAYMENT_CONFIRM_KEY_PREFIX = 'pv_payment_confirmed_{{ $project->id }}_';
-
         function proceedAfterPaymentConfirm(phase) {
             const confirmStep = document.getElementById(phase + 'ConfirmStep');
             const formFields  = document.getElementById(phase + 'FormFields');
-            const footer      = document.getElementById('progressFormFooter');
+            const confirmBtn  = document.getElementById('paymentConfirmBtn');
+            const submitBtn   = document.getElementById('progressSubmitBtn');
             if (confirmStep) confirmStep.style.display = 'none';
             if (formFields)  formFields.style.display = 'block';
-            if (footer)      footer.style.display = 'flex';
-            try { localStorage.setItem(PAYMENT_CONFIRM_KEY_PREFIX + phase, '1'); } catch (e) {}
+            if (confirmBtn)  confirmBtn.style.display = 'none';
+            if (submitBtn)   submitBtn.style.display = '';
         }
-
-        ['fabrication', 'delivery'].forEach(function (phase) {
-            let confirmed = false;
-            try { confirmed = !!localStorage.getItem(PAYMENT_CONFIRM_KEY_PREFIX + phase); } catch (e) {}
-            if (confirmed) proceedAfterPaymentConfirm(phase);
-        });
 
         const adminFileMaps = new Map();
 

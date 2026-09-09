@@ -135,7 +135,7 @@
                     GMD South Phils is a fabrication company based in the Southern Philippines, specializing in the design, construction, and delivery of custom steel storage tanks. We serve clients across industries — from fuel distribution and chemical processing to food manufacturing and water infrastructure.
                 </p>
                 <p class="about-text">
-                    With a skilled team of welders, fabricators, and project managers, we handle every stage of the tank lifecycle — from initial engineering consultation to final inspection, painting, and on-site delivery.
+                    With a skilled team of welders and fabricators, we handle every stage of the tank lifecycle — from initial engineering consultation to final inspection, painting, and on-site delivery.
                 </p>
 
                 <div class="about-highlights">
@@ -714,14 +714,14 @@
                     <div class="cc-icon"><i data-lucide="message-circle"></i></div>
                     <div>
                         <div class="cc-title">Request a Quotation</div>
-                        <p class="cc-body">Tell us your tank type, capacity, and intended use — we'll prepare a shop drawing for your approval, then send a formal quotation.</p>
+                        <p class="cc-body">Tell us your tank type, capacity, and intended use — or send us your own tank design — and we'll prepare a formal quotation for you.</p>
                     </div>
                 </div>
                 <div class="contact-card">
                     <div class="cc-icon"><i data-lucide="file-text"></i></div>
                     <div>
                         <div class="cc-title">Technical Consultation</div>
-                        <p class="cc-body">Not sure what tank you need? Our engineers will assess your application and recommend the right tank type, capacity, and material specification.</p>
+                        <p class="cc-body">Not sure what tank you need? GMD South Phils will assess your application and recommend the right tank type, capacity, and material specification.</p>
                     </div>
                 </div>
                 <div class="contact-card">
@@ -749,7 +749,7 @@
                     <span class="footer-brand-name">GMD <span>South Phils</span></span>
                 </div>
                 <p class="footer-tagline">
-                    Precision steel storage tank fabrication for industrial, commercial, and agricultural clients — fuel, water, chemical, and oil tanks delivered across South Philippines.
+                    Precision steel storage tank fabrication for industrial, commercial, and agricultural clients — fuel, water, chemical, and oil tanks delivered across Philippines.
                 </p>
             </div>
 

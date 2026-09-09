@@ -58,16 +58,44 @@
 
         /* Insight box */
         .kd-insight {
-            background: linear-gradient(135deg, var(--cream-soft), var(--white));
+            background: var(--white);
             border: 1px solid var(--border);
             border-radius: 16px;
-            padding: 16px 20px;
+            padding: 18px 20px;
             margin-bottom: 22px;
+            box-shadow: 0 2px 10px rgba(0,0,0,.04);
+        }
+        .kd-insight-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 10.5px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .07em;
+            color: var(--muted);
+            margin-bottom: 10px;
+        }
+        .kd-insight-label svg { width: 13px; height: 13px; color: var(--accent); }
+        .kd-insight-summary {
             font-size: 13.5px;
-            line-height: 1.75;
+            line-height: 1.7;
             color: var(--dark);
         }
-        .kd-insight .kd-insight-action { color: var(--info); font-weight: 700; margin-top: 6px; display: block; }
+        .kd-insight-action {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            margin-top: 14px;
+            padding: 11px 14px;
+            background: #EAF0FF;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 700;
+            color: #1e3a8a;
+            line-height: 1.55;
+        }
+        .kd-insight-action svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 2px; }
 
         /* KPI Cards */
         .kd-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 22px; }
@@ -562,11 +590,22 @@
         }
 
         /* ── Scorecard insight ── */
+        function buildInsightHtml(summary, action) {
+            var html = '<div class="kd-insight-label"><i data-lucide="lightbulb"></i>Insight</div>' +
+                '<div class="kd-insight-summary">' + summary + '</div>';
+            if (action) {
+                html += '<div class="kd-insight-action"><i data-lucide="arrow-right"></i><span>' + action + '</span></div>';
+            }
+            return html;
+        }
+
         function renderScorecardInsight(sc) {
             if (!sc.profit.has_target) {
-                document.getElementById('kdScorecardInsight').innerHTML =
-                    '<div>No KPI targets have been set for ' + sc.label + ' yet, so performance can\'t be measured against a goal.</div>' +
-                    '<span class="kd-insight-action">→ Click "Set targets" above to define a profit and on-time delivery goal for this quarter.</span>';
+                document.getElementById('kdScorecardInsight').innerHTML = buildInsightHtml(
+                    'No KPI targets have been set for ' + sc.label + ' yet, so performance can\'t be measured against a goal.',
+                    'Click "Set targets" above to define a profit and on-time delivery goal for this quarter.'
+                );
+                if (typeof lucide !== 'undefined') lucide.createIcons();
                 return;
             }
 
@@ -601,8 +640,8 @@
                 action = 'All targets are on track — maintain current cost discipline and delivery cadence into next quarter.';
             }
 
-            document.getElementById('kdScorecardInsight').innerHTML =
-                '<div>' + parts.join(' ') + '</div><span class="kd-insight-action">→ ' + action + '</span>';
+            document.getElementById('kdScorecardInsight').innerHTML = buildInsightHtml(parts.join(' '), action);
+            if (typeof lucide !== 'undefined') lucide.createIcons();
         }
 
         /* ── Comparative bar chart (scorecard tab) ── */
@@ -742,8 +781,8 @@
                 action = 'Overall trend is healthy — keep the current cost and scheduling discipline going into next quarter.';
             }
 
-            document.getElementById('kdTrendInsight').innerHTML =
-                '<div>' + text + '</div><span class="kd-insight-action">→ ' + action + '</span>';
+            document.getElementById('kdTrendInsight').innerHTML = buildInsightHtml(text, action);
+            if (typeof lucide !== 'undefined') lucide.createIcons();
         }
 
         /* ── SMA Forecast ── */
@@ -820,7 +859,8 @@
         function renderForecastInsight(fc) {
             var el = document.getElementById('kdForecastInsight');
             if (!fc.has_data) {
-                el.innerHTML = '<div>Not enough historical data to forecast ' + fc.target_label + ' yet — complete at least one project in a recent quarter first.</div>';
+                el.innerHTML = buildInsightHtml('Not enough historical data to forecast ' + fc.target_label + ' yet — complete at least one project in a recent quarter first.');
+                if (typeof lucide !== 'undefined') lucide.createIcons();
                 return;
             }
 
@@ -838,7 +878,8 @@
                 action = 'The forecast looks stable to positive — use it as a planning baseline, not a guarantee.';
             }
 
-            el.innerHTML = '<div>' + text + '</div><span class="kd-insight-action">→ ' + action + '</span>';
+            el.innerHTML = buildInsightHtml(text, action);
+            if (typeof lucide !== 'undefined') lucide.createIcons();
         }
 
         function renderForecastChart(fc) {

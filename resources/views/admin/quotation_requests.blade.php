@@ -133,8 +133,8 @@
                                         Client's Own Tank
                                     </span>
                                     @endif
-                                    @if(!empty($qr->reference_files))
-                                    <span title="{{ count($qr->reference_files) }} file(s) attached by the client" style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;font-size:10.5px;font-weight:800;color:#6d28d9;background:#ede9fe;border-radius:999px;padding:3px 8px;box-shadow:0 0 0 1px rgba(109,40,217,.18);">
+                                    @if(count($qr->reference_files ?? []) > 1)
+                                    <span title="{{ count($qr->reference_files) }} files attached by the client" style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;font-size:10.5px;font-weight:800;color:#6d28d9;background:#ede9fe;border-radius:999px;padding:3px 8px;box-shadow:0 0 0 1px rgba(109,40,217,.18);">
                                         {{ count($qr->reference_files) }}
                                     </span>
                                     @endif
