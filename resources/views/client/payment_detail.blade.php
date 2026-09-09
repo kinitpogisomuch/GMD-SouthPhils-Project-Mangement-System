@@ -73,23 +73,6 @@
                 </div>
             </div>
 
-            <!-- Overall Progress -->
-            <div class="card">
-                <div class="card-body">
-                    <div class="progress-wrap" style="margin-top:0;">
-                        <div class="progress-label">
-                            <span>Overall Payment Progress</span>
-                            <span style="font-weight:900;color:var(--dark);">{{ $pct }}% Paid</span>
-                        </div>
-                        <div class="progress-bar" style="height:12px;">
-                            <div class="progress-fill"
-                                 style="width:{{ $pct }}%;
-                                 background:{{ $status === 'Fully Paid' ? 'var(--success)' : 'var(--accent)' }};"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <!-- Stage Breakdown -->
             <div class="card">
                 <div class="card-header">

@@ -1088,6 +1088,10 @@ class AdminController extends Controller
             $client->setAttribute('projects_count', $projectCounts[$client->name] ?? 0);
         });
 
+        // Clients pending approval float to the top; once approved/rejected they
+        // fall back into normal created_at-desc order (PHP's sort is stable).
+        $clients = $clients->sortBy(fn ($client) => $client->status === 'Pending' ? 0 : 1)->values();
+
         return view('admin.clients', compact('clients'));
     }
 

@@ -86,9 +86,6 @@
 
                         <div id="chatActive" style="display:none; flex-direction:column; height:100%;">
                             <div class="message-chat-header">
-                                <button type="button" class="message-attach-btn message-chat-back-btn" id="chatBackBtn" title="Back to conversations">
-                                    <i data-lucide="arrow-left"></i>
-                                </button>
                                 <div class="message-chat-avatar" id="chatAvatar"></div>
                                 <div class="message-chat-info">
                                     <div class="message-chat-name" id="chatName"></div>
@@ -321,17 +318,18 @@
             pollTimer = setInterval(loadThread, 4000);
         }
 
-        document.getElementById('chatBackBtn').addEventListener('click', () => {
-            document.querySelector('.message-list-container').classList.remove('chat-open');
-        });
-
         function loadThread(forceScroll = false) {
             if (!activeContact) return;
+            const requestedContact = activeContact;
             fetch(threadUrl(activeContact.type, activeContact.id), {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             })
             .then(r => r.json())
             .then(data => {
+                // A different thread may have been opened while this request was in
+                // flight — discard the response so it doesn't overwrite the newer
+                // thread's messages/contact info with stale data.
+                if (activeContact !== requestedContact) return;
                 activeContactInfo = data.contact || null;
                 renderMessages(data.messages, forceScroll);
             });

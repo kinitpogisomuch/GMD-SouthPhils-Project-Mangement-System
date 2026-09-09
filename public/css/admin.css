@@ -5003,6 +5003,50 @@ td.action-cell .action-btn + .action-btn {
     background: #FFF3D6;
     color: #8A6100;
 }
+
+/* ── Quotation Requests table: no horizontal scroll — widths come from its
+   <colgroup>, this just reclaims padding and lets long content wrap ── */
+#quotationRequestsTable {
+    min-width: unset;
+    width: 100%;
+    table-layout: fixed;
+}
+#quotationRequestsTable th {
+    padding: 10px 10px;
+    font-size: 10.5px;
+    letter-spacing: 0.3px;
+}
+#quotationRequestsTable td {
+    padding: 10px 10px;
+    font-size: 12px;
+    vertical-align: middle;
+    white-space: normal;
+    word-break: break-word;
+}
+#quotationRequestsTable .qr-spec-chip {
+    font-size: 10.5px;
+    padding: 3px 8px;
+    white-space: normal;
+}
+#quotationRequestsTable .action-cell {
+    white-space: nowrap;
+}
+#quotationRequestsTable .action-btn {
+    width: 26px;
+    height: 26px;
+}
+#quotationRequestsTable .action-btn svg {
+    width: 13px;
+    height: 13px;
+}
+@media (max-width: 1280px) {
+    #quotationRequestsTable th,
+    #quotationRequestsTable td {
+        font-size: 11px;
+        padding: 8px 6px;
+    }
+}
+
 .qr-tank-notes {
     margin-top: 6px;
     font-size: 12px;

@@ -353,6 +353,30 @@ class Project extends Model
         return $payment && in_array($stage, $payment->paidStages());
     }
 
+    /**
+     * The payment stage currently blocking this project's phase progression
+     * ('down_payment', 'progress_payment', 'final_payment'), or null if the
+     * project isn't stalled waiting on a payment. Mirrors the same gates
+     * shown on the admin project page's "Add Progress Update" panel.
+     */
+    public function awaitingPaymentStage(): ?string
+    {
+        $payment      = $this->getPaymentRecord();
+        $isBigProject = $payment && $payment->payment_term_type === 'big_project';
+
+        if ($this->current_phase === 'planning' && $this->current_sub_phase === 'payment' && !$this->isPaymentStageSettled('down_payment')) {
+            return 'down_payment';
+        }
+        if ($this->current_phase === 'fabrication' && $isBigProject && !$this->isPaymentStageSettled('progress_payment')) {
+            return 'progress_payment';
+        }
+        if ($this->current_phase === 'delivery' && !$this->isPaymentStageSettled('final_payment')) {
+            return 'final_payment';
+        }
+
+        return null;
+    }
+
     // Scope for ongoing projects
     public function scopeOngoing($query)
     {

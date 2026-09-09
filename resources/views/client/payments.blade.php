@@ -73,9 +73,6 @@
                     <div class="card-header">
                         <div>
                             <div class="card-title">{{ $payment->project->name ?? '—' }}</div>
-                            <div style="font-size:12.5px;color:var(--muted);margin-top:4px;">
-                                {{ $phaseTermsText }}
-                            </div>
                         </div>
                         <div style="display:flex;align-items:center;gap:10px;">
                             <span class="status-badge {{ \App\Models\Payment::statusBadgeClass($status) }}">
@@ -104,14 +101,16 @@
                                 <div class="project-info-label">Payment Terms</div>
                                 <div class="project-info-value">{{ $phaseTermsText }}</div>
                             </div>
-                            <div style="flex:1;min-width:180px;display:flex;align-items:center;gap:14px;margin-left:auto;border-left:1px solid var(--border);padding-left:24px;">
-                                <span style="font-weight:700;font-size:13px;white-space:nowrap;">Payment Progress</span>
-                                <div class="progress-bar" style="height:10px;flex:1;">
-                                    <div class="progress-fill"
-                                         style="width:{{ $pct }}%;
-                                         background:{{ $status === 'Fully Paid' ? 'var(--success)' : 'var(--accent)' }};"></div>
+                            <div style="flex:1;min-width:180px;margin-left:auto;border-left:1px solid var(--border);padding-left:24px;">
+                                <div class="project-info-label">Payment Progress</div>
+                                <div style="display:flex;align-items:center;gap:14px;margin-top:6px;">
+                                    <div class="progress-bar" style="height:10px;flex:1;">
+                                        <div class="progress-fill"
+                                             style="width:{{ $pct }}%;
+                                             background:{{ $status === 'Fully Paid' ? 'var(--success)' : 'var(--accent)' }};"></div>
+                                    </div>
+                                    <span style="font-weight:900;color:var(--dark);white-space:nowrap;">{{ $pct }}%</span>
                                 </div>
-                                <span style="font-weight:900;color:var(--dark);white-space:nowrap;">{{ $pct }}%</span>
                             </div>
                         </div>
                     </div>

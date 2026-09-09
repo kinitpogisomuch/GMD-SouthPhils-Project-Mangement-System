@@ -20,6 +20,17 @@ class PaymentController extends Controller
         $this->storage = $storage;
     }
 
+    /** GET /admin/payments/pending-count — powers the sidebar nav badge */
+    public function pendingSettlementCount()
+    {
+        $count = Project::whereNotIn('status', ['completed', 'archived'])
+            ->get()
+            ->filter(fn (Project $p) => $p->awaitingPaymentStage() !== null)
+            ->count();
+
+        return response()->json(['count' => $count]);
+    }
+
     public function index()
     {
         $payments = Payment::with(['project', 'transactions'])->orderBy('created_at', 'desc')->get();
@@ -44,25 +55,35 @@ class PaymentController extends Controller
             ->groupBy('client')
             ->pluck('cnt', 'client');
 
-        $clientGroups = $projectCountsByClient->keys()->map(function ($clientName) use ($paymentsByClient, $projectCountsByClient) {
+        // Projects currently stalled waiting on a payment stage, grouped by
+        // client, so the list can flag exactly who admin needs to chase.
+        $activeProjectsByClient = Project::whereNotIn('status', ['completed', 'archived'])
+            ->get()
+            ->groupBy('client');
+
+        $clientGroups = $projectCountsByClient->keys()->map(function ($clientName) use ($paymentsByClient, $projectCountsByClient, $activeProjectsByClient) {
             $group = $paymentsByClient->get($clientName, collect());
 
             $contractTotal = $group->sum('contract_amount');
             $receivedTotal = $group->sum(fn($p) => $p->totalPaid());
             $statuses      = $group->map(fn($p) => $p->computeStatus());
 
+            $needsSettlement = $activeProjectsByClient->get($clientName, collect())
+                ->contains(fn (Project $p) => $p->awaitingPaymentStage() !== null);
+
             return [
-                'client'          => $clientName,
-                'project_count'   => $projectCountsByClient[$clientName],
-                'contract_total'  => $contractTotal,
-                'received_total'  => $receivedTotal,
-                'balance_total'   => max(0, $contractTotal - $receivedTotal),
-                'has_payments'    => $group->isNotEmpty(),
-                'has_pending'     => $statuses->contains('Pending Down Payment'),
-                'has_in_progress' => $statuses->contains(fn($s) => in_array($s, ['Down Payment Paid', 'Progress Payment Paid'])),
-                'all_fully_paid'  => $statuses->isNotEmpty() && $statuses->every(fn($s) => $s === 'Fully Paid'),
+                'client'           => $clientName,
+                'project_count'    => $projectCountsByClient[$clientName],
+                'contract_total'   => $contractTotal,
+                'received_total'   => $receivedTotal,
+                'balance_total'    => max(0, $contractTotal - $receivedTotal),
+                'has_payments'     => $group->isNotEmpty(),
+                'has_pending'      => $statuses->contains('Pending Down Payment'),
+                'has_in_progress'  => $statuses->contains(fn($s) => in_array($s, ['Down Payment Paid', 'Progress Payment Paid'])),
+                'all_fully_paid'   => $statuses->isNotEmpty() && $statuses->every(fn($s) => $s === 'Fully Paid'),
+                'needs_settlement' => $needsSettlement,
             ];
-        })->sortBy('client')->values();
+        })->sortBy(fn ($group) => ($group['needs_settlement'] ? '0_' : '1_') . strtolower($group['client']))->values();
 
         return view('admin.payments', compact(
             'clientGroups',

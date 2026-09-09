@@ -65,6 +65,17 @@
                 </div>
                 <div style="max-height:570px;overflow-y:auto;">
                     <table class="data-table" id="quotationRequestsTable" style="margin:0;">
+                        <colgroup>
+                            <col style="width:10%;">
+                            <col style="width:14%;">
+                            <col style="width:15%;">
+                            <col style="width:8%;">
+                            <col style="width:9%;">
+                            <col style="width:18%;">
+                            <col style="width:9%;">
+                            <col style="width:9%;">
+                            <col style="width:8%;">
+                        </colgroup>
                         <thead style="position:sticky;top:0;z-index:2;">
                             <tr>
                                 <th>Client</th>
@@ -149,7 +160,7 @@
                                     <span style="color:var(--muted);">—</span>
                                     @endif
                                 </td>
-                                <td style="max-width:220px;white-space:normal;">{{ $qr->location }}</td>
+                                <td style="white-space:normal;word-break:break-word;">{{ $qr->location }}</td>
                                 <td>{{ $qr->created_at->format('M d, Y') }}</td>
                                 <td>
                                     @if($qr->status === 'pending')

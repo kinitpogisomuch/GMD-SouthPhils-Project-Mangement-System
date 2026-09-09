@@ -103,14 +103,21 @@
                                     preg_match('/^(\d+)\s+phase/i', $payment->payment_terms, $pm);
                                     $phases = isset($pm[1]) ? $pm[1].' phases' : $payment->payment_terms;
                                 }
+                                $awaitingStage = $payment->project ? $payment->project->awaitingPaymentStage() : null;
                             @endphp
-                            <tr data-search="{{ strtolower($payment->project->name ?? '') }}">
+                            <tr data-search="{{ strtolower($payment->project->name ?? '') }}"
+                                class="{{ $awaitingStage ? 'row-needs-action' : '' }}">
                                 <td style="overflow:hidden;">
                                     <span style="display:inline-flex;flex-direction:column;max-width:100%;min-width:0;">
                                         @if($namePrefix)
                                             <span style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:.05em;line-height:1.2;text-transform:uppercase;white-space:nowrap;">{{ $namePrefix }}</span>
                                         @endif
                                         <span style="font-size:12.5px;font-weight:800;color:var(--dark);line-height:1.3;white-space:normal;word-break:break-word;">{{ $nameMain }}</span>
+                                        @if($awaitingStage)
+                                        <span title="Project can't proceed until {{ \App\Models\PaymentTransaction::stageLabel($awaitingStage) }} is settled" style="display:inline-flex;align-items:center;gap:3px;margin-top:3px;font-size:9.5px;font-weight:800;color:#b45309;background:#fff3cd;border-radius:999px;padding:2px 7px;width:fit-content;">
+                                            <i data-lucide="alert-triangle" style="width:9px;height:9px;"></i> Needs {{ \App\Models\PaymentTransaction::stageLabel($awaitingStage) }}
+                                        </span>
+                                        @endif
                                     </span>
                                 </td>
                                 <td>₱{{ number_format($payment->contract_amount, 2) }}</td>

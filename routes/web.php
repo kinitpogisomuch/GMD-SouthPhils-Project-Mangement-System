@@ -112,6 +112,7 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::get('/messages/unread-count', [MessageController::class, 'unreadCount'])->name('messages.unread_count');
     Route::get('/payments', [PaymentController::class, 'index'])->name('payments');
     Route::post('/payments/setup', [PaymentController::class, 'setup'])->name('payments.setup');
+    Route::get('/payments/pending-count', [PaymentController::class, 'pendingSettlementCount'])->name('payments.pending_count');
     Route::get('/payments/client/{client}', [PaymentController::class, 'clientPayments'])->name('payments.client');
     Route::get('/payments/{id}', [PaymentController::class, 'show'])->name('payments.show');
     Route::post('/payments/{id}/record', [PaymentController::class, 'recordPayment'])->name('payments.record');

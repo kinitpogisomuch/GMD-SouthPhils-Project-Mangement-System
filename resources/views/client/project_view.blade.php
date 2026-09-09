@@ -372,73 +372,78 @@
                     <div class="pv-history-scroll">
                         @forelse($updates as $update)
                         <div class="pv-history-item" data-update-id="{{ $update->id }}">
-                            <!-- Entry header -->
-                            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;gap:8px;">
-                                <div>
-                                    <div style="font-size:13.5px;font-weight:900;color:var(--dark);margin-bottom:3px;">
+                            <!-- Entry header: spans the full card so the badge anchors to the card's edge, not the text column's -->
+                            <div class="pv-history-header">
+                                <div class="pv-history-title-col">
+                                    <div class="pv-history-phase-title">
                                         {{ $phaseLabels[$update->phase] ?? ucfirst(str_replace('_', ' ', $update->phase)) }} Phase
                                         @if($update->update_label === 'revision')
-                                        <span style="font-size:10px;background:#dbeafe;color:#1e40af;padding:2px 7px;border-radius:20px;margin-left:4px;font-weight:700;">Revision</span>
+                                        <span class="pv-history-revision-badge">Revision</span>
                                         @endif
                                         <span class="pv-new-badge">New</span>
                                     </div>
-                                    <div style="font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:4px;">
-                                        <i data-lucide="user" style="width:11px;height:11px;"></i>
+                                    <div class="pv-history-meta-row">
+                                        <i data-lucide="user"></i>
                                         {{ $update->submittedBy?->full_name ?? 'Team' }}
-                                        &nbsp;·&nbsp;
-                                        <i data-lucide="calendar" style="width:11px;height:11px;"></i>
+                                        <span class="pv-history-meta-dot"></span>
+                                        <i data-lucide="calendar"></i>
                                         {{ $update->created_at->format('M d, Y') }}
                                     </div>
                                 </div>
-                                <span style="display:inline-flex;align-items:center;gap:4px;background:#dcfce7;border:1.5px solid #86efac;color:#14532d;font-size:10.5px;font-weight:800;padding:4px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0;">
-                                    <i data-lucide="check" style="width:10px;height:10px;"></i>
+                                <span class="pv-approved-badge">
+                                    <i data-lucide="check"></i>
                                     Approved
                                 </span>
                             </div>
 
-                            <!-- Work done -->
-                            @if(trim((string) $update->work_done) !== '')
-                            @php $workDoneText = trim($update->work_done); @endphp
-                            <div style="margin-bottom:10px;">
-                                <div style="font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Work Done</div>
-                                <div style="font-size:13px;color:var(--dark);line-height:1.55;white-space:pre-line;" class="pv-work-text" data-full="{{ e($workDoneText) }}">@if(strlen($workDoneText) > 160){{ substr($workDoneText, 0, 160) }}<span class="pv-ellipsis">…</span><span class="pv-rest" style="display:none;">{{ substr($workDoneText, 160) }}</span> <button type="button" onclick="toggleWorkText(this)" style="font-size:11px;font-weight:700;color:var(--accent);background:none;border:none;cursor:pointer;padding:0;margin-left:4px;">Read more</button>@else{{ $workDoneText }}@endif</div>
-                            </div>
-                            @endif
+                            <div class="pv-history-body">
+                                <div class="pv-history-text-col">
+                                    <!-- Work done -->
+                                    @if(trim((string) $update->work_done) !== '')
+                                    @php $workDoneText = trim($update->work_done); @endphp
+                                    <div class="pv-history-work-block">
+                                        <div class="pv-history-section-label">Work Done</div>
+                                        <div class="pv-work-text" data-full="{{ e($workDoneText) }}">@if(strlen($workDoneText) > 160){{ substr($workDoneText, 0, 160) }}<span class="pv-ellipsis">…</span><span class="pv-rest" style="display:none;">{{ substr($workDoneText, 160) }}</span> <button type="button" class="pv-read-more-btn" onclick="toggleWorkText(this)">Read more</button>@else{{ $workDoneText }}@endif</div>
+                                    </div>
+                                    @endif
 
-                            <!-- Observations -->
-                            @if($update->issues)
-                            <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;margin-bottom:10px;">
-                                <div style="font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Observations</div>
-                                <div style="font-size:12.5px;color:#92400e;line-height:1.5;">{{ Str::limit($update->issues, 120) }}</div>
-                            </div>
-                            @endif
+                                    <!-- Observations -->
+                                    @if($update->issues)
+                                    <div class="pv-observations-box">
+                                        <div class="pv-history-section-label">Observations</div>
+                                        <div class="pv-observations-text">{{ Str::limit($update->issues, 120) }}</div>
+                                    </div>
+                                    @endif
+                                </div>
 
-                            <!-- Photos -->
-                            @if($update->photos && count($update->photos) > 0)
-                            <div>
-                                <div style="font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">
-                                    Site Photos ({{ count($update->photos) }})
+                                <!-- Photos -->
+                                @if($update->photos && count($update->photos) > 0)
+                                <div class="pv-history-photos-block">
+                                    <div class="pv-history-section-label">
+                                        Site Photos ({{ count($update->photos) }})
+                                    </div>
+                                    <div class="pv-photo-grid">
+                                        @foreach($update->photos as $photo)
+                                        @php
+                                            $photoExt = strtolower(pathinfo(parse_url($photo, PHP_URL_PATH), PATHINFO_EXTENSION));
+                                            $isImageFile = in_array($photoExt, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg']);
+                                        @endphp
+                                        <a href="{{ $photo }}" target="_blank" class="pv-photo-thumb {{ $isImageFile ? '' : 'is-file' }}"
+                                           @if($isImageFile) onclick="return openProgressLightbox(event, '{{ $photo }}')" title="Click to view larger" @endif>
+                                            @if($isImageFile)
+                                                <img src="{{ $photo }}" alt="Progress photo"
+                                                     loading="lazy"
+                                                     onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                                                <span class="pv-photo-fallback" style="display:none;"><i data-lucide="file-text"></i></span>
+                                            @else
+                                                <span class="pv-photo-fallback"><i data-lucide="file-text"></i></span>
+                                            @endif
+                                        </a>
+                                        @endforeach
+                                    </div>
                                 </div>
-                                <div class="pv-photo-grid">
-                                    @foreach($update->photos as $photo)
-                                    @php
-                                        $photoExt = strtolower(pathinfo(parse_url($photo, PHP_URL_PATH), PATHINFO_EXTENSION));
-                                        $isImageFile = in_array($photoExt, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg']);
-                                    @endphp
-                                    <a href="{{ $photo }}" target="_blank" class="pv-photo-thumb {{ $isImageFile ? '' : 'is-file' }}">
-                                        @if($isImageFile)
-                                            <img src="{{ $photo }}" alt="Progress photo"
-                                                 loading="lazy"
-                                                 onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
-                                            <span class="pv-photo-fallback" style="display:none;"><i data-lucide="file-text"></i></span>
-                                        @else
-                                            <span class="pv-photo-fallback"><i data-lucide="file-text"></i></span>
-                                        @endif
-                                    </a>
-                                    @endforeach
-                                </div>
+                                @endif
                             </div>
-                            @endif
                         </div>
                         @empty
                         <div class="empty-state">
@@ -453,6 +458,14 @@
             </div><!-- /.pv-grid -->
 
     </main>
+
+    <!-- ===== SITE PHOTO LIGHTBOX ===== -->
+    <div class="pv-lightbox-overlay" id="pvLightboxOverlay" onclick="closeProgressLightbox()">
+        <button type="button" class="pv-lightbox-close" onclick="closeProgressLightbox()">
+            <i data-lucide="x"></i>
+        </button>
+        <img id="pvLightboxImg" src="" alt="Site photo" onclick="event.stopPropagation()">
+    </div>
 
     @if(($sdStatus ?? null) === 'pending_approval')
     <div class="modal-overlay" id="revisionModal">
@@ -549,6 +562,21 @@
                 if (ellipsis) ellipsis.style.display = 'inline';
                 btn.textContent = 'Read more';
             }
+        }
+
+        /* ── Site photo lightbox ─────────────────────────────────────────── */
+        function openProgressLightbox(e, url) {
+            if (e) e.preventDefault();
+            document.getElementById('pvLightboxImg').src = url;
+            document.getElementById('pvLightboxOverlay').classList.add('show');
+            document.body.style.overflow = 'hidden';
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+            return false;
+        }
+        function closeProgressLightbox() {
+            document.getElementById('pvLightboxOverlay').classList.remove('show');
+            document.getElementById('pvLightboxImg').src = '';
+            document.body.style.overflow = '';
         }
 
         /* ── Modal helpers ───────────────────────────────────────────────── */

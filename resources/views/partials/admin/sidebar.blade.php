@@ -60,10 +60,19 @@
         </a>
 
         <div class="sidebar-section-label">Financial Management</div>
+        @php
+            $pendingSettlementCount = \App\Models\Project::whereNotIn('status', ['completed', 'archived'])
+                ->get()
+                ->filter(fn ($p) => $p->awaitingPaymentStage() !== null)
+                ->count();
+        @endphp
         <a href="{{ route('admin.payments') }}"
            class="{{ request()->routeIs('admin.payments') ? 'active' : '' }}"
            title="Payments">
-            <div class="sidebar-icon"><i data-lucide="credit-card"></i></div>
+            <div class="sidebar-icon">
+                <i data-lucide="credit-card"></i>
+                <span class="sidebar-badge" id="paymentsPendingBadge" style="{{ $pendingSettlementCount > 0 ? '' : 'display:none;' }}">{{ $pendingSettlementCount > 99 ? '99+' : $pendingSettlementCount }}</span>
+            </div>
             <span>Payments</span>
         </a>
 
@@ -108,6 +117,7 @@
     (function () {
         var QUOTATION_PENDING_COUNT_URL = '{{ route('admin.quotation_requests.pending_count') }}';
         var CLIENTS_PENDING_COUNT_URL   = '{{ route('admin.client.pending_count') }}';
+        var PAYMENTS_PENDING_COUNT_URL  = '{{ route('admin.payments.pending_count') }}';
 
         function refreshQuotationRequestsBadge() {
             fetch(QUOTATION_PENDING_COUNT_URL, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
@@ -143,7 +153,25 @@
                 .catch(function () {});
         }
 
+        function refreshPaymentsPendingBadge() {
+            fetch(PAYMENTS_PENDING_COUNT_URL, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    var badge = document.getElementById('paymentsPendingBadge');
+                    if (!badge) return;
+                    var count = data.count || 0;
+                    if (count > 0) {
+                        badge.textContent = count > 99 ? '99+' : count;
+                        badge.style.display = 'flex';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                })
+                .catch(function () {});
+        }
+
         setInterval(refreshQuotationRequestsBadge, 30000);
         setInterval(refreshClientsPendingBadge, 30000);
+        setInterval(refreshPaymentsPendingBadge, 30000);
     })();
 </script>

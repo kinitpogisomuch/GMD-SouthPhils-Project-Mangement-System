@@ -1756,41 +1756,89 @@ tbody tr:last-child td { border-bottom: none; }
     overflow-y: auto;
     flex: 1;
     min-height: 0;
-    padding-right: 4px;
+    padding-right: 6px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
 }
+.pv-history-scroll::-webkit-scrollbar { width: 6px; }
+.pv-history-scroll::-webkit-scrollbar-track { background: transparent; }
+.pv-history-scroll::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 999px;
+}
+.pv-history-scroll::-webkit-scrollbar-thumb:hover { background: var(--muted-light); }
 
 .pv-history-item {
     border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 16px;
-    margin-bottom: 12px;
-    background: var(--cream-soft);
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    border-radius: 16px;
+    padding: 18px 20px;
+    margin-bottom: 14px;
+    background: var(--white);
+    box-shadow: 0 1px 2px rgba(0,0,0,.03);
+    transition: border-color .2s ease, box-shadow .2s ease, transform .15s ease;
 }
 
-.pv-history-item:hover   { border-color: var(--accent); box-shadow: 0 4px 12px var(--shadow); }
+.pv-history-item:hover {
+    border-color: var(--accent);
+    box-shadow: 0 6px 16px var(--shadow);
+    transform: translateY(-1px);
+}
 .pv-history-item:last-child { margin-bottom: 0; }
 
 .pv-history-item.is-new {
     border-color: #fbbf24;
-    background: #fffbeb;
-    box-shadow: 0 0 0 2px #fde68a;
+    background: linear-gradient(180deg, #fffbeb 0%, #fffdf6 100%);
+    box-shadow: 0 0 0 1px #fde68a, 0 2px 8px rgba(251,191,36,.14);
     cursor: pointer;
+}
+
+/* ── Entry header: title/meta on the left, status pill on the right ── */
+.pv-history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 13px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+}
+.pv-history-title-col { min-width: 0; }
+
+.pv-history-phase-title {
+    font-size: 15px;
+    font-weight: 900;
+    color: var(--dark);
+    letter-spacing: -.1px;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.pv-history-revision-badge {
+    font-size: 10px;
+    font-weight: 800;
+    background: #dbeafe;
+    color: #1e40af;
+    padding: 2px 9px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: .03em;
 }
 
 .pv-new-badge {
     display: none;
     align-items: center;
     background: #fef3c7;
-    border: 1.5px solid #fcd34d;
+    border: 1px solid #fcd34d;
     color: #92400e;
-    font-size: 10px;
+    font-size: 9.5px;
     font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: .04em;
-    padding: 2px 8px;
+    letter-spacing: .05em;
+    padding: 3px 9px;
     border-radius: 20px;
-    margin-left: 4px;
     vertical-align: middle;
 }
 
@@ -1798,11 +1846,102 @@ tbody tr:last-child td { border-bottom: none; }
     display: inline-flex;
 }
 
+.pv-history-meta-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11.5px;
+    color: var(--muted);
+    font-weight: 600;
+}
+.pv-history-meta-row svg { width: 11px; height: 11px; flex-shrink: 0; }
+
+.pv-history-meta-dot {
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: var(--border);
+    flex-shrink: 0;
+}
+
+.pv-approved-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #dcfce7;
+    border: 1px solid #86efac;
+    color: #15803d;
+    font-size: 10.5px;
+    font-weight: 800;
+    padding: 4px 11px;
+    border-radius: 999px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.pv-approved-badge svg { width: 10px; height: 10px; }
+
+/* ── Section labels shared by Work Done / Observations / Site Photos ── */
+.pv-history-section-label {
+    font-size: 10px;
+    font-weight: 800;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    margin-bottom: 5px;
+}
+
+/* ── Body: Work Done / Observations on the left, Site Photos as a
+   fixed-width sidebar on the right, instead of stacked below ── */
+.pv-history-body {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.pv-history-text-col {
+    flex: 1;
+    min-width: 0;
+}
+
+.pv-history-work-block { margin-bottom: 12px; }
+.pv-work-text {
+    font-size: 13px;
+    color: var(--dark);
+    line-height: 1.6;
+    white-space: pre-line;
+}
+.pv-read-more-btn {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    margin-left: 4px;
+}
+
+.pv-observations-box {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 10px;
+    padding: 10px 13px;
+    margin-bottom: 12px;
+}
+.pv-observations-text {
+    font-size: 12.5px;
+    color: #92400e;
+    line-height: 1.55;
+}
+
+.pv-history-photos-block {
+    flex-shrink: 0;
+    width: 100%;
+}
+
 .pv-photo-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
     gap: 8px;
-    margin-top: 12px;
 }
 
 .pv-photo-thumb {
@@ -1810,8 +1949,9 @@ tbody tr:last-child td { border-bottom: none; }
     border-radius: 10px;
     overflow: hidden;
     border: 1px solid var(--border);
-    aspect-ratio: 4/3;
+    aspect-ratio: 1/1;
     background: var(--cream-deep);
+    box-shadow: 0 1px 2px rgba(0,0,0,.04);
 }
 
 .pv-photo-thumb img {
@@ -1835,12 +1975,53 @@ tbody tr:last-child td { border-bottom: none; }
 }
 
 .pv-photo-fallback svg {
-    width: 28px;
-    height: 28px;
+    width: 24px;
+    height: 24px;
 }
+
+/* ── Site photo lightbox ── */
+.pv-lightbox-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.82);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    z-index: 700;
+}
+.pv-lightbox-overlay.show { display: flex; }
+.pv-lightbox-overlay img {
+    max-width: 90vw;
+    max-height: 90vh;
+    border-radius: 8px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
+}
+.pv-lightbox-close {
+    position: absolute;
+    top: 24px;
+    right: 28px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.12);
+    border: none;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+.pv-lightbox-close:hover { background: rgba(255, 255, 255, 0.22); }
 
 @media (max-width: 900px) {
     .pv-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 480px) {
+    .pv-history-item { padding: 14px 16px; }
+    .pv-history-header { flex-wrap: wrap; }
+    .pv-photo-grid { grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); }
 }
 
 /* ================= STATUS BADGES ================= */

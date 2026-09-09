@@ -124,8 +124,16 @@
                                 $filterKey = !$group['has_payments'] ? 'no_setup' : ($group['all_fully_paid'] ? 'fully_paid' : ($group['has_pending'] ? 'pending' : ($group['has_in_progress'] ? 'in_progress' : '')));
                             @endphp
                             <tr data-status="{{ $filterKey }}"
-                                data-search="{{ strtolower($group['client']) }}">
-                                <td><span class="client-pill">{{ $group['client'] }}</span></td>
+                                data-search="{{ strtolower($group['client']) }}"
+                                class="{{ $group['needs_settlement'] ? 'row-needs-action' : '' }}">
+                                <td>
+                                    <span class="client-pill">{{ $group['client'] }}</span>
+                                    @if($group['needs_settlement'])
+                                    <span title="A project for this client is waiting on a payment stage before it can proceed" style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;font-size:10px;font-weight:800;color:#b45309;background:#fff3cd;border-radius:999px;padding:2px 8px;">
+                                        <i data-lucide="alert-triangle" style="width:10px;height:10px;"></i> Needs Settlement
+                                    </span>
+                                    @endif
+                                </td>
                                 <td style="text-align:center;">{{ $group['project_count'] }}</td>
                                 <td>₱{{ number_format($group['contract_total'], 2) }}</td>
                                 <td>₱{{ number_format($group['received_total'], 2) }}</td>

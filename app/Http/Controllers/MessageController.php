@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Client;
 use App\Models\Employee;
 use App\Models\Message;
+use App\Models\SiteSetting;
 use App\Models\User;
 use App\Services\SupabaseStorageService;
 use Illuminate\Http\Request;
@@ -238,10 +239,16 @@ class MessageController extends Controller
     private function contactInfo(string $type, int $id): ?array
     {
         return match ($type) {
-            'admin'    => ($u = User::find($id)) ? [
-                'type' => 'admin', 'id' => $u->id, 'name' => $u->full_name ?: 'Admin', 'role' => 'Admin',
-                'email' => $u->email, 'contact' => $u->phone, 'address' => $u->address, 'profile_photo' => $u->profile_photo,
-            ] : null,
+            'admin'    => ($u = User::find($id)) ? (function () use ($u) {
+                $site = SiteSetting::instance();
+                return [
+                    'type' => 'admin', 'id' => $u->id, 'name' => $u->full_name ?: 'Admin', 'role' => 'Admin',
+                    'email' => $site->email ?: $u->email,
+                    'contact' => $site->phone ?: $u->phone,
+                    'address' => $site->address ?: $u->address,
+                    'profile_photo' => $u->profile_photo,
+                ];
+            })() : null,
             'employee' => ($e = Employee::find($id)) ? [
                 'type' => 'employee', 'id' => $e->id, 'name' => $e->name, 'role' => $e->role ?? 'Employee',
                 'email' => $e->email, 'contact' => $e->contact, 'address' => $e->address, 'profile_photo' => $e->profile_photo,
