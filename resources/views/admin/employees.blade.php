@@ -261,8 +261,8 @@
                             </thead>
                             <tbody id="salaryTableBody">
                                 <tr id="salaryLoadingRow">
-                                    <td colspan="9" style="text-align:center;padding:48px 20px;color:var(--muted);">
-                                        <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+                                    <td colspan="9" style="text-align:center;color:var(--muted);padding:0;">
+                                        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:260px;">
                                             <i data-lucide="loader" style="width:28px;height:28px;opacity:0.4;"></i>
                                             <span style="font-size:14px;font-weight:600;">Loading...</span>
                                         </div>
@@ -1326,7 +1326,7 @@
 
     function loadSalaryRecords(payPeriod) {
         var tbody  = document.getElementById('salaryTableBody');
-        tbody.innerHTML = '<tr id="salaryLoadingRow"><td colspan="6" style="text-align:center;padding:48px 20px;color:var(--muted);"><div style="display:flex;flex-direction:column;align-items:center;gap:10px;"><i data-lucide="loader" style="width:28px;height:28px;opacity:0.4;"></i><span style="font-size:14px;font-weight:600;">Loading...</span></div></td></tr>';
+        tbody.innerHTML = '<tr id="salaryLoadingRow"><td colspan="9" style="text-align:center;color:var(--muted);padding:0;"><div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:260px;"><i data-lucide="loader" style="width:28px;height:28px;opacity:0.4;"></i><span style="font-size:14px;font-weight:600;">Loading...</span></div></td></tr>';
         if (window.lucide) lucide.createIcons();
 
         var url = SALARY_INDEX_URL + (payPeriod ? ('?pay_period=' + encodeURIComponent(payPeriod)) : '') + '&_=' + Date.now();

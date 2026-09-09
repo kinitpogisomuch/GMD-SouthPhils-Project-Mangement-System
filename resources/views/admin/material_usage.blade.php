@@ -93,7 +93,7 @@
                 @endif
             </div>
 
-            {{-- ── Projects Table ────────────────────────────────────────── --}}
+            {{-- ── Clients Table ─────────────────────────────────────────── --}}
             <div class="table-card">
                 <div style="display:flex;align-items:center;gap:16px;padding:0 20px 14px;border-bottom:1px solid var(--border);margin-bottom:0;">
                     <div style="flex-shrink:0;">
@@ -103,22 +103,22 @@
                     <div style="flex:1;display:flex;justify-content:center;">
                         <div style="display:flex;align-items:center;gap:8px;background:#f5f6f8;border-radius:999px;padding:0 18px;border:1px solid var(--border);width:280px;height:42px;">
                             <i data-lucide="search" style="width:15px;height:15px;color:#888;flex-shrink:0;"></i>
-                            <input type="text" id="projectSearch" placeholder="Search project or client..."
+                            <input type="text" id="projectSearch" placeholder="Search client..."
                                 style="border:none;background:transparent;font-size:13px;outline:none;width:100%;color:var(--dark);height:100%;">
                         </div>
                     </div>
                     <div class="filter-tabs" id="usageFilterTabs" style="flex-shrink:0;">
                         <button type="button" class="filter-tab active" data-filter="active">
                             Active
-                            <span class="filter-count">{{ $projects->whereNotIn('status', ['completed', 'archived'])->count() }}</span>
+                            <span class="filter-count">{{ $clientGroups->where('has_active', true)->count() }}</span>
                         </button>
                         <button type="button" class="filter-tab" data-filter="completed">
                             Completed
-                            <span class="filter-count">{{ $projects->where('status', 'completed')->count() }}</span>
+                            <span class="filter-count">{{ $clientGroups->where('has_completed', true)->count() }}</span>
                         </button>
                         <button type="button" class="filter-tab" data-filter="archived">
                             Archived
-                            <span class="filter-count">{{ $projects->where('status', 'archived')->count() }}</span>
+                            <span class="filter-count">{{ $clientGroups->where('has_archived', true)->count() }}</span>
                         </button>
                     </div>
                 </div>
@@ -127,66 +127,47 @@
                     <table class="data-table" id="usageTable" style="margin:0;">
                         <thead style="position:sticky;top:0;z-index:2;">
                             <tr>
-                                <th>Project Name</th>
                                 <th>Client</th>
-                                <th>Current Phase</th>
+                                <th>No. of Projects</th>
                                 <th>Planned Materials</th>
                                 <th>Usage Entries Logged</th>
                                 <th>Total Qty Used</th>
-                                <th>Date Created</th>
+                                <th>Last Activity</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @forelse($projects as $project)
-                            <tr data-status="{{ $project->status }}">
-                                @php
-                                    $namePrefix = '';
-                                    $nameMain   = $project->name;
-                                    if (preg_match('/^(Fabrication of)\s+(.+)$/i', $project->name, $nm)) {
-                                        $namePrefix = $nm[1];
-                                        $nameMain   = $nm[2];
-                                    }
-                                @endphp
-                                <td style="overflow:hidden;">
-                                    <span style="display:inline-flex;flex-direction:column;max-width:100%;min-width:0;">
-                                        @if($namePrefix)
-                                            <span style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:.05em;line-height:1.2;text-transform:uppercase;white-space:nowrap;">{{ $namePrefix }}</span>
-                                        @endif
-                                        <span style="font-size:12.5px;font-weight:800;color:var(--dark);line-height:1.3;white-space:normal;word-break:break-word;">{{ $nameMain }}</span>
-                                    </span>
-                                </td>
-                                <td>{{ $project->client }}</td>
+                            @forelse($clientGroups as $group)
+                            @php
+                                $filterKeys = trim(
+                                    ($group['has_active'] ? 'active ' : '') .
+                                    ($group['has_completed'] ? 'completed ' : '') .
+                                    ($group['has_archived'] ? 'archived ' : '')
+                                );
+                            @endphp
+                            <tr data-status="{{ $filterKeys }}" data-search="{{ strtolower($group['client']) }}">
+                                <td><span class="client-pill">{{ $group['client'] }}</span></td>
+                                <td style="text-align:center;">{{ $group['project_count'] }}</td>
                                 <td>
-                                    <span class="status-badge {{ $project->status === 'completed' ? 'completed' : 'ongoing' }}">
-                                        {{ ucfirst(str_replace('_', ' ', $project->current_phase ?? 'Planning')) }}
-                                    </span>
+                                    <span style="font-size:14px;font-weight:700;color:var(--dark);">{{ $group['materials_count'] }}</span>
+                                    <span style="font-size:13px;font-weight:400;color:var(--muted);"> material{{ $group['materials_count'] !== 1 ? 's' : '' }}</span>
                                 </td>
                                 <td>
-                                    @php $matCount = $project->activeMaterials->count(); @endphp
-                                    <span style="font-size:14px;font-weight:700;color:var(--dark);">{{ $matCount }}</span>
-                                    <span style="font-size:13px;font-weight:400;color:var(--muted);"> material{{ $matCount !== 1 ? 's' : '' }}</span>
+                                    <span style="font-size:14px;font-weight:700;color:var(--dark);">{{ $group['usage_count'] }}</span>
+                                    <span style="font-size:13px;font-weight:400;color:var(--muted);"> entr{{ $group['usage_count'] !== 1 ? 'ies' : 'y' }}</span>
                                 </td>
-                                <td>
-                                    @php $usageCount = $project->activeMaterialUsages->count(); @endphp
-                                    <span style="font-size:14px;font-weight:700;color:var(--dark);">{{ $usageCount }}</span>
-                                    <span style="font-size:13px;font-weight:400;color:var(--muted);"> entr{{ $usageCount !== 1 ? 'ies' : 'y' }}</span>
-                                </td>
-                                <td>
-                                    @php $totalQty = $project->activeMaterialUsages->sum('quantity_used'); @endphp
-                                    <strong style="font-size:14px;font-weight:700;color:var(--dark);">{{ number_format($totalQty, 0) }}</strong>
-                                </td>
-                                <td style="font-size:14px;font-weight:700;color:var(--dark);">{{ $project->created_at->format('M d, Y') }}</td>
+                                <td><strong style="font-size:14px;font-weight:700;color:var(--dark);">{{ number_format($group['total_qty_used'], 0) }}</strong></td>
+                                <td style="font-size:14px;font-weight:700;color:var(--dark);">{{ $group['last_created_at']?->format('M d, Y') ?? '—' }}</td>
                                 <td class="action-cell">
-                                    <a href="{{ route('admin.material_usage.detail', $project->id) }}"
-                                       class="action-btn view" title="View Materials">
+                                    <a href="{{ route('admin.material_usage.client', urlencode($group['client'])) }}"
+                                       class="action-btn view" title="View Client's Projects">
                                         <i data-lucide="eye"></i>
                                     </a>
                                 </td>
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="9" style="text-align:center;padding:60px 20px;color:var(--muted);">
+                                <td colspan="7" style="text-align:center;padding:60px 20px;color:var(--muted);">
                                     <i data-lucide="inbox" style="width:36px;height:36px;opacity:.35;display:block;margin:0 auto 12px;"></i>
                                     <div style="font-size:14px;font-weight:700;">No projects found.</div>
                                     <div style="font-size:13px;margin-top:4px;">Add projects via the <strong>Projects</strong> page.</div>
@@ -402,13 +383,9 @@
                 var visibleCount = 0;
 
                 document.querySelectorAll('#usageTable tbody tr:not(#usageNoMatch)').forEach(function(row) {
-                    var status      = (row.dataset.status || '').toLowerCase();
+                    var statuses    = (row.dataset.status || '').toLowerCase().split(' ').filter(Boolean);
                     var matchSearch = row.textContent.toLowerCase().indexOf(q) !== -1;
-                    var matchFilter = currentStatusFilter === 'active'
-                        ? status !== 'archived' && status !== 'completed'
-                        : currentStatusFilter === 'completed'
-                        ? status === 'completed'
-                        : status === 'archived';
+                    var matchFilter = statuses.indexOf(currentStatusFilter) !== -1;
                     var show = matchSearch && matchFilter;
                     row.style.display = show ? '' : 'none';
                     if (show) visibleCount++;
@@ -424,7 +401,7 @@
                     ? 'No projects match &ldquo;' + q + '&rdquo;.'
                     : (usageFilterMessages[currentStatusFilter] || 'No projects in this category.');
                 noMatchRow.innerHTML =
-                    '<td colspan="8" style="text-align:center;padding:60px 20px;color:var(--muted);">' +
+                    '<td colspan="7" style="text-align:center;padding:60px 20px;color:var(--muted);">' +
                     '<i data-lucide="folder-open" style="width:36px;height:36px;opacity:.35;display:block;margin:0 auto 12px;"></i>' +
                     '<div style="font-size:14px;font-weight:700;">' + msg + '</div>' +
                     '<div style="font-size:13px;margin-top:4px;">Try switching to a different tab or add a new project.</div>' +

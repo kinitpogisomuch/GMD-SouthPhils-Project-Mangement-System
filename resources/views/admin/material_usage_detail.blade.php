@@ -19,6 +19,8 @@
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;font-size:13px;color:var(--muted);">
                 <a href="{{ route('admin.material_usage') }}" style="color:var(--muted);text-decoration:none;font-weight:600;">Materials</a>
                 <i data-lucide="chevron-right" style="width:14px;height:14px;"></i>
+                <a href="{{ route('admin.material_usage.client', urlencode($project->client)) }}" style="color:var(--muted);text-decoration:none;font-weight:600;">{{ $project->client }}</a>
+                <i data-lucide="chevron-right" style="width:14px;height:14px;"></i>
                 <span style="font-weight:700;color:var(--dark);">{{ $project->name }}</span>
             </div>
 

@@ -21,13 +21,37 @@ class MaterialUsageController extends Controller
 
     public function adminIndex()
     {
-        $projects = Project::with('activeMaterials', 'activeMaterialUsages')
-            ->orderBy('created_at', 'desc')
-            ->get();
+        $projects = Project::with('activeMaterials', 'activeMaterialUsages')->get();
+
+        $clientGroups = $projects->groupBy('client')->map(function ($group, $clientName) {
+            return [
+                'client'          => $clientName,
+                'project_count'   => $group->count(),
+                'materials_count' => $group->sum(fn ($p) => $p->activeMaterials->count()),
+                'usage_count'     => $group->sum(fn ($p) => $p->activeMaterialUsages->count()),
+                'total_qty_used'  => $group->sum(fn ($p) => $p->activeMaterialUsages->sum('quantity_used')),
+                'last_created_at' => $group->max('created_at'),
+                'has_active'      => $group->contains(fn ($p) => !in_array($p->status, ['completed', 'archived'])),
+                'has_completed'   => $group->contains(fn ($p) => $p->status === 'completed'),
+                'has_archived'    => $group->contains(fn ($p) => $p->status === 'archived'),
+            ];
+        })->sortBy(fn ($g) => strtolower($g['client']))->values();
 
         $suppliers = SupplierContact::orderBy('name')->get();
 
-        return view('admin.material_usage', compact('projects', 'suppliers'));
+        return view('admin.material_usage', compact('clientGroups', 'suppliers'));
+    }
+
+    public function clientIndex($client)
+    {
+        $clientName = urldecode($client);
+
+        $projects = Project::with('activeMaterials', 'activeMaterialUsages')
+            ->where('client', $clientName)
+            ->orderBy('name')
+            ->get();
+
+        return view('admin.material_usage_client', compact('projects', 'clientName'));
     }
 
     public function adminDetail($projectId)

@@ -176,7 +176,7 @@
                 </div>
                 <button type="button" class="qr-add-tank-btn" id="addTankItemBtn">
                     <i data-lucide="plus-circle"></i>
-                    Add Another Tank
+                    <span>Add Tank</span>
                 </button>
 
                 <div class="qr-divider"></div>
@@ -290,6 +290,7 @@
                 row.querySelector('.qr-tank-badge-num').textContent = i + 1;
             });
             document.getElementById('noTankItemsHint').style.display = rows.length ? 'none' : '';
+            document.querySelector('#addTankItemBtn span').textContent = rows.length ? 'Add Another Tank' : 'Add Tank';
         }
 
         document.getElementById('addTankItemBtn').addEventListener('click', function () {
@@ -298,8 +299,6 @@
 
         if (OLD_TANK_ITEMS && OLD_TANK_ITEMS.length) {
             OLD_TANK_ITEMS.forEach(function (item) { addTankRow(item); });
-        } else {
-            addTankRow();
         }
         updateTankRowChrome();
 

@@ -20,6 +20,7 @@
 @endphp
 <header class="client-header">
     <div class="client-header-left">
+        <img src="{{ asset('images/gmdlogo-circle.svg') }}" alt="GMD South Phils" style="width:34px;height:34px;flex-shrink:0;border-radius:50%;border:1.5px solid rgba(255,255,255,0.25);">
         <div>
             <div class="system-title">GMD South Phils</div>
             <div class="system-subtitle">CLIENT PORTAL</div>
@@ -45,9 +46,14 @@
         </a>
         @endif
         <a href="{{ route('client.quotation.create') }}"
-           class="{{ request()->routeIs('client.quotation.*') ? 'active' : '' }}">
+           class="{{ request()->routeIs('client.quotation.create') ? 'active' : '' }}">
             <i data-lucide="clipboard-list"></i>
             <span>Request a Quotation</span>
+        </a>
+        <a href="{{ route('client.quotation.status') }}"
+           class="{{ request()->routeIs('client.quotation.status') ? 'active' : '' }}">
+            <i data-lucide="history"></i>
+            <span>Quotation History</span>
         </a>
     </nav>
 

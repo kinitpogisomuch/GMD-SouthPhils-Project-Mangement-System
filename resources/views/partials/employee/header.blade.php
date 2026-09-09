@@ -1,5 +1,6 @@
 <header class="employee-header">
     <div class="employee-header-left">
+        <img src="{{ asset('images/gmdlogo-circle.svg') }}" alt="GMD South Phils" style="width:34px;height:34px;flex-shrink:0;border-radius:50%;border:1.5px solid rgba(255,255,255,0.25);">
         <div>
             <div class="system-title">GMD South Phils</div>
             <div class="system-subtitle">EMPLOYEE PORTAL</div>

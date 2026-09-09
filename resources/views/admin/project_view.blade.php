@@ -678,16 +678,6 @@
                     <div style="flex:1;overflow-y:auto;max-height:520px;display:flex;flex-direction:column;padding-right:4px;">
 
                         @php
-                            $phaseIcons = [
-                                'planning'    => 'clipboard-list',
-                                'procurement' => 'package-check',
-                                'matl_prep'   => 'ruler',
-                                'fabrication' => 'hammer',
-                                'inspection'  => 'gauge',
-                                'painting'    => 'paint-bucket',
-                                'completion'  => 'check-circle-2',
-                                'delivery'    => 'truck',
-                            ];
                             $imageExtRegex = '/\.(jpe?g|png|gif|webp|bmp)(\?.*)?$/i';
                         @endphp
 
@@ -697,110 +687,81 @@
                             $isPendingApproval = $update->status === 'pending_approval';
                             $isRevision        = $update->status === 'needs_revision';
                             $isSuperseded      = $update->status === 'superseded';
-                            $isEmployee   = $update->type === 'employee_submission';
+                            $isEmployee        = $update->type === 'employee_submission';
 
                             if ($isPending) {
-                                $cardStyle = 'background:#fffbeb;border:1.5px solid #f59e0b;';
-                                $iconBg = '#fef3c7'; $iconColor = '#d97706';
+                                $statusKey = 'pending'; $statusIcon = 'clock'; $statusLabel = 'Pending Review';
                             } elseif ($isRevision) {
-                                $cardStyle = 'background:#fff7ed;border:1.5px solid #fb923c;';
-                                $iconBg = '#ffedd5'; $iconColor = '#ea580c';
+                                $statusKey = 'revision'; $statusIcon = 'rotate-ccw'; $statusLabel = 'Needs Revision';
                             } elseif ($isSuperseded) {
-                                $cardStyle = 'background:var(--surface-2);border:1px dashed var(--border);opacity:0.6;';
-                                $iconBg = 'var(--white)'; $iconColor = 'var(--muted)';
+                                $statusKey = 'superseded'; $statusIcon = 'copy'; $statusLabel = 'Superseded';
+                            } elseif ($isPendingApproval) {
+                                $statusKey = 'pending-client'; $statusIcon = 'clock'; $statusLabel = 'Pending Client Approval';
                             } else {
-                                $cardStyle = 'background:var(--surface-2);border:1px solid var(--border);';
-                                $iconBg = '#dcfce7'; $iconColor = '#16a34a';
+                                $statusKey = 'approved'; $statusIcon = 'check'; $statusLabel = 'Approved';
                             }
-
-                            $phaseIcon = $phaseIcons[$update->phase] ?? 'file-text';
                         @endphp
 
                         <div class="pv-history-item" data-update-id="{{ $update->id }}">
-                            <div class="pv-history-rail">
-                                <div class="pv-history-icon" style="background:{{ $iconBg }};">
-                                    <i data-lucide="{{ $phaseIcon }}" style="color:{{ $iconColor }};"></i>
-                                </div>
-                                <div class="pv-history-line"></div>
-                            </div>
+                            <div class="pv-history-card" style="{{ $isSuperseded ? 'opacity:0.6;' : '' }}" onclick="openUpdateModal({{ $update->id }})">
 
-                            <div class="pv-history-card" style="{{ $cardStyle }}" onclick="openUpdateModal({{ $update->id }})">
-
-                                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px;">
-                                    <span style="font-size:13.5px;font-weight:700;color:var(--text-primary);">
-                                        {{ ucfirst(str_replace('_', ' ', $update->phase)) }} Phase
-                                        @if($update->update_label === 'revision')
-                                        <span style="font-size:10.5px;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:20px;margin-left:4px;font-weight:700;">
-                                            Revision Submission
-                                        </span>
-                                        @endif
-                                        <span class="pv-new-badge">New</span>
-                                    </span>
-                                    <span style="font-size:11.5px;color:var(--muted);font-weight:600;white-space:nowrap;">
-                                        {{ $update->date_of_work->format('M d, Y') }}
-                                    </span>
-                                </div>
-
-                                <div class="pv-history-meta">
-                                    <i data-lucide="{{ $isEmployee ? 'user' : 'shield-check' }}" style="width:12px;height:12px;"></i>
-                                    <span>{{ $isEmployee ? $update->submitted_by_name : 'Admin' }}</span>
-
-                                    @if($update->percentage)
-                                    <span class="dot"></span>
-                                    <span class="pv-history-percentage">
-                                        <i data-lucide="trending-up" style="width:10px;height:10px;"></i>
-                                        {{ $update->percentage }}%
-                                    </span>
-                                    @endif
-
-                                    <span class="dot"></span>
-
-                                    @if($isPending)
-                                    <span style="display:inline-flex;align-items:center;gap:4px;color:#d97706;">
-                                        <i data-lucide="clock" style="width:11px;height:11px;"></i> Pending Review
-                                    </span>
-                                    @elseif($isRevision)
-                                    <span style="display:inline-flex;align-items:center;gap:4px;color:#ea580c;">
-                                        <i data-lucide="rotate-ccw" style="width:11px;height:11px;"></i> Needs Revision
-                                    </span>
-                                    @elseif($isSuperseded)
-                                    <span style="display:inline-flex;align-items:center;gap:4px;">
-                                        <i data-lucide="copy" style="width:11px;height:11px;"></i> Superseded
-                                    </span>
-                                    @elseif($isPendingApproval)
-                                    <span style="display:inline-flex;align-items:center;gap:4px;color:#b45309;background:#fff3cd;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;box-shadow:0 0 0 1px rgba(180,83,9,.18),0 2px 8px rgba(180,83,9,.12);">
-                                        <i data-lucide="clock" style="width:11px;height:11px;"></i> Pending Client Approval
-                                    </span>
-                                    @else
-                                    <span style="display:inline-flex;align-items:center;gap:4px;color:#16a34a;">
-                                        <i data-lucide="check" style="width:11px;height:11px;"></i> Approved
-                                    </span>
-                                    @endif
-                                </div>
-
-                                <div style="font-size:13px;color:var(--text-secondary);line-height:1.5;">
-                                    {{ Str::limit($update->work_done, 100) }}
-                                </div>
-
-                                @if($update->photos && count($update->photos) > 0)
-                                <div class="pv-history-attachments">
-                                    @foreach(array_slice($update->photos, 0, 4) as $photo)
-                                        @if(preg_match($imageExtRegex, $photo))
-                                        <img src="{{ $photo }}" class="pv-history-thumb">
-                                        @else
-                                        <div class="pv-history-thumb-doc">
-                                            <i data-lucide="file-text"></i>
+                                <div class="pv-history-header">
+                                    <div class="pv-history-title-col">
+                                        <div class="pv-history-phase-title">
+                                            {{ ucfirst(str_replace('_', ' ', $update->phase)) }} Phase
+                                            @if($update->update_label === 'revision')
+                                            <span class="pv-history-revision-badge">Revision</span>
+                                            @endif
+                                            <span class="pv-new-badge">New</span>
                                         </div>
-                                        @endif
-                                    @endforeach
-                                    @if(count($update->photos) > 4)
-                                    <div class="pv-history-thumb-more">+{{ count($update->photos) - 4 }}</div>
+                                        <div class="pv-history-meta-row">
+                                            <i data-lucide="{{ $isEmployee ? 'user' : 'shield-check' }}"></i>
+                                            {{ $isEmployee ? $update->submitted_by_name : 'Admin' }}
+                                            <span class="pv-history-meta-dot"></span>
+                                            <i data-lucide="calendar"></i>
+                                            {{ $update->date_of_work->format('M d, Y') }}
+                                            @if($update->percentage)
+                                            <span class="pv-history-meta-dot"></span>
+                                            <span class="pv-history-percentage">
+                                                <i data-lucide="trending-up" style="width:10px;height:10px;"></i>
+                                                {{ $update->percentage }}%
+                                            </span>
+                                            @endif
+                                        </div>
+                                    </div>
+                                    <span class="pv-history-status-badge status-{{ $statusKey }}">
+                                        <i data-lucide="{{ $statusIcon }}"></i>
+                                        {{ $statusLabel }}
+                                    </span>
+                                </div>
+
+                                <div class="pv-history-body">
+                                    <div>
+                                        <div class="pv-history-section-label">Work Done</div>
+                                        <div class="pv-work-text">{{ Str::limit($update->work_done, 100) }}</div>
+                                    </div>
+
+                                    @if($update->photos && count($update->photos) > 0)
+                                    <div>
+                                        <div class="pv-history-section-label">Site Photos ({{ count($update->photos) }})</div>
+                                        <div class="pv-photo-grid">
+                                            @foreach(array_slice($update->photos, 0, 4) as $photo)
+                                                @if(preg_match($imageExtRegex, $photo))
+                                                <span class="pv-photo-thumb"><img src="{{ $photo }}"></span>
+                                                @else
+                                                <span class="pv-photo-thumb"><span class="pv-photo-fallback"><i data-lucide="file-text"></i></span></span>
+                                                @endif
+                                            @endforeach
+                                            @if(count($update->photos) > 4)
+                                            <span class="pv-photo-thumb"><span class="pv-photo-thumb-more">+{{ count($update->photos) - 4 }}</span></span>
+                                            @endif
+                                        </div>
+                                    </div>
                                     @endif
                                 </div>
-                                @endif
 
-                                <div style="display:flex;align-items:center;gap:4px;margin-top:10px;font-size:11.5px;font-weight:700;color:var(--accent);">
-                                    View Details <i data-lucide="arrow-right" style="width:12px;height:12px;"></i>
+                                <div class="pv-history-view-link">
+                                    View Details <i data-lucide="arrow-right"></i>
                                 </div>
 
                             </div>

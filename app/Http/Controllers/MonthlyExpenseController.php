@@ -52,9 +52,18 @@ class MonthlyExpenseController extends Controller
             ->limit(12)
             ->get();
 
+        // Custom categories previously typed in via "Other" — offered as regular
+        // dropdown options from now on instead of having to retype them each time.
+        $defaultCategories = ['Electricity', 'Water', 'Rent', 'Maintenance & Repair'];
+        $customCategories  = MonthlyExpense::select('category')
+            ->whereNotIn('category', $defaultCategories)
+            ->distinct()
+            ->orderBy('category')
+            ->pluck('category');
+
         return view('admin.monthly_expenses', compact(
             'month', 'expenses', 'total', 'allocated',
-            'projects', 'perProject', 'months', 'history'
+            'projects', 'perProject', 'months', 'history', 'customCategories'
         ));
     }
 

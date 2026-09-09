@@ -85,6 +85,7 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::post('/material-requests/{id}/rerequest', [MaterialRequestController::class, 'rerequest'])->name('material_requests.rerequest');
 
     Route::get('/material-usage', [MaterialUsageController::class, 'adminIndex'])->name('material_usage');
+    Route::get('/material-usage/client/{client}', [MaterialUsageController::class, 'clientIndex'])->name('material_usage.client');
     Route::get('/material-usage/{projectId}', [MaterialUsageController::class, 'adminDetail'])->name('material_usage.detail');
     Route::post('/material-usage/{projectId}', [MaterialUsageController::class, 'store'])->name('material_usage.store');
     Route::post('/material-usage/{projectId}/purchases', [MaterialUsageController::class, 'storePurchase'])->name('material_usage.store_purchase');

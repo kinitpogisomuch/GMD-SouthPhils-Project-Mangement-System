@@ -127,49 +127,64 @@
                 <!-- Active Projects -->
                 <div class="card">
                     <div class="card-header">
-                        <span class="card-title">Active Projects</span>
+                        <span class="card-title">Recent Projects</span>
                         <a href="{{ url('/client/projects') }}" class="btn btn-outline btn-sm">
                             <i data-lucide="arrow-right"></i> View All
                         </a>
                     </div>
-                    <div class="card-body">
-                        @forelse($projects as $project)
-                        @php
-                            $fillColor = match($project->status) {
-                                'completed' => '#207A3A',
-                                'delayed'   => '#B42318',
-                                default     => 'var(--dark)',
-                            };
-                        @endphp
-                        <a href="{{ route('client.project_view', $project->id) }}" class="dash-project-row">
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                                <div>
-                                    <div style="font-weight:600; font-size:14px;">{{ $project->name }}</div>
-                                    <div style="font-size:12px; color:var(--text-secondary);">
-                                        Started: {{ $project->start_date->format('M d, Y') }}
-                                    </div>
-                                </div>
-                                @if($project->status === 'ongoing')
-                                    <span class="badge badge-info">In Progress</span>
-                                @elseif($project->status === 'completed')
-                                    <span class="badge badge-success">Completed</span>
-                                @else
-                                    <span class="badge badge-warning">Pending</span>
-                                @endif
-                            </div>
-                            <div class="progress-wrap">
-                                <div class="progress-label">
-                                    <span>Overall completion</span>
-                                    <span>{{ $project->progress }}%</span>
-                                </div>
-                                <div class="progress-bar">
-                                    <div class="progress-fill" style="width:{{ $project->progress }}%;background:{{ $fillColor }};"></div>
-                                </div>
-                            </div>
-                        </a>
-                        @empty
-                        <p style="color:var(--text-secondary);font-size:13.5px;">No projects found.</p>
-                        @endforelse
+                    <div class="table-wrap">
+                        <table style="table-layout:fixed;">
+                            <colgroup>
+                                <col style="width:34%;">
+                                <col style="width:33%;">
+                                <col style="width:33%;">
+                            </colgroup>
+                            <thead>
+                                <tr>
+                                    <th>Project</th>
+                                    <th style="text-align:center;">Progress</th>
+                                    <th style="text-align:center;">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($projects as $project)
+                                @php
+                                    [$iconBg, $iconColor, $icon] = match($project->status) {
+                                        'completed' => ['#E7F6EC', '#207A3A', 'check-circle'],
+                                        'delayed'   => ['#FEE4E2', '#B42318', 'alert-triangle'],
+                                        'ongoing'   => ['#EAF0FF', '#2A4EAA', 'loader'],
+                                        default     => ['#FFF3D6', '#8A6100', 'clock'],
+                                    };
+                                @endphp
+                                <tr onclick="window.location='{{ route('client.project_view', $project->id) }}'" style="cursor:pointer;">
+                                    <td>
+                                        <div style="display:flex;align-items:center;gap:12px;min-width:0;">
+                                            <div class="dash-row-icon" style="width:34px;height:34px;border-radius:50%;background:{{ $iconBg }};color:{{ $iconColor }};flex-shrink:0;">
+                                                <i data-lucide="{{ $icon }}" style="width:16px;height:16px;"></i>
+                                            </div>
+                                            <strong style="word-break:break-word;">{{ $project->name }}</strong>
+                                        </div>
+                                    </td>
+                                    <td style="text-align:center;"><strong>{{ $project->progress }}%</strong></td>
+                                    <td style="text-align:center;">
+                                        @if($project->status === 'ongoing')
+                                            <span class="status-badge ongoing">In Progress</span>
+                                        @elseif($project->status === 'completed')
+                                            <span class="status-badge completed">Completed</span>
+                                        @elseif($project->status === 'delayed')
+                                            <span class="status-badge revision">Delayed</span>
+                                        @else
+                                            <span class="status-badge pending">Pending</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                                @empty
+                                <tr>
+                                    <td colspan="3" style="text-align:center;color:var(--text-secondary);">No projects found.</td>
+                                </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
@@ -182,21 +197,41 @@
                         </a>
                     </div>
                     <div class="table-wrap">
-                        <table>
+                        <table style="table-layout:fixed;">
+                            <colgroup>
+                                <col style="width:34%;">
+                                <col style="width:33%;">
+                                <col style="width:33%;">
+                            </colgroup>
                             <thead>
                                 <tr>
                                     <th>Project</th>
-                                    <th style="text-align:right;">Amount</th>
-                                    <th>Status</th>
+                                    <th style="text-align:center;">Amount</th>
+                                    <th style="text-align:center;">Status</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @forelse($payments as $payment)
+                                @php
+                                    $payBadgeClass = \App\Models\Payment::statusBadgeClass($payment->status);
+                                    [$payIconBg, $payIconColor, $payIcon] = match($payBadgeClass) {
+                                        'completed' => ['#E7F6EC', '#207A3A', 'check-circle'],
+                                        'ongoing'   => ['#EAF0FF', '#2A4EAA', 'loader'],
+                                        default     => ['#FFF3D6', '#8A6100', 'clock'],
+                                    };
+                                @endphp
                                 <tr>
-                                    <td><strong>{{ $payment->project->name ?? '—' }}</strong></td>
-                                    <td style="text-align:right;"><strong>₱{{ number_format($payment->contract_amount) }}</strong></td>
                                     <td>
-                                        <span class="status-badge {{ \App\Models\Payment::statusBadgeClass($payment->status) }}">
+                                        <div style="display:flex;align-items:center;gap:12px;min-width:0;">
+                                            <div class="dash-row-icon" style="width:34px;height:34px;border-radius:50%;background:{{ $payIconBg }};color:{{ $payIconColor }};flex-shrink:0;">
+                                                <i data-lucide="{{ $payIcon }}" style="width:16px;height:16px;"></i>
+                                            </div>
+                                            <strong style="word-break:break-word;">{{ $payment->project->name ?? '—' }}</strong>
+                                        </div>
+                                    </td>
+                                    <td style="text-align:center;"><strong>₱{{ number_format($payment->contract_amount) }}</strong></td>
+                                    <td style="text-align:center;">
+                                        <span class="status-badge {{ $payBadgeClass }}">
                                             {{ $payment->status }}
                                         </span>
                                     </td>

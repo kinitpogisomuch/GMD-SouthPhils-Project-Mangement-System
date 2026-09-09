@@ -27,24 +27,12 @@
         <main class="admin-content">
 
             {{-- Page Header --}}
+            @php $dt = \Carbon\Carbon::createFromFormat('Y-m', $month); @endphp
             <div class="page-header">
                 <div>
                     <h1>Monthly Overhead Expenses</h1>
                     <p>Record monthly operating costs and allocate them across active projects.</p>
                 </div>
-            </div>
-
-            {{-- Alerts --}}
-            @if(session('success'))
-            <div class="alert-banner success"><i data-lucide="check-circle"></i> {{ session('success') }}</div>
-            @endif
-            @if(session('error'))
-            <div class="alert-banner error"><i data-lucide="alert-circle"></i> {{ session('error') }}</div>
-            @endif
-
-            {{-- Month Selector --}}
-            @php $dt = \Carbon\Carbon::createFromFormat('Y-m', $month); @endphp
-            <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;flex-wrap:wrap;">
                 <div style="display:flex;align-items:center;gap:10px;background:var(--white);border:1px solid var(--border);border-radius:14px;padding:10px 18px;box-shadow:0 2px 8px rgba(0,0,0,.03);">
                     <div style="width:30px;height:30px;border-radius:9px;background:#dbeafe;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                         <i data-lucide="calendar" style="width:15px;height:15px;color:#2563eb;"></i>
@@ -55,8 +43,15 @@
                                style="border:none;background:transparent;font-size:14px;font-weight:800;color:var(--dark);outline:none;cursor:pointer;">
                     </form>
                 </div>
-                <div style="font-size:22px;font-weight:900;color:var(--dark);">{{ $dt->format('F Y') }}</div>
             </div>
+
+            {{-- Alerts --}}
+            @if(session('success'))
+            <div class="alert-banner success"><i data-lucide="check-circle"></i> {{ session('success') }}</div>
+            @endif
+            @if(session('error'))
+            <div class="alert-banner error"><i data-lucide="alert-circle"></i> {{ session('error') }}</div>
+            @endif
 
             {{-- Summary Cards --}}
             <div class="pf-summary-grid">
@@ -198,6 +193,9 @@
                                         <option value="Water">Water</option>
                                         <option value="Rent">Rent</option>
                                         <option value="Maintenance & Repair">Maintenance & Repair</option>
+                                        @foreach($customCategories as $cat)
+                                        <option value="{{ $cat }}">{{ $cat }}</option>
+                                        @endforeach
                                         <option value="__other__">Other</option>
                                     </select>
                                     <div id="expenseCategoryCustomWrap" style="display:none;position:relative;margin-top:8px;">

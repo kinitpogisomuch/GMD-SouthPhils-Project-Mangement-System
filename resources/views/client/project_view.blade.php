@@ -371,7 +371,8 @@
 
                     <div class="pv-history-scroll">
                         @forelse($updates as $update)
-                        <div class="pv-history-item" data-update-id="{{ $update->id }}">
+                        <div class="pv-history-item" data-update-id="{{ $update->id }}"
+                             style="cursor:pointer;" onclick="openUpdateModal({{ $update->id }})">
                             <!-- Entry header: spans the full card so the badge anchors to the card's edge, not the text column's -->
                             <div class="pv-history-header">
                                 <div class="pv-history-title-col">
@@ -403,7 +404,7 @@
                                     @php $workDoneText = trim($update->work_done); @endphp
                                     <div class="pv-history-work-block">
                                         <div class="pv-history-section-label">Work Done</div>
-                                        <div class="pv-work-text" data-full="{{ e($workDoneText) }}">@if(strlen($workDoneText) > 160){{ substr($workDoneText, 0, 160) }}<span class="pv-ellipsis">…</span><span class="pv-rest" style="display:none;">{{ substr($workDoneText, 160) }}</span> <button type="button" class="pv-read-more-btn" onclick="toggleWorkText(this)">Read more</button>@else{{ $workDoneText }}@endif</div>
+                                        <div class="pv-work-text" data-full="{{ e($workDoneText) }}">@if(strlen($workDoneText) > 160){{ substr($workDoneText, 0, 160) }}<span class="pv-ellipsis">…</span><span class="pv-rest" style="display:none;">{{ substr($workDoneText, 160) }}</span> <button type="button" class="pv-read-more-btn" onclick="event.stopPropagation(); toggleWorkText(this)">Read more</button>@else{{ $workDoneText }}@endif</div>
                                     </div>
                                     @endif
 
@@ -429,7 +430,8 @@
                                             $isImageFile = in_array($photoExt, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg']);
                                         @endphp
                                         <a href="{{ $photo }}" target="_blank" class="pv-photo-thumb {{ $isImageFile ? '' : 'is-file' }}"
-                                           @if($isImageFile) onclick="return openProgressLightbox(event, '{{ $photo }}')" title="Click to view larger" @endif>
+                                           onclick="event.stopPropagation(); {{ $isImageFile ? "return openProgressLightbox(event, '$photo')" : '' }}"
+                                           @if($isImageFile) title="Click to view larger" @endif>
                                             @if($isImageFile)
                                                 <img src="{{ $photo }}" alt="Progress photo"
                                                      loading="lazy"
@@ -443,6 +445,10 @@
                                     </div>
                                 </div>
                                 @endif
+                            </div>
+
+                            <div class="pv-history-view-link">
+                                View Details <i data-lucide="arrow-right"></i>
                             </div>
                         </div>
                         @empty
@@ -465,6 +471,67 @@
             <i data-lucide="x"></i>
         </button>
         <img id="pvLightboxImg" src="" alt="Site photo" onclick="event.stopPropagation()">
+    </div>
+
+    <!-- ===== UPDATE DETAIL MODAL ===== -->
+    <div class="modal-overlay" id="updateDetailModal">
+        <div class="modal-card" style="max-width:680px;max-height:90vh;overflow-y:auto;">
+            <div class="modal-header">
+                <div>
+                    <h2 id="modalUpdateTitle">Update Details</h2>
+                    <p id="modalUpdateSubtitle">Submitted progress update</p>
+                </div>
+                <button class="modal-close" type="button" onclick="closeUpdateModal()">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:18px;">
+                <div style="background:var(--cream-soft);border:1px solid var(--border);border-radius:8px;padding:12px;">
+                    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">Submitted By</div>
+                    <div style="font-size:14px;font-weight:700;color:var(--dark);" id="modalSubmittedBy">—</div>
+                </div>
+                <div style="background:var(--cream-soft);border:1px solid var(--border);border-radius:8px;padding:12px;">
+                    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">Date of Work</div>
+                    <div style="font-size:14px;font-weight:700;color:var(--dark);" id="modalDateOfWork">—</div>
+                </div>
+                <div style="background:var(--cream-soft);border:1px solid var(--border);border-radius:8px;padding:12px;">
+                    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">Phase</div>
+                    <div style="font-size:14px;font-weight:700;color:var(--dark);" id="modalPhase">—</div>
+                </div>
+                <div style="background:var(--cream-soft);border:1px solid var(--border);border-radius:8px;padding:12px;">
+                    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">Update Type</div>
+                    <div style="font-size:14px;font-weight:700;color:var(--dark);" id="modalType">—</div>
+                </div>
+            </div>
+
+            <div style="margin-bottom:16px;">
+                <span style="display:inline-flex;align-items:center;gap:6px;background:#dcfce7;border:1.5px solid #86efac;color:#14532d;font-size:12px;font-weight:700;padding:5px 14px;border-radius:20px;">
+                    <i data-lucide="check" style="width:12px;height:12px;"></i>
+                    Approved
+                </span>
+            </div>
+
+            <div id="modalWorkDoneSection" style="margin-bottom:16px;display:none;">
+                <div style="font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Work Done</div>
+                <div id="modalWorkDone"
+                     style="background:var(--cream-soft);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:13.5px;color:var(--dark);line-height:1.6;white-space:pre-wrap;"></div>
+            </div>
+
+            <div id="modalIssuesSection" style="margin-bottom:20px;display:none;">
+                <div style="font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Observations</div>
+                <div id="modalIssues"
+                     style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:14px;font-size:13.5px;color:#92400e;line-height:1.6;white-space:pre-wrap;"></div>
+            </div>
+
+            <div id="modalPhotosSection" style="display:none;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                    <div style="font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;">Site Photos</div>
+                    <span id="modalPhotoCount" style="font-size:11px;color:var(--muted);font-weight:600;"></span>
+                </div>
+                <div id="modalPhotos" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;"></div>
+            </div>
+        </div>
     </div>
 
     @if(($sdStatus ?? null) === 'pending_approval')
@@ -497,9 +564,25 @@
     </div>
     @endif
 
+    @php
+        $updatesData = $updates->map(function($u) use ($phaseLabels) {
+            return [
+                'id'           => $u->id,
+                'phase'        => $phaseLabels[$u->phase] ?? ucfirst(str_replace('_', ' ', $u->phase)),
+                'type'         => $u->type,
+                'work_done'    => $u->work_done,
+                'issues'       => $u->issues,
+                'photos'       => $u->photos ?? [],
+                'date_of_work' => optional($u->date_of_work)->format('M d, Y') ?? $u->created_at->format('M d, Y'),
+                'submitted_at' => $u->created_at->format('M d, Y h:i A'),
+                'submitted_by' => $u->submittedBy?->full_name ?? 'Team',
+            ];
+        })->keyBy('id')->toArray();
+    @endphp
     <script>
         const PROJECT_CURRENT_PHASE = "{{ $project->current_phase }}";
         const PROJECT_STATUS = "{{ $project->status }}";
+        const UPDATES_DATA = @json($updatesData);
     </script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>
@@ -578,6 +661,66 @@
             document.getElementById('pvLightboxImg').src = '';
             document.body.style.overflow = '';
         }
+
+        /* ── Update detail modal ─────────────────────────────────────────── */
+        function openUpdateModal(updateId) {
+            const u = UPDATES_DATA[updateId];
+            if (!u) return;
+
+            document.getElementById('modalUpdateTitle').textContent    = u.phase + ' Phase Update';
+            document.getElementById('modalUpdateSubtitle').textContent = u.submitted_at;
+            document.getElementById('modalSubmittedBy').textContent    = u.submitted_by;
+            document.getElementById('modalDateOfWork').textContent     = u.date_of_work;
+            document.getElementById('modalPhase').textContent          = u.phase;
+            document.getElementById('modalType').textContent           = u.type === 'employee_submission' ? 'Employee Submission' : 'Admin Update';
+
+            const workDoneSec = document.getElementById('modalWorkDoneSection');
+            if (u.work_done && u.work_done.trim() !== '') {
+                workDoneSec.style.display = 'block';
+                document.getElementById('modalWorkDone').textContent = u.work_done;
+            } else {
+                workDoneSec.style.display = 'none';
+            }
+
+            const issuesSec = document.getElementById('modalIssuesSection');
+            if (u.issues) {
+                issuesSec.style.display = 'block';
+                document.getElementById('modalIssues').textContent = u.issues;
+            } else {
+                issuesSec.style.display = 'none';
+            }
+
+            const photosSec = document.getElementById('modalPhotosSection');
+            if (u.photos && u.photos.length > 0) {
+                photosSec.style.display = 'block';
+                document.getElementById('modalPhotoCount').textContent = u.photos.length + ' file' + (u.photos.length > 1 ? 's' : '');
+                document.getElementById('modalPhotos').innerHTML = u.photos.map(function (p) {
+                    const filename = decodeURIComponent(p.split('/').pop().split('?')[0]);
+                    if (/\.(jpe?g|png|gif|webp|bmp)$/i.test(filename)) {
+                        return '<a href="javascript:void(0)" class="pv-photo-thumb" onclick="openProgressLightbox(event, \'' + p + '\')" title="Click to view larger">'
+                             + '<img src="' + p + '" alt="Progress photo" loading="lazy">'
+                             + '</a>';
+                    }
+                    return '<a href="' + p + '" target="_blank" class="pv-photo-thumb is-file" title="Open in new tab">'
+                         + '<span class="pv-photo-fallback"><i data-lucide="file-text"></i></span>'
+                         + '</a>';
+                }).join('');
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            } else {
+                photosSec.style.display = 'none';
+            }
+
+            openModal('updateDetailModal');
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        function closeUpdateModal() {
+            closeModal('updateDetailModal');
+        }
+
+        document.getElementById('updateDetailModal').addEventListener('click', function (e) {
+            if (e.target === this) closeUpdateModal();
+        });
 
         /* ── Modal helpers ───────────────────────────────────────────────── */
         function openModal(id) {

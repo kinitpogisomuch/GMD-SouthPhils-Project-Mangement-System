@@ -120,7 +120,6 @@
                                 <td>{{ $qr->client->name ?? '—' }}</td>
                                 <td>
                                     <div>{{ $qr->client->contact ?? '—' }}</div>
-                                    <div style="font-size:12px;color:var(--muted);">{{ $qr->client->email ?? '' }}</div>
                                 </td>
                                 <td>
                                     @if($qr->tank_type)
@@ -136,7 +135,7 @@
                                     @endif
                                     @if(!empty($qr->reference_files))
                                     <span title="{{ count($qr->reference_files) }} file(s) attached by the client" style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;font-size:10.5px;font-weight:800;color:#6d28d9;background:#ede9fe;border-radius:999px;padding:3px 8px;box-shadow:0 0 0 1px rgba(109,40,217,.18);">
-                                        <i data-lucide="paperclip" style="width:10px;height:10px;"></i>{{ count($qr->reference_files) }}
+                                        {{ count($qr->reference_files) }}
                                     </span>
                                     @endif
                                 </td>
