@@ -498,9 +498,14 @@
                         @elseif($project->current_phase === 'fabrication')
 
                             @if($isBigProject)
-                            <div class="alert-banner success" style="margin-bottom:14px;">
-                                <i data-lucide="check-circle"></i>
-                                30% Progress Payment confirmed — you may now log fabrication progress.
+                            <div style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;padding:10px 20px;margin-bottom:18px;">
+                                <div style="width:64px;height:64px;border-radius:50%;background:#dcfce7;display:flex;align-items:center;justify-content:center;">
+                                    <i data-lucide="check-circle-2" style="width:32px;height:32px;color:#16a34a;"></i>
+                                </div>
+                                <div>
+                                    <p style="font-size:16px;font-weight:800;color:var(--dark);margin-bottom:6px;">Progress Payment Confirmed</p>
+                                    <p style="font-size:13.5px;color:var(--muted);max-width:320px;line-height:1.6;">30% progress payment has been confirmed. Complete the checklist below to advance this project to the Inspection phase.</p>
+                                </div>
                             </div>
                             @endif
 
@@ -533,7 +538,7 @@
                                 <div id="fabricationPreview" class="pv-file-grid"></div>
                             </div>
 
-                            @php $submitLabel = 'Save Progress Update'; @endphp
+                            @php $submitLabel = $isBigProject ? 'Advance to Inspection' : 'Save Progress Update'; @endphp
 
                         @elseif($project->current_phase === 'inspection')
 
@@ -615,9 +620,14 @@
 
                         @elseif($project->current_phase === 'delivery')
 
-                            <div class="alert-banner success" style="margin-bottom:14px;">
-                                <i data-lucide="check-circle"></i>
-                                {{ $isBigProject ? 'Final 20% Payment' : 'Final 50% Payment' }} confirmed — you may now log delivery progress.
+                            <div style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;padding:10px 20px;margin-bottom:18px;">
+                                <div style="width:64px;height:64px;border-radius:50%;background:#dcfce7;display:flex;align-items:center;justify-content:center;">
+                                    <i data-lucide="check-circle-2" style="width:32px;height:32px;color:#16a34a;"></i>
+                                </div>
+                                <div>
+                                    <p style="font-size:16px;font-weight:800;color:var(--dark);margin-bottom:6px;">{{ $isBigProject ? 'Final 20% Payment' : 'Final 50% Payment' }} Confirmed</p>
+                                    <p style="font-size:13.5px;color:var(--muted);max-width:320px;line-height:1.6;">Final payment has been confirmed. Complete the delivery details below to mark this project as completed.</p>
+                                </div>
                             </div>
 
                             <div class="form-group">
@@ -641,7 +651,7 @@
                                           placeholder="Any notes about the delivery..."></textarea>
                             </div>
 
-                            @php $submitLabel = 'Save Progress Update'; @endphp
+                            @php $submitLabel = 'Mark as Delivered & Complete'; @endphp
 
                         @endif
 
