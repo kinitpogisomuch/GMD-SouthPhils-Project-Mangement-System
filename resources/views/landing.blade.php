@@ -77,7 +77,7 @@
             </h1>
 
             <p class="hero-sub">
-                GMD South Phils designs and fabricates custom steel storage tanks for industrial, commercial, and agricultural clients — from fuel and chemical tanks to water and oil storage systems.
+                GMD South Phils designs and fabricates custom steel storage tanks and piping systems for industrial, commercial, and agricultural clients — from fuel and chemical tanks to water and oil storage systems and pipelines.
             </p>
 
             <div class="hero-btns">

@@ -113,7 +113,7 @@
         .kd-primary { font-size: 32px; font-weight: 900; color: var(--dark); line-height: 1.1; }
         .kd-secondary { font-size: 12.5px; color: var(--muted); margin-top: 5px; }
 
-        .kd-target-row { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; font-size: 12.5px; }
+        .kd-target-row { display: flex; justify-content: space-between; align-items: center; margin-top: 32px; font-size: 12.5px; }
         .kd-target-label { color: var(--muted); }
         .kd-target-value { font-weight: 800; color: var(--dark); }
 
@@ -575,9 +575,9 @@
 
             return '<div class="kd-card">' +
                 '<div class="kd-card-top"><span class="kd-card-name">Budget adherence</span>' + chip + '</div>' +
-                '<div class="kd-primary">' + fmtPct(b.adherence_rate) + '</div>' +
-                '<div class="kd-secondary">' + fmtPeso(b.actual_cost) + ' actual vs ' + fmtPeso(b.estimated_budget) + ' estimated</div>' +
-                progressBar(Math.min(100, b.adherence_rate), null, status.color) +
+                '<div class="kd-primary" style="text-align:center;font-size:64px;line-height:1;margin-top:8px;">' + fmtPct(b.adherence_rate) + '</div>' +
+                '<div class="kd-secondary" style="text-align:center;font-size:14px;margin-top:8px;">' + fmtPeso(b.actual_cost) + ' actual vs ' + fmtPeso(b.estimated_budget) + ' estimated</div>' +
+                '<div style="margin-top:24px;">' + progressBar(Math.min(100, b.adherence_rate), null, status.color) + '</div>' +
                 scaleBlock(b.scale) +
                 budgetBreakdown(b) +
                 '</div>';
