@@ -266,6 +266,11 @@
                                           || $project->current_phase === 'procurement'
                                           || $project->current_phase === 'matl_prep'
                                           || $project->current_phase === 'inspection';
+                        // Fabrication (big projects) and delivery both sit behind a payment
+                        // gate — once settled, show a "Confirm Payment" step first instead of
+                        // dropping straight into the checklist/upload fields.
+                        $showConfirmGate = ($project->current_phase === 'fabrication' && $isBigProject)
+                                          || $project->current_phase === 'delivery';
                     @endphp
 
                     @if($project->current_phase === 'delivery' && $project->progress === 100)
@@ -498,15 +503,20 @@
                         @elseif($project->current_phase === 'fabrication')
 
                             @if($isBigProject)
-                            <div style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;padding:10px 20px;margin-bottom:18px;">
+                            <div id="fabricationConfirmStep" style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;padding:10px 20px;">
                                 <div style="width:64px;height:64px;border-radius:50%;background:#dcfce7;display:flex;align-items:center;justify-content:center;">
                                     <i data-lucide="check-circle-2" style="width:32px;height:32px;color:#16a34a;"></i>
                                 </div>
                                 <div>
                                     <p style="font-size:16px;font-weight:800;color:var(--dark);margin-bottom:6px;">Progress Payment Confirmed</p>
-                                    <p style="font-size:13.5px;color:var(--muted);max-width:320px;line-height:1.6;">30% progress payment has been confirmed. Complete the checklist below to advance this project to the Inspection phase.</p>
+                                    <p style="font-size:13.5px;color:var(--muted);max-width:320px;line-height:1.6;">30% progress payment has been confirmed. Confirm below to proceed to the fabrication checklist.</p>
                                 </div>
+                                <button type="button" class="save-btn" onclick="proceedAfterPaymentConfirm('fabrication')" style="display:inline-flex;align-items:center;gap:8px;font-size:13.5px;padding:11px 22px;">
+                                    <i data-lucide="check"></i>
+                                    Confirm Payment
+                                </button>
                             </div>
+                            <div id="fabricationFormFields" style="display:none;">
                             @endif
 
                             <label class="pv-checklist-item">
@@ -537,6 +547,10 @@
                                 </label>
                                 <div id="fabricationPreview" class="pv-file-grid"></div>
                             </div>
+
+                            @if($isBigProject)
+                            </div>
+                            @endif
 
                             @php $submitLabel = $isBigProject ? 'Advance to Inspection' : 'Save Progress Update'; @endphp
 
@@ -620,15 +634,20 @@
 
                         @elseif($project->current_phase === 'delivery')
 
-                            <div style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;padding:10px 20px;margin-bottom:18px;">
+                            <div id="deliveryConfirmStep" style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;padding:10px 20px;">
                                 <div style="width:64px;height:64px;border-radius:50%;background:#dcfce7;display:flex;align-items:center;justify-content:center;">
                                     <i data-lucide="check-circle-2" style="width:32px;height:32px;color:#16a34a;"></i>
                                 </div>
                                 <div>
                                     <p style="font-size:16px;font-weight:800;color:var(--dark);margin-bottom:6px;">{{ $isBigProject ? 'Final 20% Payment' : 'Final 50% Payment' }} Confirmed</p>
-                                    <p style="font-size:13.5px;color:var(--muted);max-width:320px;line-height:1.6;">Final payment has been confirmed. Complete the delivery details below to mark this project as completed.</p>
+                                    <p style="font-size:13.5px;color:var(--muted);max-width:320px;line-height:1.6;">Final payment has been confirmed. Confirm below to proceed to the delivery details.</p>
                                 </div>
+                                <button type="button" class="save-btn" onclick="proceedAfterPaymentConfirm('delivery')" style="display:inline-flex;align-items:center;gap:8px;font-size:13.5px;padding:11px 22px;">
+                                    <i data-lucide="check"></i>
+                                    Confirm Payment
+                                </button>
                             </div>
+                            <div id="deliveryFormFields" style="display:none;">
 
                             <div class="form-group">
                                 <label class="log-label">DELIVERY PHOTOS *</label>
@@ -651,6 +670,8 @@
                                           placeholder="Any notes about the delivery..."></textarea>
                             </div>
 
+                            </div>
+
                             @php $submitLabel = 'Mark as Delivered & Complete'; @endphp
 
                         @endif
@@ -665,7 +686,7 @@
 
                         </div>
 
-                        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px;padding-top:18px;border-top:1px solid var(--border);">
+                        <div id="progressFormFooter" style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px;padding-top:18px;border-top:1px solid var(--border);{{ $showConfirmGate ? 'display:none;' : '' }}">
                             @if($project->current_phase === 'planning' && in_array($subPhase, ['shop_drawing', 'quotation']))
                             <button type="button" class="cancel-btn" id="openSkipStepModal"
                                     style="font-size:13.5px;padding:11px 20px;">
@@ -1200,6 +1221,25 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="{{ asset('js/admin.js') }}"></script>
     <script>
+        /* ── Payment-confirm gate (fabrication / delivery) ───────────────── */
+        const PAYMENT_CONFIRM_KEY_PREFIX = 'pv_payment_confirmed_{{ $project->id }}_';
+
+        function proceedAfterPaymentConfirm(phase) {
+            const confirmStep = document.getElementById(phase + 'ConfirmStep');
+            const formFields  = document.getElementById(phase + 'FormFields');
+            const footer      = document.getElementById('progressFormFooter');
+            if (confirmStep) confirmStep.style.display = 'none';
+            if (formFields)  formFields.style.display = 'block';
+            if (footer)      footer.style.display = 'flex';
+            try { localStorage.setItem(PAYMENT_CONFIRM_KEY_PREFIX + phase, '1'); } catch (e) {}
+        }
+
+        ['fabrication', 'delivery'].forEach(function (phase) {
+            let confirmed = false;
+            try { confirmed = !!localStorage.getItem(PAYMENT_CONFIRM_KEY_PREFIX + phase); } catch (e) {}
+            if (confirmed) proceedAfterPaymentConfirm(phase);
+        });
+
         const adminFileMaps = new Map();
 
         const ADMIN_MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
