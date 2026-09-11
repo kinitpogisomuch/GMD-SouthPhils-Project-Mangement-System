@@ -116,6 +116,10 @@
                     <i data-lucide="settings"></i>
                     <span>Settings</span>
                 </a>
+                <a href="{{ route('admin.manual') }}">
+                    <i data-lucide="book-open"></i>
+                    <span>User Manual</span>
+                </a>
                 <div class="admin-dropdown-divider"></div>
                 <a href="{{ route('logout') }}" class="danger"
                    onclick="event.preventDefault(); document.getElementById('adminLogoutModal').classList.add('show');">

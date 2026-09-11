@@ -129,6 +129,7 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::get('/projects/client/{client}', [AdminController::class, 'projectsClient'])->name('projects.client');
     Route::get('/projects/client-groups', [AdminController::class, 'projectClientGroups'])->name('projects.client_groups');
     Route::get('/settings', [AdminController::class, 'settings'])->name('settings');
+    Route::get('/manual', [AdminController::class, 'manual'])->name('manual');
     Route::get('/clients', [AdminController::class, 'clients'])->name('clients');
 
     // Quotation Requests

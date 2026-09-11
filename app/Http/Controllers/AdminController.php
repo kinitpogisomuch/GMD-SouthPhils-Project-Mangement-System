@@ -591,6 +591,11 @@ class AdminController extends Controller
         return view('admin.settings', compact('adminData', 'users', 'portfolioItems', 'reviews', 'contactInfo'));
     }
 
+    public function manual()
+    {
+        return view('admin.manual');
+    }
+
     public function updateContactInfo(Request $request)
     {
         $validated = $request->validate([
