@@ -371,6 +371,11 @@
             if (m) { m.classList.remove('show'); document.body.style.overflow = ''; }
         }
 
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
         document.addEventListener('DOMContentLoaded', function () {
 
             // ---- View Request Modal ----

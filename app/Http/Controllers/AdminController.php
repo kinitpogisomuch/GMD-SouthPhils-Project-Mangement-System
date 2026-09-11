@@ -110,6 +110,7 @@ class AdminController extends Controller
             ->merge(\DB::table('payment_transactions')->selectRaw('EXTRACT(YEAR FROM payment_date)::int as yr')->whereNotNull('payment_date')->distinct()->pluck('yr'))
             ->merge(\DB::table('projects')->selectRaw('EXTRACT(YEAR FROM created_at)::int as yr')->distinct()->pluck('yr'))
             ->merge(\DB::table('material_purchases')->selectRaw('EXTRACT(YEAR FROM purchase_date)::int as yr')->whereNotNull('purchase_date')->distinct()->pluck('yr'))
+            ->push(now()->year) // always include the current year so the filter/KPI cards have something to show on a fresh, empty database
             ->filter()->unique()->sort()->values()->toArray();
 
         $currentYear = now()->year;
