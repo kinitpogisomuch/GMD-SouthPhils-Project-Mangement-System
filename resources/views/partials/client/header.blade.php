@@ -48,7 +48,7 @@
         <a href="{{ route('client.quotation.create') }}"
            class="{{ request()->routeIs('client.quotation.create') ? 'active' : '' }}">
             <i data-lucide="clipboard-list"></i>
-            <span>Request a Quotation</span>
+            <span>Request Quotation</span>
         </a>
         <a href="{{ route('client.quotation.status') }}"
            class="{{ request()->routeIs('client.quotation.status') ? 'active' : '' }}">

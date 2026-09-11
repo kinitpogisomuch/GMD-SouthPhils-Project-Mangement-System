@@ -190,7 +190,7 @@ class ProjectUpdateController extends Controller
     */
     public function uploadAttachment(Request $request, $updateId)
     {
-        $request->validate(['file' => 'required|file|max:10240']);
+        $request->validate(['file' => 'required|file|max:10240|mimes:jpg,jpeg,png,gif,webp,pdf,doc,docx,xls,xlsx,txt']);
 
         $update = ProjectUpdate::findOrFail($updateId);
 

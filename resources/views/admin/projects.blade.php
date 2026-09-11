@@ -7,6 +7,8 @@
     <title>Projects | GMD South Phils</title>
     <link href="{{ asset('css/admin.css') }}" rel="stylesheet">
     <style>
+        .pf-client-name { font-size: 14.5px; font-weight: 800; color: var(--dark); }
+
         .mat-combo { position: relative; width: 100%; }
         .mat-combo-dropdown {
             display: none;
@@ -190,7 +192,7 @@
                         <tbody>
                             @forelse($clientGroups as $g)
                             <tr data-search="{{ strtolower($g['client']) }}" onclick="window.location='{{ route('admin.projects.client', $g['client']) }}'" style="cursor:pointer;">
-                                <td><span class="client-pill">{{ $g['client'] }}</span></td>
+                                <td><span class="pf-client-name">{{ $g['client'] }}</span></td>
                                 <td style="text-align:center;"><span class="client-pill" style="background-color:#F3F4F6;color:#1F2937;border-color:#D1D5DB;">{{ $g['total'] }}</span></td>
                                 <td style="text-align:center;"><span class="client-pill" style="background-color:#EAF0FF;color:#2563EB;border-color:#BFDBFE;">{{ $g['active'] }}</span></td>
                                 <td style="text-align:center;"><span class="client-pill" style="background-color:#E7F6EC;color:#207A3A;border-color:#A7E3B8;">{{ $g['completed'] }}</span></td>
@@ -858,8 +860,8 @@
                     // Capacity
                     '<div class="form-group">' +
                         '<label>Capacity</label>' +
-                        '<input type="text" name="' + prefix + '[capacity]" class="ti-cap-hidden" placeholder="e.g. 5000 L" value="' + (item.capacity || '') + '">' +
-                        '<input type="hidden" name="' + prefix + '[dimensions]" class="ti-dim-hidden" value="' + (item.dimensions || '') + '">' +
+                        '<input type="text" name="' + prefix + '[capacity]" class="ti-cap-hidden" placeholder="e.g. 5000 L" value="' + escapeHtml(item.capacity || '') + '">' +
+                        '<input type="hidden" name="' + prefix + '[dimensions]" class="ti-dim-hidden" value="' + escapeHtml(item.dimensions || '') + '">' +
                     '</div>' +
                 '</div>' +
                 '</div>'; // close ti-dims-section
@@ -1385,7 +1387,7 @@
             var url = PROJECT_CLIENT_URL_TEMPLATE.replace('__CLIENT__', encodeURIComponent(g.client));
             tr.setAttribute('onclick', "window.location='" + url.replace(/'/g, "\\'") + "'");
             tr.innerHTML =
-                '<td><span class="client-pill"></span></td>' +
+                '<td><span class="pf-client-name"></span></td>' +
                 '<td style="text-align:center;"><span class="client-pill" style="background-color:#F3F4F6;color:#1F2937;border-color:#D1D5DB;">' + g.total + '</span></td>' +
                 '<td style="text-align:center;"><span class="client-pill" style="background-color:#EAF0FF;color:#2563EB;border-color:#BFDBFE;">' + g.active + '</span></td>' +
                 '<td style="text-align:center;"><span class="client-pill" style="background-color:#E7F6EC;color:#207A3A;border-color:#A7E3B8;">' + g.completed + '</span></td>' +
@@ -1395,7 +1397,7 @@
                         '<i data-lucide="eye"></i>' +
                     '</a>' +
                 '</td>';
-            tr.querySelector('.client-pill').textContent = g.client; // textContent — never trust client names as HTML
+            tr.querySelector('.pf-client-name').textContent = g.client; // textContent — never trust client names as HTML
             return tr;
         }
 
@@ -1510,9 +1512,9 @@
                     if (it.capacity)   specParts.push(it.capacity);
 
                     var row =
-                        '<span style="' + pillStyle + 'background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;">' + (it.tank_type || 'Tank') + qty + '</span>' +
-                        (shape ? '<span style="' + pillStyle + 'background:#F0FDF4;color:#15803D;border:1px solid #BBF7D0;">' + shape + '</span>' : '') +
-                        (specParts.length ? '<span style="' + pillStyle + 'background:#FEF9C3;color:#A16207;border:1px solid #FDE68A;">' + specParts.join(' · ') + '</span>' : '');
+                        '<span style="' + pillStyle + 'background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;">' + escapeHtml(it.tank_type || 'Tank') + qty + '</span>' +
+                        (shape ? '<span style="' + pillStyle + 'background:#F0FDF4;color:#15803D;border:1px solid #BBF7D0;">' + escapeHtml(shape) + '</span>' : '') +
+                        (specParts.length ? '<span style="' + pillStyle + 'background:#FEF9C3;color:#A16207;border:1px solid #FDE68A;">' + escapeHtml(specParts.join(' · ')) + '</span>' : '');
                     return '<div style="display:flex;flex-wrap:nowrap;overflow-x:auto;">' + row + '</div>';
                 }).join('');
             }

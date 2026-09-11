@@ -112,6 +112,8 @@
                                                     "period"          => $periodText,
                                                     "daily_rate"      => (float) $record->daily_rate,
                                                     "days_worked"     => (float) $record->days_worked,
+                                                    "full_days"       => (float) $fullDays,
+                                                    "half_days"       => (float) $halfDays,
                                                     "overtime_hours"  => (float) $record->overtime_hours,
                                                     "gross_pay"       => (float) $record->gross_pay,
                                                     "total_deductions"=> (float) $record->total_deductions,
@@ -163,8 +165,14 @@
 
         var EMPLOYEE_NAME = @json($employee->full_name);
         var EMPLOYEE_ROLE = @json($employee->role ?? 'Employee');
+        var LOGO_LEFT     = @json(asset('images/logo-left.png'));
+        var LOGO_RIGHT    = @json(asset('images/logo-right.png'));
+        var BS_CSS_URL    = @json(asset('css/billing_statement.css'));
+
+        var CURRENT_SALARY_RECORD = null;
 
         function fmt(n) { return Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+        function fmtDays(n) { return (n % 1 === 0) ? n.toFixed(0) : n.toFixed(1); }
 
         function detailRow(label, value, valueStyle) {
             return '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">'
@@ -174,8 +182,12 @@
         }
 
         function openSalaryDetail(r) {
+            CURRENT_SALARY_RECORD = r;
+
             var dailyRate  = parseFloat(r.daily_rate)     || 0;
             var daysWorked = parseFloat(r.days_worked)    || 0;
+            var fullDays   = r.full_days != null ? parseFloat(r.full_days) : Math.floor(daysWorked);
+            var halfDays   = r.half_days != null ? parseFloat(r.half_days) : (daysWorked - fullDays >= 0.5 ? 1 : 0);
             var otHours    = parseFloat(r.overtime_hours) || 0;
             var otPay      = otHours * dailyRate / 8;
             var basicPay   = dailyRate * daysWorked;
@@ -193,7 +205,8 @@
                 + '</div>'
                 + '<div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;">'
                 + detailRow('Daily Rate', '₱' + fmt(dailyRate))
-                + detailRow('Days Worked', daysWorked + ' days')
+                + detailRow('Full Days', fullDays + ' day' + (fullDays !== 1 ? 's' : ''))
+                + detailRow('Half Day', halfDays + ' day' + (halfDays !== 1 ? 's' : ''))
                 + detailRow('Basic Pay', '₱' + fmt(basicPay))
                 + detailRow('Overtime (' + otHours + ' hrs)', otHours > 0 ? '₱' + fmt(otPay) : '0.00', otHours > 0 ? 'color:#2563eb;' : 'color:var(--muted);')
                 + detailRow('Gross Pay', '₱' + fmt(grossPay))
@@ -213,22 +226,90 @@
             document.body.style.overflow = '';
         }
 
+        function payslipRow(label, value, valueStyle) {
+            return '<tr><td>' + label + '</td><td style="text-align:right;' + (valueStyle || '') + '">' + value + '</td></tr>';
+        }
+
         function printSalarySlip() {
-            var body = document.getElementById('salaryDetailBody');
-            var win  = window.open('', '_blank', 'width=480,height=600');
-            win.document.write(
-                '<html><head><title>Salary Slip – ' + EMPLOYEE_NAME + '</title>'
-                + '<style>body{font-family:sans-serif;padding:32px;color:#111;}h2{margin:0 0 4px;}p{margin:0 0 20px;color:#666;font-size:13px;}'
-                + '.row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #eee;font-size:13px;}'
-                + '.row strong{font-size:13px;}.net{display:flex;justify-content:space-between;padding:14px 0;margin-top:4px;border-top:2px solid #111;}'
-                + '.net span{font-size:15px;font-weight:900;}.net strong{font-size:20px;font-weight:900;color:#16a34a;}'
-                + '</style></head><body>'
-                + '<h2>Salary Slip</h2><p>' + EMPLOYEE_NAME + ' · ' + EMPLOYEE_ROLE + '</p>'
-                + body.innerHTML
-                + '</body></html>'
-            );
+            var r = CURRENT_SALARY_RECORD;
+            if (!r) return;
+
+            var dailyRate  = parseFloat(r.daily_rate)     || 0;
+            var daysWorked = parseFloat(r.days_worked)    || 0;
+            var fullDays   = r.full_days != null ? parseFloat(r.full_days) : Math.floor(daysWorked);
+            var halfDays   = r.half_days != null ? parseFloat(r.half_days) : (daysWorked - fullDays >= 0.5 ? 1 : 0);
+            var otHours    = parseFloat(r.overtime_hours) || 0;
+            var otPay      = otHours * dailyRate / 8;
+            var basicPay   = dailyRate * daysWorked;
+            var grossPay   = parseFloat(r.gross_pay)        || 0;
+            var deductions = parseFloat(r.total_deductions) || 0;
+            var netPay     = parseFloat(r.net_pay)          || 0;
+
+            var printedOn = new Date().toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' });
+
+            var particulars =
+                payslipRow('Daily Rate', '₱' + fmt(dailyRate)) +
+                payslipRow('Full Days', fmtDays(fullDays) + ' day' + (fullDays !== 1 ? 's' : '')) +
+                payslipRow('Half Day', fmtDays(halfDays) + ' day' + (halfDays !== 1 ? 's' : '')) +
+                payslipRow('Basic Pay', '₱' + fmt(basicPay)) +
+                payslipRow('Overtime (' + fmtDays(otHours) + ' hrs)', otHours > 0 ? '₱' + fmt(otPay) : '0.00') +
+                '<tr class="bs-subtotal-row">' + '<td>Gross Pay</td><td style="text-align:right;">₱' + fmt(grossPay) + '</td></tr>' +
+                (deductions > 0 ? payslipRow('Deductions', '- ₱' + fmt(deductions), 'color:#dc2626;') : '') +
+                '<tr class="bs-total-row"><td style="font-size:14px;">NET PAY</td><td style="text-align:right;font-size:17px;color:#16a34a;">₱' + fmt(netPay) + '</td></tr>';
+
+            var html =
+                '<html><head><title>Salary Slip – ' + EMPLOYEE_NAME + '</title>' +
+                '<meta charset="UTF-8">' +
+                '<link rel="stylesheet" href="' + BS_CSS_URL + '">' +
+                '<style>' +
+                    '.bs-particulars th:last-child, .bs-particulars td:last-child { text-align:right; }' +
+                '</style>' +
+                '</head><body>' +
+                '<div class="bs-sheet">' +
+                    '<div class="bs-letterhead">' +
+                        '<div class="bs-logo-group">' +
+                            '<img src="' + LOGO_LEFT + '" alt="GMD South Phils" class="bs-logo">' +
+                            '<img src="' + LOGO_RIGHT + '" alt="" class="bs-logo">' +
+                        '</div>' +
+                        '<div class="bs-company-info">' +
+                            '<div class="bs-company-name">GMD South Phils Metal Fabrication Works</div>' +
+                            '<div>National Hi-way, Brgy. Masiit, Calauan, Laguna</div>' +
+                        '</div>' +
+                    '</div>' +
+
+                    '<div class="bs-title">SALARY SLIP</div>' +
+
+                    '<table class="bs-fields">' +
+                        '<tr>' +
+                            '<td class="bs-field-label">Employee:</td>' +
+                            '<td class="bs-field-value">' + EMPLOYEE_NAME + '</td>' +
+                            '<td class="bs-field-label">Role:</td>' +
+                            '<td class="bs-field-value">' + EMPLOYEE_ROLE + '</td>' +
+                        '</tr>' +
+                        '<tr>' +
+                            '<td class="bs-field-label">Pay Period:</td>' +
+                            '<td class="bs-field-value">' + r.period + '</td>' +
+                            '<td class="bs-field-label">Date Printed:</td>' +
+                            '<td class="bs-field-value">' + printedOn + '</td>' +
+                        '</tr>' +
+                    '</table>' +
+
+                    '<table class="bs-particulars">' +
+                        '<thead><tr><th>Particulars</th><th>Amount</th></tr></thead>' +
+                        '<tbody>' + particulars + '</tbody>' +
+                    '</table>' +
+                '</div>' +
+                '</body></html>';
+
+            var win = window.open('', '_blank');
+            win.document.open();
+            win.document.write(html);
             win.document.close();
-            win.print();
+            win.focus();
+
+            // Give the linked stylesheet a moment to load before invoking print,
+            // otherwise the preview can render unstyled on the first paint.
+            setTimeout(function () { win.print(); }, 400);
         }
     </script>
 </body>

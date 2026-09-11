@@ -297,6 +297,10 @@ class ProjectController extends Controller
                 ->with('error', 'That project no longer exists.');
         }
 
+        if (!$project->assignedEmployees()->where('employees.id', session('user_id'))->exists()) {
+            abort(403);
+        }
+
         // The latest request is the single source of truth for form visibility
         $latestRequest = ProgressRequest::where('project_id', $id)
                             ->latest()
@@ -571,12 +575,17 @@ class ProjectController extends Controller
     public function assignEmployees(Request $request, $id)
     {
         $request->validate([
-            'employee_ids'   => 'array',
-            'employee_ids.*' => 'integer|exists:employees,id',
+            'employee_ids'            => 'array',
+            'employee_ids.*'          => 'integer|exists:employees,id',
+            'estimated_working_days'  => 'nullable|numeric|min:0',
         ]);
 
         $project = Project::findOrFail($id);
         $result  = $project->assignedEmployees()->sync($request->employee_ids ?? []);
+
+        if ($request->filled('estimated_working_days')) {
+            $project->update(['estimated_working_days' => $request->estimated_working_days]);
+        }
 
         $this->addNewlyAssignedEmployeesToLabor($project, $result['attached']);
 
@@ -1238,6 +1247,10 @@ class ProjectController extends Controller
         $progressRequest = ProgressRequest::findOrFail($requestId);
         $project         = Project::findOrFail($progressRequest->project_id);
 
+        if (!$project->assignedEmployees()->where('employees.id', session('user_id'))->exists()) {
+            abort(403);
+        }
+
         $validator = Validator::make($request->all(), [
             'date_of_work' => 'required|date',
             'work_done'    => 'required|string',
@@ -1331,6 +1344,10 @@ class ProjectController extends Controller
     public function submitRevision(Request $request, $id)
     {
         $project = Project::findOrFail($id);
+
+        if (!$project->assignedEmployees()->where('employees.id', session('user_id'))->exists()) {
+            abort(403);
+        }
 
         $validator = Validator::make($request->all(), [
             'date_of_work'     => 'required|date',

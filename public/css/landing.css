@@ -17,6 +17,18 @@
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* Number inputs: keep the numeric keyboard/validation, drop the spinner UI everywhere */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
 html { scroll-behavior: smooth; overflow-x: hidden; }
 body { font-family: 'Inter', Arial, sans-serif; background: var(--cream); color: var(--dark); overflow-x: hidden; width: 100%; }
 

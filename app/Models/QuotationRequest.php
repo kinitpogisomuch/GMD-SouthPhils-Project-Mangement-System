@@ -65,4 +65,27 @@ class QuotationRequest extends Model
         $label = $this->tank_type ?: 'Tank';
         return $this->quantity > 1 ? "{$label} ({$this->quantity}x)" : $label;
     }
+
+    /**
+     * "Nov 15, 2026" for a proper target date (current form), or the raw value
+     * unchanged for older free-text entries ("2 months", "june") submitted before
+     * the field became a date picker — target_timeline itself stays a plain string
+     * column so old rows never fail to load.
+     */
+    public function getTargetTimelineDisplayAttribute(): ?string
+    {
+        if (empty($this->target_timeline)) {
+            return null;
+        }
+
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $this->target_timeline)) {
+            try {
+                return \Carbon\Carbon::parse($this->target_timeline)->format('M j, Y');
+            } catch (\Exception $e) {
+                // fall through to raw value below
+            }
+        }
+
+        return $this->target_timeline;
+    }
 }

@@ -165,7 +165,8 @@
                                     <button class="action-btn view assign-employee-btn" type="button" title="Assign Employees"
                                         data-id="{{ $project->id }}"
                                         data-name="{{ $project->name }}"
-                                        data-assigned="{{ $project->assignedEmployees->pluck('id')->toJson() }}">
+                                        data-assigned="{{ $project->assignedEmployees->pluck('id')->toJson() }}"
+                                        data-est-days="{{ $project->estimated_working_days ?? 0 }}">
                                         <i data-lucide="users"></i>
                                     </button>
                                     <button class="action-btn view edit-project-btn" type="button" title="Edit Project"
@@ -311,19 +312,26 @@
                 <input type="text" id="employeeSelectSearch" placeholder="Search employee by name or role...">
             </div>
 
-            <div style="display:flex;align-items:center;gap:18px;margin-bottom:12px;">
-                <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--dark);cursor:pointer;">
-                    <input type="checkbox" id="employeeSelectAllCheckbox">
-                    Select All
-                </label>
-                <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--dark);cursor:pointer;">
-                    <input type="checkbox" id="employeeRegularOnlyCheckbox">
-                    Regular only
-                </label>
-            </div>
-
             <form id="assignEmployeesForm" method="POST" action="">
                 @csrf
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid var(--border);">
+                    <div style="display:flex;align-items:center;gap:18px;">
+                        <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--dark);cursor:pointer;">
+                            <input type="checkbox" id="employeeSelectAllCheckbox">
+                            Select All
+                        </label>
+                        <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--dark);cursor:pointer;">
+                            <input type="checkbox" id="employeeRegularOnlyCheckbox">
+                            Regular only
+                        </label>
+                    </div>
+                    <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:var(--muted);white-space:nowrap;">
+                        Est. Working Days
+                        <input type="number" name="estimated_working_days" id="assignEstWorkingDays" min="0" step="0.01" placeholder="e.g. 14"
+                               onwheel="this.blur()"
+                               style="width:76px;padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:700;color:var(--dark);text-align:center;">
+                    </label>
+                </div>
                 <div id="employeeSelectList" class="cs-list">
                     <p style="text-align:center;color:var(--muted);padding:32px 0;font-size:14px;">Loading employees...</p>
                 </div>
@@ -446,7 +454,7 @@
             if (typeof lucide !== 'undefined') lucide.createIcons();
         }
 
-        function openAssignEmployeesModal(projectId, projectName, assignedIds) {
+        function openAssignEmployeesModal(projectId, projectName, assignedIds, estDays) {
             selectedEmployeeIds = assignedIds.slice();
             originalAssignedIds = assignedIds.slice();
             regularOnlyFilter   = false;
@@ -457,6 +465,8 @@
             var shortName = projectName.length > 35 ? projectName.substring(0, 35) + '…' : projectName;
             document.getElementById('assignEmployeesSubtitle').textContent = shortName;
             document.getElementById('assignEmployeesForm').action = '/admin/projects/' + projectId + '/assign-employees';
+            var estDaysInput = document.getElementById('assignEstWorkingDays');
+            if (estDaysInput) estDaysInput.value = parseFloat(estDays) || 0;
             var list = document.getElementById('employeeSelectList');
             list.innerHTML = '<p style="text-align:center;color:var(--muted);padding:20px 0;">Loading employees...</p>';
             openModal('assignEmployeesModal');
@@ -735,8 +745,8 @@
                     // Capacity
                     '<div class="form-group">' +
                         '<label>Capacity</label>' +
-                        '<input type="text" name="' + prefix + '[capacity]" class="ti-cap-hidden" placeholder="e.g. 5000 L" value="' + (item.capacity || '') + '">' +
-                        '<input type="hidden" name="' + prefix + '[dimensions]" class="ti-dim-hidden" value="' + (item.dimensions || '') + '">' +
+                        '<input type="text" name="' + prefix + '[capacity]" class="ti-cap-hidden" placeholder="e.g. 5000 L" value="' + escapeHtml(item.capacity || '') + '">' +
+                        '<input type="hidden" name="' + prefix + '[dimensions]" class="ti-dim-hidden" value="' + escapeHtml(item.dimensions || '') + '">' +
                     '</div>' +
                 '</div>' +
                 '</div>'; // close ti-dims-section
@@ -894,7 +904,7 @@
                 btn.addEventListener('click', function() {
                     var assignedIds = [];
                     try { assignedIds = JSON.parse(this.dataset.assigned || '[]'); } catch (e) {}
-                    openAssignEmployeesModal(this.dataset.id, this.dataset.name, assignedIds);
+                    openAssignEmployeesModal(this.dataset.id, this.dataset.name, assignedIds, this.dataset.estDays);
                 });
             });
             ['closeAssignEmployeesModal', 'cancelAssignEmployees'].forEach(function(id) {

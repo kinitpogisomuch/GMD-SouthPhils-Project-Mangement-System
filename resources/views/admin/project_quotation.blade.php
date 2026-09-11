@@ -6,6 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Project Materials and Labor Quotation</title>
     <link href="{{ asset('css/admin.css') }}" rel="stylesheet">
+    <style>
+        .pf-client-name { font-size: 14.5px; font-weight: 800; color: var(--dark); }
+    </style>
 </head>
 <body class="page-enter">
 
@@ -36,175 +39,112 @@
             </div>
             @endif
 
-            <div class="table-card" style="padding-bottom:0;">
+            <div class="table-card" id="clientListCard">
                 <div class="table-toolbar">
                     <div class="search-box">
                         <i data-lucide="search"></i>
-                        <input type="text" id="projectSearch" placeholder="Search project or client...">
+                        <input type="text" id="clientListSearch" placeholder="Search client...">
                     </div>
-                    <div class="filter-tabs" id="quotationFilterTabs">
-                        <button type="button" class="filter-tab active" data-filter="active">
-                            Active
-                            <span class="filter-count">{{ $projects->whereNotIn('status', ['completed', 'archived'])->count() }}</span>
-                        </button>
-                        <button type="button" class="filter-tab" data-filter="completed">
-                            Completed
-                            <span class="filter-count">{{ $projects->where('status', 'completed')->count() }}</span>
-                        </button>
-                        <button type="button" class="filter-tab" data-filter="archived">
-                            Archived
-                            <span class="filter-count">{{ $projects->where('status', 'archived')->count() }}</span>
-                        </button>
-                    </div>
+                    <select class="filter-select" id="clientSortSelect">
+                        <option value="default">Sort: Active Projects First</option>
+                        <option value="alpha-asc">Sort: A–Z</option>
+                        <option value="alpha-desc">Sort: Z–A</option>
+                    </select>
                 </div>
 
                 <div class="table-wrapper">
-                    <table class="data-table" id="materialsTable">
+                    <table class="data-table" id="clientListTable">
                         <thead>
                             <tr>
-                                <th style="text-align:left;">Project Name</th>
-                                <th style="text-align:left;">Client</th>
-                                <th style="text-align:center;">Current Phase</th>
-                                <th style="text-align:center;">Total Materials</th>
-                                <th style="text-align:center;">Estimated Project Cost</th>
-                                <th style="text-align:center;">Date Created</th>
-                                <th style="text-align:center;">Actions</th>
+                                <th>Client</th>
+                                <th style="text-align:center;">Total Projects</th>
+                                <th style="text-align:center;">Active</th>
+                                <th style="text-align:center;">Completed</th>
+                                <th style="text-align:center;">Archived</th>
+                                <th style="text-align:center;">Action</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @forelse($projects as $project)
-                            @php
-                                $matCount    = $project->activeMaterials->count();
-                                $payment     = $project->payments->first();
-                                $projCost    = $payment ? (float) $payment->contract_amount
-                                             : ($project->activeMaterials->sum('total_cost') + $project->activeLabor->sum('total_cost'));
-                                $phase     = strtolower($project->current_phase ?? 'planning');
-                                $phaseColors = [
-                                    'planning'    => ['bg'=>'#FEF3C7','color'=>'#92400E','shadow'=>'rgba(245,158,11,.2)'],
-                                    'procurement' => ['bg'=>'#EDE9FE','color'=>'#5B21B6','shadow'=>'rgba(139,92,246,.2)'],
-                                    'matl_prep'   => ['bg'=>'#CFFAFE','color'=>'#0E7490','shadow'=>'rgba(6,182,212,.2)'],
-                                    'fabrication' => ['bg'=>'#2563EB','color'=>'#fff','shadow'=>'rgba(37,99,235,.3)'],
-                                    'inspection'  => ['bg'=>'#EC4899','color'=>'#fff','shadow'=>'rgba(236,72,153,.3)'],
-                                    'painting'    => ['bg'=>'#14B8A6','color'=>'#fff','shadow'=>'rgba(20,184,166,.3)'],
-                                    'completion'  => ['bg'=>'#10B981','color'=>'#fff','shadow'=>'rgba(16,185,129,.3)'],
-                                    'delivery'    => ['bg'=>'#059669','color'=>'#fff','shadow'=>'rgba(5,150,105,.3)'],
-                                ];
-                                $pc = $phaseColors[$phase] ?? ['bg'=>'#F3F4F6','color'=>'#6B7280','shadow'=>'rgba(0,0,0,.1)'];
-                            @endphp
-                            <tr data-status="{{ $project->status }}">
-                                @php
-                                    $namePrefix = '';
-                                    $nameMain   = $project->name;
-                                    if (preg_match('/^(Fabrication of)\s+(.+)$/i', $project->name, $nm)) {
-                                        $namePrefix = $nm[1];
-                                        $nameMain   = $nm[2];
-                                    }
-                                @endphp
-                                <td style="overflow:hidden;">
-                                    <span style="display:inline-flex;flex-direction:column;max-width:100%;min-width:0;">
-                                        @if($namePrefix)
-                                            <span style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:.05em;line-height:1.2;text-transform:uppercase;white-space:nowrap;">{{ $namePrefix }}</span>
-                                        @endif
-                                        <span style="font-size:12.5px;font-weight:800;color:var(--dark);line-height:1.3;white-space:normal;word-break:break-word;">{{ $nameMain }}</span>
-                                    </span>
-                                </td>
-                                <td><span class="client-pill">{{ $project->client }}</span></td>
-                                <td style="text-align:center;">
-                                    <span class="status-badge" style="background:{{ $pc['bg'] }};color:{{ $pc['color'] }};box-shadow:0 0 0 1px {{ $pc['shadow'] }},0 2px 8px {{ $pc['shadow'] }};">
-                                        {{ ucwords(str_replace('_',' ',$phase)) }}
-                                    </span>
-                                </td>
-                                <td style="text-align:center;">
-                                    <span style="font-weight:700;">{{ $matCount }}</span>
-                                    <span style="color:var(--muted);font-size:13px;"> material{{ $matCount !== 1 ? 's' : '' }}</span>
-                                </td>
-                                <td style="text-align:center;"><strong>₱{{ number_format($projCost, 2) }}</strong></td>
-                                <td style="text-align:center;">{{ $project->created_at->format('M d, Y') }}</td>
-                                <td class="action-cell">
-                                    <a href="{{ route('admin.project_materials.detail', $project->id) }}"
-                                       class="action-btn view" title="View Materials">
+                            @forelse($clientGroups as $g)
+                            <tr data-search="{{ strtolower($g['client']) }}" onclick="window.location='{{ route('admin.project_materials.client', $g['client']) }}'" style="cursor:pointer;">
+                                <td><span class="pf-client-name">{{ $g['client'] }}</span></td>
+                                <td style="text-align:center;"><span class="client-pill" style="background-color:#F3F4F6;color:#1F2937;border-color:#D1D5DB;">{{ $g['total'] }}</span></td>
+                                <td style="text-align:center;"><span class="client-pill" style="background-color:#EAF0FF;color:#2563EB;border-color:#BFDBFE;">{{ $g['active'] }}</span></td>
+                                <td style="text-align:center;"><span class="client-pill" style="background-color:#E7F6EC;color:#207A3A;border-color:#A7E3B8;">{{ $g['completed'] }}</span></td>
+                                <td style="text-align:center;"><span class="client-pill" style="background-color:#F3F4F6;color:#6B7280;border-color:#D1D5DB;">{{ $g['archived'] }}</span></td>
+                                <td class="action-cell" style="text-align:center;">
+                                    <a href="{{ route('admin.project_materials.client', $g['client']) }}" class="action-btn view" title="View Client's Projects" onclick="event.stopPropagation()">
                                         <i data-lucide="eye"></i>
                                     </a>
                                 </td>
                             </tr>
                             @empty
-                            <tr id="noDataRow">
-                                <td colspan="7" style="text-align:center;padding:60px 20px;color:var(--muted);">
+                            <tr>
+                                <td colspan="6" style="text-align:center;padding:60px 20px;color:var(--muted);">
                                     <i data-lucide="inbox" style="width:36px;height:36px;opacity:.35;display:block;margin:0 auto 12px;"></i>
-                                    <div style="font-size:14px;font-weight:700;">No projects found.</div>
+                                    <div style="font-size:14px;font-weight:700;">No clients with projects yet.</div>
                                     <div style="font-size:13px;margin-top:4px;">Add projects via the <strong>Projects</strong> page.</div>
                                 </td>
                             </tr>
                             @endforelse
-                            {{-- Filter empty state (shown by JS when a tab has no matching rows) --}}
-                            <tr id="filterEmptyRow" style="display:none;">
-                                <td colspan="7" style="text-align:center;padding:60px 20px;color:var(--muted);">
-                                    <i data-lucide="folder-open" style="width:36px;height:36px;opacity:.35;display:block;margin:0 auto 12px;"></i>
-                                    <div style="font-size:14px;font-weight:700;" id="filterEmptyMsg">No projects in this category.</div>
-                                    <div style="font-size:13px;margin-top:4px;color:var(--muted);">Try switching to a different tab or check the <strong>Projects</strong> page.</div>
+                            @if($clientGroups->isNotEmpty())
+                            <tr id="clientListEmptyRow" style="display:none;">
+                                <td colspan="6" style="text-align:center;padding:60px 20px;color:var(--muted);">
+                                    <i data-lucide="search-x" style="width:36px;height:36px;opacity:.35;display:block;margin:0 auto 12px;"></i>
+                                    <div style="font-size:14px;font-weight:700;">No clients match your search.</div>
                                 </td>
                             </tr>
+                            @endif
                         </tbody>
                     </table>
                 </div>
             </div>
+
         </main>
     </div>
 
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="{{ asset('js/admin.js') }}"></script>
     <script>
-        var currentStatusFilter = 'active';
+        function applyClientListFilters() {
+            var q = (document.getElementById('clientListSearch').value || '').toLowerCase();
+            var visibleCount = 0;
 
-        var filterEmptyMessages = {
-            'active':    'No active projects yet.',
-            'completed': 'No completed projects yet.',
-            'archived':  'No archived projects.'
-        };
-
-        function applyFilters() {
-            var q        = (document.getElementById('projectSearch').value || '').toLowerCase();
-            var emptyRow = document.getElementById('filterEmptyRow');
-            var emptyMsg = document.getElementById('filterEmptyMsg');
-            var visible  = 0;
-
-            document.querySelectorAll('#materialsTable tbody tr[data-status]').forEach(function(row) {
-                var status      = (row.dataset.status || '').toLowerCase();
-                var matchSearch = row.textContent.toLowerCase().indexOf(q) !== -1;
-                var matchFilter = currentStatusFilter === 'active'
-                    ? status !== 'archived' && status !== 'completed'
-                    : currentStatusFilter === 'completed'
-                    ? status === 'completed'
-                    : status === 'archived';
-                var show = matchSearch && matchFilter;
+            document.querySelectorAll('#clientListTable tbody tr[data-search]').forEach(function(row) {
+                var show = !q || row.dataset.search.indexOf(q) !== -1;
                 row.style.display = show ? '' : 'none';
-                if (show) visible++;
+                if (show) visibleCount++;
             });
 
+            var emptyRow = document.getElementById('clientListEmptyRow');
             if (emptyRow) {
-                emptyRow.style.display = visible === 0 ? '' : 'none';
-                if (emptyMsg) emptyMsg.textContent = q
-                    ? 'No projects match "' + q + '".'
-                    : (filterEmptyMessages[currentStatusFilter] || 'No projects in this category.');
-                if (visible === 0 && typeof lucide !== 'undefined') lucide.createIcons();
+                emptyRow.style.display = visibleCount === 0 ? '' : 'none';
+                if (visibleCount === 0 && typeof lucide !== 'undefined') lucide.createIcons();
             }
+        }
+
+        function applyClientListSort() {
+            var sortMode = document.getElementById('clientSortSelect').value;
+            var tbody = document.querySelector('#clientListTable tbody');
+            var rows  = Array.prototype.slice.call(tbody.querySelectorAll('tr[data-search]'));
+
+            rows.sort(function(a, b) {
+                if (sortMode === 'alpha-asc')  return a.dataset.search.localeCompare(b.dataset.search);
+                if (sortMode === 'alpha-desc') return b.dataset.search.localeCompare(a.dataset.search);
+                return 0; // 'default' order is server-rendered
+            });
+
+            rows.forEach(function(row) { tbody.appendChild(row); });
         }
 
         document.addEventListener('DOMContentLoaded', function() {
             if (typeof lucide !== 'undefined') lucide.createIcons();
 
-            document.getElementById('projectSearch').addEventListener('keyup', applyFilters);
+            var searchInput = document.getElementById('clientListSearch');
+            if (searchInput) searchInput.addEventListener('keyup', applyClientListFilters);
 
-            document.querySelectorAll('#quotationFilterTabs .filter-tab').forEach(function(btn) {
-                btn.addEventListener('click', function() {
-                    document.querySelectorAll('#quotationFilterTabs .filter-tab').forEach(b => b.classList.remove('active'));
-                    this.classList.add('active');
-                    currentStatusFilter = this.dataset.filter;
-                    applyFilters();
-                });
-            });
-
-            applyFilters();
+            var sortSelect = document.getElementById('clientSortSelect');
+            if (sortSelect) sortSelect.addEventListener('change', applyClientListSort);
         });
     </script>
 </body>

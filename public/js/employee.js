@@ -1,3 +1,13 @@
+/* ================= NUMBER INPUT: DISABLE SCROLL-TO-CHANGE =================
+   Mouse-wheel scrolling over a focused number input silently increments/decrements
+   its value in Chrome/Firefox. Blur it the instant a wheel event fires so the page
+   scrolls normally instead and the value stays untouched. */
+document.addEventListener('wheel', function (e) {
+    if (document.activeElement && document.activeElement.tagName === 'INPUT' && document.activeElement.type === 'number') {
+        document.activeElement.blur();
+    }
+}, { passive: true });
+
 /* ============================================================
    Employee Project View — Phase Tracker + Conditional Log
    ============================================================ */

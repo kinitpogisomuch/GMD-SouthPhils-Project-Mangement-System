@@ -112,7 +112,7 @@
                     <div class="fd-ov-item">
                         <span class="fd-ov-label">Est. Materials</span>
                         <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Total BOM cost</span>
-                        <span class="fd-ov-val">₱{{ number_format($estMaterialCost, 2) }}</span>
+                        <span class="fd-ov-val">{{ $estMaterialCost > 0 ? '₱'.number_format($estMaterialCost,2) : '—' }}</span>
                     </div>
                     <div class="fd-ov-item">
                         <span class="fd-ov-label">Actual Materials</span>
@@ -122,7 +122,7 @@
                     <div class="fd-ov-item">
                         <span class="fd-ov-label">Est. Labor</span>
                         <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">From project quotation</span>
-                        <span class="fd-ov-val">₱{{ number_format($estLaborCost, 2) }}</span>
+                        <span class="fd-ov-val">{{ $estLaborCost > 0 ? '₱'.number_format($estLaborCost,2) : '—' }}</span>
                     </div>
                     <div class="fd-ov-item">
                         <span class="fd-ov-label">Actual Labor</span>

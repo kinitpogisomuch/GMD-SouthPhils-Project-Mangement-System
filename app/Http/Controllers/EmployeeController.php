@@ -46,7 +46,12 @@ class EmployeeController extends Controller
 
     public function projects()
     {
-        $projects = Project::orderBy('created_at', 'desc')->get();
+        $employee = Employee::findOrFail(session('user_id'));
+
+        $projects = $employee->assignedProjects()
+            ->orderByDesc('projects.created_at')
+            ->get();
+
         return view('employee.projects', compact('projects'));
     }
 

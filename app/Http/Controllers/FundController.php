@@ -61,8 +61,9 @@ class FundController extends Controller
             ->get();
 
         $projects = Project::whereNotIn('status', ['completed', 'archived'])
+            ->orderBy('client')
             ->orderBy('name')
-            ->get(['id', 'name']);
+            ->get(['id', 'name', 'client', 'capacity', 'current_phase', 'status']);
 
         return view('admin.revolving_fund', compact(
             'currentBalance', 'initialBalance',

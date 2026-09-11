@@ -28,15 +28,19 @@ class QuotationRequestController extends Controller
     {
         $client = Client::findOrFail(session('user_id'));
 
-        // Clients can request a new quotation any time — even repeat clients with an
-        // existing project — as long as their last request hasn't reached an outcome yet.
-        if (QuotationRequest::where('client_id', $client->id)->unresolved()->exists()) {
-            return redirect()->route('client.quotation.status');
-        }
+        // Clients can submit a new request any time, even with one still under review —
+        // the page shows both a "New Request" form and a "Pending" tab listing whatever
+        // is currently awaiting GMD's review, so neither ever has to hide the other.
+        $pendingBatches = QuotationRequest::where('client_id', $client->id)
+            ->unresolved()
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->groupBy(fn ($r) => $r->batch_id ?: ('single-' . $r->id));
 
         return view('client.quotation_request', [
-            'client'    => $client,
-            'tankTypes' => ProjectTankItem::TANK_TYPES,
+            'client'         => $client,
+            'tankTypes'      => ProjectTankItem::TANK_TYPES,
+            'pendingBatches' => $pendingBatches,
         ]);
     }
 
@@ -49,7 +53,7 @@ class QuotationRequestController extends Controller
             'tank_items.*.tank_type'        => 'required|string|in:' . implode(',', ProjectTankItem::TANK_TYPES),
             'tank_items.*.capacity'         => 'nullable|string|max:255',
             'tank_items.*.quantity'         => 'nullable|integer|min:1',
-            'tank_items.*.target_timeline'  => 'nullable|string|max:255',
+            'tank_items.*.target_timeline'  => 'nullable|date|after_or_equal:today',
             'location'                      => 'required|string|max:1000',
             'notes'                         => 'nullable|string|max:2000',
             'reference_files'               => 'nullable|array|max:5',
@@ -108,21 +112,20 @@ class QuotationRequestController extends Controller
             ? 'Your ' . $created->count() . ' quotation requests have been submitted! Our team will review them shortly.'
             : 'Your request has been submitted! Our team will review it shortly.';
 
-        return redirect()->route('client.quotation.status')->with('success', $message);
+        return redirect()->route('client.quotation.create')->with('success', $message);
     }
 
     public function status()
     {
         $client = Client::findOrFail(session('user_id'));
 
+        // History is for finished business only — active/in-review requests live on
+        // the "Request Quotation" page instead, so they aren't shown twice.
         $requests = QuotationRequest::where('client_id', $client->id)
+            ->whereIn('status', ['converted', 'declined'])
             ->orderBy('created_at', 'desc')
             ->get()
             ->groupBy(fn ($r) => $r->batch_id ?: ('single-' . $r->id));
-
-        if ($requests->isEmpty()) {
-            return redirect()->route('client.quotation.create');
-        }
 
         return view('client.quotation_status', compact('requests'));
     }
@@ -136,7 +139,7 @@ class QuotationRequestController extends Controller
             ->firstOrFail();
 
         if ($quotationRequest->status !== 'quotation_sent') {
-            return redirect()->route('client.quotation.status')
+            return redirect()->route('client.quotation.create')
                 ->with('error', 'There is no quotation currently awaiting your approval.');
         }
 
@@ -147,7 +150,7 @@ class QuotationRequestController extends Controller
 
         NotificationService::quotationRequestApproved($quotationRequest);
 
-        return redirect()->route('client.quotation.status')
+        return redirect()->route('client.quotation.create')
             ->with('success', 'Quotation approved! Our team will proceed with your project shortly.');
     }
 
@@ -244,7 +247,7 @@ class QuotationRequestController extends Controller
                 'tank_type'       => $quotationRequest->tank_type,
                 'capacity'        => $quotationRequest->capacity,
                 'quantity'        => $quotationRequest->quantity,
-                'target_timeline' => $quotationRequest->target_timeline,
+                'target_timeline' => $quotationRequest->target_timeline_display,
             ]],
             'summary' => [
                 'location' => $quotationRequest->location,

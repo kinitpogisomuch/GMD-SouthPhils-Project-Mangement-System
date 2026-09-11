@@ -37,10 +37,19 @@ class ForgotPasswordController extends Controller
 
         [$userType, $userId] = $this->findUserByEmail($email);
 
+        // Don't reveal whether this email has an account — behave identically either way
+        // (same redirect, same session state) so the response can't be used to enumerate
+        // registered emails. For an unknown email we simply skip sending anything.
         if (!$userType) {
-            return back()
-                ->withErrors(['email' => 'No account is associated with this email address.'])
-                ->withInput();
+            session([
+                'fp_email'     => $email,
+                'fp_user_type' => null,
+                'fp_user_id'   => null,
+                'fp_verified'  => false,
+            ]);
+
+            return redirect()->route('password.verify')
+                ->with('code_sent', true);
         }
 
         // Enforce 60-second resend cooldown

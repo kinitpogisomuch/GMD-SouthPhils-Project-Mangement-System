@@ -22,6 +22,17 @@
     box-sizing: border-box;
 }
 
+/* Number inputs: keep the numeric keyboard/validation, drop the spinner UI everywhere */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
 body {
     font-family: 'Inter', Arial, Helvetica, sans-serif;
     background-color: var(--cream);

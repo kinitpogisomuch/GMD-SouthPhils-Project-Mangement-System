@@ -82,7 +82,7 @@
                                 <th>Contact</th>
                                 <th>Tank Type</th>
                                 <th>Capacity</th>
-                                <th>Timeline</th>
+                                <th>Target Delivery</th>
                                 <th>Location</th>
                                 <th>Submitted</th>
                                 <th>Status</th>
@@ -105,7 +105,7 @@
                                         'tank_type'       => $qr->tank_type,
                                         'capacity'        => $qr->capacity,
                                         'quantity'        => $qr->quantity,
-                                        'target_timeline' => $qr->target_timeline,
+                                        'target_timeline' => $qr->target_timeline_display,
                                     ]],
                                     'location'          => $qr->location,
                                     'notes'             => $qr->notes,
@@ -153,7 +153,7 @@
                                     @if(!empty($qr->target_timeline))
                                     <span class="qr-spec-chip qr-chip-timeline">
                                         <i data-lucide="clock" style="width:11px;height:11px;"></i>
-                                        {{ $qr->target_timeline }}
+                                        {{ $qr->target_timeline_display }}
                                     </span>
                                     @else
                                     <span style="color:var(--muted);">—</span>
@@ -400,9 +400,9 @@
                         var typeLabel = hasType ? (item.tank_type + (qty > 1 ? ' ×' + qty : '')) : "Client's Own Tank";
                         var typeIcon = hasType ? 'package' : 'image';
                         return '<div class="qr-tank-row" style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;">'
-                            + '<span class="qr-spec-chip qr-chip-type"><i data-lucide="' + typeIcon + '" style="width:11px;height:11px;"></i>' + typeLabel + '</span>'
-                            + (item.capacity ? '<span class="qr-spec-chip qr-chip-capacity"><i data-lucide="droplet" style="width:11px;height:11px;"></i>Capacity: ' + item.capacity + '</span>' : '')
-                            + (item.target_timeline ? '<span class="qr-spec-chip qr-chip-timeline"><i data-lucide="clock" style="width:11px;height:11px;"></i>Timeline: ' + item.target_timeline + '</span>' : '')
+                            + '<span class="qr-spec-chip qr-chip-type"><i data-lucide="' + typeIcon + '" style="width:11px;height:11px;"></i>' + escapeHtml(typeLabel) + '</span>'
+                            + (item.capacity ? '<span class="qr-spec-chip qr-chip-capacity"><i data-lucide="droplet" style="width:11px;height:11px;"></i>Capacity: ' + escapeHtml(item.capacity) + '</span>' : '')
+                            + (item.target_timeline ? '<span class="qr-spec-chip qr-chip-timeline"><i data-lucide="clock" style="width:11px;height:11px;"></i>Target delivery: ' + escapeHtml(item.target_timeline) + '</span>' : '')
                             + '</div>';
                     }).join('') || '<span style="font-size:12.5px;color:var(--muted);">No tank items.</span>';
 

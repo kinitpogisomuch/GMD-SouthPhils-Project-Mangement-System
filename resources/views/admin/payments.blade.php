@@ -16,6 +16,20 @@
             top: 0;
             z-index: 1;
         }
+        .payments-view-tab {
+            border: none;
+            background: transparent;
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 800;
+            padding: 8px 18px;
+            border-radius: 999px;
+            cursor: pointer;
+            transition: 0.15s ease;
+            font-family: inherit;
+        }
+        .payments-view-tab:hover { color: var(--dark); }
+        .payments-view-tab.active { background: var(--dark); color: var(--white); }
     </style>
 </head>
 <body class="page-enter">
@@ -76,8 +90,20 @@
 
             <!-- Payments Table -->
             <div class="table-card">
-                <div class="table-toolbar">
-                    <div class="search-box">
+                <div style="padding:8px 20px 8px;">
+                    <div style="display:inline-flex;background:var(--cream-soft);border:1px solid var(--border);border-radius:999px;padding:4px;gap:2px;">
+                        <button type="button" class="payments-view-tab active" data-view="clients" onclick="switchPaymentsView('clients', this)">
+                            Clients
+                        </button>
+                        <button type="button" class="payments-view-tab" data-view="receipts" onclick="switchPaymentsView('receipts', this)">
+                            Receipts
+                        </button>
+                    </div>
+                </div>
+
+                <div id="clientsViewContent">
+                <div class="table-toolbar" style="margin-top:12px;margin-bottom:14px;">
+                    <div class="search-box" style="flex:1;max-width:none;">
                         <i data-lucide="search"></i>
                         <input type="text" id="paymentSearch" placeholder="Search client...">
                     </div>
@@ -180,6 +206,93 @@
                         </tbody>
                     </table>
                 </div>
+                </div>
+
+                <!-- ===== RECEIPTS VIEW (static — real data/functionality coming next) ===== -->
+                <div id="receiptsViewContent" style="display:none;">
+                    <div class="table-toolbar" style="margin-top:12px;margin-bottom:14px;">
+                        <div class="search-box" style="flex:1;max-width:none;">
+                            <i data-lucide="hash"></i>
+                            <input type="text" id="receiptSearch" placeholder="OR-2026-00">
+                        </div>
+                    </div>
+
+                    <div class="table-wrapper">
+                        <table class="data-table" id="receiptsTable">
+                            <thead>
+                                <tr>
+                                    <th>OR Number</th>
+                                    <th>Client</th>
+                                    <th>Project</th>
+                                    <th>Stage</th>
+                                    <th>Amount</th>
+                                    <th>Date Issued</th>
+                                    <th>Receipt</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr data-search="or-2026-0044 alvin magtibay fuel storage tank">
+                                    <td>OR-2026-0044</td>
+                                    <td><span class="client-pill">Alvin Magtibay</span></td>
+                                    <td>Fuel Storage Tank</td>
+                                    <td>Final Payment</td>
+                                    <td>₱82,000.00</td>
+                                    <td>Oct 08, 2026</td>
+                                    <td>
+                                        <button type="button" class="action-btn view" title="View Receipt" onclick="alert('Receipt preview coming soon.')">
+                                            <i data-lucide="eye"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr data-search="or-2026-0031 innovative agro storage silo repair">
+                                    <td>OR-2026-0031</td>
+                                    <td><span class="client-pill">Innovative Agro</span></td>
+                                    <td>Storage Silo Repair</td>
+                                    <td>Down Payment</td>
+                                    <td>₱120,000.00</td>
+                                    <td>Sep 22, 2026</td>
+                                    <td>
+                                        <button type="button" class="action-btn view" title="View Receipt" onclick="alert('Receipt preview coming soon.')">
+                                            <i data-lucide="eye"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr data-search="or-2026-0018 tank inumin mo water tank coating">
+                                    <td>OR-2026-0018</td>
+                                    <td><span class="client-pill">Tank Inumin Mo</span></td>
+                                    <td>Water Tank Coating</td>
+                                    <td>Down Payment</td>
+                                    <td>₱11,846.00</td>
+                                    <td>Aug 03, 2026</td>
+                                    <td>
+                                        <button type="button" class="action-btn view" title="View Receipt" onclick="alert('Receipt preview coming soon.')">
+                                            <i data-lucide="eye"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr data-search="or-2026-0006 innovative agro fabrication of polymer tanks">
+                                    <td>OR-2026-0006</td>
+                                    <td><span class="client-pill">Innovative Agro</span></td>
+                                    <td>Fabrication of Polymer Tanks</td>
+                                    <td>Down Payment</td>
+                                    <td>₱175,000.00</td>
+                                    <td>Jun 14, 2026</td>
+                                    <td>
+                                        <button type="button" class="action-btn view" title="View Receipt" onclick="alert('Receipt preview coming soon.')">
+                                            <i data-lucide="eye"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr id="receiptEmptyRow" style="display:none;">
+                                    <td colspan="7" style="text-align:center;padding:60px 20px;color:var(--muted);">
+                                        <i data-lucide="receipt" style="width:36px;height:36px;opacity:.35;display:block;margin:0 auto 12px;"></i>
+                                        <div style="font-size:14px;font-weight:700;">No receipts match your search.</div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </main>
     </div>
@@ -188,6 +301,30 @@
     <script src="{{ asset('js/admin.js') }}"></script>
     <script>
     lucide.createIcons();
+
+    // ── Clients / Receipts view switch ──────────────────────────────────────
+    function switchPaymentsView(view, btn) {
+        document.querySelectorAll('.payments-view-tab').forEach(function (t) { t.classList.remove('active'); });
+        btn.classList.add('active');
+        document.getElementById('clientsViewContent').style.display  = view === 'clients'  ? '' : 'none';
+        document.getElementById('receiptsViewContent').style.display = view === 'receipts' ? '' : 'none';
+    }
+
+    // ── Receipts search (static demo data for now) ──────────────────────────
+    var receiptSearchInput = document.getElementById('receiptSearch');
+    if (receiptSearchInput) {
+        receiptSearchInput.addEventListener('input', function () {
+            var q = this.value.toLowerCase();
+            var visibleCount = 0;
+            document.querySelectorAll('#receiptsTable tbody tr[data-search]').forEach(function (row) {
+                var show = !q || row.dataset.search.includes(q);
+                row.style.display = show ? '' : 'none';
+                if (show) visibleCount++;
+            });
+            var emptyRow = document.getElementById('receiptEmptyRow');
+            if (emptyRow) emptyRow.style.display = visibleCount === 0 ? '' : 'none';
+        });
+    }
 
     // ── Table search / filter ──────────────────────────────────────────────
     var currentPaymentFilter = '';

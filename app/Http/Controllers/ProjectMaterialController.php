@@ -20,11 +20,33 @@ class ProjectMaterialController extends Controller
 
     public function adminIndex()
     {
-        $projects = Project::with('activeMaterials', 'activeLabor', 'payments')
+        $projects = Project::orderBy('created_at', 'desc')->get();
+
+        $clientGroups = $projects->groupBy('client')->map(function ($group, $client) {
+            return [
+                'client'    => $client,
+                'total'     => $group->count(),
+                'active'    => $group->whereNotIn('status', ['completed', 'archived'])->count(),
+                'completed' => $group->where('status', 'completed')->count(),
+                'archived'  => $group->where('status', 'archived')->count(),
+            ];
+        })->sortBy(fn ($g) => strtolower($g['client']))->values();
+
+        return view('admin.project_quotation', compact('clientGroups'));
+    }
+
+    public function adminClient($client)
+    {
+        $client = urldecode($client);
+
+        $projects = Project::with('activeMaterials', 'activeLabor', 'payments', 'assignedEmployees')
+            ->where('client', $client)
             ->orderBy('created_at', 'desc')
             ->get();
 
-        return view('admin.project_quotation', compact('projects'));
+        abort_if($projects->isEmpty(), 404);
+
+        return view('admin.project_quotation_client', compact('client', 'projects'));
     }
 
     public function adminDetail($projectId)
@@ -412,9 +434,12 @@ class ProjectMaterialController extends Controller
 
     public function employeeIndex()
     {
-        $projects = Project::with('activeMaterials', 'activeMaterialUsages')
+        $employee = Employee::findOrFail(session('user_id'));
+
+        $projects = $employee->assignedProjects()
+            ->with('activeMaterials', 'activeMaterialUsages')
             ->where('status', '!=', 'archived')
-            ->orderBy('created_at', 'desc')
+            ->orderByDesc('projects.created_at')
             ->get();
 
         $totalProjects = $projects->count();
@@ -427,6 +452,11 @@ class ProjectMaterialController extends Controller
     public function employeeDetail($projectId)
     {
         $project   = Project::findOrFail($projectId);
+
+        if (!$project->assignedEmployees()->where('employees.id', session('user_id'))->exists()) {
+            abort(403);
+        }
+
         $materials = ProjectMaterial::where('project_id', $projectId)
             ->where('status', 'active')
             ->orderBy('created_at', 'desc')
@@ -470,6 +500,10 @@ class ProjectMaterialController extends Controller
     public function requestMaterial(Request $request, $projectId)
     {
         $project = Project::findOrFail($projectId);
+
+        if (!$project->assignedEmployees()->where('employees.id', session('user_id'))->exists()) {
+            abort(403);
+        }
 
         $validated = $request->validate([
             'project_material_id' => 'nullable|exists:project_materials,id',

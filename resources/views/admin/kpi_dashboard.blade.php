@@ -163,6 +163,52 @@
 
         #kdTargetsModal .modal-header { margin-bottom: 18px; }
         #kdTargetsModal .kd-modal-form-panel .form-group { margin-bottom: 10px; }
+
+        /* Set KPI targets modal — monthly inputs + auto-calculated quarterly total */
+        .kd-targets-section { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border); }
+        .kd-targets-section:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
+        .kd-targets-section-title { font-size: 14px; font-weight: 800; color: var(--dark); margin-bottom: 4px; }
+        .kd-targets-section-sub { font-size: 12px; color: var(--muted); line-height: 1.5; margin-bottom: 14px; }
+
+        .kd-month-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+        .kd-month-row label { font-size: 13px; font-weight: 700; color: var(--dark); flex-shrink: 0; width: 84px; }
+        .kd-month-input { position: relative; flex: 1; }
+        .kd-month-input input {
+            width: 100%;
+            height: 42px;
+            border: 1px solid var(--border);
+            background: var(--cream-soft);
+            border-radius: 12px;
+            padding: 0 14px;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--dark);
+            outline: none;
+            transition: .2s ease;
+        }
+        .kd-month-input input:focus { border-color: var(--accent); background: var(--white); }
+        .kd-month-input.has-prefix input { padding-left: 28px; }
+        .kd-month-input.has-suffix input { padding-right: 66px; }
+        .kd-month-prefix, .kd-month-suffix {
+            position: absolute; top: 50%; transform: translateY(-50%);
+            font-size: 12.5px; font-weight: 700; color: var(--muted); pointer-events: none;
+        }
+        .kd-month-prefix { left: 14px; }
+        .kd-month-suffix { right: 14px; }
+
+        .kd-quarter-total {
+            display: flex; align-items: center; justify-content: space-between;
+            background: #EAF0FF; border-radius: 12px; padding: 12px 14px; margin-top: 4px;
+            font-size: 12.5px; font-weight: 700; color: #1e3a8a;
+        }
+        .kd-quarter-total strong { font-size: 14px; font-weight: 900; }
+
+        .kd-info-note {
+            display: flex; align-items: flex-start; gap: 8px;
+            background: var(--cream-soft); border: 1px solid var(--border); border-radius: 12px;
+            padding: 11px 14px; font-size: 12px; color: var(--muted); line-height: 1.55; margin-top: 12px;
+        }
+        .kd-info-note i { width: 14px; height: 14px; flex-shrink: 0; margin-top: 2px; color: var(--muted); }
     </style>
 </head>
 <body class="page-enter">
@@ -313,7 +359,7 @@
             <div class="modal-header">
                 <div>
                     <h2>Set KPI targets</h2>
-                    <p>Set targets for this quarter. The system measures actual performance against these targets.</p>
+                    <p>Set a target for each month — the quarterly total is calculated automatically.</p>
                 </div>
                 <button class="modal-close" type="button" id="kdCloseTargetsModal">
                     <i data-lucide="x"></i>
@@ -321,14 +367,67 @@
             </div>
 
             <div class="kd-finalized-note" id="kdFinalizedNote" style="display:none;font-size:12px;font-weight:700;color:var(--warning);background:#FFF3D6;border:1px solid rgba(138,97,0,.2);border-radius:10px;padding:8px 12px;margin-bottom:14px;"></div>
+
             <div class="form-group">
-                <label id="kdModalPeriodLabel">Profit target per quarter (₱)</label>
-                <input type="number" min="0" step="1" id="kdInputProfitTarget">
+                <label>Setting targets for</label>
+                <select class="filter-select" id="kdModalPeriodSelect" style="width:100%;"></select>
             </div>
-            <div class="form-group">
-                <label>On-time delivery target (projects)</label>
-                <input type="number" min="0" step="1" id="kdInputOnTimeTarget">
+
+            <div class="kd-targets-section">
+                <div class="kd-targets-section-title">Profit margin target</div>
+                <p class="kd-targets-section-sub">Set a net profit goal for each month based on GMD's expected workload.</p>
+
+                <div class="kd-month-row">
+                    <label id="kdProfitMonthLabel1"></label>
+                    <div class="kd-month-input has-prefix"><span class="kd-month-prefix">₱</span><input type="number" min="0" step="1" id="kdInputProfitM1"></div>
+                </div>
+                <div class="kd-month-row">
+                    <label id="kdProfitMonthLabel2"></label>
+                    <div class="kd-month-input has-prefix"><span class="kd-month-prefix">₱</span><input type="number" min="0" step="1" id="kdInputProfitM2"></div>
+                </div>
+                <div class="kd-month-row">
+                    <label id="kdProfitMonthLabel3"></label>
+                    <div class="kd-month-input has-prefix"><span class="kd-month-prefix">₱</span><input type="number" min="0" step="1" id="kdInputProfitM3"></div>
+                </div>
+
+                <div class="kd-quarter-total">
+                    <span>Quarterly total (auto-calculated)</span>
+                    <strong id="kdProfitQuarterTotal">₱0</strong>
+                </div>
             </div>
+
+            <div class="kd-targets-section">
+                <div class="kd-targets-section-title">On-time delivery target</div>
+                <p class="kd-targets-section-sub">Set the number of projects expected to be delivered on time each month.</p>
+
+                <div class="kd-month-row">
+                    <label id="kdOnTimeMonthLabel1"></label>
+                    <div class="kd-month-input has-suffix"><input type="number" min="0" step="1" id="kdInputOnTimeM1"><span class="kd-month-suffix">projects</span></div>
+                </div>
+                <div class="kd-month-row">
+                    <label id="kdOnTimeMonthLabel2"></label>
+                    <div class="kd-month-input has-suffix"><input type="number" min="0" step="1" id="kdInputOnTimeM2"><span class="kd-month-suffix">projects</span></div>
+                </div>
+                <div class="kd-month-row">
+                    <label id="kdOnTimeMonthLabel3"></label>
+                    <div class="kd-month-input has-suffix"><input type="number" min="0" step="1" id="kdInputOnTimeM3"><span class="kd-month-suffix">projects</span></div>
+                </div>
+
+                <div class="kd-quarter-total">
+                    <span>Quarterly total (auto-calculated)</span>
+                    <strong id="kdOnTimeQuarterTotal">0 projects</strong>
+                </div>
+            </div>
+
+            <div class="kd-targets-section">
+                <div class="kd-targets-section-title">Budget adherence</div>
+                <p class="kd-targets-section-sub">No monthly target needed — this KPI compares actual vs. estimated cost per project using a fixed tolerance band, so it isn't set on a schedule.</p>
+                <div class="kd-info-note">
+                    <i data-lucide="info"></i>
+                    <span>Whatever you enter per month is used directly — no automatic splitting or guessing. The Month view on the dashboard shows this number as-is, and Quarter/Year views simply add up the relevant months.</span>
+                </div>
+            </div>
+
             <div class="modal-actions">
                 <button type="button" class="cancel-btn" id="kdCancelQuarterTargets">Cancel</button>
                 <button type="button" class="save-btn" id="kdSaveQuarterTargets"><i data-lucide="save"></i> Save targets</button>
@@ -940,21 +1039,59 @@
         function openModal() { modal.classList.add('show'); }
         function closeModal() { modal.classList.remove('show'); }
 
+        var QUARTER_MONTHS = {
+            1: ['January', 'February', 'March'],
+            2: ['April', 'May', 'June'],
+            3: ['July', 'August', 'September'],
+            4: ['October', 'November', 'December'],
+        };
+        var QUARTER_MONTHS_SHORT = {
+            1: 'Jan - Mar', 2: 'Apr - Jun', 3: 'Jul - Sep', 4: 'Oct - Dec',
+        };
+
+        var PROFIT_MONTH_IDS  = ['kdInputProfitM1', 'kdInputProfitM2', 'kdInputProfitM3'];
+        var ONTIME_MONTH_IDS  = ['kdInputOnTimeM1', 'kdInputOnTimeM2', 'kdInputOnTimeM3'];
+
         function setQuarterFieldsReadOnly(readOnly) {
-            ['kdInputProfitTarget', 'kdInputOnTimeTarget'].forEach(function (id) {
+            PROFIT_MONTH_IDS.concat(ONTIME_MONTH_IDS).forEach(function (id) {
                 document.getElementById(id).disabled = readOnly;
             });
+            document.getElementById('kdModalPeriodSelect').disabled = readOnly;
             var saveBtn = document.getElementById('kdSaveQuarterTargets');
             saveBtn.disabled = readOnly;
             saveBtn.style.opacity = readOnly ? '0.5' : '';
             saveBtn.style.cursor = readOnly ? 'not-allowed' : '';
         }
 
-        function openTargetsModal() {
-            var sc = STATE.payload.scorecard;
-            document.getElementById('kdModalPeriodLabel').textContent = 'Profit target for ' + sc.label + ' (₱)';
-            document.getElementById('kdInputProfitTarget').value  = sc.profit.target   === null ? '' : sc.profit.target;
-            document.getElementById('kdInputOnTimeTarget').value  = sc.on_time.target  === null ? '' : sc.on_time.target;
+        function recalcQuarterTotals() {
+            var profitTotal = PROFIT_MONTH_IDS.reduce(function (sum, id) {
+                return sum + (parseFloat(document.getElementById(id).value) || 0);
+            }, 0);
+            var onTimeTotal = ONTIME_MONTH_IDS.reduce(function (sum, id) {
+                return sum + (parseInt(document.getElementById(id).value, 10) || 0);
+            }, 0);
+            document.getElementById('kdProfitQuarterTotal').textContent = fmtPeso(profitTotal);
+            document.getElementById('kdOnTimeQuarterTotal').textContent = pluralize(onTimeTotal, 'project');
+        }
+
+        PROFIT_MONTH_IDS.concat(ONTIME_MONTH_IDS).forEach(function (id) {
+            document.getElementById(id).addEventListener('input', recalcQuarterTotals);
+        });
+
+        /* Populates the modal's own fields + period-select from a given payload, without
+           touching the dashboard behind it — used both when opening and when the modal's
+           own quarter/year dropdown is changed. */
+        function populateModalFromPayload(payload) {
+            var sc = payload.scorecard;
+            var months = QUARTER_MONTHS[payload.quarter];
+
+            for (var i = 0; i < 3; i++) {
+                document.getElementById('kdProfitMonthLabel' + (i + 1)).textContent = months[i];
+                document.getElementById('kdOnTimeMonthLabel' + (i + 1)).textContent = months[i];
+                document.getElementById(PROFIT_MONTH_IDS[i]).value = sc.profit.target_monthly[i] || '';
+                document.getElementById(ONTIME_MONTH_IDS[i]).value = sc.on_time.target_monthly[i] || '';
+            }
+            recalcQuarterTotals();
 
             var note = document.getElementById('kdFinalizedNote');
             if (sc.is_finalized) {
@@ -965,9 +1102,35 @@
                 note.style.display = 'none';
                 setQuarterFieldsReadOnly(false);
             }
+        }
 
+        function buildModalPeriodOptions(payload) {
+            var sel = document.getElementById('kdModalPeriodSelect');
+            sel.innerHTML = '';
+            (payload.availableYears || [payload.year]).forEach(function (y) {
+                [1, 2, 3, 4].forEach(function (q) {
+                    var opt = document.createElement('option');
+                    opt.value = y + '-' + q;
+                    opt.textContent = 'Q' + q + ' ' + y + ' (' + QUARTER_MONTHS_SHORT[q] + ')';
+                    if (y === payload.year && q === payload.quarter) opt.selected = true;
+                    sel.appendChild(opt);
+                });
+            });
+        }
+
+        function openTargetsModal() {
+            buildModalPeriodOptions(STATE.payload);
+            populateModalFromPayload(STATE.payload);
             openModal();
         }
+
+        document.getElementById('kdModalPeriodSelect').addEventListener('change', function () {
+            var parts = this.value.split('-');
+            var year = parseInt(parts[0], 10);
+            var quarter = parseInt(parts[1], 10);
+            loadPeriod(year, quarter); // updates STATE.payload + re-renders the dashboard behind the modal
+            populateModalFromPayload(STATE.payload);
+        });
 
         document.getElementById('kdOpenTargetsBtn').addEventListener('click', openTargetsModal);
         document.getElementById('kdCloseTargetsModal').addEventListener('click', closeModal);
@@ -983,8 +1146,12 @@
                 body: JSON.stringify({
                     year: STATE.payload.year,
                     quarter: STATE.payload.quarter,
-                    profit_target: document.getElementById('kdInputProfitTarget').value || 0,
-                    on_time_target: document.getElementById('kdInputOnTimeTarget').value || 0,
+                    profit_target_m1:  document.getElementById('kdInputProfitM1').value || 0,
+                    profit_target_m2:  document.getElementById('kdInputProfitM2').value || 0,
+                    profit_target_m3:  document.getElementById('kdInputProfitM3').value || 0,
+                    on_time_target_m1: document.getElementById('kdInputOnTimeM1').value || 0,
+                    on_time_target_m2: document.getElementById('kdInputOnTimeM2').value || 0,
+                    on_time_target_m3: document.getElementById('kdInputOnTimeM3').value || 0,
                 })
             })
             .then(function (r) { return r.json().then(function (body) { return { ok: r.ok, body: body }; }); })
@@ -1171,9 +1338,10 @@
                     '.stat-value{font-size:22px;font-weight:900;color:#222;}' +
                     '.stat-sub{font-size:11.5px;color:#666;margin-top:4px;}' +
                     '.charts{display:flex;gap:14px;margin-bottom:26px;}' +
-                    '.chart-box{flex:1;border:1px solid #e0e0e0;border-radius:10px;padding:12px 14px;}' +
+                    '.chart-box{flex:1;border:1px solid #e0e0e0;border-radius:10px;padding:12px 14px;overflow:hidden;}' +
                     '.chart-title{font-size:11.5px;font-weight:700;color:#333;margin-bottom:8px;}' +
-                    'canvas{max-height:170px;}' +
+                    '.chart-canvas{position:relative;height:170px;width:100%;}' +
+                    '.chart-canvas canvas{position:absolute;top:0;left:0;width:100% !important;height:100% !important;}' +
                     '.section-title{font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#666;margin-bottom:10px;}' +
                     '.takeaways{background:#EAF0FF;border:1px solid rgba(42,78,170,.2);border-radius:10px;padding:16px 18px;margin-bottom:26px;}' +
                     '.takeaways ul{margin:0 0 12px 18px;padding:0;font-size:13px;line-height:1.7;color:#222;}' +
@@ -1198,9 +1366,9 @@
                     '<div class="stat"><div class="stat-label">Budget Adherence</div><div class="stat-value">' + overallAdherence.toFixed(1) + '%</div><div class="stat-sub">Not over budget: ' + budgetOkSummary() + '</div></div>' +
                 '</div>' +
                 '<div class="charts">' +
-                    '<div class="chart-box"><div class="chart-title">Net Profit (₱)</div><canvas id="repChartProfit"></canvas></div>' +
-                    '<div class="chart-box"><div class="chart-title">On-Time Delivery (projects)</div><canvas id="repChartOnTime"></canvas></div>' +
-                    '<div class="chart-box"><div class="chart-title">Budget Adherence (%)</div><canvas id="repChartBudget"></canvas></div>' +
+                    '<div class="chart-box"><div class="chart-title">Net Profit (₱)</div><div class="chart-canvas"><canvas id="repChartProfit"></canvas></div></div>' +
+                    '<div class="chart-box"><div class="chart-title">On-Time Delivery (projects)</div><div class="chart-canvas"><canvas id="repChartOnTime"></canvas></div></div>' +
+                    '<div class="chart-box"><div class="chart-title">Budget Adherence (%)</div><div class="chart-canvas"><canvas id="repChartBudget"></canvas></div></div>' +
                 '</div>' +
                 '<div class="section-title">Key Takeaways</div>' +
                 '<div class="takeaways">' +
@@ -1225,7 +1393,7 @@
                         'var profitData = ' + JSON.stringify(profitSeries) + ';' +
                         'var onTimeData = ' + JSON.stringify(onTimeSeries) + ';' +
                         'var budgetData = ' + JSON.stringify(budgetSeries) + ';' +
-                        'var opts = function (formatter) { return { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, ' +
+                        'var opts = function (formatter) { return { responsive:true, maintainAspectRatio:false, layout:{padding:{top:10,right:6,bottom:2,left:2}}, plugins:{legend:{display:false}}, ' +
                             'scales:{ x:{ grid:{display:false}, ticks:{font:{size:9},color:"#666"} }, y:{ grid:{color:"rgba(0,0,0,.06)"}, ticks:{font:{size:9},color:"#666",callback:formatter} } } }; };' +
                         'if (window.Chart) {' +
                             'new Chart(document.getElementById("repChartProfit"), { type:"line", data:{ labels:labels, datasets:[{ data:profitData, borderColor:"#207A3A", backgroundColor:"rgba(32,122,58,.12)", fill:true, tension:.3, pointRadius:3, borderWidth:2 }] }, options: opts(function(v){ return "₱"+Math.round(v/1000)+"k"; }) });' +

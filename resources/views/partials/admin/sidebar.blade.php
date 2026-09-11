@@ -46,7 +46,7 @@
         </a>
 
         <a href="{{ route('admin.project_materials') }}"
-           class="{{ request()->routeIs(['admin.project_materials', 'admin.project_materials.detail']) ? 'active' : '' }}"
+           class="{{ request()->routeIs(['admin.project_materials', 'admin.project_materials.client', 'admin.project_materials.detail']) ? 'active' : '' }}"
            title="Project Quotations">
             <div class="sidebar-icon"><i data-lucide="package"></i></div>
             <span>Project Quotations</span>

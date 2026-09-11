@@ -137,9 +137,88 @@
         <div class="page-header" id="quotationHeader">
             <div>
                 <h1 class="page-title">Request a Quotation</h1>
-                <p class="page-subtitle">Tell us about the tank(s) you need and our team will prepare a quotation for you.</p>
+                <p class="page-subtitle">Submit a new request, or check on what GMD South Phils is already reviewing for you.</p>
             </div>
         </div>
+
+        @if(session('success'))
+        <div class="alert-banner success" style="max-width:820px;margin:0 auto 18px;">
+            <i data-lucide="check-circle"></i>
+            {{ session('success') }}
+        </div>
+        @endif
+
+        @if(session('error'))
+        <div class="alert-banner" style="background:#fee2e2;border:1px solid #fca5a5;color:#dc2626;max-width:820px;margin:0 auto 18px;">
+            <i data-lucide="circle-alert"></i>
+            {{ session('error') }}
+        </div>
+        @endif
+
+        @php
+            $pendingBatches = $pendingBatches ?? collect();
+            $hasPending     = $pendingBatches->isNotEmpty();
+            $batchStatus    = fn ($batch) => $batch->contains(fn ($qr) => $qr->status === 'quotation_sent')
+                ? 'quotation_sent'
+                : ($batch->contains(fn ($qr) => $qr->status === 'approved') ? 'approved' : 'pending');
+        @endphp
+
+        <div style="max-width:820px;margin:0 auto 24px;display:flex;justify-content:center;">
+            <div class="emp-tabs">
+                <button type="button" class="emp-tab {{ !$hasPending ? 'active' : '' }}" data-tab="new-request" onclick="activateQuotationTab('new-request', this)">
+                    <i data-lucide="clipboard-list"></i>
+                    New Request
+                </button>
+                <button type="button" class="emp-tab {{ $hasPending ? 'active' : '' }}" data-tab="pending" onclick="activateQuotationTab('pending', this)">
+                    <i data-lucide="clock"></i>
+                    Pending
+                    @if($hasPending)
+                    <span class="filter-count">{{ $pendingBatches->count() }}</span>
+                    @endif
+                </button>
+            </div>
+        </div>
+
+        <div class="emp-tab-content {{ $hasPending ? 'active' : '' }}" id="tab-pending" style="max-width:820px;margin:0 auto;">
+            @if($hasPending)
+                @if($pendingBatches->count() > 1)
+                <div class="filter-tabs" style="margin-bottom:20px;width:fit-content;">
+                    <button type="button" class="filter-tab active" data-filter="all" onclick="filterQuotationBatches('all', this)">
+                        All
+                        <span class="filter-count">{{ $pendingBatches->count() }}</span>
+                    </button>
+                    <button type="button" class="filter-tab" data-filter="pending" onclick="filterQuotationBatches('pending', this)">
+                        Under Review
+                        <span class="filter-count">{{ $pendingBatches->filter(fn ($b) => $batchStatus($b) === 'pending')->count() }}</span>
+                    </button>
+                    <button type="button" class="filter-tab" data-filter="quotation_sent" onclick="filterQuotationBatches('quotation_sent', this)">
+                        Quotation Ready
+                        <span class="filter-count">{{ $pendingBatches->filter(fn ($b) => $batchStatus($b) === 'quotation_sent')->count() }}</span>
+                    </button>
+                    <button type="button" class="filter-tab" data-filter="approved" onclick="filterQuotationBatches('approved', this)">
+                        Approved
+                        <span class="filter-count">{{ $pendingBatches->filter(fn ($b) => $batchStatus($b) === 'approved')->count() }}</span>
+                    </button>
+                </div>
+                @endif
+
+                <div style="display:flex;flex-direction:column;gap:20px;">
+                    @foreach($pendingBatches as $batch)
+                    <div data-quotation-batch data-status="{{ $batchStatus($batch) }}">
+                        @include('partials.client.quotation_batch_card', ['batch' => $batch])
+                    </div>
+                    @endforeach
+                </div>
+            @else
+                <div class="pv-card" style="text-align:center;padding:48px 20px;">
+                    <i data-lucide="inbox" style="width:36px;height:36px;color:var(--muted);opacity:.5;display:block;margin:0 auto 12px;"></i>
+                    <p style="font-weight:800;color:var(--dark);margin-bottom:6px;">No pending requests.</p>
+                    <p style="font-size:13px;color:var(--muted);">Submit a new request from the "New Request" tab and it'll show up here while GMD reviews it.</p>
+                </div>
+            @endif
+        </div>
+
+        <div class="emp-tab-content {{ !$hasPending ? 'active' : '' }}" id="tab-new-request">
 
         @if($errors->any())
         <div class="alert-banner" style="background:#fee2e2;border:1px solid #fca5a5;color:#dc2626;max-width:1060px;margin-left:auto;margin-right:auto;">
@@ -224,12 +303,40 @@
             </form>
         </div>
 
+        </div>
+
     </main>
 
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>
+        function activateQuotationTab(name, btn) {
+            document.querySelectorAll('.emp-tab[data-tab]').forEach(function (t) { t.classList.remove('active'); });
+            btn.classList.add('active');
+            document.querySelectorAll('.emp-tab-content').forEach(function (c) { c.classList.remove('active'); });
+            document.getElementById('tab-' + name).classList.add('active');
+        }
+
+        function filterQuotationBatches(filter, btn) {
+            document.querySelectorAll('.filter-tab[data-filter]').forEach(function (tab) {
+                tab.classList.remove('active');
+            });
+            btn.classList.add('active');
+
+            document.querySelectorAll('[data-quotation-batch]').forEach(function (el) {
+                var show = filter === 'all' || el.dataset.status === filter;
+                el.style.display = show ? '' : 'none';
+            });
+        }
+
         const TANK_TYPES = @json($tankTypes);
         const OLD_TANK_ITEMS = @json(old('tank_items', []));
+
+        function todayISODate() {
+            var d = new Date();
+            var m = String(d.getMonth() + 1).padStart(2, '0');
+            var day = String(d.getDate()).padStart(2, '0');
+            return d.getFullYear() + '-' + m + '-' + day;
+        }
 
         function tankTypeOptions(selected) {
             return '<option value="" disabled' + (!selected ? ' selected' : '') + ' hidden>Select tank type</option>' +
@@ -265,8 +372,8 @@
                         '<input type="number" name="' + prefix + '[quantity]" min="1" value="' + (item.quantity || 1) + '">' +
                     '</div>' +
                     '<div class="form-group" style="margin-bottom:0;">' +
-                        '<label>Target Timeline</label>' +
-                        '<input type="text" name="' + prefix + '[target_timeline]" placeholder="e.g. Needed within 2 months" value="' + (item.target_timeline ? item.target_timeline.replace(/"/g, '&quot;') : '') + '">' +
+                        '<label>Target Date of Delivery</label>' +
+                        '<input type="date" name="' + prefix + '[target_timeline]" min="' + todayISODate() + '" value="' + (item.target_timeline ? item.target_timeline.replace(/"/g, '&quot;') : '') + '">' +
                     '</div>' +
                 '</div>' +
                 '<button type="button" class="qr-tank-remove" onclick="removeTankRow(this)" title="Remove tank">' +

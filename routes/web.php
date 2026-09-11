@@ -38,7 +38,7 @@ use App\Http\Controllers\PerformanceTestReportController;
 
 Route::get('/', [AuthController::class, 'index'])->name('home');
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-Route::post('/login', [AuthController::class, 'login'])->name('login.post');
+Route::post('/login', [AuthController::class, 'login'])->name('login.post')->middleware('throttle:5,1');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 // Client Self-Registration
@@ -52,10 +52,10 @@ Route::post('/setup/credentials', [FirstLoginController::class, 'handle'])->name
 
 // Forgot Password
 Route::get('/forgot-password',          [ForgotPasswordController::class, 'showEmailForm'])->name('password.request');
-Route::post('/forgot-password',         [ForgotPasswordController::class, 'sendCode'])->name('password.email');
+Route::post('/forgot-password',         [ForgotPasswordController::class, 'sendCode'])->name('password.email')->middleware('throttle:5,1');
 Route::get('/forgot-password/verify',   [ForgotPasswordController::class, 'showVerifyForm'])->name('password.verify');
-Route::post('/forgot-password/verify',  [ForgotPasswordController::class, 'verifyCode'])->name('password.verify.post');
-Route::post('/forgot-password/resend',  [ForgotPasswordController::class, 'resendCode'])->name('password.resend');
+Route::post('/forgot-password/verify',  [ForgotPasswordController::class, 'verifyCode'])->name('password.verify.post')->middleware('throttle:5,1');
+Route::post('/forgot-password/resend',  [ForgotPasswordController::class, 'resendCode'])->name('password.resend')->middleware('throttle:5,1');
 Route::get('/forgot-password/reset',    [ForgotPasswordController::class, 'showResetForm'])->name('password.reset.form');
 Route::post('/forgot-password/reset',   [ForgotPasswordController::class, 'resetPassword'])->name('password.reset');
 
@@ -71,6 +71,7 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
     Route::get('/employees', [AdminController::class, 'employees'])->name('employees');
     Route::get('/project-materials', [ProjectMaterialController::class, 'adminIndex'])->name('project_materials');
+    Route::get('/project-materials/client/{client}', [ProjectMaterialController::class, 'adminClient'])->name('project_materials.client');
     Route::get('/project-materials/{projectId}', [ProjectMaterialController::class, 'adminDetail'])->name('project_materials.detail');
     Route::post('/project-materials/{projectId}/materials', [ProjectMaterialController::class, 'store'])->name('project_materials.store');
     Route::post('/project-materials/{projectId}/purchases', [ProjectMaterialController::class, 'storePurchase'])->name('project_materials.store_purchase');

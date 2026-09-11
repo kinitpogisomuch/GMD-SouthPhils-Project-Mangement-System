@@ -92,10 +92,14 @@ class KpiDashboardController extends Controller
     public function saveQuarterTargets(Request $request)
     {
         $validated = $request->validate([
-            'year'            => 'required|integer|min:2000|max:2100',
-            'quarter'         => 'required|integer|min:1|max:4',
-            'profit_target'   => 'required|numeric|min:0',
-            'on_time_target'  => 'required|integer|min:0',
+            'year'                => 'required|integer|min:2000|max:2100',
+            'quarter'             => 'required|integer|min:1|max:4',
+            'profit_target_m1'    => 'required|numeric|min:0',
+            'profit_target_m2'    => 'required|numeric|min:0',
+            'profit_target_m3'    => 'required|numeric|min:0',
+            'on_time_target_m1'   => 'required|integer|min:0',
+            'on_time_target_m2'   => 'required|integer|min:0',
+            'on_time_target_m3'   => 'required|integer|min:0',
         ]);
 
         if ($this->isFinalized((int) $validated['year'], (int) $validated['quarter'])) {
@@ -106,11 +110,20 @@ class KpiDashboardController extends Controller
 
         // Budget adherence is no longer an owner-set target (the KPI card now shows a fixed
         // benchmark range instead) — leave that column alone so any pre-existing value survives.
+        // profit_target / on_time_target stay as the quarterly totals, auto-summed from the
+        // three monthly figures the modal collects — nothing downstream that reads those two
+        // columns (cards, charts, trend, forecast) needs to change.
         KpiQuarterTarget::updateOrCreate(
             ['year' => $validated['year'], 'quarter' => $validated['quarter']],
             [
-                'profit_target'  => $validated['profit_target'],
-                'on_time_target' => $validated['on_time_target'],
+                'profit_target_m1'  => $validated['profit_target_m1'],
+                'profit_target_m2'  => $validated['profit_target_m2'],
+                'profit_target_m3'  => $validated['profit_target_m3'],
+                'profit_target'     => $validated['profit_target_m1'] + $validated['profit_target_m2'] + $validated['profit_target_m3'],
+                'on_time_target_m1' => $validated['on_time_target_m1'],
+                'on_time_target_m2' => $validated['on_time_target_m2'],
+                'on_time_target_m3' => $validated['on_time_target_m3'],
+                'on_time_target'    => $validated['on_time_target_m1'] + $validated['on_time_target_m2'] + $validated['on_time_target_m3'],
             ]
         );
 
@@ -379,6 +392,13 @@ class KpiDashboardController extends Controller
         $onTimeTarget = $hasTarget ? (int) $target->on_time_target : null;
         $budgetTarget = $hasTarget ? (float) $target->budget_adherence_target : null;
 
+        $profitTargetMonthly = $hasTarget
+            ? [(float) $target->profit_target_m1, (float) $target->profit_target_m2, (float) $target->profit_target_m3]
+            : [0, 0, 0];
+        $onTimeTargetMonthly = $hasTarget
+            ? [(int) $target->on_time_target_m1, (int) $target->on_time_target_m2, (int) $target->on_time_target_m3]
+            : [0, 0, 0];
+
         $current = $this->currentPeriod();
 
         return [
@@ -396,6 +416,7 @@ class KpiDashboardController extends Controller
                 'labor_cost'   => round($totalLaborSpend, 2),
                 'has_target'   => $hasTarget,
                 'target'       => $profitTarget,
+                'target_monthly' => $profitTargetMonthly,
                 'variance'     => $hasTarget ? round($netProfit - $profitTarget, 2) : null,
                 'hit'          => $hasTarget ? ($netProfit >= $profitTarget) : null,
                 'progress_pct' => $hasTarget ? ($profitTarget > 0 ? min(100, round(($netProfit / $profitTarget) * 100, 1)) : ($netProfit > 0 ? 100 : 0)) : null,
@@ -409,6 +430,7 @@ class KpiDashboardController extends Controller
                 'avg_delay_days'  => $avgDelayDays,
                 'has_target'      => $hasTarget,
                 'target'          => $onTimeTarget,
+                'target_monthly'  => $onTimeTargetMonthly,
                 'variance'        => $hasTarget ? ($onTimeCount - $onTimeTarget) : null,
                 'hit'             => $hasTarget ? ($onTimeCount >= $onTimeTarget) : null,
                 'progress_pct'    => $hasTarget ? ($onTimeTarget > 0 ? min(100, round(($onTimeCount / $onTimeTarget) * 100, 1)) : ($onTimeCount > 0 ? 100 : 0)) : null,

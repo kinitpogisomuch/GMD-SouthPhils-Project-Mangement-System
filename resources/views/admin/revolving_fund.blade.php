@@ -238,12 +238,13 @@
                             <div style="display:flex;flex-direction:column;gap:14px;">
                                 <div>
                                     <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.45);display:block;margin-bottom:6px;">Project</label>
-                                    <select name="project_id" required style="width:100%;height:44px;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.12);border-radius:10px;color:#fff;padding:0 12px;font-size:13px;font-weight:600;">
-                                        <option value="" disabled selected hidden style="background:#2a2a2a;">Select project</option>
-                                        @foreach($projects as $p)
-                                        <option value="{{ $p->id }}" style="background:#2a2a2a;">{{ $p->name }}</option>
-                                        @endforeach
-                                    </select>
+                                    <button type="button" id="rfProjectTrigger" onclick="openRfProjectModal()"
+                                        style="width:100%;height:44px;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.12);border-radius:10px;color:#fff;padding:0 12px;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;text-align:left;">
+                                        <span id="rfProjectTriggerLabel" style="color:rgba(255,255,255,.4);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Select project</span>
+                                        <i data-lucide="chevron-down" style="width:16px;height:16px;color:rgba(255,255,255,.4);flex-shrink:0;"></i>
+                                    </button>
+                                    <input type="hidden" name="project_id" id="rfProjectIdHidden">
+                                    <div id="rfProjectError" style="display:none;margin-top:6px;font-size:11.5px;font-weight:700;color:#f87171;">Please select a project.</div>
                                 </div>
                                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
                                     <div>
@@ -281,6 +282,30 @@
             </div>
 
         </main>
+    </div>
+
+    <!-- Select Project Modal -->
+    <div class="modal-overlay" id="selectProjectModal">
+        <div class="modal-card" style="max-width:560px;">
+            <div class="modal-header">
+                <div>
+                    <h2>Select Project</h2>
+                    <p>Choose the active project to tag this transaction to.</p>
+                </div>
+                <button class="modal-close" type="button" id="closeSelectProjectModal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+
+            <div class="search-box" style="margin:0 auto 14px;max-width:100%;">
+                <i data-lucide="search"></i>
+                <input type="text" id="rfProjectModalSearch" placeholder="Search by project name or client...">
+            </div>
+
+            <div id="rfProjectModalList" class="cs-list">
+                <p style="text-align:center;color:var(--muted);padding:20px 0;">Loading projects...</p>
+            </div>
+        </div>
     </div>
 
     <!-- Initial Fund Setup Modal -->
@@ -344,6 +369,114 @@
 
         if (searchInput) searchInput.addEventListener('input', applyFundFilters);
         if (typeFilter) typeFilter.addEventListener('change', applyFundFilters);
+
+        // ── Select Project modal (active projects only, with project info) ──
+        var RF_PROJECTS = @json($projects);
+
+        var RF_PHASE_COLORS = {
+            planning:    { bg: '#FEF3C7', color: '#92400E' },
+            procurement: { bg: '#EDE9FE', color: '#5B21B6' },
+            matl_prep:   { bg: '#CFFAFE', color: '#0E7490' },
+            fabrication: { bg: '#2563EB', color: '#fff'    },
+            inspection:  { bg: '#EC4899', color: '#fff'    },
+            painting:    { bg: '#14B8A6', color: '#fff'    },
+            completion:  { bg: '#10B981', color: '#fff'    },
+            delivery:    { bg: '#059669', color: '#fff'    },
+            delayed:     { bg: '#EF4444', color: '#fff'    }
+        };
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
+        function rfPhaseLabel(phase) {
+            phase = phase || 'planning';
+            return phase.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+        }
+
+        function renderRfProjectModalList(filterText) {
+            var q    = (filterText || '').toLowerCase().trim();
+            var list = document.getElementById('rfProjectModalList');
+
+            var filtered = RF_PROJECTS.filter(function(p) {
+                return !q
+                    || p.name.toLowerCase().indexOf(q) !== -1
+                    || (p.client || '').toLowerCase().indexOf(q) !== -1;
+            });
+
+            if (filtered.length === 0) {
+                list.innerHTML = '<p style="text-align:center;color:var(--muted);padding:24px 0;font-size:14px;font-weight:700;">No active projects found.</p>';
+                return;
+            }
+
+            list.innerHTML = '';
+            filtered.forEach(function(p) {
+                var phaseKey   = p.current_phase || 'planning';
+                var phaseColor = RF_PHASE_COLORS[phaseKey] || { bg: '#F3F4F6', color: '#6B7280' };
+                var pillStyle  = 'display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;margin-right:4px;margin-top:3px;';
+
+                var item = document.createElement('div');
+                item.className = 'client-select-item';
+                item.innerHTML =
+                    '<div class="cs-avatar" style="background:var(--dark);">' +
+                        '<span class="cs-avatar-init">' + escapeHtml((p.client || '?').charAt(0).toUpperCase()) + '</span>' +
+                    '</div>' +
+                    '<div class="cs-info">' +
+                        '<div class="cs-name">' + escapeHtml(p.name) + '</div>' +
+                        '<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px;align-items:center;">' +
+                            '<span style="' + pillStyle + 'background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;">' + escapeHtml(p.client || '—') + '</span>' +
+                            (p.capacity ? '<span style="' + pillStyle + 'background:#F3F4F6;color:#374151;border:1px solid #D1D5DB;">' + escapeHtml(p.capacity) + '</span>' : '') +
+                            '<span style="' + pillStyle + 'background:' + phaseColor.bg + ';color:' + phaseColor.color + ';border:1px solid rgba(0,0,0,.06);">' + rfPhaseLabel(phaseKey) + '</span>' +
+                        '</div>' +
+                    '</div>';
+
+                item.addEventListener('click', function() {
+                    document.getElementById('rfProjectIdHidden').value = p.id;
+                    document.getElementById('rfProjectTriggerLabel').textContent = p.name + ' — ' + p.client;
+                    document.getElementById('rfProjectTriggerLabel').style.color = '#fff';
+                    document.getElementById('rfProjectError').style.display = 'none';
+                    closeRfProjectModal();
+                });
+
+                list.appendChild(item);
+            });
+
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        function openRfProjectModal() {
+            var search = document.getElementById('rfProjectModalSearch');
+            if (search) search.value = '';
+            renderRfProjectModalList('');
+            document.getElementById('selectProjectModal').classList.add('show');
+            document.body.style.overflow = 'hidden';
+            if (search) search.focus();
+        }
+
+        function closeRfProjectModal() {
+            document.getElementById('selectProjectModal').classList.remove('show');
+            document.body.style.overflow = '';
+        }
+
+        var rfProjectModalSearch = document.getElementById('rfProjectModalSearch');
+        if (rfProjectModalSearch) {
+            rfProjectModalSearch.addEventListener('input', function() {
+                renderRfProjectModalList(this.value);
+            });
+        }
+        var closeSelectProjectModalBtn = document.getElementById('closeSelectProjectModal');
+        if (closeSelectProjectModalBtn) closeSelectProjectModalBtn.addEventListener('click', closeRfProjectModal);
+
+        var drawdownForm = document.getElementById('drawdownForm');
+        if (drawdownForm) {
+            drawdownForm.addEventListener('submit', function(e) {
+                if (!document.getElementById('rfProjectIdHidden').value) {
+                    e.preventDefault();
+                    document.getElementById('rfProjectError').style.display = 'block';
+                }
+            });
+        }
     </script>
 
     <style>

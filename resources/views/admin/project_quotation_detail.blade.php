@@ -140,6 +140,10 @@
                     Project Materials
                 </a>
                 <i data-lucide="chevron-right" style="width:14px;height:14px;"></i>
+                <a href="{{ route('admin.project_materials.client', urlencode($project->client)) }}" style="color:var(--muted);text-decoration:none;font-weight:600;">
+                    {{ $project->client }}
+                </a>
+                <i data-lucide="chevron-right" style="width:14px;height:14px;"></i>
                 <span style="color:var(--dark);font-weight:700;">{{ $project->name }}</span>
             </div>
 
@@ -558,6 +562,10 @@
             {{-- Actions --}}
             <div style="padding:14px 20px;border-top:1px solid rgba(0,0,0,0.07);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
                 <button type="button" class="cancel-btn" id="cancelBOMModal">Close</button>
+                <label style="display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:700;color:var(--dark);cursor:pointer;">
+                    <input type="checkbox" id="bomSummaryOnlyToggle">
+                    Summary only <span style="font-weight:400;color:var(--muted);">(just the grand total)</span>
+                </label>
                 <div style="display:flex;gap:10px;">
                     <button type="button" id="printBOMBtn"
                             style="display:flex;align-items:center;gap:7px;background:none;border:1.5px solid rgba(0,0,0,0.18);border-radius:10px;padding:8px 18px;font-size:13px;font-weight:700;color:var(--dark);cursor:pointer;">
@@ -1238,6 +1246,9 @@
         // ---- BOM ----
         var BOM_MATERIALS = @json($materials->where('status', 'active')->values());
         var BOM_LABOR     = @json($laborEntries->where('status', 'active')->values());
+        var LOGO_LEFT     = @json(asset('images/logo-left.png'));
+        var LOGO_RIGHT    = @json(asset('images/logo-right.png'));
+        var BS_CSS_URL    = @json(asset('css/billing_statement.css'));
 
         function fmt(n) {
             return parseFloat(n).toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2});
@@ -1332,6 +1343,54 @@
             var matAdj = matAdjTotal, laborAdj = laborBase;
             var grandAdj = matAdj + laborAdj;
 
+            var summaryOnly = !!(document.getElementById('bomSummaryOnlyToggle') && document.getElementById('bomSummaryOnlyToggle').checked);
+
+            if (summaryOnly) {
+                var summaryHtml =
+                    '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Project Quotation — {{ $project->name }}</title>' +
+                    '<link rel="stylesheet" href="' + BS_CSS_URL + '">' +
+                    '<style>' +
+                        '.pq-total-box{margin-top:28px;border:2px solid #1a1a1a;border-radius:12px;padding:36px 24px;text-align:center;background:#f7f9fc;}' +
+                        '.pq-total-label{font-size:12.5px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:#555;margin-bottom:10px;}' +
+                        '.pq-total-value{font-size:38px;font-weight:900;color:#1a1a1a;}' +
+                        '.pq-note{margin-top:22px;font-size:11.5px;color:#777;text-align:center;line-height:1.6;}' +
+                        '@media print{.pq-total-box{page-break-inside:avoid;}}' +
+                    '</style></head><body>' +
+                    '<div class="bs-sheet">' +
+                        '<div class="bs-letterhead">' +
+                            '<div class="bs-logo-group">' +
+                                '<img src="' + LOGO_LEFT + '" alt="GMD South Phils" class="bs-logo">' +
+                                '<img src="' + LOGO_RIGHT + '" alt="" class="bs-logo">' +
+                            '</div>' +
+                            '<div class="bs-company-info">' +
+                                '<div class="bs-company-name">GMD South Phils Metal Fabrication Works</div>' +
+                                '<div>National Hi-way, Brgy. Masiit, Calauan, Laguna</div>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div class="bs-title">PROJECT QUOTATION</div>' +
+                        '<table class="bs-fields">' +
+                            '<tr>' +
+                                '<td class="bs-field-label">Project:</td>' +
+                                '<td class="bs-field-value" colspan="3">{{ $project->name }}</td>' +
+                            '</tr>' +
+                            '<tr>' +
+                                '<td class="bs-field-label">Client:</td>' +
+                                '<td class="bs-field-value">{{ $project->client }}</td>' +
+                                '<td class="bs-field-label">Date:</td>' +
+                                '<td class="bs-field-value">' + today + '</td>' +
+                            '</tr>' +
+                        '</table>' +
+                        '<div class="pq-total-box">' +
+                            '<div class="pq-total-label">Project Grand Total</div>' +
+                            '<div class="pq-total-value">₱' + fmt(grandAdj) + '</div>' +
+                        '</div>' +
+                        '<div class="pq-note">After reviewing the project requirements, we have arrived at the total above. Please let us know if you would like any adjustments.</div>' +
+                    '</div>' +
+                    (withPrintScript ? '<script>window.onload=function(){window.print();}<\/script>' : '') +
+                    '</body></html>';
+                return summaryHtml;
+            }
+
             var css = 'body{font-family:Arial,sans-serif;font-size:13px;color:#111;margin:32px;}' +
                 'h1{font-size:20px;margin:0 0 4px;}h2{font-size:14px;margin:24px 0 8px;padding:6px 0;border-bottom:2px solid #ccc;}' +
                 'p.sub{color:#666;margin:0 0 16px;font-size:12px;}' +
@@ -1340,9 +1399,9 @@
                 'td{padding:8px 10px;border-bottom:1px solid #e5e5e5;}.r{text-align:right;}' +
                 '.subtotal td{font-weight:700;background:#f8f8f8;border-top:2px solid #bbb;}' +
                 '.grand td{font-size:14px;font-weight:900;background:#111;color:#fff;border:none;}' +
-                '@media print{body{margin:16px;}}';
+                '@media print{body{margin:16px;} *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}';
 
-            var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>BOM — {{ $project->name }}</title><style>' + css + '</style></head><body>' +
+            var body =
                 '<h1>Bill of Materials — {{ $project->name }}</h1>' +
                 '<p class="sub">Client: {{ $project->client }} &nbsp;|&nbsp; Generated: ' + today + ' &nbsp;|&nbsp; Material Factor: {{ number_format($materialFactor, 1) }}%</p>' +
                 '<h2>Materials</h2>' +
@@ -1356,6 +1415,8 @@
                 '<tr class="subtotal"><td colspan="5" class="r">Labor Subtotal</td><td class="r">₱' + fmt(laborAdj) + '</td></tr>' +
                 '</table>' +
                 '<table><tr class="grand"><td colspan="5" class="r">Project Grand Total</td><td class="r">₱' + fmt(grandAdj) + '</td></tr></table>';
+
+            var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>BOM — {{ $project->name }}</title><style>' + css + '</style></head><body>' + body;
 
             if (withPrintScript) {
                 html += '<script>window.onload=function(){window.print();}<\/script>';
@@ -1372,11 +1433,12 @@
         }
 
         function downloadBOM() {
+            var summaryOnly = !!(document.getElementById('bomSummaryOnlyToggle') && document.getElementById('bomSummaryOnlyToggle').checked);
             var blob = new Blob([buildBOMDocument(false)], { type: 'text/html' });
             var url  = URL.createObjectURL(blob);
             var a    = document.createElement('a');
             a.href     = url;
-            a.download = 'Quotation - {{ str_replace("/", "-", $project->name) }}.html';
+            a.download = (summaryOnly ? 'Quotation Summary - ' : 'Quotation - ') + '{{ str_replace("/", "-", $project->name) }}.html';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -1747,6 +1809,8 @@
             var openBOMBtn = document.getElementById('openBOMModal');
             if (openBOMBtn) openBOMBtn.addEventListener('click', function() {
                 updateBOM();
+                var summaryToggle = document.getElementById('bomSummaryOnlyToggle');
+                if (summaryToggle) summaryToggle.checked = false;
                 openModal('bomModal');
             });
             ['closeBOMModal', 'cancelBOMModal'].forEach(function(id) {

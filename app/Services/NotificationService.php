@@ -630,7 +630,7 @@ class NotificationService
             self::TYPE_QUOTATION_REQUEST_QUOTATION_SENT,
             'info',
             null,
-            '/client/request-quotation/status'
+            '/client/request-quotation'
         );
     }
 

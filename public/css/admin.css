@@ -61,6 +61,17 @@ body {
     color: var(--dark);
 }
 
+/* Number inputs: keep the numeric keyboard/validation, drop the spinner UI everywhere */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
 /* ================= HEADER ================= */
 
 .admin-header {
@@ -1519,7 +1530,8 @@ body {
 
 .data-table {
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
     min-width: 850px;
 }
 

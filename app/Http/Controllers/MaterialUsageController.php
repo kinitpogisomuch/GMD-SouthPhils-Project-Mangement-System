@@ -148,12 +148,23 @@ class MaterialUsageController extends Controller
 
     public function employeeDetail($projectId)
     {
+        $project = Project::findOrFail($projectId);
+
+        if (!$project->assignedEmployees()->where('employees.id', session('user_id'))->exists()) {
+            abort(403);
+        }
+
         return view('employee.material_usage_detail', $this->buildDetailData($projectId));
     }
 
     public function employeeStore(Request $request, $projectId)
     {
         $project  = Project::findOrFail($projectId);
+
+        if (!$project->assignedEmployees()->where('employees.id', session('user_id'))->exists()) {
+            abort(403);
+        }
+
         $employee = Employee::find(session('user_id'));
 
         $this->createUsageEntry(
