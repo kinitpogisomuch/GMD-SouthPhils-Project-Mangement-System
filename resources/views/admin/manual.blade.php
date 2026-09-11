@@ -72,6 +72,41 @@
         .manual-note { display: flex; align-items: flex-start; gap: 10px; margin: 4px 0 16px; }
         .manual-note i { margin-top: 2px; flex-shrink: 0; }
 
+        /* ── Step-by-step guide look ── */
+        .manual-guide-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: var(--cream-soft); border: 1px solid var(--border); border-radius: 999px;
+            padding: 4px 12px; font-size: 11px; font-weight: 800; color: var(--muted);
+            text-transform: uppercase; letter-spacing: .05em; margin-bottom: 18px;
+        }
+        .manual-guide-badge i { width: 12px; height: 12px; }
+
+        .manual-steps { position: relative; margin: 0 0 6px; }
+        .manual-step { display: flex; gap: 16px; position: relative; padding-bottom: 26px; }
+        .manual-step:last-child { padding-bottom: 0; }
+        .manual-step:not(:last-child)::before {
+            content: ''; position: absolute; left: 17px; top: 38px; bottom: -6px; width: 2px;
+            background: var(--border);
+        }
+        .manual-step-num {
+            width: 36px; height: 36px; border-radius: 50%; background: var(--dark); color: #fff;
+            display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 15px;
+            flex-shrink: 0; z-index: 1;
+        }
+        .manual-step-body { flex: 1; min-width: 0; padding-top: 6px; }
+        .manual-step-body h3 { font-size: 14.5px; font-weight: 800; color: var(--dark); margin: 0 0 8px; }
+        .manual-step-body p:last-child,
+        .manual-step-body ul:last-child,
+        .manual-step-body table:last-child,
+        .manual-step-body .manual-note:last-child { margin-bottom: 0; }
+
+        .manual-done-note {
+            display: flex; align-items: center; gap: 10px; margin-top: 22px;
+            padding: 14px 16px; background: #E7F6EC; border: 1px solid #86efac; border-radius: 14px;
+            font-size: 13px; font-weight: 700; color: #14532d;
+        }
+        .manual-done-note i { width: 18px; height: 18px; flex-shrink: 0; }
+
         @media (max-width: 900px) {
             .manual-layout { flex-direction: column; }
             .manual-nav { width: 100%; position: static; max-height: none; }
@@ -200,24 +235,52 @@
                         </div>
                         <p class="manual-tagline">Tell the system what profit and delivery goals to measure each quarter against.</p>
                         <div class="manual-content">
-                            <h3>1. Open the KPI Dashboard</h3>
-                            <p>Click <strong>KPI Dashboard</strong> in the sidebar.</p>
-
-                            <h3>2. Click "Set targets"</h3>
-                            <p>It's the button at the top of the page, next to "Generate report."</p>
-
-                            <h3>3. Pick the quarter</h3>
-                            <p>Use the dropdown to choose which quarter you're setting goals for.</p>
-                            <div class="manual-note alert-banner warning">
-                                <i data-lucide="alert-triangle"></i>
-                                <span>If that quarter already ended, its targets are locked and can't be changed.</span>
+                            <div class="manual-guide-badge"><i data-lucide="list-ordered"></i> 5-step guide</div>
+                            <div class="manual-steps">
+                                <div class="manual-step">
+                                    <div class="manual-step-num">1</div>
+                                    <div class="manual-step-body">
+                                        <h3>Open the KPI Dashboard</h3>
+                                        <p>Click <strong>KPI Dashboard</strong> in the sidebar.</p>
+                                    </div>
+                                </div>
+                                <div class="manual-step">
+                                    <div class="manual-step-num">2</div>
+                                    <div class="manual-step-body">
+                                        <h3>Click "Set targets"</h3>
+                                        <p>It's the button at the top of the page, next to "Generate report."</p>
+                                    </div>
+                                </div>
+                                <div class="manual-step">
+                                    <div class="manual-step-num">3</div>
+                                    <div class="manual-step-body">
+                                        <h3>Pick the quarter</h3>
+                                        <p>Use the dropdown to choose which quarter you're setting goals for.</p>
+                                        <div class="manual-note alert-banner warning">
+                                            <i data-lucide="alert-triangle"></i>
+                                            <span>If that quarter already ended, its targets are locked and can't be changed.</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="manual-step">
+                                    <div class="manual-step-num">4</div>
+                                    <div class="manual-step-body">
+                                        <h3>Fill in your monthly goals</h3>
+                                        <p>Enter a peso profit goal and an on-time-delivery number for each of the quarter's three months. The totals below add these up for you automatically — you don't need to calculate them yourself.</p>
+                                    </div>
+                                </div>
+                                <div class="manual-step">
+                                    <div class="manual-step-num">5</div>
+                                    <div class="manual-step-body">
+                                        <h3>Save</h3>
+                                        <p>Click <strong>Save targets</strong>.</p>
+                                    </div>
+                                </div>
                             </div>
-
-                            <h3>4. Fill in your monthly goals</h3>
-                            <p>Enter a peso profit goal and an on-time-delivery number for each of the quarter's three months. The totals below add these up for you automatically — you don't need to calculate them yourself.</p>
-
-                            <h3>5. Save</h3>
-                            <p>Click <strong>Save targets</strong>. That's it — the dashboard updates right away.</p>
+                            <div class="manual-done-note">
+                                <i data-lucide="check-circle-2"></i>
+                                Done — the dashboard updates right away.
+                            </div>
                         </div>
                     </div>
 
@@ -229,23 +292,47 @@
                         </div>
                         <p class="manual-tagline">Turns your KPI data into a printable report you can save as a PDF.</p>
                         <div class="manual-content">
-                            <h3>1. Open the KPI Dashboard</h3>
-                            <p>Click <strong>KPI Dashboard</strong> in the sidebar.</p>
-
-                            <h3>2. Click "Generate report"</h3>
-                            <p>It's the button at the top of the page.</p>
-
-                            <h3>3. Pick a date range</h3>
-                            <p>Choose a starting quarter and an ending quarter — that's the period the report will cover.</p>
-
-                            <h3>4. Click "Generate"</h3>
-                            <p>A new tab opens with the finished report: a plain-language summary, key numbers, trend charts, and a table comparing each quarter's actual results to its targets.</p>
-
-                            <h3>5. Print or save as PDF</h3>
-                            <p>The print window opens automatically. Choose your printer to print it, or choose "Save as PDF" to keep a digital copy.</p>
-                            <div class="manual-note alert-banner info">
-                                <i data-lucide="info"></i>
-                                <span>If you get an error instead of a report, you probably picked too wide a range — try a shorter one.</span>
+                            <div class="manual-guide-badge"><i data-lucide="list-ordered"></i> 5-step guide</div>
+                            <div class="manual-steps">
+                                <div class="manual-step">
+                                    <div class="manual-step-num">1</div>
+                                    <div class="manual-step-body">
+                                        <h3>Open the KPI Dashboard</h3>
+                                        <p>Click <strong>KPI Dashboard</strong> in the sidebar.</p>
+                                    </div>
+                                </div>
+                                <div class="manual-step">
+                                    <div class="manual-step-num">2</div>
+                                    <div class="manual-step-body">
+                                        <h3>Click "Generate report"</h3>
+                                        <p>It's the button at the top of the page.</p>
+                                    </div>
+                                </div>
+                                <div class="manual-step">
+                                    <div class="manual-step-num">3</div>
+                                    <div class="manual-step-body">
+                                        <h3>Pick a date range</h3>
+                                        <p>Choose a starting quarter and an ending quarter — that's the period the report will cover.</p>
+                                    </div>
+                                </div>
+                                <div class="manual-step">
+                                    <div class="manual-step-num">4</div>
+                                    <div class="manual-step-body">
+                                        <h3>Click "Generate"</h3>
+                                        <p>A new tab opens with the finished report: a plain-language summary, key numbers, trend charts, and a table comparing each quarter's actual results to its targets.</p>
+                                    </div>
+                                </div>
+                                <div class="manual-step">
+                                    <div class="manual-step-num">5</div>
+                                    <div class="manual-step-body">
+                                        <h3>Print or save as PDF</h3>
+                                        <p>The print window opens automatically. Choose your printer to print it, or choose "Save as PDF" to keep a digital copy.</p>
+                                        <div class="manual-note alert-banner info">
+                                            <i data-lucide="info"></i>
+                                            <span>If you get an error instead of a report, you probably picked too wide a range — try a shorter one.</span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -275,29 +362,57 @@
                         </div>
                         <p class="manual-tagline">Create a new project for a client, step by step.</p>
                         <div class="manual-content">
-                            <h3>1. Go to Projects</h3>
-                            <p>Click <strong>Projects</strong> in the sidebar, then click <strong>+ Add Project</strong>.</p>
-
-                            <h3>2. Pick the client</h3>
-                            <p>Search for the client and click their card, then click <strong>Continue</strong>.</p>
-
-                            <h3>3. Pick a starting point</h3>
-                            <p>Choose <strong>Start from Scratch</strong> for a brand-new setup, or pick a saved template to reuse specs from a past project. Click <strong>Continue</strong>.</p>
-                            <div class="manual-note alert-banner info">
-                                <i data-lucide="info"></i>
-                                <span>Every project you build from scratch is automatically saved as a template, so it shows up here for next time — no extra step needed.</span>
+                            <div class="manual-guide-badge"><i data-lucide="list-ordered"></i> 5-step guide</div>
+                            <div class="manual-steps">
+                                <div class="manual-step">
+                                    <div class="manual-step-num">1</div>
+                                    <div class="manual-step-body">
+                                        <h3>Go to Projects</h3>
+                                        <p>Click <strong>Projects</strong> in the sidebar, then click <strong>+ Add Project</strong>.</p>
+                                    </div>
+                                </div>
+                                <div class="manual-step">
+                                    <div class="manual-step-num">2</div>
+                                    <div class="manual-step-body">
+                                        <h3>Pick the client</h3>
+                                        <p>Search for the client and click their card, then click <strong>Continue</strong>.</p>
+                                    </div>
+                                </div>
+                                <div class="manual-step">
+                                    <div class="manual-step-num">3</div>
+                                    <div class="manual-step-body">
+                                        <h3>Pick a starting point</h3>
+                                        <p>Choose <strong>Start from Scratch</strong> for a brand-new setup, or pick a saved template to reuse specs from a past project. Click <strong>Continue</strong>.</p>
+                                        <div class="manual-note alert-banner info">
+                                            <i data-lucide="info"></i>
+                                            <span>Every project you build from scratch is automatically saved as a template, so it shows up here for next time — no extra step needed.</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="manual-step">
+                                    <div class="manual-step-num">4</div>
+                                    <div class="manual-step-body">
+                                        <h3>Fill in the details</h3>
+                                        <ul>
+                                            <li><strong>Project Name</strong> — pick from the list, or choose "Others" to type your own.</li>
+                                            <li><strong>Specifications</strong> — type of tank, shape, quantity, dimensions, and capacity.</li>
+                                            <li><strong>Materials list</strong> (only if you picked a template) — adjust or add materials; this can also be done later.</li>
+                                            <li><strong>Schedule</strong> — start and end dates.</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="manual-step">
+                                    <div class="manual-step-num">5</div>
+                                    <div class="manual-step-body">
+                                        <h3>Save</h3>
+                                        <p>Click <strong>Save Project</strong>.</p>
+                                    </div>
+                                </div>
                             </div>
-
-                            <h3>4. Fill in the details</h3>
-                            <ul>
-                                <li><strong>Project Name</strong> — pick from the list, or choose "Others" to type your own.</li>
-                                <li><strong>Specifications</strong> — type of tank, shape, quantity, dimensions, and capacity.</li>
-                                <li><strong>Materials list</strong> (only if you picked a template) — adjust or add materials; this can also be done later.</li>
-                                <li><strong>Schedule</strong> — start and end dates.</li>
-                            </ul>
-
-                            <h3>5. Save</h3>
-                            <p>Click <strong>Save Project</strong>. You'll land on that client's project list with a confirmation message.</p>
+                            <div class="manual-done-note">
+                                <i data-lucide="check-circle-2"></i>
+                                Done — you'll land on that client's project list with a confirmation message.
+                            </div>
                         </div>
                     </div>
 
@@ -309,37 +424,61 @@
                         </div>
                         <p class="manual-tagline">See where a project stands, and move it forward one step at a time.</p>
                         <div class="manual-content">
-                            <h3>1. Open the project</h3>
-                            <p>Go to <strong>Projects</strong> → click a client → click the eye icon on a project.</p>
-
-                            <h3>2. Read the tracker</h3>
-                            <p>The tracker at the top shows all 8 stages a project passes through — <strong>Planning → Procurement → Material Prep → Fabrication → Inspection → Painting → Completion → Delivery</strong> — with the current one highlighted, plus a progress bar that fills in on its own as stages are completed.</p>
-
-                            <h3>3. Log an update to move to the next stage</h3>
-                            <p>The <strong>Add Progress Update</strong> card changes depending on the current stage. Fill in what it asks for and click the button at the bottom:</p>
-                            <table>
-                                <thead><tr><th>Stage</th><th>What to fill in</th><th>Button to click</th></tr></thead>
-                                <tbody>
-                                    <tr><td>Planning</td><td>Upload shop drawings, then quotation files, then confirm payment</td><td>Follows on-screen prompts</td></tr>
-                                    <tr><td>Procurement</td><td>Nothing — unlocks once materials & labor are recorded</td><td>—</td></tr>
-                                    <tr><td>Material Prep</td><td>Check off Measuring & Marking</td><td>"Save Progress Update"</td></tr>
-                                    <tr><td>Fabrication</td><td>Check off Cutting, Assembly, Welding</td><td>"Save Progress Update"</td></tr>
-                                    <tr><td>Inspection</td><td>Check off Pressure Test & Soap Test</td><td>"Save Progress Update"</td></tr>
-                                    <tr><td>Painting</td><td>Upload photos + optional notes</td><td>"Save Progress Update"</td></tr>
-                                    <tr><td>Completion</td><td>Upload final photos + optional notes</td><td>"Save Progress Update"</td></tr>
-                                    <tr><td>Delivery</td><td>Confirm final payment, upload delivery photos</td><td>"Mark as Delivered & Complete"</td></tr>
-                                </tbody>
-                            </table>
-                            <div class="manual-note alert-banner warning">
-                                <i data-lucide="alert-triangle"></i>
-                                <span>Some stages need a payment settled first (in Payments) before they'll let you continue — you'll see a notice with a link if that's the case.</span>
+                            <div class="manual-guide-badge"><i data-lucide="list-ordered"></i> 5-step guide</div>
+                            <div class="manual-steps">
+                                <div class="manual-step">
+                                    <div class="manual-step-num">1</div>
+                                    <div class="manual-step-body">
+                                        <h3>Open the project</h3>
+                                        <p>Go to <strong>Projects</strong> → click a client → click the eye icon on a project.</p>
+                                    </div>
+                                </div>
+                                <div class="manual-step">
+                                    <div class="manual-step-num">2</div>
+                                    <div class="manual-step-body">
+                                        <h3>Read the tracker</h3>
+                                        <p>The tracker at the top shows all 8 stages a project passes through — <strong>Planning → Procurement → Material Prep → Fabrication → Inspection → Painting → Completion → Delivery</strong> — with the current one highlighted, plus a progress bar that fills in on its own as stages are completed.</p>
+                                    </div>
+                                </div>
+                                <div class="manual-step">
+                                    <div class="manual-step-num">3</div>
+                                    <div class="manual-step-body">
+                                        <h3>Log an update to move to the next stage</h3>
+                                        <p>The <strong>Add Progress Update</strong> card changes depending on the current stage. Fill in what it asks for and click the button at the bottom:</p>
+                                        <table>
+                                            <thead><tr><th>Stage</th><th>What to fill in</th><th>Button to click</th></tr></thead>
+                                            <tbody>
+                                                <tr><td>Planning</td><td>Upload shop drawings, then quotation files, then confirm payment</td><td>Follows on-screen prompts</td></tr>
+                                                <tr><td>Procurement</td><td>Nothing — unlocks once materials & labor are recorded</td><td>—</td></tr>
+                                                <tr><td>Material Prep</td><td>Check off Measuring & Marking</td><td>"Save Progress Update"</td></tr>
+                                                <tr><td>Fabrication</td><td>Check off Cutting, Assembly, Welding</td><td>"Save Progress Update"</td></tr>
+                                                <tr><td>Inspection</td><td>Check off Pressure Test & Soap Test</td><td>"Save Progress Update"</td></tr>
+                                                <tr><td>Painting</td><td>Upload photos + optional notes</td><td>"Save Progress Update"</td></tr>
+                                                <tr><td>Completion</td><td>Upload final photos + optional notes</td><td>"Save Progress Update"</td></tr>
+                                                <tr><td>Delivery</td><td>Confirm final payment, upload delivery photos</td><td>"Mark as Delivered & Complete"</td></tr>
+                                            </tbody>
+                                        </table>
+                                        <div class="manual-note alert-banner warning">
+                                            <i data-lucide="alert-triangle"></i>
+                                            <span>Some stages need a payment settled first (in Payments) before they'll let you continue — you'll see a notice with a link if that's the case.</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="manual-step">
+                                    <div class="manual-step-num">4</div>
+                                    <div class="manual-step-body">
+                                        <h3>Let an employee submit it instead</h3>
+                                        <p>Click <strong>Request from Employee</strong> to have someone on your team send the update from their end. It'll wait for your approval in Progress History.</p>
+                                    </div>
+                                </div>
+                                <div class="manual-step">
+                                    <div class="manual-step-num">5</div>
+                                    <div class="manual-step-body">
+                                        <h3>Check Progress History</h3>
+                                        <p>On the right, every update ever logged is listed with its status. Click one to see the full details, and approve or request changes on anything submitted by an employee.</p>
+                                    </div>
+                                </div>
                             </div>
-
-                            <h3>4. Let an employee submit it instead</h3>
-                            <p>Click <strong>Request from Employee</strong> to have someone on your team send the update from their end. It'll wait for your approval in Progress History.</p>
-
-                            <h3>5. Check Progress History</h3>
-                            <p>On the right, every update ever logged is listed with its status. Click one to see the full details, and approve or request changes on anything submitted by an employee.</p>
                         </div>
                     </div>
 
