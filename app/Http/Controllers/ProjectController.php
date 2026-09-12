@@ -57,7 +57,10 @@ class ProjectController extends Controller
                 ->with('error', 'That project no longer exists.');
         }
 
+        // Progress History is strictly a main-phase completion timeline — employee
+        // work-log check-ins live in the separate Pending Reviews panel below instead.
         $updates = ProjectUpdate::where('project_id', $id)
+                    ->where('type', 'admin_direct')
                     ->with('submittedBy')
                     ->orderBy('created_at', 'desc')
                     ->get();
@@ -67,7 +70,10 @@ class ProjectController extends Controller
                         ->first();
 
         $pendingUpdates = ProjectUpdate::where('project_id', $id)
+                            ->where('type', 'employee_submission')
                             ->where('status', 'pending_review')
+                            ->with('submittedBy')
+                            ->orderBy('created_at', 'desc')
                             ->get();
 
         $currentIndex = array_search($project->current_phase, $this->phases);
@@ -193,7 +199,9 @@ class ProjectController extends Controller
             abort(403, 'You do not have permission to view this project.');
         }
 
+        // Progress History is strictly a main-phase completion timeline.
         $updates = ProjectUpdate::where('project_id', $id)
+                    ->where('type', 'admin_direct')
                     ->where('status', 'approved')
                     ->orderBy('created_at', 'desc')
                     ->with('submittedBy')
@@ -227,6 +235,15 @@ class ProjectController extends Controller
         $shopDrawing['status'] = 'approved';
         $shopDrawing['revision_notes'] = null;
         $project->setPhaseData('planning.shop_drawing', $shopDrawing);
+
+        // Sync the Shop Drawing submission's Progress History card (if one exists from
+        // before sub-phase submissions stopped creating their own entries) so it reflects
+        // the client's approval instead of staying stuck on "Pending Client Approval".
+        ProjectUpdate::where('project_id', $project->id)
+            ->where('phase', 'planning')
+            ->where('update_label', 'shop_drawing')
+            ->where('status', 'pending_approval')
+            ->update(['status' => 'approved']);
 
         $newProgress = Project::SUBPHASE_PROGRESS['shop_drawing'];
 
@@ -327,8 +344,10 @@ class ProjectController extends Controller
             // 'completed' → both false, no form shown
         }
 
-        // Employee only sees approved updates in history
+        // Employee only sees the main-phase completion timeline, same as the client —
+        // not their own or others' individual work-log check-ins.
         $updates = ProjectUpdate::where('project_id', $id)
+                    ->where('type', 'admin_direct')
                     ->where('status', 'approved')
                     ->orderBy('created_at', 'desc')
                     ->get();
@@ -671,9 +690,25 @@ class ProjectController extends Controller
         };
     }
 
-    /** Create a ProjectUpdate record for an admin-driven phase advancement */
-    private function createAdminUpdate(Project $project, array $overrides = []): ProjectUpdate
+    /**
+     * Create a ProjectUpdate record for an admin-driven phase completion.
+     * Progress History only ever holds one entry per completed main phase —
+     * if one already exists for this project+phase (e.g. a double form submit),
+     * skip creating a duplicate.
+     */
+    private function createAdminUpdate(Project $project, array $overrides = []): ?ProjectUpdate
     {
+        $phase = $overrides['phase'] ?? $project->current_phase;
+
+        $alreadyRecorded = ProjectUpdate::where('project_id', $project->id)
+            ->where('phase', $phase)
+            ->where('type', 'admin_direct')
+            ->exists();
+
+        if ($alreadyRecorded) {
+            return null;
+        }
+
         $submittedBy = session('user_id')
             ?? \App\Models\User::where('role', 'admin')->value('id')
             ?? 1;
@@ -712,11 +747,9 @@ class ProjectController extends Controller
                 'progress'          => $newProgress,
             ]);
 
-            $this->createAdminUpdate($project, [
-                'update_label' => 'shop_drawing',
-                'work_done'    => 'Shop drawing and tank design marked as already completed by admin.',
-                'percentage'   => $newProgress,
-            ]);
+            // Sub-phase completions within Planning only move the phase's internal
+            // progress — Progress History only gets an entry once the whole Planning
+            // phase finishes (see handlePlanningPayment()).
 
             return redirect()->route('admin.project_view', $project->id)
                 ->with('success', 'Shop drawing step marked as already completed. Proceed to Project Quotation.');
@@ -753,12 +786,8 @@ class ProjectController extends Controller
             'submitted_at'       => now()->toDateTimeString(),
         ]);
 
-        $this->createAdminUpdate($project, [
-            'update_label' => 'shop_drawing',
-            'work_done'    => 'Shop drawing and tank design documents submitted to the client for review.',
-            'photos'       => array_merge($shopDrawingUrls, $tankDesignUrls),
-            'status'       => 'pending_approval',
-        ]);
+        // No Progress History entry here — this is a Planning sub-phase step, not a
+        // completed main phase. See handlePlanningPayment() for the Planning entry.
 
         NotificationService::shopDrawingSubmitted($project);
 
@@ -786,32 +815,34 @@ class ProjectController extends Controller
                 'progress'          => $newProgress,
             ]);
 
-            $this->createAdminUpdate($project, [
-                'update_label' => 'quotation',
-                'work_done'    => 'Project quotation marked as already completed by admin.',
-                'percentage'   => $newProgress,
-            ]);
+            // No Progress History entry — sub-phase completion only, not the full Planning phase.
 
             return redirect()->route('admin.project_view', $project->id)
                 ->with('success', 'Quotation step marked as already completed. Waiting for payment settlement.');
         }
 
-        $request->validate([
-            'quotation_files'   => 'required|array|min:1',
-            'quotation_files.*' => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
-        ]);
+        // The quotation itself is now sent from the Project Quotation page
+        // (see sendQuotationToClient()) instead of an uploaded file here.
+        return redirect()->route('admin.project_materials.detail', $project->id)
+            ->with('error', 'Send the quotation from the Project Quotation page to proceed to Payment.');
+    }
 
-        $quotationUrls = $this->storage->uploadMultiple($request->file('quotation_files'), 'projects/' . $project->id . '/quotations');
+    /*
+    |--------------------------------------------------------------------------
+    | Send Project Quotation to Client (triggered from the Project Quotation page)
+    |--------------------------------------------------------------------------
+    */
+    public function sendQuotationToClient($id)
+    {
+        $project = Project::findOrFail($id);
 
-        if (empty($quotationUrls)) {
-            return redirect()->back()
-                ->withInput()
-                ->withErrors(['quotation_files' => 'File upload failed. Please check your connection and try again.']);
+        if ($project->current_phase !== 'planning' || $project->current_sub_phase !== 'quotation') {
+            return redirect()->route('admin.project_materials.detail', $id)
+                ->with('error', 'This project is not currently waiting on a quotation to be sent.');
         }
 
         $project->setPhaseData('planning.quotation', [
             'status'  => 'sent',
-            'files'   => $quotationUrls,
             'sent_at' => now()->toDateTimeString(),
         ]);
 
@@ -822,16 +853,12 @@ class ProjectController extends Controller
             'progress'          => $newProgress,
         ]);
 
-        $this->createAdminUpdate($project, [
-            'update_label' => 'quotation',
-            'work_done'    => 'Project quotation sent to the client.',
-            'percentage'   => $newProgress,
-            'photos'       => $quotationUrls,
-        ]);
+        // No Progress History entry here — this is a Planning sub-phase step, not a
+        // completed main phase. See handlePlanningPayment() for the Planning entry.
 
         NotificationService::quotationSent($project);
 
-        return redirect()->route('admin.project_view', $project->id)
+        return redirect()->route('admin.project_materials.detail', $id)
             ->with('success', 'Quotation sent to the client. Waiting for payment settlement.');
     }
 

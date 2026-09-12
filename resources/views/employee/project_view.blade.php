@@ -54,44 +54,6 @@
                     <span class="pv-progress-badge" id="empProgressBadge">{{ $project->progress }}%</span>
                 </div>
                 <div class="emp-phase-steps" id="empPhaseSteps"></div>
-
-                @if($project->current_phase === 'planning')
-                @php
-                    $empSubPhaseLabels  = [
-                        'shop_drawing' => 'Shop Drawing / Tank Design',
-                        'quotation'    => 'Project Quotation',
-                        'payment'      => 'Payment',
-                    ];
-                    $empSubPhaseKeys    = array_keys($empSubPhaseLabels);
-                    $empCurrentSubIndex = array_search($project->current_sub_phase, $empSubPhaseKeys);
-                @endphp
-                <div style="margin-top:14px;margin-bottom:6px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);">
-                    {{ ucfirst(str_replace('_', ' ', $project->current_phase)) }} Phase &nbsp;·&nbsp; Sub-Phases
-                </div>
-                <div class="emp-phase-steps sub-phase-steps" style="margin-top:0;">
-                    @foreach($empSubPhaseLabels as $key => $label)
-                        @php
-                            $idx = array_search($key, $empSubPhaseKeys);
-                            if ($empCurrentSubIndex === false) {
-                                $subStatus = 'done';
-                            } elseif ($idx < $empCurrentSubIndex) {
-                                $subStatus = 'done';
-                            } elseif ($idx === $empCurrentSubIndex) {
-                                $subStatus = 'active';
-                            } else {
-                                $subStatus = 'pending';
-                            }
-                            $subIcon = $subStatus === 'done' ? 'check' : ($subStatus === 'active' ? 'loader' : 'circle');
-                        @endphp
-                        <div class="phase-step {{ $subStatus }}">
-                            <div class="phase-step-box">
-                                <div class="phase-step-icon"><i data-lucide="{{ $subIcon }}"></i></div>
-                                <div class="phase-step-label">{{ $label }}</div>
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
-                @endif
             </div>
 
             {{--

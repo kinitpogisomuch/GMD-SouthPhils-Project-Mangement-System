@@ -155,6 +155,7 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::get('/project-view/{id}', [ProjectController::class, 'adminView'])->name('project_view');
     Route::post('/project/{id}/advance-phase', [ProjectController::class, 'advancePhase'])->name('project.advance_phase');
     Route::post('/project/{id}/add-update', [ProjectController::class, 'addUpdate'])->name('project.add_update');
+    Route::post('/project/{id}/send-quotation', [ProjectController::class, 'sendQuotationToClient'])->name('project.send_quotation');
     Route::post('/project/{id}/request-update', [ProjectController::class, 'requestUpdate'])->name('project.request_update');
 
     // Approve: hits ProjectUpdateController@approve

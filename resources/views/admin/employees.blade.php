@@ -327,8 +327,8 @@
                         <span class="emp-field-err" id="addEmpContactErr"></span>
                     </div>
                     <div class="form-group">
-                        <label>Email Address </label>
-                        <input type="email" name="email" required maxlength="255"
+                        <label>Email Address <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
+                        <input type="email" name="email" maxlength="255"
                                placeholder="e.g. juan@gmail.com"
                                value="{{ old('email') }}"
                                oninput="empFieldError(this,'addEmpEmailErr'); addEmpUpdateAccountPreview()">

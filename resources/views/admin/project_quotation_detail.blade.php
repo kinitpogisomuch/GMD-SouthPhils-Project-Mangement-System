@@ -567,6 +567,17 @@
                     Summary only <span style="font-weight:400;color:var(--muted);">(just the grand total)</span>
                 </label>
                 <div style="display:flex;gap:10px;">
+                    @if($project->current_phase === 'planning' && $project->current_sub_phase === 'quotation')
+                    <form method="POST" action="{{ route('admin.project.send_quotation', $project->id) }}"
+                          onsubmit="return confirm('Send this quotation to the client? The project will advance to the Payment sub-phase.');">
+                        @csrf
+                        <button type="submit"
+                                style="display:flex;align-items:center;gap:7px;background:#2563eb;border:1.5px solid #2563eb;border-radius:10px;padding:8px 18px;font-size:13px;font-weight:700;color:#fff;cursor:pointer;">
+                            <i data-lucide="send" style="width:15px;height:15px;"></i>
+                            Send Quotation to Client
+                        </button>
+                    </form>
+                    @endif
                     <button type="button" id="printBOMBtn"
                             style="display:flex;align-items:center;gap:7px;background:none;border:1.5px solid rgba(0,0,0,0.18);border-radius:10px;padding:8px 18px;font-size:13px;font-weight:700;color:var(--dark);cursor:pointer;">
                         <i data-lucide="printer" style="width:15px;height:15px;"></i>

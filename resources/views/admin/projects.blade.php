@@ -474,6 +474,11 @@
             if (m) { m.classList.remove('show'); document.body.style.overflow = ''; }
         }
 
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
         var selectedClient = null;
         var selectedTemplateId = 'custom';
 
@@ -1658,14 +1663,6 @@
 
                     if (usedExistingTemplate) {
                         loadTemplateIntoAddForm(selectedTemplateId);
-                    } else if (quotationConversionData && quotationConversionData.tank_items && quotationConversionData.tank_items.length) {
-                        // Starting from scratch while converting — prefill with the tanks
-                        // the client actually asked for, instead of one blank row.
-                        quotationConversionData.tank_items.forEach(function (item) { addTankRow(item); });
-                        document.getElementById('bomSection').style.display = 'none';
-                        document.getElementById('materialsContainer').innerHTML = '';
-                        addMaterialIndex = 0;
-                        toggleMaterialsEmptyHint();
                     } else {
                         document.getElementById('bomSection').style.display = 'none';
                         addTankRow();

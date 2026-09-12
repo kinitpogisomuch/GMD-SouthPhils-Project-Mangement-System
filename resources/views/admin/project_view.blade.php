@@ -240,6 +240,57 @@
                 @endif
             </div>
 
+            @if($pendingUpdates->isNotEmpty())
+            <!-- Pending Employee Reviews (separate from Progress History) -->
+            <div class="pv-card" style="margin-top:20px;border:1.5px solid #fbbf24;background:#fffbeb;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <i data-lucide="inbox" style="width:18px;height:18px;color:#b45309;"></i>
+                        <h3 class="pv-card-title" style="margin-bottom:0;color:#92400e;">Pending Employee Reviews</h3>
+                    </div>
+                    <span style="font-size:12px;color:#92400e;font-weight:800;background:#fef3c7;padding:3px 10px;border-radius:999px;">
+                        {{ $pendingUpdates->count() }} {{ Str::plural('submission', $pendingUpdates->count()) }}
+                    </span>
+                </div>
+
+                <div style="display:flex;flex-direction:column;gap:10px;">
+                    @foreach($pendingUpdates as $update)
+                    <div class="pv-history-item" data-update-id="{{ $update->id }}" style="margin:0;">
+                        <div class="pv-history-card" style="background:#fff;" onclick="openUpdateModal({{ $update->id }})">
+                            <div class="pv-history-header">
+                                <div class="pv-history-title-col">
+                                    <div class="pv-history-phase-title">
+                                        {{ ucfirst(str_replace('_', ' ', $update->phase)) }} Phase
+                                        @if($update->update_label === 'revision')
+                                        <span class="pv-history-revision-badge">Revision</span>
+                                        @endif
+                                    </div>
+                                    <div class="pv-history-meta-row">
+                                        <i data-lucide="user"></i>
+                                        {{ $update->submittedBy->full_name ?? 'Employee' }}
+                                        <span class="pv-history-meta-dot"></span>
+                                        <i data-lucide="calendar"></i>
+                                        {{ $update->date_of_work->format('M d, Y') }}
+                                    </div>
+                                </div>
+                                <span class="pv-history-status-badge status-pending">
+                                    <i data-lucide="clock"></i>
+                                    Pending Review
+                                </span>
+                            </div>
+                            <div class="pv-history-body">
+                                <div>
+                                    <div class="pv-history-section-label">Work Done</div>
+                                    <div class="pv-work-text">{{ Str::limit($update->work_done, 100) }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+            @endif
+
             <!-- Side by Side: Add Update + Progress History -->
             <div class="pv-update-grid">
 
@@ -422,25 +473,21 @@
 
                         @elseif($project->current_phase === 'planning' && $subPhase === 'quotation')
 
-                            <div class="alert-banner info">
-                                <i data-lucide="info"></i>
-                                Project quotation must be settled before proceeding to the next sub-phase.
+                            <div style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;padding:20px;">
+                                <div style="width:64px;height:64px;border-radius:50%;background:#EAF0FF;display:flex;align-items:center;justify-content:center;">
+                                    <i data-lucide="info" style="width:32px;height:32px;color:#1e40af;"></i>
+                                </div>
+                                <div>
+                                    <p style="font-size:16px;font-weight:800;color:var(--dark);margin-bottom:6px;">Waiting for the Quotation to Be Sent</p>
+                                    <p style="font-size:13.5px;color:var(--muted);max-width:360px;line-height:1.6;">Project quotation must be settled before proceeding to the next sub-phase. Go to the <strong>Project Quotation</strong> page and click <strong>Send Quotation to Client</strong> there to advance this project to Payment.</p>
+                                </div>
+                                <a href="{{ route('admin.project_materials.detail', $project->id) }}" class="save-btn" style="display:inline-flex;align-items:center;gap:8px;font-size:13.5px;padding:11px 22px;text-decoration:none;">
+                                    <i data-lucide="package"></i>
+                                    Go to Project Quotation
+                                </a>
                             </div>
 
-                            <div class="form-group">
-                                <label class="log-label">QUOTATION FILES *</label>
-                                <label class="pv-upload-dropzone" id="quotationDropzone">
-                                    <i data-lucide="upload-cloud" style="width:32px;height:32px;color:var(--accent);"></i>
-                                    <span style="font-size:14px;font-weight:700;color:var(--text-primary);">Click to upload quotation documents</span>
-                                    <span style="font-size:12px;color:var(--muted);">PDF or images, up to 5 files, max 10MB each</span>
-                                    <input type="file" name="quotation_files[]" multiple accept=".pdf,image/*"
-                                           data-preview-id="quotationPreview" data-dropzone-id="quotationDropzone" data-max="5"
-                                           style="display:none;" onchange="previewAdminFiles(this)" required>
-                                </label>
-                                <div id="quotationPreview" class="pv-file-grid"></div>
-                            </div>
-
-                            @php $submitLabel = 'Send Quotation to Client'; @endphp
+                            @php $hideSubmitButton = true; @endphp
 
                         @elseif($project->current_phase === 'planning' && $subPhase === 'payment')
 
@@ -683,6 +730,8 @@
                         </div>
                         @endif
 
+                        <div id="addUpdateClientError" style="display:none;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:12px;margin-top:12px;color:#dc2626;font-size:13px;"></div>
+
                         </div>
 
                         <div id="progressFormFooter" style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px;padding-top:18px;border-top:1px solid var(--border);">
@@ -701,10 +750,12 @@
                                 Confirm Payment
                             </button>
                             @endif
+                            @if(empty($hideSubmitButton))
                             <button type="submit" class="save-btn" id="progressSubmitBtn" style="font-size:13.5px;padding:11px 24px;{{ ($showConfirmGate && !$revealFormFields) ? 'display:none;' : '' }}">
                                 <i data-lucide="save"></i>
                                 {{ $submitLabel ?? 'Save Progress Update' }}
                             </button>
+                            @endif
                         </div>
                     </form>
                     @endif
@@ -1187,7 +1238,7 @@
         $duration     = $project->duration ?? 'N/A';
         $currentPhase = $project->current_phase;
 
-        $updatesData = $updates->map(function($u) {
+        $updatesData = $updates->merge($pendingUpdates)->map(function($u) {
             // Ensure photos are full URLs, not raw storage paths
             $photos = collect($u->photos ?? [])->map(function($photo) {
                 // If already a full URL (starts with http), use as-is
@@ -1371,6 +1422,38 @@
             }
 
             if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        // Required file inputs on this form are visually hidden (a styled dropzone label
+        // sits on top of them), so the browser's native "please select a file" validation
+        // bubble can't be shown for them — it just silently blocks the submit instead.
+        // Check them ourselves and show a real error message when something's missing.
+        const addUpdateForm = document.getElementById('addUpdateForm');
+        if (addUpdateForm) {
+            addUpdateForm.addEventListener('submit', function (e) {
+                const errorBox = document.getElementById('addUpdateClientError');
+                const missing = [];
+
+                this.querySelectorAll('input[type="file"][required]').forEach((input) => {
+                    if (!input.files || input.files.length === 0) {
+                        const dropzone = document.getElementById(input.dataset.dropzoneId);
+                        if (dropzone) dropzone.style.borderColor = '#dc2626';
+                        const labelEl = input.closest('.form-group')?.querySelector('.log-label');
+                        missing.push(labelEl ? labelEl.textContent.trim() : 'a required file');
+                    }
+                });
+
+                if (missing.length > 0) {
+                    e.preventDefault();
+                    if (errorBox) {
+                        errorBox.innerHTML = missing.map((m) => '<div>• Please attach: ' + m + '</div>').join('');
+                        errorBox.style.display = 'block';
+                        errorBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                } else if (errorBox) {
+                    errorBox.style.display = 'none';
+                }
+            });
         }
 
         const openRequestModalBtn = document.getElementById('openRequestModal');
