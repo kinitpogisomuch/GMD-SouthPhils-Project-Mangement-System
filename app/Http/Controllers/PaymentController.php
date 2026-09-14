@@ -86,6 +86,26 @@ class PaymentController extends Controller
             ];
         })->sortBy(fn ($group) => ($group['needs_settlement'] ? '0_' : '1_') . strtolower($group['client']))->values();
 
+        $receipts = PaymentTransaction::with('payment.project')
+            ->whereNotNull('reference_number')
+            ->where('reference_number', '!=', '')
+            ->orderByDesc('payment_date')
+            ->get()
+            ->map(function (PaymentTransaction $tx) {
+                $receiptUrls = !empty($tx->receipt_urls) ? $tx->receipt_urls : array_filter([$tx->receipt_url]);
+
+                return [
+                    'or_number'    => $tx->reference_number,
+                    'client'       => $tx->payment->client ?? '—',
+                    'project'      => $tx->payment->project->name ?? '—',
+                    'stage'        => PaymentTransaction::stageLabel($tx->payment_stage),
+                    'amount'       => (float) $tx->amount_paid,
+                    'date_issued'  => $tx->payment_date,
+                    'receipt_urls' => array_values($receiptUrls),
+                ];
+            })
+            ->values();
+
         return view('admin.payments', compact(
             'clientGroups',
             'totalContractValue',
@@ -93,7 +113,8 @@ class PaymentController extends Controller
             'outstanding',
             'fullyPaid',
             'inProgress',
-            'pendingDown'
+            'pendingDown',
+            'receipts'
         ));
     }
 
@@ -112,8 +133,6 @@ class PaymentController extends Controller
             ->where('client', $clientName)
             ->where('status', '!=', 'archived')
             ->orderBy('name')
-            ->withSum('activeMaterials as bom_total', 'total_cost')
-            ->withSum('activeLabor as labor_total', 'total_cost')
             ->get(['id', 'name', 'client', 'client_type', 'status', 'created_at']);
 
         return view('admin.payments_client', compact('payments', 'clientName', 'availableProjects'));
@@ -123,7 +142,7 @@ class PaymentController extends Controller
     {
         $request->validate([
             'project_id'       => 'required|integer|exists:projects,id',
-            'contract_amount'  => 'required|numeric|min:1',
+            'markup'           => 'required|numeric|min:0',
             'payment_term_type'=> 'required|in:big_project,small_project',
         ]);
 
@@ -135,9 +154,15 @@ class PaymentController extends Controller
                 ->with('error', 'This project already has a payment record.');
         }
 
-        $contractAmount = (float) $request->contract_amount;
-        $termType       = $request->payment_term_type;
-        $termLabel      = $termType === 'big_project'
+        // Project Budget is computed server-side from the project's own BOM at the
+        // moment of setup — never trust a client-submitted total for this, since it
+        // determines Contract Value, down payment, and Budget Adherence.
+        $projectBudget  = $project->estimatedBudget()['total'];
+        $markup         = (float) $request->markup;
+        $contractAmount = round($projectBudget + $markup, 2);
+
+        $termType  = $request->payment_term_type;
+        $termLabel = $termType === 'big_project'
             ? '3 Phases (50% / 30% / 20%)'
             : '2 Phases (50% / 50%)';
 
@@ -146,6 +171,8 @@ class PaymentController extends Controller
             'client'            => $project->client,
             'client_type'       => $project->client_type,
             'contract_amount'   => $contractAmount,
+            'project_budget'    => $projectBudget,
+            'markup'            => $markup,
             'down_payment'      => round($contractAmount * 0.5, 2),
             'balance'           => $contractAmount,
             'status'            => 'Pending Down Payment',
@@ -192,9 +219,9 @@ class PaymentController extends Controller
             'amount_paid'      => 'required|numeric|min:0.01',
             'payment_date'     => 'required|date|after_or_equal:today',
             'mode_of_payment'  => 'nullable|string|in:cheque,bank_transfer,cash',
-            'reference_number' => 'nullable|string|max:100',
+            'reference_number' => 'required|string|max:100',
             'notes'            => 'nullable|string|max:1000',
-            'receipt_files'    => 'nullable|array|max:5',
+            'receipt_files'    => 'required|array|min:1|max:5',
             'receipt_files.*'  => 'file|mimes:pdf,jpg,jpeg,png|max:10240',
         ]);
 

@@ -13,6 +13,7 @@ class Employee extends Model
         'first_name',
         'last_name',
         'profile_photo',
+        'gcash_qr',
         'contact',
         'email',
         'address',

@@ -332,6 +332,33 @@ class ProfileController extends Controller
             ->with('success', 'Profile photo removed.');
     }
 
+    public function uploadEmployeeGcashQr(Request $request)
+    {
+        $employee = Employee::findOrFail(session('user_id'));
+
+        $request->validate([
+            'gcash_qr' => 'required|image|mimes:jpeg,jpg,png,webp|max:4096',
+        ]);
+
+        $storage = app(SupabaseStorageService::class);
+        $url     = $storage->upload($request->file('gcash_qr'), 'gcash-qr/employee/' . $employee->id);
+
+        if ($url) {
+            $employee->update(['gcash_qr' => $url]);
+        }
+
+        return redirect()->route('employee.settings')
+            ->with('success', 'GCash QR code updated.');
+    }
+
+    public function removeEmployeeGcashQr()
+    {
+        Employee::findOrFail(session('user_id'))->update(['gcash_qr' => null]);
+
+        return redirect()->route('employee.settings')
+            ->with('success', 'GCash QR code removed.');
+    }
+
     public function removeClientPhoto()
     {
         $this->removePhoto(Client::findOrFail(session('user_id')));

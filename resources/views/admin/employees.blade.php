@@ -251,7 +251,8 @@
                                     <th>Employee Name</th>
                                     <th>Role</th>
                                     <th>Daily Rate</th>
-                                    <th>Days Worked</th>
+                                    <th>Full Days</th>
+                                    <th>Half Day</th>
                                     <th>OT Hours</th>
                                     <th>OT Pay</th>
                                     <th>Gross Pay</th>
@@ -261,7 +262,7 @@
                             </thead>
                             <tbody id="salaryTableBody">
                                 <tr id="salaryLoadingRow">
-                                    <td colspan="9" style="text-align:center;color:var(--muted);padding:0;">
+                                    <td colspan="10" style="text-align:center;color:var(--muted);padding:0;">
                                         <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:260px;">
                                             <i data-lucide="loader" style="width:28px;height:28px;opacity:0.4;"></i>
                                             <span style="font-size:14px;font-weight:600;">Loading...</span>
@@ -695,6 +696,24 @@
         </div>
     </div>
 
+    <!-- ===== GCASH QR PREVIEW MODAL ===== -->
+    <!-- Opens on top of Record Salary — needs a higher z-index since same-z-index
+         .modal-overlays otherwise stack by DOM order, not open order. -->
+    <div class="modal-overlay" id="gcashQrPreviewModal" style="z-index:600;">
+        <div class="modal-card" style="max-width:360px;text-align:center;">
+            <div class="modal-header">
+                <div>
+                    <h2 style="font-size:16px;">GCash QR Code</h2>
+                    <p id="gcashQrPreviewName"></p>
+                </div>
+                <button class="modal-close" type="button" onclick="closeGcashQrPreview()">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <img id="gcashQrPreviewImg" src="" alt="GCash QR" style="width:100%;max-width:300px;aspect-ratio:1;object-fit:contain;border-radius:12px;background:#fff;border:1px solid var(--border);margin:0 auto;">
+        </div>
+    </div>
+
     <!-- ===== RECORD SALARY MODAL ===== -->
     <div class="modal-overlay" id="recordPaymentModal">
         <div class="modal-card" style="max-width:620px;">
@@ -811,6 +830,36 @@
                                    oninput="updatePayPreview()"
                                    style="width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;background:#fff;">
                         </div>
+                    </div>
+                </div>
+
+                {{-- ── Payment Method ── --}}
+                <div style="margin-bottom:14px;">
+                    <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px;">Payment Method</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;" id="rpPaymentMethodGroup">
+                        <label class="mop-option" for="rpPmCash">
+                            <input type="radio" name="rpPaymentMethod" id="rpPmCash" value="cash" checked style="display:none;" onchange="highlightSalaryPm()">
+                            <i data-lucide="banknote" style="width:16px;height:16px;"></i>
+                            Cash
+                        </label>
+                        <label class="mop-option" for="rpPmGcash">
+                            <input type="radio" name="rpPaymentMethod" id="rpPmGcash" value="gcash" style="display:none;" onchange="highlightSalaryPm()">
+                            <i data-lucide="smartphone" style="width:16px;height:16px;"></i>
+                            GCash
+                        </label>
+                    </div>
+
+                    <div id="rpGcashQrBox" style="display:none;margin-top:10px;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--cream-soft);align-items:center;gap:14px;">
+                        <img id="rpGcashQrImg" src="" alt="GCash QR" title="Click to enlarge"
+                             style="width:96px;height:96px;object-fit:contain;border-radius:8px;background:#fff;border:1px solid var(--border);flex-shrink:0;cursor:pointer;"
+                             onclick="openGcashQrPreview()">
+                        <div style="font-size:12px;color:var(--muted);">
+                            <div style="font-weight:700;color:var(--dark);margin-bottom:2px;">Scan to pay via GCash</div>
+                            This is <span id="rpGcashQrEmpName">this employee</span>'s registered GCash QR code.
+                        </div>
+                    </div>
+                    <div id="rpGcashQrMissing" style="display:none;margin-top:10px;padding:10px 12px;border:1px solid #fde68a;border-radius:12px;background:#fffbeb;color:#92400e;font-size:12px;font-weight:600;">
+                        This employee hasn't uploaded a GCash QR code yet.
                     </div>
                 </div>
 
@@ -1184,6 +1233,7 @@
                 'role'          => $e->role ?? 'Employee',
                 'daily_rate'    => (float) ($e->daily_rate ?? 0),
                 'profile_photo' => $e->profile_photo,
+                'gcash_qr'      => $e->gcash_qr,
             ];
         })->values();
     @endphp
@@ -1191,6 +1241,7 @@
     var pickedSalaryEmployee = null;
     var CURRENT_SALARY_RECORDS = [];
     var currentSalaryPeriod = null;
+    var currentSalaryGcashQr = null;
 
     // Returns the Monday of the week containing `date`, formatted as "YYYY-MM-DD"
     function currentPayPeriod() {
@@ -1326,7 +1377,7 @@
 
     function loadSalaryRecords(payPeriod) {
         var tbody  = document.getElementById('salaryTableBody');
-        tbody.innerHTML = '<tr id="salaryLoadingRow"><td colspan="9" style="text-align:center;color:var(--muted);padding:0;"><div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:260px;"><i data-lucide="loader" style="width:28px;height:28px;opacity:0.4;"></i><span style="font-size:14px;font-weight:600;">Loading...</span></div></td></tr>';
+        tbody.innerHTML = '<tr id="salaryLoadingRow"><td colspan="10" style="text-align:center;color:var(--muted);padding:0;"><div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:260px;"><i data-lucide="loader" style="width:28px;height:28px;opacity:0.4;"></i><span style="font-size:14px;font-weight:600;">Loading...</span></div></td></tr>';
         if (window.lucide) lucide.createIcons();
 
         var url = SALARY_INDEX_URL + (payPeriod ? ('?pay_period=' + encodeURIComponent(payPeriod)) : '') + '&_=' + Date.now();
@@ -1350,7 +1401,7 @@
         CURRENT_SALARY_RECORDS = records || [];
 
         if (!records || records.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:48px 20px;"><div style="display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--muted);"><i data-lucide="inbox" style="width:36px;height:36px;opacity:0.4;"></i><span style="font-size:14px;font-weight:600;">No salary records yet.</span></div></td></tr>';
+            tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:48px 20px;"><div style="display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--muted);"><i data-lucide="inbox" style="width:36px;height:36px;opacity:0.4;"></i><span style="font-size:14px;font-weight:600;">No salary records yet.</span></div></td></tr>';
             if (window.lucide) lucide.createIcons();
             document.getElementById('summaryGross').textContent = '₱0.00';
             return;
@@ -1360,6 +1411,8 @@
             var hasRecord  = !!r.id;
             var dailyRate  = parseFloat(r.daily_rate)       || 0;
             var daysWorked = parseFloat(r.days_worked)      || 0;
+            var halfDays   = parseFloat(r.half_days)        || 0;
+            var fullDays   = Math.max(0, daysWorked - halfDays * 0.5);
             var otHours    = parseFloat(r.overtime_hours)   || 0;
             var otPay      = otHours * (dailyRate / 8);
             var grossPay   = (dailyRate * daysWorked) + otPay;
@@ -1378,7 +1431,8 @@
                 + '<td style="font-weight:600;">'                                          + escHtml(r.employee_name) + '</td>'
                 + '<td>'                                                                   + escHtml(r.role || '—') + '</td>'
                 + '<td>₱'                                                                  + fmt(dailyRate) + '</td>'
-                + '<td>'                                                                   + (hasRecord ? daysWorked : '—') + '</td>'
+                + '<td>'                                                                   + (hasRecord ? fullDays : '—') + '</td>'
+                + '<td>'                                                                   + (hasRecord ? (halfDays > 0 ? halfDays : '—') : '—') + '</td>'
                 + '<td style="color:' + (otHours > 0 ? '#2563eb' : 'var(--muted)') + ';">'+ (otHours > 0 ? otHours + ' hrs' : '—') + '</td>'
                 + '<td style="color:' + (otPay   > 0 ? '#2563eb' : 'var(--muted)') + ';">'+ (otPay   > 0 ? '₱' + fmt(otPay) : '—') + '</td>'
                 + '<td>'                                                                   + (hasRecord ? '₱' + fmt(grossPay) : '—') + '</td>'
@@ -1407,7 +1461,7 @@
         document.getElementById('recordPaymentForm').style.display = (step === 2) ? '' : 'none';
     }
 
-    function setSalarySelectedEmployee(name, role, rate, type, period, photo) {
+    function setSalarySelectedEmployee(name, role, rate, type, period, photo, gcashQr) {
         var parts = (name || '').trim().split(/\s+/);
         var initials = parts.length >= 2
             ? parts[0].charAt(0).toUpperCase() + parts[parts.length-1].charAt(0).toUpperCase()
@@ -1432,6 +1486,12 @@
             var e = new Date(d); e.setDate(e.getDate() + 6);
             periodEl.textContent = 'Week of ' + formatPayPeriodDate(d) + ' – ' + formatPayPeriodDate(e);
         }
+
+        currentSalaryGcashQr = gcashQr || null;
+        var qrNameEl = document.getElementById('rpGcashQrEmpName');
+        if (qrNameEl) qrNameEl.textContent = name || 'This employee';
+        highlightSalaryPm();
+
         if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
@@ -1505,15 +1565,16 @@
         document.getElementById('recordPaymentTitle').textContent    = rec.id ? 'Edit Salary Record' : 'Record Salary';
         document.getElementById('recordPaymentSubtitle').textContent = 'Update the weekly salary for ' + rec.employee_name + '.';
 
-        setSalarySelectedEmployee(rec.employee_name, rec.role, rec.daily_rate, rec.employee_type, rec.pay_period, rec.profile_photo);
+        setSalarySelectedEmployee(rec.employee_name, rec.role, rec.daily_rate, rec.employee_type, rec.pay_period, rec.profile_photo, rec.gcash_qr);
         document.getElementById('rpDailyRate').value      = rec.daily_rate;
         var storedDays = parseFloat(rec.days_worked) || 0;
-        var fullPart   = Math.floor(storedDays);
-        var halfPart   = Math.round((storedDays - fullPart) / 0.5);
+        var halfPart   = parseFloat(rec.half_days) || 0;
+        var fullPart   = storedDays - halfPart * 0.5;
         document.getElementById('rpFullDays').value       = fullPart || '';
         document.getElementById('rpHalfDays').value       = halfPart || '';
         document.getElementById('rpDays').value           = storedDays;
         document.getElementById('rpOvertimeHours').value  = rec.overtime_hours || '';
+        setSalaryPaymentMethod(rec.payment_method || 'cash');
         loadSalaryProjects(rec.project_ids || (rec.project_id ? [rec.project_id] : []));
 
         document.getElementById('backSalaryStep2').style.display = 'none';
@@ -1534,6 +1595,7 @@
         document.getElementById('rpHalfDays').value       = '';
         document.getElementById('rpDays').value           = '';
         document.getElementById('rpOvertimeHours').value  = '';
+        setSalaryPaymentMethod('cash');
         var pb = document.getElementById('rpPayBreakdown');
         var ap = document.getElementById('rpAllocationPreview');
         if (pb) pb.style.display = 'none';
@@ -1548,6 +1610,47 @@
         renderSalaryEmployeePicker('');
         showSalaryStep(1);
         openEmpModal('recordPaymentModal');
+    }
+
+    function highlightSalaryPm() {
+        document.querySelectorAll('#rpPaymentMethodGroup .mop-option').forEach(function(lbl) {
+            var inp = lbl.querySelector('input[type=radio]');
+            lbl.classList.toggle('mop-selected', inp && inp.checked);
+        });
+
+        var pmChecked = document.querySelector('input[name="rpPaymentMethod"]:checked');
+        var isGcash   = pmChecked && pmChecked.value === 'gcash';
+        var qrBox     = document.getElementById('rpGcashQrBox');
+        var qrMissing = document.getElementById('rpGcashQrMissing');
+
+        if (isGcash && currentSalaryGcashQr) {
+            document.getElementById('rpGcashQrImg').src = currentSalaryGcashQr;
+            qrBox.style.display     = 'flex';
+            qrMissing.style.display = 'none';
+        } else if (isGcash) {
+            qrBox.style.display     = 'none';
+            qrMissing.style.display = 'block';
+        } else {
+            qrBox.style.display     = 'none';
+            qrMissing.style.display = 'none';
+        }
+    }
+
+    function openGcashQrPreview() {
+        if (!currentSalaryGcashQr) return;
+        document.getElementById('gcashQrPreviewImg').src         = currentSalaryGcashQr;
+        document.getElementById('gcashQrPreviewName').textContent = document.getElementById('salarySelectedName').textContent || '';
+        openEmpModal('gcashQrPreviewModal');
+    }
+
+    function closeGcashQrPreview() {
+        closeEmpModal('gcashQrPreviewModal');
+    }
+
+    function setSalaryPaymentMethod(method) {
+        var input = document.querySelector('input[name="rpPaymentMethod"][value="' + (method === 'gcash' ? 'gcash' : 'cash') + '"]');
+        if (input) input.checked = true;
+        highlightSalaryPm();
     }
 
     function updatePayPreview() {
@@ -1628,7 +1731,7 @@
             if (!pickedSalaryEmployee) { alert('Please select an outsourced worker to continue.'); return; }
             document.getElementById('rpEmployee').value  = pickedSalaryEmployee.id;
             document.getElementById('rpDailyRate').value = pickedSalaryEmployee.daily_rate || '';
-            setSalarySelectedEmployee(pickedSalaryEmployee.name, pickedSalaryEmployee.role, pickedSalaryEmployee.daily_rate, 'Outsourced', currentSalaryPeriod || TODAY_PAY_PERIOD, pickedSalaryEmployee.profile_photo);
+            setSalarySelectedEmployee(pickedSalaryEmployee.name, pickedSalaryEmployee.role, pickedSalaryEmployee.daily_rate, 'Outsourced', currentSalaryPeriod || TODAY_PAY_PERIOD, pickedSalaryEmployee.profile_photo, pickedSalaryEmployee.gcash_qr);
             document.getElementById('backSalaryStep2').style.display = '';
             showSalaryStep(2);
             updatePayPreview();
@@ -1678,12 +1781,16 @@
                 });
             }
 
+            var pmChecked = document.querySelector('input[name="rpPaymentMethod"]:checked');
+
             var payload = {
                 employee_id:    document.getElementById('rpEmployee').value,
                 project_ids:    projIds,
                 pay_period:     document.getElementById('rpPeriod').value,
                 days_worked:    totalDays,
+                half_days:      halfD,
                 overtime_hours: totalOT,
+                payment_method: pmChecked ? pmChecked.value : 'cash',
                 allocations:    allocations,
             };
 
@@ -1741,6 +1848,8 @@
 
         var dailyRate  = parseFloat(r.daily_rate)        || 0;
         var daysWorked = parseFloat(r.days_worked)       || 0;
+        var halfDays   = parseFloat(r.half_days)         || 0;
+        var fullDays   = Math.max(0, daysWorked - halfDays * 0.5);
         var otHours    = parseFloat(r.overtime_hours)    || 0;
         var otPay      = parseFloat(r.overtime_pay)      || (otHours * dailyRate / 8);
         var basicPay   = dailyRate * daysWorked;
@@ -1765,6 +1874,7 @@
         var dedSection = deductions > 0
             ? detailRow('Deductions', '- ₱' + fmt(deductions), 'color:#dc2626;')
             : '';
+        var pmLabel = r.payment_method === 'gcash' ? 'GCash' : 'Cash';
 
         document.getElementById('salaryDetailBody').innerHTML =
             '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">'
@@ -1772,10 +1882,12 @@
             + '</div>'
             + '<div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;">'
             + detailRow('Daily Rate', '₱' + fmt(dailyRate))
-            + detailRow('Days Worked', daysWorked + ' days')
+            + detailRow('Full Days', fullDays + ' days')
+            + detailRow('Half Day', halfDays + (halfDays === 1 ? ' day' : ' days'))
             + detailRow('Basic Pay', '₱' + fmt(basicPay))
             + detailRow('Overtime (' + otHours + ' hrs)', otHours > 0 ? '₱' + fmt(otPay) : '0.00', otHours > 0 ? 'color:#2563eb;' : 'color:var(--muted);')
             + detailRow('Gross Pay', '₱' + fmt(grossPay))
+            + detailRow('Payment Method', pmLabel)
             + dedSection
             + '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-top:2px solid var(--border);background:var(--cream-soft);">'
                 + '<span style="font-size:14px;font-weight:900;color:var(--dark);">NET PAY</span>'
@@ -2026,6 +2138,31 @@
     font-size: 11.5px;
     margin-top: 4px;
     line-height: 1.4;
+}
+.mop-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--muted);
+    background: var(--white);
+    transition: all .18s ease;
+    user-select: none;
+}
+.mop-option:hover {
+    border-color: var(--dark);
+    color: var(--dark);
+}
+.mop-option.mop-selected {
+    background: var(--dark);
+    border-color: var(--dark);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(14,20,40,.25);
 }
 </style>
 </body>

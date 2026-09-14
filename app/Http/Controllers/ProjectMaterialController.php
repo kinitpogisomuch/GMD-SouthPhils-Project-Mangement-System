@@ -170,7 +170,7 @@ class ProjectMaterialController extends Controller
             'price_per_unit.*'   => 'required|numeric|min:0',
             'unit'               => 'nullable|array',
             'unit.*'             => 'nullable|string|max:50',
-            'factor'             => 'nullable|numeric|min:0|max:100',
+            'factor'             => 'required|numeric|min:0|max:100',
             'notes'              => 'nullable|array',
             'notes.*'            => 'nullable|string',
         ]);
@@ -182,7 +182,7 @@ class ProjectMaterialController extends Controller
         $prices    = $request->input('price_per_unit');
         $units     = $request->input('unit', []);
         $notes     = $request->input('notes', []);
-        $factor    = $request->filled('factor') ? (float) $request->input('factor') : 7;
+        $factor    = (float) $request->input('factor');
 
         $createdCount = 0;
         $updatedCount = 0;

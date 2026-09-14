@@ -68,13 +68,16 @@ class SalaryController extends Controller
             'role'             => $employee->role ?? '—',
             'employee_type'    => $employee->employee_type ?? 'Regular',
             'profile_photo'    => $employee->profile_photo,
+            'gcash_qr'         => $employee->gcash_qr,
             'pay_period'       => $payPeriod,
             'daily_rate'       => (float) ($employee->daily_rate ?? 0),
             'days_worked'      => 0,
+            'half_days'        => 0,
             'overtime_hours'   => 0,
             'gross_pay'        => 0,
             'total_deductions' => 0,
             'net_pay'          => 0,
+            'payment_method'   => 'cash',
             'notes'            => null,
         ];
     }
@@ -88,7 +91,9 @@ class SalaryController extends Controller
             'project_ids'    => 'nullable|array',
             'project_ids.*'  => 'exists:projects,id',
             'days_worked'    => 'required|numeric|min:0|max:7',
+            'half_days'      => 'nullable|numeric|min:0|max:7',
             'overtime_hours' => 'nullable|numeric|min:0|max:24',
+            'payment_method' => 'required|in:cash,gcash',
             'notes'          => 'nullable|string|max:500',
         ]);
 
@@ -101,7 +106,9 @@ class SalaryController extends Controller
             'pay_period'     => $validated['pay_period'],
             'daily_rate'     => $employee->daily_rate ?? 0,
             'days_worked'    => $validated['days_worked'],
+            'half_days'      => $validated['half_days'] ?? 0,
             'overtime_hours' => $validated['overtime_hours'] ?? 0,
+            'payment_method' => $validated['payment_method'],
             'notes'          => $validated['notes'] ?? null,
         ]);
 
@@ -126,7 +133,9 @@ class SalaryController extends Controller
 
         $validated = $request->validate([
             'days_worked'    => 'required|numeric|min:0|max:7',
+            'half_days'      => 'nullable|numeric|min:0|max:7',
             'overtime_hours' => 'nullable|numeric|min:0|max:24',
+            'payment_method' => 'required|in:cash,gcash',
             'project_ids'    => 'nullable|array',
             'project_ids.*'  => 'exists:projects,id',
             'notes'          => 'nullable|string|max:500',
@@ -137,12 +146,14 @@ class SalaryController extends Controller
         $data = SalaryRecord::compute([
             'daily_rate'     => (float) $record->daily_rate,
             'days_worked'    => $validated['days_worked'],
+            'half_days'      => $validated['half_days'] ?? 0,
             'overtime_hours' => $validated['overtime_hours'] ?? 0,
         ]);
 
         $record->update(array_merge($data, [
-            'project_id' => count($projectIds) === 1 ? $projectIds[0] : null,
-            'notes'      => $validated['notes'] ?? $record->notes,
+            'project_id'     => count($projectIds) === 1 ? $projectIds[0] : null,
+            'payment_method' => $validated['payment_method'],
+            'notes'          => $validated['notes'] ?? $record->notes,
         ]));
 
         $record->projects()->sync($this->buildPivotData(
@@ -212,14 +223,17 @@ class SalaryController extends Controller
             'role'             => $r->employee->role ?? '—',
             'employee_type'    => $r->employee->employee_type ?? 'Regular',
             'profile_photo'    => $r->employee->profile_photo ?? null,
+            'gcash_qr'         => $r->employee->gcash_qr ?? null,
             'pay_period'       => $r->pay_period,
             'daily_rate'       => $dailyRate,          // snapshot — not current employee rate
             'days_worked'      => $daysWorked,
+            'half_days'        => (float) $r->half_days,
             'overtime_hours'   => $overtimeHours,
             'overtime_pay'     => round($overtimePay, 2),
             'gross_pay'        => (float) $r->gross_pay,
             'total_deductions' => (float) $r->total_deductions,
             'net_pay'          => (float) $r->net_pay,
+            'payment_method'   => $r->payment_method ?? 'cash',
             'notes'            => $r->notes,
             'project_ids'      => $r->relationLoaded('projects')
                 ? $r->projects->pluck('id')->toArray()

@@ -11,6 +11,8 @@ class Payment extends Model
         'client',
         'client_type',
         'contract_amount',
+        'project_budget',
+        'markup',
         'down_payment',
         'balance',
         'status',
@@ -21,6 +23,8 @@ class Payment extends Model
 
     protected $casts = [
         'contract_amount' => 'decimal:2',
+        'project_budget'  => 'decimal:2',
+        'markup'          => 'decimal:2',
         'down_payment'    => 'decimal:2',
         'balance'         => 'decimal:2',
         'date'            => 'date',

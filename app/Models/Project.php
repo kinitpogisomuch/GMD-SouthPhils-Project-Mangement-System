@@ -143,6 +143,28 @@ class Project extends Model
         return $this->hasMany(ProjectLabor::class)->where('status', 'active');
     }
 
+    /**
+     * The internal cost estimate from the current BOM — materials include their
+     * per-material factor (waste/handling allowance), labor is raw. This is the
+     * Project Budget: it excludes the owner's profit markup, which is tracked
+     * separately (see Payment::markup) so cost KPIs are never inflated by profit.
+     */
+    public function estimatedBudget(): array
+    {
+        $materials = round($this->activeMaterials()->get()->sum(function ($material) {
+            $factor = $material->factor ?? 7;
+            return (float) $material->total_cost * (1 + $factor / 100);
+        }), 2);
+
+        $labor = round((float) $this->activeLabor()->sum('total_cost'), 2);
+
+        return [
+            'materials' => $materials,
+            'labor'     => $labor,
+            'total'     => round($materials + $labor, 2),
+        ];
+    }
+
     // Relationship: Project has many assigned employees
     public function assignedEmployees()
     {

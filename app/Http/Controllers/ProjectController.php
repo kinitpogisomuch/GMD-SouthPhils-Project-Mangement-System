@@ -89,33 +89,30 @@ class ProjectController extends Controller
         $clientEmail    = $project->email          ?? ($clientRecord?->email    ?? null);
 
         // ── Financial data ──────────────────────────────────────────────
-        $payment        = $project->getPaymentRecord();
+        $payment = $project->getPaymentRecord();
 
-        // Raw estimated costs from BOM and labor records
-        $rawMatCost   = (float) $project->activeMaterials()->sum('total_cost');
-        $rawLaborCost = (float) $project->activeLabor()->sum('total_cost');
-        $rawTotal     = $rawMatCost + $rawLaborCost;
+        // Live estimate from the current BOM — this is what Est. Materials / Est.
+        // Labor always display, regardless of payment setup, so scope drift during
+        // fabrication stays visible.
+        $estBudget       = $project->estimatedBudget();
+        $estMaterialCost = $estBudget['materials'];
+        $estLaborCost    = $estBudget['labor'];
 
-        // Project Quotation total (BOM with markup + labor) — used for BOM/print view
-        $projectGrandTotal = $project->activeMaterials()->get()->sum(function ($material) {
-            $factor = $material->factor ?? 7;
-            return round((float) $material->total_cost * (1 + $factor / 100), 2);
-        }) + $rawLaborCost;
+        // Project Budget = Est. Materials + Est. Labor ONLY — no markup. Frozen at
+        // the moment payment terms were set up so Budget Adherence measures against
+        // a fixed target instead of a number that moves every time the BOM changes.
+        // Falls back to the live BOM estimate before a payment record exists yet
+        // (or for payments created before this field existed).
+        $projectBudget = $payment && (float) $payment->project_budget > 0
+            ? (float) $payment->project_budget
+            : $estBudget['total'];
 
-        // Contract Value = the agreed total project cost from the payment record
-        $contractAmount = $payment ? (float) $payment->contract_amount : $projectGrandTotal;
+        // Markup = the owner's profit, entered once at payment setup. Kept fully
+        // separate from Project Budget so cost-based KPIs are never inflated by it.
+        $markup = $payment ? (float) $payment->markup : 0;
 
-        // Scale Est. Materials and Est. Labor proportionally so they sum to the Contract Value
-        if ($rawTotal > 0 && $contractAmount > 0) {
-            $matRatio        = $rawMatCost / $rawTotal;
-            $estMaterialCost = round($contractAmount * $matRatio, 2);
-            $estLaborCost    = round($contractAmount - $estMaterialCost, 2);
-        } else {
-            $estMaterialCost = $rawMatCost;
-            $estLaborCost    = $rawLaborCost;
-        }
-
-        $estTotalCost = $estMaterialCost + $estLaborCost; // always equals $contractAmount
+        // Contract Value = Project Budget + Markup — the client-facing price.
+        $contractAmount = $payment ? (float) $payment->contract_amount : $projectBudget;
 
         // Total received across all payment stages
         $totalReceived = $payment
@@ -145,6 +142,13 @@ class ProjectController extends Controller
         $matVariance   = $estMaterialCost - $actMaterialCost;
         $laborVariance = $estLaborCost    - $actLaborCost;
 
+        // Budget Adherence = actual materials+labor spend against Project Budget.
+        // Markup/profit never enters this — it's a pure cost KPI. Uncapped so an
+        // overrun reads as e.g. 130%, not silently floored at 100%.
+        $budgetAdherence = $projectBudget > 0
+            ? round((($actMaterialCost + $actLaborCost) / $projectBudget) * 100, 1)
+            : null;
+
         // Net Profit = Contract Value - Materials - Labor - Overhead Share
         $profit = $contractAmount > 0
             ? $contractAmount - $actMaterialCost - $actLaborCost - $overheadShare
@@ -165,10 +169,11 @@ class ProjectController extends Controller
             'project', 'updates', 'openRequest', 'pendingUpdates', 'nextPhase',
             'clientAddress', 'clientContact', 'clientEmail',
             // financial
-            'payment', 'contractAmount', 'budgetReceived', 'totalReceived', 'remainingBudget',
+            'payment', 'contractAmount', 'projectBudget', 'markup', 'budgetAdherence',
+            'budgetReceived', 'totalReceived', 'remainingBudget',
             'estMaterialCost', 'actMaterialCost', 'matVariance',
             'estLaborCost', 'actLaborCost', 'laborVariance',
-            'estTotalCost', 'projectGrandTotal', 'overheadShare',
+            'overheadShare',
             // legacy
             'materialCost', 'laborCost', 'profit',
             // fund

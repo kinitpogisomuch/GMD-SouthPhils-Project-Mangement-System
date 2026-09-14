@@ -12,16 +12,19 @@ class SalaryRecord extends Model
         'pay_period',
         'daily_rate',
         'days_worked',
+        'half_days',
         'overtime_hours',
         'gross_pay',
         'total_deductions',
         'net_pay',
+        'payment_method',
         'notes',
     ];
 
     protected $casts = [
         'daily_rate'        => 'decimal:2',
         'days_worked'       => 'decimal:2',
+        'half_days'         => 'decimal:2',
         'overtime_hours'    => 'decimal:2',
         'gross_pay'         => 'decimal:2',
         'total_deductions'  => 'decimal:2',

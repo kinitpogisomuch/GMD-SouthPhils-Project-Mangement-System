@@ -97,8 +97,13 @@
                 <div class="fd-overview-grid">
                     <div class="fd-ov-item">
                         <span class="fd-ov-label">Contract Value</span>
-                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Total Project Cost</span>
+                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Project Budget + Markup</span>
                         <span class="fd-ov-val">{{ $contractAmount > 0 ? '₱'.number_format($contractAmount,2) : '—' }}</span>
+                    </div>
+                    <div class="fd-ov-item">
+                        <span class="fd-ov-label">Project Budget</span>
+                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Est. Materials + Est. Labor</span>
+                        <span class="fd-ov-val">{{ $projectBudget > 0 ? '₱'.number_format($projectBudget,2) : '—' }}</span>
                     </div>
                     <div class="fd-ov-item">
                         <span class="fd-ov-label">Total Received</span>
@@ -143,7 +148,9 @@
                     <div class="fd-ov-item fd-ov-highlight">
                         <span class="fd-ov-label">Net Profit</span>
                         <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Contract value - actual costs</span>
-                        @if($netProfit !== null)
+                        @if($project->status !== 'completed')
+                        <span class="fd-ov-val" style="color:rgba(255,255,255,0.35);font-size:13px;font-weight:600;">Available when completed</span>
+                        @elseif($netProfit !== null)
                         <span class="fd-ov-val" style="color:{{ $netProfit >= 0 ? '#4ade80' : '#f87171' }};font-size:17px;">
                             {{ $netProfit >= 0 ? '+' : '' }}₱{{ number_format($netProfit, 2) }}
                         </span>

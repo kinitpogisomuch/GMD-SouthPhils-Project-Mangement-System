@@ -412,7 +412,7 @@
                 <div id="addStep1">
                     <div style="padding:14px 20px;border-bottom:1px solid rgba(0,0,0,0.07);display:flex;align-items:center;gap:10px;">
                         <label for="addMaterialFactor" style="font-size:12px;font-weight:700;color:var(--muted);white-space:nowrap;">Material Factor</label>
-                        <input type="number" name="factor" id="addMaterialFactor" min="0" max="100" step="0.1" value="7" oninput="updateAddGrandTotal()"
+                        <input type="number" name="factor" id="addMaterialFactor" min="0" max="100" step="0.1" value="0" required oninput="updateAddGrandTotal()"
                                style="width:80px;padding:6px 10px;border:1px solid rgba(0,0,0,0.14);border-radius:6px;font-size:13px;font-weight:900;color:var(--dark);text-align:right;">
                         <span style="font-size:13px;font-weight:700;color:var(--muted);">%</span>
                         <span style="font-size:12px;color:var(--muted);">— applied to all materials in this project</span>
@@ -1148,8 +1148,13 @@
             var seenNames = [];
 
             var factorEl = document.getElementById('addMaterialFactor');
+            if (factorEl) factorEl.style.outline = '';
             var factor = parseFloat(factorEl ? factorEl.value : '');
-            if (isNaN(factor)) factor = 7;
+            if (factorEl && (factorEl.value.trim() === '' || isNaN(factor))) {
+                valid = false;
+                factorEl.style.outline = '2px solid var(--danger)';
+                factor = 0;
+            }
 
             rows.forEach(function(row, i) {
                 var idInput = row.querySelector('[name="material_id[]"]');

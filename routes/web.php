@@ -318,6 +318,8 @@ Route::prefix('employee')->name('employee.')->middleware(['role:employee', 'prof
     Route::put('/settings/password', [ProfileController::class, 'updateEmployeePassword'])->name('settings.password');
     Route::post('/settings/photo',   [ProfileController::class, 'uploadEmployeePhoto'])->name('settings.photo');
     Route::delete('/settings/photo', [ProfileController::class, 'removeEmployeePhoto'])->name('settings.photo.remove');
+    Route::post('/settings/gcash-qr',   [ProfileController::class, 'uploadEmployeeGcashQr'])->name('settings.gcash_qr');
+    Route::delete('/settings/gcash-qr', [ProfileController::class, 'removeEmployeeGcashQr'])->name('settings.gcash_qr.remove');
 
     // Notifications
     Route::get('/notifications', [NotificationController::class, 'page'])->name('notifications');

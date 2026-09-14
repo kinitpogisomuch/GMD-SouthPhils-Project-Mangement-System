@@ -344,7 +344,13 @@
                     </div>
 
                     <div class="form-group form-group-full">
-                        <label>Upload Collection Receipt <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
+                        <label>OR / Serial Number</label>
+                        <input type="text" name="reference_number" id="referenceNumberInput" required maxlength="100"
+                               placeholder="e.g. OR-2026-00123">
+                    </div>
+
+                    <div class="form-group form-group-full">
+                        <label>Upload Collection Receipt</label>
                         <label for="receiptFileInput" class="pv-upload-dropzone" id="receiptDropzone">
                             <i data-lucide="upload-cloud" style="width:22px;height:22px;color:var(--accent);"></i>
                             <span style="font-size:13px;font-weight:700;color:var(--text-primary);">Click to upload collection receipt(s)</span>
@@ -352,6 +358,7 @@
                         </label>
                         <input type="file" name="receipt_files[]" id="receiptFileInput" accept=".pdf,image/*" multiple style="display:none;">
                         <div id="receiptFilePreview" class="qr-file-list" style="display:none;"></div>
+                        <span id="receiptFileErr" style="display:none;color:#b91c1c;font-size:12px;font-weight:600;margin-top:6px;">Please upload at least one collection receipt.</span>
                     </div>
                 </div>
 
@@ -612,6 +619,10 @@
             });
             syncInput();
             render();
+            if (selected.length) {
+                var err = document.getElementById('receiptFileErr');
+                if (err) err.style.display = 'none';
+            }
             if (rejected.length) showFileTooLargeModal(rejected.join(', '), 10);
         });
     })();
@@ -643,11 +654,28 @@
         }
     }
 
+    const receiptFileInput = document.getElementById('receiptFileInput');
+    const receiptFileErr   = document.getElementById('receiptFileErr');
+    const receiptDropzone  = document.getElementById('receiptDropzone');
+
     recordForm.addEventListener('submit', function (e) {
+        var invalid = false;
+
         if (!stageSelect.value) {
-            e.preventDefault();
+            invalid = true;
             stageErr.style.display = 'block';
-            stageTrigger.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+
+        if (!receiptFileInput.files || !receiptFileInput.files.length) {
+            invalid = true;
+            receiptFileErr.style.display = 'block';
+        } else {
+            receiptFileErr.style.display = 'none';
+        }
+
+        if (invalid) {
+            e.preventDefault();
+            (stageSelect.value ? receiptDropzone : stageTrigger).scrollIntoView({ block: 'center', behavior: 'smooth' });
         }
     });
 

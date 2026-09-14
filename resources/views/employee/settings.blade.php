@@ -212,6 +212,54 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- GCash QR Code Card -->
+                <div class="pv-card" style="margin-top:20px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                        <div>
+                            <h3 class="pv-card-title" style="margin-bottom:4px;">GCash QR Code</h3>
+                            <p style="font-size:13px;color:var(--muted);margin:0;">
+                                Upload your GCash QR so admin can pay your salary via GCash.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
+                        <div id="gcashQrDisplay" style="width:140px;height:140px;border-radius:12px;border:1.5px dashed var(--border);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;background:var(--surface-2);">
+                            @if($employee->gcash_qr)
+                                <img src="{{ $employee->gcash_qr }}" alt="GCash QR" style="width:100%;height:100%;object-fit:contain;">
+                            @else
+                                <i data-lucide="qr-code" style="width:32px;height:32px;color:var(--muted);opacity:.5;"></i>
+                            @endif
+                        </div>
+
+                        <div>
+                            <form method="POST" action="{{ route('employee.settings.gcash_qr') }}"
+                                  enctype="multipart/form-data" id="gcashQrUploadForm">
+                                @csrf
+                                <input type="file" name="gcash_qr" id="gcashQrInput"
+                                       accept="image/jpeg,image/png,image/webp" style="display:none;">
+                            </form>
+                            <form method="POST" action="{{ route('employee.settings.gcash_qr.remove') }}" id="removeGcashQrForm" style="display:none;">
+                                @csrf
+                                @method('DELETE')
+                            </form>
+                            <div style="display:flex;gap:8px;">
+                                <label class="avatar-change-btn" onclick="document.getElementById('gcashQrInput').click()" style="cursor:pointer;">
+                                    <i data-lucide="upload"></i>
+                                    {{ $employee->gcash_qr ? 'Change QR Code' : 'Upload QR Code' }}
+                                </label>
+                                @if($employee->gcash_qr)
+                                <button type="button" class="avatar-change-btn" onclick="confirmRemoveGcashQr()">
+                                    <i data-lucide="trash-2"></i>
+                                    Remove
+                                </button>
+                                @endif
+                            </div>
+                            <p style="font-size:11.5px;color:var(--muted);margin-top:8px;">JPG, PNG, or WEBP · max 4MB</p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- ===== TAB: SECURITY ===== -->
@@ -389,7 +437,21 @@
             };
             reader.readAsDataURL(file);
         });
+
+        // GCash QR — upload immediately on selection, no cropping (must stay scannable)
+        document.getElementById('gcashQrInput').addEventListener('change', function () {
+            var file = this.files[0];
+            if (!file) return;
+            if (!validateFileSize(this, 4)) { this.value = ''; return; }
+            document.getElementById('gcashQrUploadForm').submit();
+        });
     });
+
+    function confirmRemoveGcashQr() {
+        if (confirm('Remove your GCash QR code?')) {
+            document.getElementById('removeGcashQrForm').submit();
+        }
+    }
 
     function confirmRemovePhoto() {
         document.getElementById('removePhotoModal').classList.add('show');

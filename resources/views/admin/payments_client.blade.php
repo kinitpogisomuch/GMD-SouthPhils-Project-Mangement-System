@@ -225,15 +225,37 @@
                     </div>
                 </div>
 
-                <!-- Contract Amount -->
-                <div class="form-section-label">Contract Amount</div>
-                <div class="form-group" style="margin-bottom:20px;">
-                    <label>Contract Amount (₱) </label>
-                    <input type="number" name="contract_amount" id="setupContractAmount"
-                           required min="1" step="0.01" placeholder="e.g. 1000000"
-                           style="font-size:16px;font-weight:700;">
-                    <p id="setupContractAmountNote" style="display:none;font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5;"></p>
+                <!-- Project Budget (read-only, from BOM) -->
+                <div class="form-section-label">Project Budget</div>
+                <div class="form-group" style="margin-bottom:16px;">
+                    <label>Estimated Materials + Labor (₱) <span style="font-weight:400;color:var(--muted);">(internal cost — no markup)</span></label>
+                    <input type="text" id="setupProjectBudget" readonly disabled
+                           style="font-size:16px;font-weight:700;background:var(--cream-soft);color:var(--dark);cursor:not-allowed;">
+                    <p id="setupProjectBudgetNote" style="display:none;font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5;"></p>
                 </div>
+
+                <!-- Markup -->
+                <div class="form-section-label">Markup</div>
+                <div class="form-group" style="margin-bottom:16px;">
+                    <label>Markup / Profit (₱)</label>
+                    <input type="number" name="markup" id="setupMarkup"
+                           required min="0" step="0.01" placeholder="e.g. 50000"
+                           style="font-size:16px;font-weight:700;">
+                    <p style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5;">
+                        Added on top of the Project Budget. This is profit — it's excluded from cost-tracking and Budget Adherence.
+                    </p>
+                </div>
+
+                <!-- Contract Value (computed) -->
+                <div class="form-section-label">Contract Value</div>
+                <div class="form-group" style="margin-bottom:20px;">
+                    <div style="background:var(--dark);border-radius:10px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;">
+                        <span style="font-size:12px;font-weight:700;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.05em;">Total client price</span>
+                        <span id="setupContractValue" style="font-size:20px;font-weight:900;color:#fff;">₱0.00</span>
+                    </div>
+                </div>
+
+                <input type="hidden" id="setupContractAmount">
 
                 <!-- Payment Terms -->
                 <div class="form-section-label">Payment Terms</div>
@@ -281,19 +303,21 @@
 
     @php
     $availableProjectsJson = $availableProjects->map(function($p) {
-        $bomTotal   = (float) ($p->bom_total ?? 0);
-        $laborTotal = (float) ($p->labor_total ?? 0);
+        // Materials here include their per-material factor (waste/handling
+        // allowance) — the same figure Project Budget is built from — so this
+        // suggestion always matches what the Financial Overview page will show.
+        $budget = $p->estimatedBudget();
 
         return [
-            'id'                        => $p->id,
-            'name'                      => $p->name,
-            'client'                    => $p->client,
-            'client_type'               => $p->client_type,
-            'status'                    => $p->status,
-            'created_at'                => $p->created_at->format('M d, Y'),
-            'bom_total'                 => $bomTotal,
-            'labor_total'               => $laborTotal,
-            'suggested_contract_amount' => round($bomTotal + $laborTotal, 2),
+            'id'              => $p->id,
+            'name'            => $p->name,
+            'client'          => $p->client,
+            'client_type'     => $p->client_type,
+            'status'          => $p->status,
+            'created_at'      => $p->created_at->format('M d, Y'),
+            'materials'       => $budget['materials'],
+            'labor'           => $budget['labor'],
+            'suggested_budget'=> $budget['total'],
         ];
     })->values();
     @endphp
@@ -443,31 +467,45 @@
                 '<span class="status-badge ' + statusCls + '">' +
                 proj.status.charAt(0).toUpperCase() + proj.status.slice(1) + '</span>';
 
-            var suggested = proj.suggested_contract_amount || 0;
-            var note      = document.getElementById('setupContractAmountNote');
+            var budget      = proj.suggested_budget || 0;
+            var budgetInput = document.getElementById('setupProjectBudget');
+            var note        = document.getElementById('setupProjectBudgetNote');
 
-            if (suggested > 0) {
-                document.getElementById('setupContractAmount').value = suggested.toFixed(2);
-                note.innerHTML = 'Auto-filled from Bill of Materials (' + fmt(proj.bom_total) +
-                    ') + Labor Cost (' + fmt(proj.labor_total) + '). You may adjust this amount if needed.';
-                note.style.display = 'block';
+            budgetInput.value        = fmt(budget);
+            budgetInput.dataset.raw  = budget;
+
+            if (budget > 0) {
+                note.innerHTML = 'From Bill of Materials (' + fmt(proj.materials) +
+                    ') + Labor Cost (' + fmt(proj.labor) + ').';
             } else {
-                document.getElementById('setupContractAmount').value = '';
-                note.innerHTML = 'No BOM or labor cost data found for this project yet — enter the contract amount manually.';
-                note.style.display = 'block';
+                note.innerHTML = 'No BOM or labor cost data found for this project yet — Project Budget will be ₱0.00 until materials/labor are added.';
             }
+            note.style.display = 'block';
 
-            document.getElementById('setupTermType').value       = '';
+            document.getElementById('setupMarkup').value = '';
+            document.getElementById('setupTermType').value = '';
             document.getElementById('setupSchedulePreview').style.display = 'none';
+            updateContractValuePreview();
             if (typeof lucide !== 'undefined') lucide.createIcons();
         }
 
         function resetSetupForm() {
             document.getElementById('paymentSetupForm').reset();
             document.getElementById('setupSchedulePreview').style.display = 'none';
+            updateContractValuePreview();
         }
 
-        document.getElementById('setupContractAmount').addEventListener('input', updatePreview);
+        function updateContractValuePreview() {
+            var budget        = parseFloat(document.getElementById('setupProjectBudget').dataset.raw) || 0;
+            var markup        = parseFloat(document.getElementById('setupMarkup').value) || 0;
+            var contractValue = budget + markup;
+
+            document.getElementById('setupContractValue').textContent = fmt(contractValue);
+            document.getElementById('setupContractAmount').value      = contractValue;
+            updatePreview();
+        }
+
+        document.getElementById('setupMarkup').addEventListener('input', updateContractValuePreview);
         document.getElementById('setupTermType').addEventListener('change', updatePreview);
 
         function fmt(n) {

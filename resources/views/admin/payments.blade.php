@@ -208,7 +208,7 @@
                 </div>
                 </div>
 
-                <!-- ===== RECEIPTS VIEW (static — real data/functionality coming next) ===== -->
+                <!-- ===== RECEIPTS VIEW ===== -->
                 <div id="receiptsViewContent" style="display:none;">
                     <div class="table-toolbar" style="margin-top:12px;margin-bottom:14px;">
                         <div class="search-box" style="flex:1;max-width:none;">
@@ -231,64 +231,45 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr data-search="or-2026-0044 alvin magtibay fuel storage tank">
-                                    <td>OR-2026-0044</td>
-                                    <td><span class="client-pill">Alvin Magtibay</span></td>
-                                    <td>Fuel Storage Tank</td>
-                                    <td>Final Payment</td>
-                                    <td>₱82,000.00</td>
-                                    <td>Oct 08, 2026</td>
+                                @forelse($receipts as $r)
+                                <tr data-search="{{ strtolower($r['or_number'] . ' ' . $r['client'] . ' ' . $r['project']) }}">
+                                    <td>{{ $r['or_number'] }}</td>
+                                    <td><span class="client-pill">{{ $r['client'] }}</span></td>
+                                    <td>{{ $r['project'] }}</td>
+                                    <td>{{ $r['stage'] }}</td>
+                                    <td>₱{{ number_format($r['amount'], 2) }}</td>
+                                    <td>{{ \Carbon\Carbon::parse($r['date_issued'])->format('M d, Y') }}</td>
                                     <td>
-                                        <button type="button" class="action-btn view" title="View Receipt" onclick="alert('Receipt preview coming soon.')">
-                                            <i data-lucide="eye"></i>
-                                        </button>
+                                        @if(!empty($r['receipt_urls']))
+                                        <div style="display:inline-flex;gap:4px;">
+                                            @foreach($r['receipt_urls'] as $i => $url)
+                                            <a href="{{ $url }}" target="_blank" class="action-btn view" title="View Receipt {{ count($r['receipt_urls']) > 1 ? $i + 1 : '' }}">
+                                                <i data-lucide="eye"></i>
+                                            </a>
+                                            @endforeach
+                                        </div>
+                                        @else
+                                        <span style="color:var(--muted);">—</span>
+                                        @endif
                                     </td>
                                 </tr>
-                                <tr data-search="or-2026-0031 innovative agro storage silo repair">
-                                    <td>OR-2026-0031</td>
-                                    <td><span class="client-pill">Innovative Agro</span></td>
-                                    <td>Storage Silo Repair</td>
-                                    <td>Down Payment</td>
-                                    <td>₱120,000.00</td>
-                                    <td>Sep 22, 2026</td>
-                                    <td>
-                                        <button type="button" class="action-btn view" title="View Receipt" onclick="alert('Receipt preview coming soon.')">
-                                            <i data-lucide="eye"></i>
-                                        </button>
+                                @empty
+                                <tr>
+                                    <td colspan="7" style="text-align:center;padding:60px 20px;color:var(--muted);">
+                                        <i data-lucide="receipt" style="width:36px;height:36px;opacity:.35;display:block;margin:0 auto 12px;"></i>
+                                        <div style="font-size:14px;font-weight:700;">No receipts recorded yet.</div>
+                                        <div style="font-size:13px;margin-top:4px;">Receipts appear here once a payment is recorded with an OR / Serial Number.</div>
                                     </td>
                                 </tr>
-                                <tr data-search="or-2026-0018 tank inumin mo water tank coating">
-                                    <td>OR-2026-0018</td>
-                                    <td><span class="client-pill">Tank Inumin Mo</span></td>
-                                    <td>Water Tank Coating</td>
-                                    <td>Down Payment</td>
-                                    <td>₱11,846.00</td>
-                                    <td>Aug 03, 2026</td>
-                                    <td>
-                                        <button type="button" class="action-btn view" title="View Receipt" onclick="alert('Receipt preview coming soon.')">
-                                            <i data-lucide="eye"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                                <tr data-search="or-2026-0006 innovative agro fabrication of polymer tanks">
-                                    <td>OR-2026-0006</td>
-                                    <td><span class="client-pill">Innovative Agro</span></td>
-                                    <td>Fabrication of Polymer Tanks</td>
-                                    <td>Down Payment</td>
-                                    <td>₱175,000.00</td>
-                                    <td>Jun 14, 2026</td>
-                                    <td>
-                                        <button type="button" class="action-btn view" title="View Receipt" onclick="alert('Receipt preview coming soon.')">
-                                            <i data-lucide="eye"></i>
-                                        </button>
-                                    </td>
-                                </tr>
+                                @endforelse
+                                @if($receipts->isNotEmpty())
                                 <tr id="receiptEmptyRow" style="display:none;">
                                     <td colspan="7" style="text-align:center;padding:60px 20px;color:var(--muted);">
                                         <i data-lucide="receipt" style="width:36px;height:36px;opacity:.35;display:block;margin:0 auto 12px;"></i>
                                         <div style="font-size:14px;font-weight:700;">No receipts match your search.</div>
                                     </td>
                                 </tr>
+                                @endif
                             </tbody>
                         </table>
                     </div>

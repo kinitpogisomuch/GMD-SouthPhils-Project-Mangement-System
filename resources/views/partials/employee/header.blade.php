@@ -749,6 +749,7 @@
         var myInit   = '{{ strtoupper(substr(session("name", "E"), 0, 1)) }}';
         var statusId = 'chatMsgStatus-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
         var nowTs = new Date();
+        if (!msgList.querySelector('[data-ts]')) msgList.innerHTML = '';
         appendDayDividerIfNeeded(nowTs);
         var div = document.createElement('div');
         div.dataset.ts = nowTs.toISOString();

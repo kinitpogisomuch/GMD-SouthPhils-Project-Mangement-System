@@ -118,6 +118,7 @@
                                                     "gross_pay"       => (float) $record->gross_pay,
                                                     "total_deductions"=> (float) $record->total_deductions,
                                                     "net_pay"         => (float) $record->net_pay,
+                                                    "payment_method"  => $record->payment_method ?? 'cash',
                                                 ]) }})'>
                                             <i data-lucide="eye"></i>
                                         </button>
@@ -198,6 +199,7 @@
             var dedSection = deductions > 0
                 ? detailRow('Deductions', '- ₱' + fmt(deductions), 'color:#dc2626;')
                 : '';
+            var pmLabel = r.payment_method === 'gcash' ? 'GCash' : 'Cash';
 
             document.getElementById('salaryDetailBody').innerHTML =
                 '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">'
@@ -210,6 +212,7 @@
                 + detailRow('Basic Pay', '₱' + fmt(basicPay))
                 + detailRow('Overtime (' + otHours + ' hrs)', otHours > 0 ? '₱' + fmt(otPay) : '0.00', otHours > 0 ? 'color:#2563eb;' : 'color:var(--muted);')
                 + detailRow('Gross Pay', '₱' + fmt(grossPay))
+                + detailRow('Payment Method', pmLabel)
                 + dedSection
                 + '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-top:2px solid var(--border);background:var(--cream-soft);">'
                     + '<span style="font-size:14px;font-weight:900;color:var(--dark);">NET PAY</span>'
@@ -246,6 +249,7 @@
             var netPay     = parseFloat(r.net_pay)          || 0;
 
             var printedOn = new Date().toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' });
+            var pmLabel   = r.payment_method === 'gcash' ? 'GCash' : 'Cash';
 
             var particulars =
                 payslipRow('Daily Rate', '₱' + fmt(dailyRate)) +
@@ -255,6 +259,7 @@
                 payslipRow('Overtime (' + fmtDays(otHours) + ' hrs)', otHours > 0 ? '₱' + fmt(otPay) : '0.00') +
                 '<tr class="bs-subtotal-row">' + '<td>Gross Pay</td><td style="text-align:right;">₱' + fmt(grossPay) + '</td></tr>' +
                 (deductions > 0 ? payslipRow('Deductions', '- ₱' + fmt(deductions), 'color:#dc2626;') : '') +
+                payslipRow('Payment Method', pmLabel) +
                 '<tr class="bs-total-row"><td style="font-size:14px;">NET PAY</td><td style="text-align:right;font-size:17px;color:#16a34a;">₱' + fmt(netPay) + '</td></tr>';
 
             var html =
