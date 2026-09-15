@@ -70,7 +70,7 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     // Dashboard & Pages
     Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
     Route::get('/employees', [AdminController::class, 'employees'])->name('employees');
-    Route::get('/project-materials', [ProjectMaterialController::class, 'adminIndex'])->name('project_materials');
+    Route::get('/project-materials', [QuotationRequestController::class, 'adminIndex'])->name('project_materials');
     Route::get('/project-materials/client/{client}', [ProjectMaterialController::class, 'adminClient'])->name('project_materials.client');
     Route::get('/project-materials/{projectId}', [ProjectMaterialController::class, 'adminDetail'])->name('project_materials.detail');
     Route::post('/project-materials/{projectId}/materials', [ProjectMaterialController::class, 'store'])->name('project_materials.store');
@@ -135,10 +135,17 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     // Quotation Requests
     Route::get('/quotation-requests', [QuotationRequestController::class, 'adminIndex'])->name('quotation_requests');
     Route::get('/quotation-requests/pending-count', [QuotationRequestController::class, 'pendingCount'])->name('quotation_requests.pending_count');
-    Route::patch('/quotation-requests/{id}/decline', [QuotationRequestController::class, 'decline'])->name('quotation_requests.decline');
-    Route::post('/quotation-requests/{id}/send-quotation', [QuotationRequestController::class, 'sendQuotation'])->name('quotation_requests.send_quotation');
-    Route::get('/quotation-requests/{id}/convert', [QuotationRequestController::class, 'convert'])->name('quotation_requests.convert');
-    Route::get('/quotation-requests/{id}/prefill', [QuotationRequestController::class, 'prefillData'])->name('quotation_requests.prefill');
+    Route::patch('/quotation-requests/batch/{batchId}/decline', [QuotationRequestController::class, 'decline'])->name('quotation_requests.decline');
+
+    // Build Quotation — materials/labor entered against a quotation batch, before any Project exists
+    Route::get('/quotation-requests/batch/{batchId}', [QuotationRequestController::class, 'batchDetail'])->name('quotation_requests.batch_detail');
+    Route::post('/quotation-requests/batch/{batchId}/materials', [QuotationRequestController::class, 'storeMaterials'])->name('quotation_requests.batch_materials');
+    Route::post('/quotation-requests/batch/{batchId}/materials/{materialId}/delete', [QuotationRequestController::class, 'deleteMaterial'])->name('quotation_requests.batch_material_delete');
+    Route::post('/quotation-requests/batch/{batchId}/labor', [QuotationRequestController::class, 'storeLabor'])->name('quotation_requests.batch_labor');
+    Route::post('/quotation-requests/batch/{batchId}/estimated-days', [QuotationRequestController::class, 'updateEstimatedDays'])->name('quotation_requests.batch_estimated_days');
+    Route::post('/quotation-requests/batch/{batchId}/labor/{laborId}/archive', [QuotationRequestController::class, 'archiveLabor'])->name('quotation_requests.batch_labor_archive');
+    Route::post('/quotation-requests/batch/{batchId}/send-quotation', [QuotationRequestController::class, 'sendBatchQuotation'])->name('quotation_requests.batch_send_quotation');
+    Route::post('/quotation-requests/batch/{batchId}/convert', [QuotationRequestController::class, 'convertToProject'])->name('quotation_requests.batch_convert');
 
     Route::get('/reports', [AdminController::class, 'reports'])->name('reports');
     Route::get('/reports/project/{id}', [AdminController::class, 'projectKpi'])->name('reports.project');
@@ -254,7 +261,8 @@ Route::prefix('client')->name('client.')->middleware(['role:client', 'profile.co
     Route::get('/request-quotation', [QuotationRequestController::class, 'create'])->name('quotation.create');
     Route::post('/request-quotation', [QuotationRequestController::class, 'store'])->name('quotation.store');
     Route::get('/request-quotation/status', [QuotationRequestController::class, 'status'])->name('quotation.status');
-    Route::post('/request-quotation/{id}/approve', [QuotationRequestController::class, 'approveQuotation'])->name('quotation.approve');
+    Route::post('/request-quotation/batch/{batchId}/approve', [QuotationRequestController::class, 'approveQuotation'])->name('quotation.approve');
+    Route::post('/request-quotation/batch/{batchId}/reject', [QuotationRequestController::class, 'rejectQuotation'])->name('quotation.reject');
     Route::get('/messages', [MessageController::class, 'index'])->name('messages');
     Route::get('/messages/contacts', [MessageController::class, 'contacts'])->name('messages.contacts');
     Route::get('/messages/thread/{type}/{id}', [MessageController::class, 'thread'])->name('messages.thread');

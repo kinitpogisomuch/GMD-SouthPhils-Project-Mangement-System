@@ -10,6 +10,7 @@ class ProjectLabor extends Model
 
     protected $fillable = [
         'project_id',
+        'quotation_batch_id',
         'description',
         'daily_rate',
         'total_cost',
@@ -25,6 +26,11 @@ class ProjectLabor extends Model
     public function project()
     {
         return $this->belongsTo(Project::class);
+    }
+
+    public function quotationBatch()
+    {
+        return $this->belongsTo(QuotationBatch::class, 'quotation_batch_id');
     }
 
     public function scopeActive($query)

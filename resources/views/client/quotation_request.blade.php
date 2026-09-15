@@ -309,6 +309,12 @@
 
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>
+        function openModal(id) { var m = document.getElementById(id); if (m) { m.classList.add('show'); document.body.style.overflow = 'hidden'; } }
+        function closeModal(id) { var m = document.getElementById(id); if (m) { m.classList.remove('show'); document.body.style.overflow = ''; } }
+        document.querySelectorAll('.modal-overlay').forEach(function (modal) {
+            modal.addEventListener('click', function (e) { if (e.target === this) closeModal(this.id); });
+        });
+
         function activateQuotationTab(name, btn) {
             document.querySelectorAll('.emp-tab[data-tab]').forEach(function (t) { t.classList.remove('active'); });
             btn.classList.add('active');

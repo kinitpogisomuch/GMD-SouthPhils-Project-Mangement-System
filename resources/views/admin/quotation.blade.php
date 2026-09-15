@@ -4,8 +4,18 @@
     <meta charset="UTF-8">
     <link rel="icon" type="image/svg+xml" href="{{ asset('images/gmdlogo-circle.svg') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quotation Requests | GMD South Phils</title>
+    <title>Quotation | GMD South Phils</title>
     <link href="{{ asset('css/admin.css') }}" rel="stylesheet">
+    <style>
+        .pf-client-name { font-size: 14.5px; font-weight: 800; color: var(--dark); }
+        .quotation-view-tab {
+            border: none; background: transparent; color: var(--muted);
+            font-size: 13px; font-weight: 800; padding: 8px 18px; border-radius: 999px;
+            cursor: pointer; transition: 0.15s ease; font-family: inherit;
+        }
+        .quotation-view-tab:hover { color: var(--dark); }
+        .quotation-view-tab.active { background: var(--dark); color: var(--white); }
+    </style>
 </head>
 <body class="page-enter">
 
@@ -18,8 +28,8 @@
 
             <div class="page-header">
                 <div>
-                    <h1 class="page-title">Quotation Requests</h1>
-                    <p class="page-subtitle">Review quotation requests submitted by clients and convert them into projects.</p>
+                    <h1 class="page-title">Quotation</h1>
+                    <p class="page-subtitle">Review client quotation requests and manage materials/labor costs for projects.</p>
                 </div>
             </div>
 
@@ -29,7 +39,26 @@
                 {{ session('success') }}
             </div>
             @endif
+            @if(session('error'))
+            <div class="alert-banner error">
+                <i data-lucide="alert-circle"></i>
+                {{ session('error') }}
+            </div>
+            @endif
 
+            <div style="margin-bottom:16px;">
+                <div style="display:inline-flex;background:var(--cream-soft);border:1px solid var(--border);border-radius:999px;padding:4px;gap:2px;">
+                    <button type="button" class="quotation-view-tab {{ $activeTab === 'requests' ? 'active' : '' }}" data-view="requests" onclick="switchQuotationView('requests', this)">
+                        Quotation Requests
+                    </button>
+                    <button type="button" class="quotation-view-tab {{ $activeTab === 'projects' ? 'active' : '' }}" data-view="projects" onclick="switchQuotationView('projects', this)">
+                        Project Quotations
+                    </button>
+                </div>
+            </div>
+
+            {{-- ===================== QUOTATION REQUESTS ===================== --}}
+            <div id="requestsViewContent" style="{{ $activeTab === 'requests' ? '' : 'display:none;' }}">
             <div class="table-card" style="padding-bottom:0;">
                 <div class="table-toolbar">
                     <div class="search-box">
@@ -97,6 +126,7 @@
                                 data-name="{{ strtolower($qr->client->name ?? '') }}"
                                 data-request="{{ json_encode([
                                     'id'                => $qr->id,
+                                    'batch_id'          => $qr->batch_id,
                                     'status'            => $qr->status,
                                     'client_name'       => $qr->client->name ?? '—',
                                     'client_contact'    => $qr->client->contact ?? '—',
@@ -113,8 +143,8 @@
                                     'quotation_files'   => !empty($qr->quotation_files) ? [$qr->quotation_files] : [],
                                     'decline_reason'    => $qr->decline_reason,
                                     'submitted_at'      => $qr->created_at->format('M d, Y \a\t g:i A'),
-                                    'send_quotation_url' => route('admin.quotation_requests.send_quotation', $qr->id),
-                                    'convert_url'         => route('admin.quotation_requests.convert', $qr->id),
+                                    'build_quotation_url' => route('admin.quotation_requests.batch_detail', $qr->batch_id),
+                                    'convert_url'         => route('admin.quotation_requests.batch_detail', $qr->batch_id),
                                 ]) }}"
                                 >
                                 <td>{{ $qr->client->name ?? '—' }}</td>
@@ -178,16 +208,22 @@
                                     <button class="action-btn view view-request-btn" type="button" title="View Request">
                                         <i data-lucide="eye"></i>
                                     </button>
+                                    @if(in_array($qr->status, ['pending', 'quotation_sent', 'approved']) && $qr->batch_id)
+                                    <a class="action-btn view" type="button" title="Build Quotation"
+                                       href="{{ route('admin.quotation_requests.batch_detail', $qr->batch_id) }}">
+                                        <i data-lucide="calculator"></i>
+                                    </a>
+                                    @endif
                                     @if($qr->status === 'approved')
                                     <a class="action-btn view" type="button" title="Convert to Project"
-                                       href="{{ route('admin.quotation_requests.convert', $qr->id) }}">
+                                       href="{{ route('admin.quotation_requests.batch_detail', $qr->batch_id) }}">
                                         <i data-lucide="folder-plus"></i>
                                     </a>
                                     @endif
-                                    @if(in_array($qr->status, ['pending', 'quotation_sent', 'approved']))
+                                    @if(in_array($qr->status, ['pending', 'quotation_sent']))
                                     <button class="action-btn view decline-request-btn" type="button"
                                             title="Decline Request"
-                                            data-id="{{ $qr->id }}"
+                                            data-id="{{ $qr->batch_id }}"
                                             data-name="{{ $qr->client->name ?? '' }}">
                                         <i data-lucide="x"></i>
                                     </button>
@@ -212,6 +248,71 @@
                         </tbody>
                     </table>
                 </div>
+            </div>
+            </div>
+
+            {{-- ===================== PROJECT QUOTATIONS ===================== --}}
+            <div id="projectsViewContent" style="{{ $activeTab === 'projects' ? '' : 'display:none;' }}">
+            <div class="table-card" id="clientListCard">
+                <div class="table-toolbar">
+                    <div class="search-box">
+                        <i data-lucide="search"></i>
+                        <input type="text" id="clientListSearch" placeholder="Search client...">
+                    </div>
+                    <select class="filter-select" id="clientSortSelect">
+                        <option value="default">Sort: Active Projects First</option>
+                        <option value="alpha-asc">Sort: A–Z</option>
+                        <option value="alpha-desc">Sort: Z–A</option>
+                    </select>
+                </div>
+
+                <div class="table-wrapper">
+                    <table class="data-table" id="clientListTable">
+                        <thead>
+                            <tr>
+                                <th>Client</th>
+                                <th style="text-align:center;">Total Projects</th>
+                                <th style="text-align:center;">Active</th>
+                                <th style="text-align:center;">Completed</th>
+                                <th style="text-align:center;">Archived</th>
+                                <th style="text-align:center;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($clientGroups as $g)
+                            <tr data-search="{{ strtolower($g['client']) }}" onclick="window.location='{{ route('admin.project_materials.client', $g['client']) }}'" style="cursor:pointer;">
+                                <td><span class="pf-client-name">{{ $g['client'] }}</span></td>
+                                <td style="text-align:center;"><span class="client-pill" style="background-color:#F3F4F6;color:#1F2937;border-color:#D1D5DB;">{{ $g['total'] }}</span></td>
+                                <td style="text-align:center;"><span class="client-pill" style="background-color:#EAF0FF;color:#2563EB;border-color:#BFDBFE;">{{ $g['active'] }}</span></td>
+                                <td style="text-align:center;"><span class="client-pill" style="background-color:#E7F6EC;color:#207A3A;border-color:#A7E3B8;">{{ $g['completed'] }}</span></td>
+                                <td style="text-align:center;"><span class="client-pill" style="background-color:#F3F4F6;color:#6B7280;border-color:#D1D5DB;">{{ $g['archived'] }}</span></td>
+                                <td class="action-cell" style="text-align:center;">
+                                    <a href="{{ route('admin.project_materials.client', $g['client']) }}" class="action-btn view" title="View Client's Projects" onclick="event.stopPropagation()">
+                                        <i data-lucide="eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            @empty
+                            <tr>
+                                <td colspan="6" style="text-align:center;padding:60px 20px;color:var(--muted);">
+                                    <i data-lucide="inbox" style="width:36px;height:36px;opacity:.35;display:block;margin:0 auto 12px;"></i>
+                                    <div style="font-size:14px;font-weight:700;">No clients with projects yet.</div>
+                                    <div style="font-size:13px;margin-top:4px;">Add projects via the <strong>Projects</strong> page.</div>
+                                </td>
+                            </tr>
+                            @endforelse
+                            @if($clientGroups->isNotEmpty())
+                            <tr id="clientListEmptyRow" style="display:none;">
+                                <td colspan="6" style="text-align:center;padding:60px 20px;color:var(--muted);">
+                                    <i data-lucide="search-x" style="width:36px;height:36px;opacity:.35;display:block;margin:0 auto 12px;"></i>
+                                    <div style="font-size:14px;font-weight:700;">No clients match your search.</div>
+                                </td>
+                            </tr>
+                            @endif
+                        </tbody>
+                    </table>
+                </div>
+            </div>
             </div>
 
         </main>
@@ -282,21 +383,18 @@
                     <div id="viewRequestFiles" style="display:flex;flex-direction:column;gap:6px;"></div>
                 </div>
 
-                <!-- Send Quotation (pending only) -->
+                <!-- Build & Send Quotation (pending only) — happens on the Build Quotation page,
+                     which covers the whole batch (all tanks in this request) at once. -->
                 <div id="sendQuotationSection" style="display:none;">
                     <div class="alert-banner info" style="margin-bottom:14px;">
                         <i data-lucide="info"></i>
-                        Upload the quotation document for this tank, then send it to the client for approval.
+                        Enter materials, labor, and pricing for this quotation, then send it to the client for approval.
                     </div>
-                    <form method="POST" id="sendQuotationForm" enctype="multipart/form-data">
-                        @csrf
-                        <div id="sendQuotationTankList" style="display:flex;flex-direction:column;gap:14px;"></div>
-                        <div class="modal-actions">
-                            <button type="submit" class="save-btn">
-                                <i data-lucide="send"></i> Send Quotation
-                            </button>
-                        </div>
-                    </form>
+                    <div class="modal-actions" style="border-top:none;padding-top:0;">
+                        <a id="buildQuotationBtn" href="#" class="save-btn" style="text-decoration:none;">
+                            <i data-lucide="calculator"></i> Build Quotation
+                        </a>
+                    </div>
                 </div>
 
                 <!-- Awaiting client approval -->
@@ -374,6 +472,14 @@
         function escapeHtml(str) {
             if (!str) return '';
             return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
+        // ── Requests / Projects view switch ─────────────────────────────────────
+        function switchQuotationView(view, btn) {
+            document.querySelectorAll('.quotation-view-tab').forEach(function (t) { t.classList.remove('active'); });
+            btn.classList.add('active');
+            document.getElementById('requestsViewContent').style.display = view === 'requests' ? '' : 'none';
+            document.getElementById('projectsViewContent').style.display = view === 'projects' ? '' : 'none';
         }
 
         document.addEventListener('DOMContentLoaded', function () {
@@ -498,8 +604,7 @@
 
                     if (r.status === 'pending') {
                         document.getElementById('sendQuotationSection').style.display = '';
-                        document.getElementById('sendQuotationForm').action = r.send_quotation_url;
-                        renderSendQuotationTankInputs(r.tank_items);
+                        document.getElementById('buildQuotationBtn').href = r.build_quotation_url;
                     } else if (r.status === 'quotation_sent') {
                         document.getElementById('awaitingApprovalSection').style.display = '';
                     } else if (r.status === 'approved') {
@@ -514,143 +619,12 @@
             document.getElementById('closeViewRequestModal')
                 .addEventListener('click', function () { closeModal('viewRequestModal'); });
 
-            // Per-tank picked-file state — mirrors the client "Request a Quotation"
-            // upload UI: a dropzone until something's picked, then compact chips
-            // (thumbnail, name, size, remove) with a "+" tile to add more, capped at 5.
-            var SEND_QUOTATION_MAX_FILES = 5;
-            var sendQuotationSelected = {};
-
-            function sendQuotationFormatSize(bytes) {
-                if (bytes < 1024) return bytes + ' B';
-                if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + ' KB';
-                return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-            }
-
-            function renderSendQuotationTankInputs(tankItems) {
-                sendQuotationSelected = {};
-                var list = document.getElementById('sendQuotationTankList');
-                list.innerHTML = (tankItems || []).map(function (item, i) {
-                    sendQuotationSelected[i] = [];
-                    var qty = item.quantity || 1;
-                    var label = (item.tank_type || 'Tank') + (qty > 1 ? ' (' + qty + 'x)' : '');
-                    return '<div class="form-group" style="margin-bottom:0;">'
-                        + '<label class="log-label">' + label.toUpperCase() + ' — QUOTATION FILE(S) *</label>'
-                        + '<label for="sendQuotationInput' + i + '" class="pv-upload-dropzone" id="sendQuotationDropzone' + i + '">'
-                            + '<i data-lucide="upload-cloud" style="width:24px;height:24px;color:var(--accent);"></i>'
-                            + '<span style="font-size:13px;font-weight:700;color:var(--text-primary);">Click to upload quotation document(s)</span>'
-                            + '<span style="font-size:11px;color:var(--muted);">PDF or images, up to 5 files, max 10MB each</span>'
-                        + '</label>'
-                        + '<input type="file" id="sendQuotationInput' + i + '" name="quotation_files[' + i + '][]" multiple accept=".pdf,image/*" '
-                            + 'class="send-quotation-input" data-tank-index="' + i + '" style="display:none;" required>'
-                        + '<div class="qr-file-list send-quotation-preview" data-tank-index="' + i + '" style="display:none;"></div>'
-                        + '</div>';
-                }).join('');
-                if (typeof lucide !== 'undefined') lucide.createIcons();
-            }
-
-            function sendQuotationSyncInput(idx) {
-                var input = document.getElementById('sendQuotationInput' + idx);
-                if (!input) return;
-                var dt = new DataTransfer();
-                sendQuotationSelected[idx].forEach(function (f) { dt.items.add(f); });
-                input.files = dt.files;
-            }
-
-            function sendQuotationRenderPreview(idx) {
-                var dropzone = document.getElementById('sendQuotationDropzone' + idx);
-                var preview  = document.querySelector('.send-quotation-preview[data-tank-index="' + idx + '"]');
-                var files    = sendQuotationSelected[idx] || [];
-                if (!dropzone || !preview) return;
-
-                dropzone.style.display = files.length ? 'none' : '';
-                preview.style.display  = files.length ? 'flex' : 'none';
-
-                preview.innerHTML = files.map(function (f, i) {
-                    var isImage = f.type.indexOf('image/') === 0;
-                    var thumb   = isImage
-                        ? '<img class="qr-file-thumb" src="' + URL.createObjectURL(f) + '" alt="">'
-                        : '<span class="qr-file-thumb"><i data-lucide="file-text"></i></span>';
-                    return '<div class="qr-file-chip" data-tank-index="' + idx + '" data-file-index="' + i + '">'
-                        + thumb
-                        + '<div class="qr-file-meta">'
-                            + '<div class="qr-file-name" title="' + f.name.replace(/"/g, '&quot;') + '">' + f.name + '</div>'
-                            + '<div class="qr-file-size">' + sendQuotationFormatSize(f.size) + '</div>'
-                        + '</div>'
-                        + '<button type="button" class="qr-file-remove" data-tank-index="' + idx + '" data-file-index="' + i + '" title="Remove">'
-                            + '<i data-lucide="x"></i>'
-                        + '</button>'
-                    + '</div>';
-                }).join('');
-
-                if (files.length && files.length < SEND_QUOTATION_MAX_FILES) {
-                    preview.innerHTML += '<button type="button" class="qr-file-add" data-tank-index="' + idx + '" title="Add more">'
-                        + '<i data-lucide="plus"></i></button>';
-                }
-
-                if (typeof lucide !== 'undefined') lucide.createIcons();
-            }
-
-            var sendQuotationTankList = document.getElementById('sendQuotationTankList');
-            if (sendQuotationTankList) {
-                sendQuotationTankList.addEventListener('change', function (e) {
-                    if (!e.target.classList.contains('send-quotation-input')) return;
-                    var idx = e.target.dataset.tankIndex;
-                    var rejected = [];
-                    Array.from(e.target.files || []).forEach(function (f) {
-                        if (f.size > 10 * 1024 * 1024) { rejected.push(f.name); return; }
-                        var isDuplicate = sendQuotationSelected[idx].some(function (sf) {
-                            return sf.name === f.name && sf.size === f.size && sf.lastModified === f.lastModified;
-                        });
-                        if (!isDuplicate && sendQuotationSelected[idx].length < SEND_QUOTATION_MAX_FILES) {
-                            sendQuotationSelected[idx].push(f);
-                        }
-                    });
-                    sendQuotationSyncInput(idx);
-                    sendQuotationRenderPreview(idx);
-                    if (rejected.length) showFileTooLargeModal(rejected.join(', '), 10);
-                });
-
-                sendQuotationTankList.addEventListener('click', function (e) {
-                    var addBtn = e.target.closest('.qr-file-add');
-                    if (addBtn) {
-                        var addIdx = addBtn.dataset.tankIndex;
-                        var input  = document.getElementById('sendQuotationInput' + addIdx);
-                        if (input) { input.value = ''; input.click(); }
-                        return;
-                    }
-                    var removeBtn = e.target.closest('.qr-file-remove');
-                    if (removeBtn) {
-                        var rIdx = removeBtn.dataset.tankIndex;
-                        var fIdx = Number(removeBtn.dataset.fileIndex);
-                        sendQuotationSelected[rIdx].splice(fIdx, 1);
-                        sendQuotationSyncInput(rIdx);
-                        sendQuotationRenderPreview(rIdx);
-                        return;
-                    }
-                    var chip = e.target.closest('.qr-file-chip');
-                    if (chip) {
-                        var cIdx = chip.dataset.tankIndex;
-                        var cfIdx = Number(chip.dataset.fileIndex);
-                        var f = sendQuotationSelected[cIdx][cfIdx];
-                        if (f) window.open(URL.createObjectURL(f), '_blank');
-                    }
-                });
-            }
-
-            var sendQuotationForm = document.getElementById('sendQuotationForm');
-            if (sendQuotationForm) {
-                sendQuotationForm.addEventListener('submit', function () {
-                    var btn = this.querySelector('button[type="submit"]');
-                    if (btn) { btn.disabled = true; btn.innerHTML = '<div class="btn-spinner"></div> Sending...'; }
-                });
-            }
-
             // ---- Decline Request Modal ----
             document.querySelectorAll('.decline-request-btn').forEach(function (btn) {
                 btn.addEventListener('click', function () {
                     document.getElementById('declineRequestMsg').textContent =
                         'Are you sure you want to decline the request from "' + this.dataset.name + '"?';
-                    document.getElementById('declineRequestForm').action = '/admin/quotation-requests/' + this.dataset.id + '/decline';
+                    document.getElementById('declineRequestForm').action = '/admin/quotation-requests/batch/' + this.dataset.id + '/decline';
                     openModal('declineRequestModal');
                 });
             });
@@ -665,7 +639,7 @@
                 });
             });
 
-            // ---- Search & Filter ----
+            // ---- Requests: Search & Filter ----
             var currentStatusFilter = '';
 
             function filterRequests() {
@@ -710,6 +684,44 @@
                     filterRequests();
                 });
             });
+
+            // ---- Project Quotations: Search & Sort ----
+            function applyClientListFilters() {
+                var q = (document.getElementById('clientListSearch').value || '').toLowerCase();
+                var visibleCount = 0;
+
+                document.querySelectorAll('#clientListTable tbody tr[data-search]').forEach(function(row) {
+                    var show = !q || row.dataset.search.indexOf(q) !== -1;
+                    row.style.display = show ? '' : 'none';
+                    if (show) visibleCount++;
+                });
+
+                var emptyRow = document.getElementById('clientListEmptyRow');
+                if (emptyRow) {
+                    emptyRow.style.display = visibleCount === 0 ? '' : 'none';
+                    if (visibleCount === 0 && typeof lucide !== 'undefined') lucide.createIcons();
+                }
+            }
+
+            function applyClientListSort() {
+                var sortMode = document.getElementById('clientSortSelect').value;
+                var tbody = document.querySelector('#clientListTable tbody');
+                var rows  = Array.prototype.slice.call(tbody.querySelectorAll('tr[data-search]'));
+
+                rows.sort(function(a, b) {
+                    if (sortMode === 'alpha-asc')  return a.dataset.search.localeCompare(b.dataset.search);
+                    if (sortMode === 'alpha-desc') return b.dataset.search.localeCompare(a.dataset.search);
+                    return 0; // 'default' order is server-rendered
+                });
+
+                rows.forEach(function(row) { tbody.appendChild(row); });
+            }
+
+            var clientListSearchInput = document.getElementById('clientListSearch');
+            if (clientListSearchInput) clientListSearchInput.addEventListener('keyup', applyClientListFilters);
+
+            var clientSortSelect = document.getElementById('clientSortSelect');
+            if (clientSortSelect) clientSortSelect.addEventListener('change', applyClientListSort);
 
             if (typeof lucide !== 'undefined') lucide.createIcons();
         });

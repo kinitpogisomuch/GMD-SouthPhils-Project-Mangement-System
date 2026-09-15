@@ -42,6 +42,11 @@ class QuotationRequest extends Model
         return $this->belongsTo(Project::class, 'related_project_id');
     }
 
+    public function quotationBatch()
+    {
+        return $this->belongsTo(QuotationBatch::class, 'batch_id');
+    }
+
     public function scopePending($query)
     {
         return $query->where('status', 'pending');

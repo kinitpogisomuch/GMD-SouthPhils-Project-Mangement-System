@@ -18,14 +18,14 @@
             <div class="page-header">
                 <div>
                     <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-                        <a href="{{ route('admin.project_materials') }}" style="font-size:13px;font-weight:700;color:var(--muted);text-decoration:none;">Project Materials and Labor Quotation</a>
+                        <a href="{{ route('admin.quotation_requests', ['tab' => 'projects']) }}" style="font-size:13px;font-weight:700;color:var(--muted);text-decoration:none;">Project Materials and Labor Quotation</a>
                         <span style="font-size:13px;color:var(--muted);">/</span>
                         <span style="font-size:13px;font-weight:800;color:var(--dark);">{{ $client }}</span>
                     </div>
                     <h1 style="margin-bottom:8px;">{{ $client }}'s Projects</h1>
                     <p>Manage materials and labor costs for this client's projects.</p>
                 </div>
-                <a href="{{ route('admin.project_materials') }}" class="cancel-btn" style="text-decoration:none;">
+                <a href="{{ route('admin.quotation_requests', ['tab' => 'projects']) }}" class="cancel-btn" style="text-decoration:none;">
                     <i data-lucide="arrow-left"></i>
                     All Clients
                 </a>

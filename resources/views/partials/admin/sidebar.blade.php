@@ -36,20 +36,13 @@
 
         @php $pendingQuotationCount = \App\Models\QuotationRequest::where('status', 'pending')->count(); @endphp
         <a href="{{ route('admin.quotation_requests') }}"
-           class="{{ request()->routeIs('admin.quotation_requests') ? 'active' : '' }}"
-           title="Quotation Requests">
+           class="{{ request()->routeIs(['admin.quotation_requests', 'admin.project_materials', 'admin.project_materials.client', 'admin.project_materials.detail', 'admin.quotation_requests.batch_detail']) ? 'active' : '' }}"
+           title="Quotation">
             <div class="sidebar-icon">
                 <i data-lucide="inbox"></i>
                 <span class="sidebar-badge" id="quotationRequestsBadge" style="{{ $pendingQuotationCount > 0 ? '' : 'display:none;' }}">{{ $pendingQuotationCount > 99 ? '99+' : $pendingQuotationCount }}</span>
             </div>
-            <span>Quotation Requests</span>
-        </a>
-
-        <a href="{{ route('admin.project_materials') }}"
-           class="{{ request()->routeIs(['admin.project_materials', 'admin.project_materials.client', 'admin.project_materials.detail']) ? 'active' : '' }}"
-           title="Project Quotations">
-            <div class="sidebar-icon"><i data-lucide="package"></i></div>
-            <span>Project Quotations</span>
+            <span>Quotation</span>
         </a>
 
         <a href="{{ route('admin.material_usage') }}"

@@ -136,7 +136,7 @@
 
             {{-- Breadcrumb --}}
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;font-size:13px;color:var(--muted);">
-                <a href="{{ route('admin.project_materials') }}" style="color:var(--muted);text-decoration:none;font-weight:600;">
+                <a href="{{ route('admin.quotation_requests', ['tab' => 'projects']) }}" style="color:var(--muted);text-decoration:none;font-weight:600;">
                     Project Materials
                 </a>
                 <i data-lucide="chevron-right" style="width:14px;height:14px;"></i>

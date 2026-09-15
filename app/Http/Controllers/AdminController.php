@@ -526,7 +526,7 @@ class AdminController extends Controller
 
     public function projectMaterials()
     {
-        // Handled by ProjectMaterialController::adminIndex
+        // Handled by QuotationRequestController::adminIndex (combined Quotation module)
         return redirect()->route('admin.project_materials');
     }
 

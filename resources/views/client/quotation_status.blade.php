@@ -51,6 +51,11 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>
         if (typeof lucide !== 'undefined') lucide.createIcons();
+        function openModal(id) { var m = document.getElementById(id); if (m) { m.classList.add('show'); document.body.style.overflow = 'hidden'; } }
+        function closeModal(id) { var m = document.getElementById(id); if (m) { m.classList.remove('show'); document.body.style.overflow = ''; } }
+        document.querySelectorAll('.modal-overlay').forEach(function (modal) {
+            modal.addEventListener('click', function (e) { if (e.target === this) closeModal(this.id); });
+        });
     </script>
 </body>
 </html>

@@ -18,23 +18,6 @@ class ProjectMaterialController extends Controller
     // Admin
     // -----------------------------------------------------------------------
 
-    public function adminIndex()
-    {
-        $projects = Project::orderBy('created_at', 'desc')->get();
-
-        $clientGroups = $projects->groupBy('client')->map(function ($group, $client) {
-            return [
-                'client'    => $client,
-                'total'     => $group->count(),
-                'active'    => $group->whereNotIn('status', ['completed', 'archived'])->count(),
-                'completed' => $group->where('status', 'completed')->count(),
-                'archived'  => $group->where('status', 'archived')->count(),
-            ];
-        })->sortBy(fn ($g) => strtolower($g['client']))->values();
-
-        return view('admin.project_quotation', compact('clientGroups'));
-    }
-
     public function adminClient($client)
     {
         $client = urldecode($client);

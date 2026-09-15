@@ -8,6 +8,7 @@ class ProjectMaterial extends Model
 {
     protected $fillable = [
         'project_id',
+        'quotation_batch_id',
         'material_name',
         'category',
         'quantity',
@@ -29,6 +30,11 @@ class ProjectMaterial extends Model
     public function project()
     {
         return $this->belongsTo(Project::class);
+    }
+
+    public function quotationBatch()
+    {
+        return $this->belongsTo(QuotationBatch::class, 'quotation_batch_id');
     }
 
     public function purchases()

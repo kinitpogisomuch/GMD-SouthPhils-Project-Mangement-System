@@ -39,6 +39,7 @@ class NotificationService
     const TYPE_QUOTATION_REQUEST_DECLINED  = 'quotation_request_declined';
     const TYPE_QUOTATION_REQUEST_QUOTATION_SENT = 'quotation_request_quotation_sent';
     const TYPE_QUOTATION_REQUEST_APPROVED       = 'quotation_request_approved';
+    const TYPE_QUOTATION_REQUEST_REJECTED       = 'quotation_request_rejected';
     const TYPE_MONTHLY_EXPENSE_REMINDER         = 'monthly_expense_reminder';
     const TYPE_MATERIAL_LOGGING_REMINDER        = 'material_logging_reminder';
     const TYPE_SALARY_RECORDING_REMINDER        = 'salary_recording_reminder';
@@ -642,6 +643,21 @@ class NotificationService
             "{$request->client->name} approved the quotation for their {$request->tank_summary} request. It's ready to be converted into a project.",
             self::TYPE_QUOTATION_REQUEST_APPROVED,
             'success',
+            null,
+            null,
+            '/admin/quotation-requests'
+        );
+    }
+
+    /** Client rejected the sent quotation → notify admins */
+    public static function quotationRequestRejected(QuotationRequest $request): void
+    {
+        self::notifyAdmins(
+            'Quotation Rejected by Client',
+            "{$request->client->name} rejected the quotation for their {$request->tank_summary} request."
+                . ($request->decline_reason ? " Reason: {$request->decline_reason}" : ''),
+            self::TYPE_QUOTATION_REQUEST_REJECTED,
+            'warning',
             null,
             null,
             '/admin/quotation-requests'
