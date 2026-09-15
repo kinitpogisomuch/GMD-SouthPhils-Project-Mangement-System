@@ -136,10 +136,10 @@
                     Send to Client
                 </button>
                 @elseif($batchStatus === 'approved')
-                <button class="add-btn" type="button" id="openConvertModal">
+                <a class="add-btn" style="text-decoration:none;" href="{{ route('admin.projects', ['prefill_quotation_batch' => $batch->id]) }}">
                     <i data-lucide="folder-plus"></i>
                     Convert to Project
-                </button>
+                </a>
                 @endif
             </div>
 
@@ -153,6 +153,13 @@
             <div class="alert-banner error">
                 <i data-lucide="alert-circle"></i>
                 {{ session('error') }}
+            </div>
+            @endif
+
+            @if($batchStatus === 'pending' && optional($tankItems->first())->decline_reason)
+            <div class="alert-banner" style="margin-bottom:20px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;">
+                <i data-lucide="rotate-ccw"></i>
+                <strong>Client requested a revision:</strong> {{ $tankItems->first()->decline_reason }}
             </div>
             @endif
 
@@ -226,6 +233,38 @@
                         <span class="fd-ov-label">Project Budget</span>
                         <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Est. materials + labor</span>
                         <span class="fd-ov-val" style="color:#4ade80;font-size:17px;">₱{{ number_format($estimatedBudget['total'], 2) }}</span>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Markup --}}
+            <div class="table-card" style="padding:18px 20px;margin-bottom:24px;">
+                <div style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;">
+                    <form method="POST" action="{{ route('admin.quotation_requests.batch_markup', $batch->id) }}" id="markupForm" style="display:flex;align-items:flex-end;gap:10px;">
+                        @csrf
+                        <input type="hidden" name="open_send_modal" id="openSendModalFlag" value="0">
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label>Markup / Profit (₱)</label>
+                            <input type="number" name="markup" id="markupInput" min="0" step="0.01" required
+                                   value="{{ $batch->markup ?? 0 }}" placeholder="e.g. 50000"
+                                   oninput="updateMarkupPreview()" style="width:200px;">
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label>Payment Terms</label>
+                            <select name="payment_term_type" style="width:230px;">
+                                <option value="" disabled {{ !$batch->payment_term_type ? 'selected' : '' }}>Select payment terms</option>
+                                <option value="big_project" {{ $batch->payment_term_type === 'big_project' ? 'selected' : '' }}>Big Project — 3 Phases (50% / 30% / 20%)</option>
+                                <option value="small_project" {{ $batch->payment_term_type === 'small_project' ? 'selected' : '' }}>Small Project — 2 Phases (50% / 50%)</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="save-btn">
+                            <i data-lucide="save"></i>
+                            Save
+                        </button>
+                    </form>
+                    <div style="font-size:13px;color:var(--muted);padding-bottom:11px;">
+                        Contract Value: <strong id="markupContractValuePreview" style="color:var(--dark);">₱{{ number_format($estimatedBudget['total'] + (float) ($batch->markup ?? 0), 2) }}</strong>
+                        <span style="display:block;font-size:11.5px;margin-top:2px;">Added on top of the Project Budget — not shown to the client.</span>
                     </div>
                 </div>
             </div>
@@ -540,7 +579,7 @@
             <div class="modal-header">
                 <div>
                     <h2>Send Quotation to Client</h2>
-                    <p>Review the totals below, add your markup, then send.</p>
+                    <p>Review the totals below, then send.</p>
                 </div>
                 <button class="modal-close" type="button" id="closeSendQuotationModal">
                     <i data-lucide="x"></i>
@@ -555,28 +594,24 @@
                         <span style="font-size:13px;color:var(--muted);">Project Budget</span>
                         <strong style="font-size:13px;">₱{{ number_format($estimatedBudget['total'], 2) }}</strong>
                     </div>
-                    <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">
                         <span style="font-size:12px;color:var(--muted);">— Est. Materials ₱{{ number_format($estimatedBudget['materials'], 2) }} + Est. Labor ₱{{ number_format($estimatedBudget['labor'], 2) }}</span>
                     </div>
-                </div>
-
-                <div class="form-group" style="margin-bottom:16px;">
-                    <label>Markup / Profit (₱)</label>
-                    <input type="number" name="markup" id="sendQMarkup" min="0" step="0.01" required
-                           value="{{ old('markup', $batch->markup) }}" placeholder="e.g. 50000"
-                           style="font-size:16px;font-weight:700;width:100%;" oninput="updateSendQContractValue()">
-                    <p style="font-size:12px;color:var(--muted);margin-top:6px;">Added on top of the Project Budget — this is not shown to the client as a separate line item.</p>
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;">
+                        <span style="font-size:13px;color:var(--muted);">Markup / Profit</span>
+                        <strong style="font-size:13px;">₱{{ number_format($batch->markup ?? 0, 2) }}</strong>
+                    </div>
                 </div>
 
                 <div style="background:var(--dark);border-radius:10px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
                     <span style="font-size:12px;font-weight:700;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.05em;">Contract Value</span>
-                    <span id="sendQContractValue" style="font-size:20px;font-weight:900;color:#fff;">₱{{ number_format($estimatedBudget['total'] + (float) ($batch->markup ?? 0), 2) }}</span>
+                    <span style="font-size:20px;font-weight:900;color:#fff;">₱{{ number_format($estimatedBudget['total'] + (float) ($batch->markup ?? 0), 2) }}</span>
                 </div>
 
                 <div class="form-group" style="margin-bottom:20px;">
-                    <label>Attach Drawing / Reference File(s) <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
-                    <input type="file" name="quotation_files[]" multiple accept=".pdf,image/*" style="width:100%;">
-                    <p style="font-size:12px;color:var(--muted);margin-top:6px;">PDF or image, up to 5 files, max 10MB each.</p>
+                    <label>Quotation File(s) <span style="color:var(--danger);">*</span></label>
+                    <input type="file" name="quotation_files[]" multiple accept=".pdf,image/*" required style="width:100%;">
+                    <p style="font-size:12px;color:var(--muted);margin-top:6px;">PDF or image, up to 5 files, max 10MB each — this is what the client will see as the quotation.</p>
                 </div>
 
                 <div class="modal-actions">
@@ -584,92 +619,6 @@
                     <button type="submit" class="save-btn">
                         <i data-lucide="send"></i>
                         Send to Client
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    {{-- ===================== CONVERT TO PROJECT MODAL ===================== --}}
-    <div class="modal-overlay" id="convertModal">
-        <div class="modal-card" style="max-width:640px;width:95%;">
-            <div class="modal-header">
-                <div>
-                    <h2>Convert to Project</h2>
-                    <p>Materials, labor, and pricing already carry over automatically — just fill in what's needed to start execution.</p>
-                </div>
-                <button class="modal-close" type="button" id="closeConvertModal">
-                    <i data-lucide="x"></i>
-                </button>
-            </div>
-
-            <form method="POST" action="{{ route('admin.quotation_requests.batch_convert', $batch->id) }}">
-                @csrf
-
-                <div class="form-group" style="margin-bottom:16px;">
-                    <label>Project Name</label>
-                    <input type="text" name="name" required placeholder="e.g. Fabrication of Fuel Day Tank" style="width:100%;">
-                </div>
-
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
-                    <div class="form-group">
-                        <label>Start Date</label>
-                        <input type="date" name="start_date" required style="width:100%;">
-                    </div>
-                    <div class="form-group">
-                        <label>End Date</label>
-                        <input type="date" name="end_date" required style="width:100%;">
-                    </div>
-                </div>
-
-                <div class="form-group" style="margin-bottom:20px;">
-                    <label>Payment Terms</label>
-                    <select name="payment_term_type" required style="width:100%;">
-                        <option value="" disabled selected hidden>Select payment terms</option>
-                        <option value="big_project">Big Project — 3 Phases (50% / 30% / 20%)</option>
-                        <option value="small_project">Small Project — 2 Phases (50% / 50%)</option>
-                    </select>
-                </div>
-
-                <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px;">
-                    Tank Details — shape &amp; dimensions weren't part of the quotation
-                </div>
-                @foreach($tankItems as $i => $item)
-                <div style="border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;">
-                    <div style="font-size:12.5px;font-weight:700;color:var(--dark);margin-bottom:10px;">
-                        {{ $item->tank_type ?: 'Tank' }} &middot; {{ $item->capacity ?: '—' }} &middot; {{ $item->quantity }}x
-                    </div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-                        <div class="form-group" style="margin-bottom:0;">
-                            <label>Shape</label>
-                            <select name="shape[]" required style="width:100%;">
-                                <option value="" disabled selected hidden>Select shape</option>
-                                <option value="Cylindrical">Cylindrical</option>
-                                <option value="Rectangular">Rectangular</option>
-                                <option value="Modular">Modular</option>
-                                <option value="3-Legged Pod">3-Legged Pod</option>
-                                <option value="N/A">N/A</option>
-                            </select>
-                        </div>
-                        <div class="form-group" style="margin-bottom:0;">
-                            <label>Dimensions</label>
-                            <input type="text" name="dimensions[]" required placeholder="e.g. &Oslash;2m &times; H3m" style="width:100%;">
-                        </div>
-                    </div>
-                </div>
-                @endforeach
-
-                <div style="background:var(--cream-soft);border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:var(--muted);">
-                    <strong style="color:var(--dark);">Contract Value:</strong>
-                    <span style="font-weight:700;color:var(--dark);">₱{{ number_format($batch->contract_value, 2) }}</span>
-                    — carried over from the sent quotation.
-                </div>
-
-                <div class="modal-actions">
-                    <button type="button" class="cancel-btn" id="cancelConvert">Cancel</button>
-                    <button type="submit" class="save-btn">
-                        <i data-lucide="folder-plus"></i>
-                        Create Project
                     </button>
                 </div>
             </form>
@@ -693,28 +642,31 @@
     });
 
     // ---- Send to Client ----
-    var SEND_Q_BUDGET = {{ $estimatedBudget['total'] }};
     var openSendQBtn = document.getElementById('openSendQuotationModal');
-    if (openSendQBtn) openSendQBtn.addEventListener('click', function () { openModal('sendQuotationModal'); });
+    if (openSendQBtn) openSendQBtn.addEventListener('click', function () {
+        // Save whatever's currently in the Markup field first (it may not have been
+        // saved yet), then reload and auto-open the modal so it always shows the
+        // number that's actually persisted — never a stale or unsaved value.
+        document.getElementById('openSendModalFlag').value = '1';
+        document.getElementById('markupForm').submit();
+    });
     var closeSendQBtn = document.getElementById('closeSendQuotationModal');
     if (closeSendQBtn) closeSendQBtn.addEventListener('click', function () { closeModal('sendQuotationModal'); });
     var cancelSendQBtn = document.getElementById('cancelSendQuotation');
     if (cancelSendQBtn) cancelSendQBtn.addEventListener('click', function () { closeModal('sendQuotationModal'); });
 
-    function updateSendQContractValue() {
-        var markup = parseFloat(document.getElementById('sendQMarkup').value) || 0;
-        var total  = SEND_Q_BUDGET + markup;
-        document.getElementById('sendQContractValue').textContent =
+    @if(request('open_send'))
+    openModal('sendQuotationModal');
+    @endif
+
+    // ---- Markup (standalone container, outside any modal) ----
+    var MARKUP_BUDGET = {{ $estimatedBudget['total'] }};
+    function updateMarkupPreview() {
+        var markup = parseFloat(document.getElementById('markupInput').value) || 0;
+        var total  = MARKUP_BUDGET + markup;
+        document.getElementById('markupContractValuePreview').textContent =
             '₱' + total.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
-
-    // ---- Convert to Project ----
-    var openConvertBtn = document.getElementById('openConvertModal');
-    if (openConvertBtn) openConvertBtn.addEventListener('click', function () { openModal('convertModal'); });
-    var closeConvertBtn = document.getElementById('closeConvertModal');
-    if (closeConvertBtn) closeConvertBtn.addEventListener('click', function () { closeModal('convertModal'); });
-    var cancelConvertBtn = document.getElementById('cancelConvert');
-    if (cancelConvertBtn) cancelConvertBtn.addEventListener('click', function () { closeModal('convertModal'); });
 
     // ---- Add Material rows (two-step: entry table -> review; prefilled with existing rows) ----
     function escapeHtml(str) {

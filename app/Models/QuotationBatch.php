@@ -17,6 +17,7 @@ class QuotationBatch extends Model
         'markup',
         'contract_value',
         'quotation_files',
+        'payment_term_type',
     ];
 
     protected $casts = [

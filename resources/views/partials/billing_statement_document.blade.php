@@ -1,7 +1,18 @@
 @php
     $totalPaid = $payment->totalPaid();
-    $balance   = $payment->currentBalance();
     $particulars = $statement->project_title ?: ($payment->project->name ?? '—');
+
+    // This statement is an invoice for $statement->billing_stage — the balance shown
+    // here anticipates that bill being settled (contract minus what's already paid
+    // minus what's being billed now), not just what's been recorded so far.
+    $billedStageAmount = 0;
+    if ($statement->billing_stage) {
+        $billingStagePaid = $payment->transactions->where('payment_stage', $statement->billing_stage)->sum('amount_paid');
+        if ($billingStagePaid <= 0) {
+            $billedStageAmount = $payment->stageAmounts()[$statement->billing_stage] ?? 0;
+        }
+    }
+    $balance = max(0, $payment->currentBalance() - $billedStageAmount);
 @endphp
 
 <div class="bs-sheet">
@@ -75,49 +86,53 @@
             <tr>
                 <th style="width:110px;">DATE</th>
                 <th>PARTICULARS</th>
-                <th style="width:140px;text-align:right;">AMOUNT</th>
+                <th style="width:140px;text-align:center;">AMOUNT</th>
             </tr>
         </thead>
         <tbody>
             <tr>
                 <td>{{ $statement->statement_date->format('F d, Y') }}</td>
-                <td><strong>{{ $particulars }}</strong></td>
-                <td></td>
+                <td>
+                    <strong>{{ $particulars }}</strong>
+                </td>
+                <td style="text-align:center;">
+                    <div style="font-size:9.5px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px;">Total Contract Amount</div>
+                    <span style="font-weight:800;">{{ number_format($payment->contract_amount, 2) }}</span>
+                </td>
             </tr>
             @foreach($payment->stages() as $stage)
             @php
-                $stageLabel  = \App\Models\PaymentTransaction::stageLabel($stage);
-                $stagePct    = $payment->contract_amount > 0
+                $stageLabel   = \App\Models\PaymentTransaction::stageLabel($stage);
+                $stagePct     = $payment->contract_amount > 0
                     ? round((($stageAmounts[$stage] ?? 0) / $payment->contract_amount) * 100)
                     : 0;
+                $isBilled     = $statement->billing_stage === $stage;
+                $stagePaidAmt = $payment->transactions->where('payment_stage', $stage)->sum('amount_paid');
+                // Amounts only appear once a term is actually billed or paid — future
+                // terms show ₱0.00 until their own statement bills them.
+                $displayAmt   = ($isBilled || $stagePaidAmt > 0) ? ($stageAmounts[$stage] ?? 0) : 0;
+                $stageStatus  = $stagePaidAmt <= 0
+                    ? 'Unpaid'
+                    : ($stagePaidAmt >= ($stageAmounts[$stage] ?? 0) ? 'Paid' : 'Partially Paid');
             @endphp
-            <tr @if($statement->billing_stage === $stage) style="background:#fff3d6;" @endif>
+            <tr @if($isBilled) style="background:#fff3d6;" @endif>
                 <td></td>
                 <td class="bs-stage-row">
                     {{ $stageLabel }} ({{ $stagePct }}%)
-                    @if($statement->billing_stage === $stage)
+                    @if($stageStatus !== 'Unpaid')
+                    <span style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;margin-left:6px;color:{{ $stageStatus === 'Paid' ? '#16a34a' : '#b45309' }};">{{ $stageStatus }}</span>
+                    @endif
+                    @if($isBilled)
                     <strong>&nbsp;— BILLED THIS STATEMENT</strong>
                     @endif
                 </td>
-                <td style="text-align:right;font-weight:700;">{{ number_format($stageAmounts[$stage] ?? 0, 2) }}</td>
-            </tr>
-            @endforeach
-            <tr class="bs-subtotal-row">
-                <td></td>
-                <td style="text-align:right;">Total Contract Amount</td>
-                <td style="text-align:right;">{{ number_format($payment->contract_amount, 2) }}</td>
-            </tr>
-            @foreach($payment->transactions->sortBy('payment_date') as $tx)
-            <tr>
-                <td></td>
-                <td class="bs-less-row">Less: &nbsp; {{ \App\Models\PaymentTransaction::stageLabel($tx->payment_stage) }} (paid {{ \Carbon\Carbon::parse($tx->payment_date)->format('M d, Y') }})</td>
-                <td style="text-align:right;color:#b91c1c;">{{ number_format($tx->amount_paid, 2) }}</td>
+                <td style="text-align:center;font-weight:700;">{{ $displayAmt > 0 ? number_format($displayAmt, 2) : '–' }}</td>
             </tr>
             @endforeach
             <tr class="bs-total-row">
                 <td></td>
                 <td style="text-align:right;">Total amount balance &nbsp;&nbsp; PHP</td>
-                <td style="text-align:right;">{{ number_format($balance, 2) }}</td>
+                <td style="text-align:center;">{{ number_format($balance, 2) }}</td>
             </tr>
         </tbody>
     </table>
@@ -144,12 +159,16 @@
         <div class="bs-sig-block">
             <div class="bs-sig-label">Prepared by:</div>
             <div class="bs-sig-name">{{ $statement->prepared_by_name ?: '—' }}</div>
+            <div class="bs-sig-line"></div>
             <div class="bs-sig-role">{{ $statement->prepared_by_role ?: '—' }}</div>
         </div>
         <div class="bs-sig-block">
             <div class="bs-sig-label">Approved by:</div>
             <div class="bs-sig-name">{{ $statement->approved_by_name ?: '—' }}</div>
+            <div class="bs-sig-line"></div>
             <div class="bs-sig-role">{{ $statement->approved_by_role ?: '—' }}</div>
         </div>
     </div>
+
+    <div class="bs-auto-note">This is an auto-generated billing statement.</div>
 </div>

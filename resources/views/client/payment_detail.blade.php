@@ -33,8 +33,22 @@
 
             <div class="page-header" style="margin-bottom:24px;align-items:flex-start;">
                 <div>
-                    <h1 class="page-title">{{ $payment->project->name ?? 'Payment Detail' }}</h1>
-                    <p class="page-subtitle">{{ $payment->payment_terms }} &nbsp;·&nbsp; Contract signed {{ $payment->date ? \Carbon\Carbon::parse($payment->date)->format('M d, Y') : '—' }}</p>
+                    <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;">
+                        <h1 class="page-title" style="margin:0;">{{ $payment->project->name ?? 'Payment Detail' }}</h1>
+                        <div style="display:flex;align-items:baseline;gap:6px;">
+                            <span style="font-size:22px;font-weight:900;color:var(--dark);">₱{{ number_format($payment->contract_amount, 2) }}</span>
+                            <span style="font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">Total Contract Amount</span>
+                        </div>
+                    </div>
+                    <p class="page-subtitle">
+                        @if($payment->project && $payment->project->tankItems->isNotEmpty())
+                            @foreach($payment->project->tankItems as $ti)
+                            <strong>{{ $ti->quantity }}×</strong> {{ $ti->tank_type }}@if($ti->capacity) ({{ $ti->capacity }})@endif{{ !$loop->last ? ', ' : '' }}
+                            @endforeach
+                            &nbsp;·&nbsp;
+                        @endif
+                        {{ $payment->payment_terms }} &nbsp;·&nbsp; Contract signed {{ $payment->date ? \Carbon\Carbon::parse($payment->date)->format('M d, Y') : '—' }}
+                    </p>
                 </div>
                 <span class="status-badge {{ \App\Models\Payment::statusBadgeClass($status) }}" style="font-size:13px;padding:8px 16px;">
                     {{ $status }}

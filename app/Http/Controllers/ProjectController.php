@@ -385,7 +385,7 @@ class ProjectController extends Controller
             'start_date' => 'required|date',
             'end_date'   => 'required|date|after_or_equal:start_date',
             'client'     => 'required|string',
-            'quotation_request_id' => 'nullable|integer|exists:quotation_requests,id',
+            'quotation_batch_id' => 'nullable|string|exists:quotation_batches,id',
         ]);
 
         $start    = \Carbon\Carbon::parse($request->start_date);
@@ -424,10 +424,76 @@ class ProjectController extends Controller
             'notes'             => $request->notes,
         ]);
 
-        if ($request->filled('quotation_request_id')) {
-            \App\Models\QuotationRequest::where('id', $request->quotation_request_id)->update([
-                'status'              => 'converted',
-                'related_project_id'  => $project->id,
+        $convertedFromBatch = $request->filled('quotation_batch_id');
+
+        if ($convertedFromBatch) {
+            $batchId = $request->quotation_batch_id;
+            $batch   = \App\Models\QuotationBatch::find($batchId);
+
+            // Carry the quotation-stage BOM/labor over instead of re-entering it.
+            ProjectMaterial::where('quotation_batch_id', $batchId)->update([
+                'project_id'         => $project->id,
+                'quotation_batch_id' => null,
+            ]);
+            ProjectLabor::where('quotation_batch_id', $batchId)->update([
+                'project_id'         => $project->id,
+                'quotation_batch_id' => null,
+            ]);
+
+            // Auto-assign whichever employees were picked while building the labor
+            // entries above — same name-matching used the other way around when
+            // assigning an employee auto-creates their labor entry (see
+            // addNewlyAssignedEmployeesToLabor()).
+            $laborNames = ProjectLabor::where('project_id', $project->id)
+                ->where('status', 'active')
+                ->pluck('description')
+                ->map(fn ($d) => trim(preg_replace('/\s*\([^)]*\)$/', '', $d)))
+                ->filter()
+                ->unique();
+
+            if ($laborNames->isNotEmpty()) {
+                $employeeIds = Employee::where('status', 'Active')->get()
+                    ->filter(fn ($e) => $laborNames->contains($e->name))
+                    ->pluck('id')
+                    ->all();
+
+                if (!empty($employeeIds)) {
+                    $project->assignedEmployees()->sync($employeeIds);
+                }
+            }
+
+            if ($batch && $batch->estimated_working_days) {
+                $project->update(['estimated_working_days' => $batch->estimated_working_days]);
+            }
+
+            // Payment Terms + Markup were already locked in on the Build Quotation
+            // page before conversion, so the Payment record is created immediately
+            // here instead of leaving it to a separate manual Payment Setup step.
+            if ($batch && $batch->payment_term_type) {
+                $contractAmount = (float) ($batch->contract_value ?? 0);
+                $termLabel = $batch->payment_term_type === 'big_project'
+                    ? '3 Phases (50% / 30% / 20%)'
+                    : '2 Phases (50% / 50%)';
+
+                \App\Models\Payment::create([
+                    'project_id'        => $project->id,
+                    'client'            => $project->client,
+                    'client_type'       => $project->client_type,
+                    'contract_amount'   => $contractAmount,
+                    'project_budget'    => $batch->project_budget,
+                    'markup'            => $batch->markup,
+                    'down_payment'      => round($contractAmount * 0.5, 2),
+                    'balance'           => $contractAmount,
+                    'status'            => 'Pending Down Payment',
+                    'payment_terms'     => $termLabel,
+                    'payment_term_type' => $batch->payment_term_type,
+                    'date'              => now()->toDateString(),
+                ]);
+            }
+
+            \App\Models\QuotationRequest::where('batch_id', $batchId)->update([
+                'status'             => 'converted',
+                'related_project_id' => $project->id,
             ]);
         }
 
@@ -447,29 +513,35 @@ class ProjectController extends Controller
 
         // Save the bill of materials (if provided) as the project's initial BOM.
         // Prices can be left blank and filled in later on the Project Materials page.
-        foreach ($request->input('materials', []) as $material) {
-            if (empty($material['material_name'])) {
-                continue;
+        // Skipped when converting from a quotation — its materials were already
+        // re-parented above, so re-adding form input here would duplicate them.
+        if (!$convertedFromBatch) {
+            foreach ($request->input('materials', []) as $material) {
+                if (empty($material['material_name'])) {
+                    continue;
+                }
+
+                $quantity  = $material['quantity'] ?? 1;
+                $unitPrice = $material['price_per_unit'] ?? 0;
+
+                ProjectMaterial::create([
+                    'project_id'     => $project->id,
+                    'material_name'  => $material['material_name'],
+                    'quantity'       => $quantity,
+                    'unit'           => $material['unit'] ?? '',
+                    'price_per_unit' => $unitPrice,
+                    'total_cost'     => round($quantity * $unitPrice, 2),
+                    'factor'         => 7,
+                    'status'         => 'active',
+                ]);
             }
-
-            $quantity  = $material['quantity'] ?? 1;
-            $unitPrice = $material['price_per_unit'] ?? 0;
-
-            ProjectMaterial::create([
-                'project_id'     => $project->id,
-                'material_name'  => $material['material_name'],
-                'quantity'       => $quantity,
-                'unit'           => $material['unit'] ?? '',
-                'price_per_unit' => $unitPrice,
-                'total_cost'     => round($quantity * $unitPrice, 2),
-                'factor'         => 7,
-                'status'         => 'active',
-            ]);
         }
 
         // Auto-save tank specs (and materials) as a reusable template for custom
-        // (not from-template) projects, skipping it when an identical template already exists.
-        if (!$request->boolean('from_existing_template')) {
+        // (not from-template) projects, skipping it when an identical template already
+        // exists, or when this project came from a quotation conversion (one-off tank
+        // specs from a specific client's request, not a reusable starting point).
+        if (!$convertedFromBatch && !$request->boolean('from_existing_template')) {
             $normalizedItems = $this->normalizeTankItems($request->tank_items);
 
             $isDuplicate = ProjectTemplate::all()->contains(

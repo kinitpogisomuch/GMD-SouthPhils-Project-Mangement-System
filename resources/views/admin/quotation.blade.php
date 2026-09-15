@@ -144,7 +144,7 @@
                                     'decline_reason'    => $qr->decline_reason,
                                     'submitted_at'      => $qr->created_at->format('M d, Y \a\t g:i A'),
                                     'build_quotation_url' => route('admin.quotation_requests.batch_detail', $qr->batch_id),
-                                    'convert_url'         => route('admin.quotation_requests.batch_detail', $qr->batch_id),
+                                    'convert_url'         => route('admin.projects', ['prefill_quotation_batch' => $qr->batch_id]),
                                 ]) }}"
                                 >
                                 <td>{{ $qr->client->name ?? '—' }}</td>
@@ -192,7 +192,9 @@
                                 <td style="white-space:normal;word-break:break-word;">{{ $qr->location }}</td>
                                 <td>{{ $qr->created_at->format('M d, Y') }}</td>
                                 <td>
-                                    @if($qr->status === 'pending')
+                                    @if($qr->status === 'pending' && $qr->decline_reason)
+                                    <span class="status-badge revision" title="{{ $qr->decline_reason }}">Revision Requested</span>
+                                    @elseif($qr->status === 'pending')
                                     <span class="status-badge pending">Pending</span>
                                     @elseif($qr->status === 'quotation_sent')
                                     <span class="status-badge ongoing">Quotation Sent</span>
@@ -216,7 +218,7 @@
                                     @endif
                                     @if($qr->status === 'approved')
                                     <a class="action-btn view" type="button" title="Convert to Project"
-                                       href="{{ route('admin.quotation_requests.batch_detail', $qr->batch_id) }}">
+                                       href="{{ route('admin.projects', ['prefill_quotation_batch' => $qr->batch_id]) }}">
                                         <i data-lucide="folder-plus"></i>
                                     </a>
                                     @endif
@@ -550,14 +552,26 @@
                         refFilesList.innerHTML = '';
                     }
 
-                    var meta = statusMeta[r.status] || statusMeta.pending;
+                    var isRevisionRequest = r.status === 'pending' && !!r.decline_reason;
+                    var meta = isRevisionRequest
+                        ? { label: 'Revision Requested', cls: 'revision' }
+                        : (statusMeta[r.status] || statusMeta.pending);
                     document.getElementById('viewRequestStatusBadge').innerHTML =
                         '<span class="status-badge ' + meta.cls + '">' + meta.label + '</span>';
 
                     var declineWrap = document.getElementById('viewRequestDeclineReasonWrap');
                     if (r.status === 'declined' && r.decline_reason) {
                         declineWrap.style.display = '';
+                        declineWrap.style.background = '#fee2e2';
+                        declineWrap.style.borderColor = '#fca5a5';
+                        declineWrap.style.color = '#dc2626';
                         document.getElementById('viewRequestDeclineReason').textContent = r.decline_reason;
+                    } else if (isRevisionRequest) {
+                        declineWrap.style.display = '';
+                        declineWrap.style.background = '#fff7ed';
+                        declineWrap.style.borderColor = '#fed7aa';
+                        declineWrap.style.color = '#9a3412';
+                        document.getElementById('viewRequestDeclineReason').textContent = 'Client requested a revision: ' + r.decline_reason;
                     } else {
                         declineWrap.style.display = 'none';
                     }

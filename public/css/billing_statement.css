@@ -232,17 +232,35 @@ body {
 }
 
 .bs-sig-name {
-    font-weight: 700;
+    font-family: 'Inter', Arial, Helvetica, sans-serif;
+    font-weight: 800;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    padding-bottom: 6px;
+    text-align: center;
+}
+
+.bs-sig-line {
     border-top: 1px solid #1a1a1a;
-    padding-top: 6px;
-    font-family: 'Brush Script MT', cursive;
-    font-size: 18px;
+    margin-bottom: 4px;
 }
 
 .bs-sig-role {
     font-size: 11.5px;
     color: #444;
     margin-top: 2px;
+    text-align: center;
+}
+
+.bs-auto-note {
+    margin-top: 36px;
+    padding-top: 14px;
+    border-top: 1px dashed #ccc;
+    font-size: 10.5px;
+    color: #888;
+    text-align: center;
+    font-style: italic;
 }
 
 /* ================= PERFORMANCE TEST REPORT (Inspection phase) ================= */
@@ -378,18 +396,23 @@ body {
        page — this document should always fit on a single sheet. */
     .bs-title { margin: 10px 0 12px; }
     .bs-fields { margin-bottom: 12px; }
+    .bs-fields td { padding: 3px 0; }
     .bs-particulars { margin-bottom: 10px; }
-    .bs-final-balance { margin: 10px 0 14px; }
-    .bs-deposit { margin-bottom: 14px; }
-    .bs-deposit-text { min-height: 24px; }
-    .bs-questions { margin-bottom: 20px; }
-    .bs-signatures { margin-top: 18px; }
-    .bs-sig-label { margin-bottom: 18px; }
+    .bs-particulars td { padding: 5px 8px; }
+    .bs-particulars th { padding: 6px 8px; }
+    .bs-final-balance { margin: 8px 0 10px; }
+    .bs-deposit { margin-bottom: 12px; }
+    .bs-deposit-text { min-height: 20px; }
+    .bs-questions { margin-bottom: 14px; }
+    .bs-signatures { margin-top: 14px; }
+    .bs-sig-label { margin-bottom: 12px; }
+    .bs-auto-note { margin-top: 16px; padding-top: 8px; }
 
     /* Keep rows/blocks intact if the sheet is ever tight on space */
     .bs-particulars tr,
     .bs-signatures,
-    .bs-letterhead {
+    .bs-letterhead,
+    .bs-auto-note {
         page-break-inside: avoid;
     }
 

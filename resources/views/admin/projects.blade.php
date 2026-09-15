@@ -338,7 +338,7 @@
                 <input type="hidden" name="address"        id="projAddressHidden">
                 <input type="hidden" name="capacity"       id="projCapacityHidden">
                 <input type="hidden" name="dimensions"     id="projDimensionsHidden">
-                <input type="hidden" name="quotation_request_id" id="projQuotationRequestIdHidden">
+                <input type="hidden" name="quotation_batch_id" id="projQuotationBatchIdHidden">
 
                 {{-- Scrollable body --}}
                 <div style="overflow-y:auto;flex:1;padding:0 28px 8px;">
@@ -1266,23 +1266,23 @@
         // then let the admin pick a template (or start from scratch) same as normal —
         // (arrived here via "Convert to Project" on admin/quotation-requests)
         function runQuotationPrefill() {
-            var qrId = new URLSearchParams(window.location.search).get('prefill_quotation_request');
-            if (!qrId) return;
+            var batchId = new URLSearchParams(window.location.search).get('prefill_quotation_batch');
+            if (!batchId) return;
 
-            fetch('/admin/quotation-requests/' + qrId + '/prefill', { headers: { 'Accept': 'application/json' } })
+            fetch('/admin/quotation-requests/batch/' + batchId + '/prefill', { headers: { 'Accept': 'application/json' } })
                 .then(function (r) {
-                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    if (!r.ok) return r.json().then(function (body) { throw new Error(body.message || ('HTTP ' + r.status)); });
                     return r.json();
                 })
                 .then(function (data) {
                     quotationConversionData = data;
                     populateClientFields(data.client);
-                    document.getElementById('projQuotationRequestIdHidden').value = data.quotation_request_id;
+                    document.getElementById('projQuotationBatchIdHidden').value = data.quotation_batch_id;
                     openSelectTemplateModal(true);
                 })
                 .catch(function (err) {
                     console.error('Quotation prefill failed:', err);
-                    alert('Could not load this quotation request\'s details. Please try clicking "Convert to Project" again from the Quotation Requests page.');
+                    alert(err.message || 'Could not load this quotation\'s details. Please try clicking "Convert to Project" again from the Quotation page.');
                 });
         }
 
@@ -1663,8 +1663,13 @@
 
                     if (usedExistingTemplate) {
                         loadTemplateIntoAddForm(selectedTemplateId);
+                    } else if (quotationConversionData && quotationConversionData.tank_items && quotationConversionData.tank_items.length) {
+                        // Seed one row per actual tank the client requested, instead of one blank row.
+                        (quotationConversionData.tank_items).forEach(function (item) { addTankRow(item); });
+                        document.getElementById('materialsContainer').innerHTML = '';
+                        addMaterialIndex = 0;
+                        toggleMaterialsEmptyHint();
                     } else {
-                        document.getElementById('bomSection').style.display = 'none';
                         addTankRow();
                         document.getElementById('materialsContainer').innerHTML = '';
                         addMaterialIndex = 0;
@@ -1680,11 +1685,14 @@
                             qBanner.querySelector('.qr-summary').innerHTML = formatQuotationSummaryLine(quotationConversionData);
                             if (typeof lucide !== 'undefined') lucide.createIcons();
                         }
-                        // quotation_request_id hidden field was already set in runQuotationPrefill()
+                        // The materials/labor already entered while building this quotation
+                        // carry over automatically on submit — no need to re-enter a BOM here.
+                        document.getElementById('bomSection').style.display = 'none';
+                        // quotation_batch_id hidden field was already set in runQuotationPrefill()
                         // and must survive the template step, so it's left untouched here.
                     } else {
                         // Normal (non-conversion) flow — make sure no stale conversion state lingers.
-                        document.getElementById('projQuotationRequestIdHidden').value = '';
+                        document.getElementById('projQuotationBatchIdHidden').value = '';
                         if (qBanner) qBanner.style.display = 'none';
                     }
 

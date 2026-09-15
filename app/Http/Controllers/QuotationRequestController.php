@@ -186,15 +186,19 @@ class QuotationRequestController extends Controller
             'reason' => 'nullable|string|max:1000',
         ]);
 
+        // Unlike a decline, this reopens the request instead of ending it — it goes
+        // back to "pending" (with the client's reason attached) so it lands back in
+        // the admin's queue and the same Build Quotation page/materials/labor stay
+        // intact for the admin to revise, rather than starting over from scratch.
         QuotationRequest::where('batch_id', $batchId)->update([
-            'status'         => 'declined',
+            'status'         => 'pending',
             'decline_reason' => $request->input('reason'),
         ]);
 
         NotificationService::quotationRequestRejected($requests->first()->fresh());
 
         return redirect()->route('client.quotation.create')
-            ->with('success', 'Quotation rejected. Our team will follow up if needed.');
+            ->with('success', 'Revision requested. Our team will follow up with an updated quotation.');
     }
 
     /*
@@ -255,14 +259,13 @@ class QuotationRequestController extends Controller
     }
 
     /**
-     * Creates the Project from an approved batch in one step — tank items come from
-     * the QuotationRequest rows (admin only adds shape/dimensions here), and the
-     * materials/labor already entered during Build Quotation are RE-PARENTED
-     * (quotation_batch_id -> project_id) rather than re-entered. The Payment record
-     * is created immediately too, using the markup/contract value already agreed
-     * with the client at Send-to-Client time.
+     * Feeds the admin Projects module's "Add Project" modal so converting an approved
+     * quotation reuses that full flow (template picker, shape/dimension calculator,
+     * schedule) instead of a separate dedicated form. See ProjectController::store()
+     * for how a submitted `quotation_batch_id` re-parents the quotation's materials/
+     * labor onto the new project instead of re-entering them.
      */
-    public function convertToProject(Request $request, $batchId)
+    public function prefillBatch($batchId)
     {
         $requests = QuotationRequest::where('batch_id', $batchId)->orderBy('created_at')->get();
 
@@ -270,100 +273,46 @@ class QuotationRequestController extends Controller
             abort(404);
         }
         if ($requests->first()->status !== 'approved') {
-            return redirect()->route('admin.quotation_requests')
-                ->with('error', 'This quotation must be approved by the client before it can be converted to a project.');
+            return response()->json([
+                'message' => 'This quotation must be approved by the client before it can be converted to a project.',
+            ], 422);
         }
 
         $batch = $this->resolveBatch($batchId);
         $batch->load('client');
         $client = $batch->client;
 
-        $request->validate([
-            'name'              => 'required|string|max:255',
-            'start_date'        => 'required|date',
-            'end_date'          => 'required|date|after_or_equal:start_date',
-            'payment_term_type' => 'required|in:big_project,small_project',
-            'shape'             => 'required|array|size:' . $requests->count(),
-            'shape.*'           => 'required|string|max:100',
-            'dimensions'        => 'required|array|size:' . $requests->count(),
-            'dimensions.*'      => 'required|string|max:255',
-        ]);
-
-        $start    = \Carbon\Carbon::parse($request->start_date);
-        $end      = \Carbon\Carbon::parse($request->end_date);
-        $duration = $start->diffInDays($end) . ' days';
-        $firstTank = $requests->first();
-
-        $project = Project::create([
-            'name'                    => $request->name,
-            'client'                  => $client->name,
-            'contact_number'          => $client->contact,
-            'email'                   => $client->email,
-            'address'                 => $client->address,
-            'client_type'             => 'Corporate',
-            'tank_type'               => $firstTank->tank_type,
-            'capacity'                => $firstTank->capacity ?? '',
-            'dimensions'              => $request->dimensions[0] ?? null,
-            'start_date'              => $request->start_date,
-            'end_date'                => $request->end_date,
-            'payment_status'          => 'Pending',
-            'status'                  => 'planning',
-            'progress'                => 0,
-            'current_phase'           => 'planning',
-            'current_sub_phase'       => 'shop_drawing',
-            'duration'                => $duration,
-            'estimated_working_days'  => $batch->estimated_working_days,
-        ]);
-
-        foreach ($requests as $i => $qr) {
-            ProjectTankItem::create([
-                'project_id' => $project->id,
-                'tank_type'  => $qr->tank_type,
-                'shape'      => $request->shape[$i] ?? '',
-                'capacity'   => $qr->capacity,
-                'dimensions' => $request->dimensions[$i] ?? '',
-                'quantity'   => $qr->quantity,
-                'sort_order' => $i,
-            ]);
+        if (!$batch->payment_term_type) {
+            return response()->json([
+                'message' => 'Please set Payment Terms on the Build Quotation page before converting.',
+            ], 422);
         }
 
-        // Carry the quotation-stage BOM over instead of re-entering it.
-        ProjectMaterial::where('quotation_batch_id', $batchId)->update([
-            'project_id'         => $project->id,
-            'quotation_batch_id' => null,
-        ]);
-        ProjectLabor::where('quotation_batch_id', $batchId)->update([
-            'project_id'         => $project->id,
-            'quotation_batch_id' => null,
-        ]);
+        $referenceFiles = $requests
+            ->flatMap(fn ($qr) => $qr->reference_files ?? [])
+            ->unique()
+            ->values();
 
-        $contractAmount = (float) ($batch->contract_value ?? 0);
-        $termLabel = $request->payment_term_type === 'big_project'
-            ? '3 Phases (50% / 30% / 20%)'
-            : '2 Phases (50% / 50%)';
-
-        \App\Models\Payment::create([
-            'project_id'        => $project->id,
-            'client'            => $client->name,
-            'client_type'       => 'Corporate',
-            'contract_amount'   => $contractAmount,
-            'project_budget'    => $batch->project_budget,
-            'markup'            => $batch->markup,
-            'down_payment'      => round($contractAmount * 0.5, 2),
-            'balance'           => $contractAmount,
-            'status'            => 'Pending Down Payment',
-            'payment_terms'     => $termLabel,
-            'payment_term_type' => $request->payment_term_type,
-            'date'              => now()->toDateString(),
+        return response()->json([
+            'quotation_batch_id'      => $batchId,
+            'estimated_working_days'  => $batch->estimated_working_days,
+            'client' => [
+                'name'    => $client->name,
+                'contact' => $client->contact,
+                'email'   => $client->email,
+                'address' => $client->address,
+            ],
+            'tank_items' => $requests->map(fn ($qr) => [
+                'tank_type'       => $qr->tank_type,
+                'quantity'        => $qr->quantity,
+                'capacity'        => $qr->capacity,
+                'target_timeline' => $qr->target_timeline_display,
+            ])->values(),
+            'reference_files' => $referenceFiles,
+            'summary' => [
+                'notes' => $requests->first()->notes,
+            ],
         ]);
-
-        QuotationRequest::where('batch_id', $batchId)->update([
-            'status'             => 'converted',
-            'related_project_id' => $project->id,
-        ]);
-
-        return redirect()->route('admin.project_view', $project->id)
-            ->with('success', "\"{$project->name}\" was created from the approved quotation.");
     }
 
     /*
@@ -430,19 +379,52 @@ class QuotationRequestController extends Controller
         ));
     }
 
+    /**
+     * Markup and Payment Terms are set independently on the page (outside the
+     * Send-to-Client modal), before sending. Payment Terms are picked here, ahead
+     * of conversion, so ProjectController::store() can auto-create the Payment
+     * record on "Convert to Project" instead of a separate manual setup step.
+     */
+    public function updateMarkup(Request $request, $batchId)
+    {
+        $batch = $this->resolveBatch($batchId);
+
+        $validated = $request->validate([
+            'markup'             => 'required|numeric|min:0',
+            'payment_term_type'  => 'nullable|in:big_project,small_project',
+        ]);
+
+        $batch->update([
+            'markup'             => $validated['markup'],
+            'payment_term_type'  => $validated['payment_term_type'] ?? $batch->payment_term_type,
+        ]);
+
+        // "Send to Client" submits this form first (so whatever's currently typed is
+        // actually saved) before the modal opens — this flag tells the redirected
+        // page to open it automatically, showing the value that was just persisted.
+        $routeParams = ['batchId' => $batchId];
+        if ($request->boolean('open_send_modal')) {
+            $routeParams['open_send'] = 1;
+        }
+
+        return redirect()
+            ->route('admin.quotation_requests.batch_detail', $routeParams)
+            ->with('success', 'Markup updated.');
+    }
+
     public function sendBatchQuotation(Request $request, $batchId)
     {
         $batch = $this->resolveBatch($batchId);
 
         $request->validate([
-            'markup'             => 'required|numeric|min:0',
-            'quotation_files'    => 'nullable|array|max:5',
+            'quotation_files'    => 'required|array|min:1|max:5',
             'quotation_files.*'  => 'file|mimes:pdf,jpg,jpeg,png|max:10240',
         ]);
 
         // Snapshotted here, never recomputed live afterward — see migration comment.
+        // Markup was already saved separately (outside this modal) before sending.
         $projectBudget = $batch->estimatedBudget()['total'];
-        $markup        = (float) $request->input('markup');
+        $markup        = (float) ($batch->markup ?? 0);
         $contractValue = round($projectBudget + $markup, 2);
 
         $quotationUrls = $batch->quotation_files;
@@ -466,6 +448,8 @@ class QuotationRequestController extends Controller
         QuotationRequest::where('batch_id', $batchId)->update([
             'status'            => 'quotation_sent',
             'quotation_sent_at' => now(),
+            // Clear any earlier revision-request reason — this fresh send addresses it.
+            'decline_reason'    => null,
         ]);
 
         $firstRequest = QuotationRequest::where('batch_id', $batchId)->first();

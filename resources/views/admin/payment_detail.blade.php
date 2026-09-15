@@ -38,8 +38,22 @@
             <!-- Header -->
             <div class="page-header">
                 <div>
-                    <h1>{{ $payment->project->name ?? 'Payment Detail' }}</h1>
-                    <p><span class="client-pill">{{ $payment->client }}</span> &nbsp;·&nbsp; {{ $payment->payment_terms }}</p>
+                    <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;">
+                        <h1 style="margin:0;">{{ $payment->project->name ?? 'Payment Detail' }}</h1>
+                        <div style="display:flex;align-items:baseline;gap:6px;">
+                            <span style="font-size:22px;font-weight:900;color:var(--dark);">₱{{ number_format($payment->contract_amount, 2) }}</span>
+                            <span style="font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">Total Contract Amount</span>
+                        </div>
+                    </div>
+                    <p>
+                        <span class="client-pill">{{ $payment->client }}</span>
+                        @if($payment->project && $payment->project->tankItems->isNotEmpty())
+                            @foreach($payment->project->tankItems as $ti)
+                            &nbsp;·&nbsp; <strong>{{ $ti->quantity }}×</strong> {{ $ti->tank_type }}@if($ti->capacity) ({{ $ti->capacity }})@endif
+                            @endforeach
+                        @endif
+                        &nbsp;·&nbsp; {{ $payment->payment_terms }}
+                    </p>
                 </div>
                 <div style="display:flex;gap:10px;align-items:center;">
                     <button class="cancel-btn" type="button" id="generateBillingBtn">

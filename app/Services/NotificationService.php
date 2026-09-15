@@ -653,8 +653,8 @@ class NotificationService
     public static function quotationRequestRejected(QuotationRequest $request): void
     {
         self::notifyAdmins(
-            'Quotation Rejected by Client',
-            "{$request->client->name} rejected the quotation for their {$request->tank_summary} request."
+            'Revision Requested by Client',
+            "{$request->client->name} requested a revision for their {$request->tank_summary} quotation."
                 . ($request->decline_reason ? " Reason: {$request->decline_reason}" : ''),
             self::TYPE_QUOTATION_REQUEST_REJECTED,
             'warning',

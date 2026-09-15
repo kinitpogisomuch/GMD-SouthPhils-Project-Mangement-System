@@ -14,7 +14,6 @@
     $meta   = $statusMeta[$status] ?? $statusMeta['pending'];
     $specifiedCount = $batch->filter(fn ($qr) => $qr->tank_type)->count();
     $quotationBatch = $first->quotationBatch;
-    $showBreakdown  = $quotationBatch && in_array($status, ['quotation_sent', 'approved', 'converted']);
 @endphp
 <div class="pv-card">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border);">
@@ -61,48 +60,6 @@
     </div>
     @endif
 
-    @if($showBreakdown)
-    <div style="border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:16px;">
-        <div style="background:var(--dark);padding:10px 16px;display:flex;align-items:center;gap:8px;">
-            <i data-lucide="file-text" style="width:14px;height:14px;color:rgba(255,255,255,.6);"></i>
-            <span style="font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:rgba(255,255,255,.7);">Quotation from GMD South Phils</span>
-        </div>
-
-        @if($quotationBatch->activeMaterials->isNotEmpty())
-        <table style="width:100%;border-collapse:collapse;">
-            <thead>
-                <tr style="background:var(--surface-2);">
-                    <th style="text-align:left;padding:8px 16px;font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;">Material</th>
-                    <th style="text-align:right;padding:8px 16px;font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;">Qty</th>
-                    <th style="text-align:right;padding:8px 16px;font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;">Amount</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($quotationBatch->activeMaterials as $material)
-                <tr style="border-top:1px solid var(--border);">
-                    <td style="padding:8px 16px;font-size:12.5px;font-weight:700;color:var(--dark);">{{ $material->material_name }}</td>
-                    <td style="padding:8px 16px;font-size:12.5px;text-align:right;color:var(--muted);">{{ number_format($material->quantity, 2) }} {{ $material->unit }}</td>
-                    <td style="padding:8px 16px;font-size:12.5px;text-align:right;font-weight:700;color:var(--dark);">₱{{ number_format($material->total_cost, 2) }}</td>
-                </tr>
-                @endforeach
-                @if($quotationBatch->activeLabor->isNotEmpty())
-                <tr style="border-top:1px solid var(--border);">
-                    <td style="padding:8px 16px;font-size:12.5px;font-weight:700;color:var(--dark);">Labor</td>
-                    <td style="padding:8px 16px;font-size:12.5px;text-align:right;color:var(--muted);">{{ number_format($quotationBatch->estimated_working_days ?? 0, 0) }} days</td>
-                    <td style="padding:8px 16px;font-size:12.5px;text-align:right;font-weight:700;color:var(--dark);">₱{{ number_format($quotationBatch->activeLabor->sum('total_cost'), 2) }}</td>
-                </tr>
-                @endif
-            </tbody>
-        </table>
-        @endif
-
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;background:var(--surface-2);border-top:2px solid var(--border);">
-            <span style="font-size:13px;font-weight:800;color:var(--dark);">Total Quotation</span>
-            <span style="font-size:18px;font-weight:900;color:#16a34a;">₱{{ number_format($quotationBatch->contract_value, 2) }}</span>
-        </div>
-    </div>
-    @endif
-
     @if(!empty($quotationBatch?->quotation_files))
     <div style="margin-bottom:16px;">
         <div style="font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">
@@ -124,6 +81,11 @@
         <i data-lucide="info" style="width:14px;height:14px;flex-shrink:0;margin-top:1px;"></i>
         <span><strong>Reason:</strong> {{ $first->decline_reason }}</span>
     </div>
+    @elseif($status === 'pending' && $first->decline_reason)
+    <div style="margin-bottom:16px;padding:10px 12px;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;font-size:12.5px;color:#9a3412;display:flex;align-items:flex-start;gap:8px;">
+        <i data-lucide="rotate-ccw" style="width:14px;height:14px;flex-shrink:0;margin-top:1px;"></i>
+        <span><strong>Your requested changes:</strong> {{ $first->decline_reason }}</span>
+    </div>
     @endif
 
     @if($status === 'quotation_sent')
@@ -136,8 +98,8 @@
             </button>
         </form>
         <button type="button" class="cancel-btn" onclick="openModal('rejectQuotationModal-{{ $first->batch_id }}')">
-            <i data-lucide="thumbs-down"></i>
-            Reject
+            <i data-lucide="edit-3"></i>
+            Request Revision
         </button>
     </div>
 
@@ -145,8 +107,8 @@
         <div class="modal-card" style="max-width:420px;">
             <div class="modal-header">
                 <div>
-                    <h2>Reject This Quotation?</h2>
-                    <p>Let GMD South Phils know why, if you'd like — it helps them follow up.</p>
+                    <h2>Request a Revision?</h2>
+                    <p>Let GMD South Phils know what you'd like changed — it helps them prepare a better quotation.</p>
                 </div>
                 <button class="modal-close" type="button" onclick="closeModal('rejectQuotationModal-{{ $first->batch_id }}')">
                     <i data-lucide="x"></i>
@@ -161,8 +123,8 @@
                 <div class="modal-actions">
                     <button type="button" class="cancel-btn" onclick="closeModal('rejectQuotationModal-{{ $first->batch_id }}')">Cancel</button>
                     <button type="submit" class="save-btn" style="background:#dc2626;">
-                        <i data-lucide="thumbs-down"></i>
-                        Reject Quotation
+                        <i data-lucide="edit-3"></i>
+                        Request Revision
                     </button>
                 </div>
             </form>

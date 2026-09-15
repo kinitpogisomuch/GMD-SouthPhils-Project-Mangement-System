@@ -113,7 +113,6 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::post('/messages/send', [MessageController::class, 'send'])->name('messages.send');
     Route::get('/messages/unread-count', [MessageController::class, 'unreadCount'])->name('messages.unread_count');
     Route::get('/payments', [PaymentController::class, 'index'])->name('payments');
-    Route::post('/payments/setup', [PaymentController::class, 'setup'])->name('payments.setup');
     Route::get('/payments/pending-count', [PaymentController::class, 'pendingSettlementCount'])->name('payments.pending_count');
     Route::get('/payments/client/{client}', [PaymentController::class, 'clientPayments'])->name('payments.client');
     Route::get('/payments/{id}', [PaymentController::class, 'show'])->name('payments.show');
@@ -145,7 +144,8 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::post('/quotation-requests/batch/{batchId}/estimated-days', [QuotationRequestController::class, 'updateEstimatedDays'])->name('quotation_requests.batch_estimated_days');
     Route::post('/quotation-requests/batch/{batchId}/labor/{laborId}/archive', [QuotationRequestController::class, 'archiveLabor'])->name('quotation_requests.batch_labor_archive');
     Route::post('/quotation-requests/batch/{batchId}/send-quotation', [QuotationRequestController::class, 'sendBatchQuotation'])->name('quotation_requests.batch_send_quotation');
-    Route::post('/quotation-requests/batch/{batchId}/convert', [QuotationRequestController::class, 'convertToProject'])->name('quotation_requests.batch_convert');
+    Route::post('/quotation-requests/batch/{batchId}/markup', [QuotationRequestController::class, 'updateMarkup'])->name('quotation_requests.batch_markup');
+    Route::get('/quotation-requests/batch/{batchId}/prefill', [QuotationRequestController::class, 'prefillBatch'])->name('quotation_requests.batch_prefill');
 
     Route::get('/reports', [AdminController::class, 'reports'])->name('reports');
     Route::get('/reports/project/{id}', [AdminController::class, 'projectKpi'])->name('reports.project');
