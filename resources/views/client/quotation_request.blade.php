@@ -290,6 +290,17 @@
                     </div>
                 </div>
 
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Submitted Date <span style="font-size:11px;color:var(--muted);font-weight:400;">(optional — leave blank for today)</span></label>
+                        <input type="date" name="submitted_date" value="{{ old('submitted_date') }}">
+                    </div>
+                    <div class="form-group">
+                        <label>Submitted Time <span style="font-size:11px;color:var(--muted);font-weight:400;">(optional)</span></label>
+                        <input type="time" name="submitted_time" value="{{ old('submitted_time') }}">
+                    </div>
+                </div>
+
                 <div class="qr-submit-row">
                     <span class="qr-submit-hint">
                         <i data-lucide="info" style="width:12px;height:12px;vertical-align:-1px;"></i>
@@ -337,13 +348,6 @@
         const TANK_TYPES = @json($tankTypes);
         const OLD_TANK_ITEMS = @json(old('tank_items', []));
 
-        function todayISODate() {
-            var d = new Date();
-            var m = String(d.getMonth() + 1).padStart(2, '0');
-            var day = String(d.getDate()).padStart(2, '0');
-            return d.getFullYear() + '-' + m + '-' + day;
-        }
-
         function tankTypeOptions(selected) {
             return '<option value="" disabled' + (!selected ? ' selected' : '') + ' hidden>Select tank type</option>' +
                 TANK_TYPES.map(function (t) {
@@ -379,7 +383,7 @@
                     '</div>' +
                     '<div class="form-group" style="margin-bottom:0;">' +
                         '<label>Target Date of Delivery</label>' +
-                        '<input type="date" name="' + prefix + '[target_timeline]" min="' + todayISODate() + '" value="' + (item.target_timeline ? item.target_timeline.replace(/"/g, '&quot;') : '') + '">' +
+                        '<input type="date" name="' + prefix + '[target_timeline]" value="' + (item.target_timeline ? item.target_timeline.replace(/"/g, '&quot;') : '') + '">' +
                     '</div>' +
                 '</div>' +
                 '<button type="button" class="qr-tank-remove" onclick="removeTankRow(this)" title="Remove tank">' +

@@ -14,9 +14,12 @@ use App\Models\QuotationBatch;
 use App\Models\QuotationRequest;
 use App\Services\NotificationService;
 use App\Services\SupabaseStorageService;
+use App\Http\Controllers\Concerns\BackdatesRecords;
 
 class QuotationRequestController extends Controller
 {
+    use BackdatesRecords;
+
     protected $storage;
 
     public function __construct(SupabaseStorageService $storage)
@@ -58,9 +61,11 @@ class QuotationRequestController extends Controller
             'tank_items.*.tank_type'        => 'required|string|in:' . implode(',', ProjectTankItem::TANK_TYPES),
             'tank_items.*.capacity'         => 'nullable|string|max:255',
             'tank_items.*.quantity'         => 'nullable|integer|min:1',
-            'tank_items.*.target_timeline'  => 'nullable|date|after_or_equal:today',
+            'tank_items.*.target_timeline'  => 'nullable|date',
             'location'                      => 'required|string|max:1000',
             'notes'                         => 'nullable|string|max:2000',
+            'submitted_date'                => 'nullable|date',
+            'submitted_time'                => 'nullable|date_format:H:i',
             'reference_files'               => 'nullable|array|max:5',
             // "extensions" (not "mimes") because CAD tools like AutoCAD don't produce a
             // MIME type PHP's file-info can reliably sniff — Laravel's "mimes" rule would
@@ -97,7 +102,7 @@ class QuotationRequestController extends Controller
         }
 
         $created = collect($tankItems)->map(function ($item) use ($client, $batchId, $request, $referenceUrls) {
-            return QuotationRequest::create([
+            $quotationRequest = new QuotationRequest([
                 'client_id'       => $client->id,
                 'batch_id'        => $batchId,
                 'tank_type'       => $item['tank_type'] ?? null,
@@ -109,6 +114,10 @@ class QuotationRequestController extends Controller
                 'reference_files' => !empty($referenceUrls) ? $referenceUrls : null,
                 'status'          => 'pending',
             ]);
+            $this->applyBackdate($quotationRequest, $request->submitted_date, $request->submitted_time);
+            $quotationRequest->save();
+
+            return $quotationRequest;
         });
 
         $created->each(fn ($qr) => NotificationService::quotationRequestSubmitted($qr));
@@ -183,7 +192,7 @@ class QuotationRequestController extends Controller
         }
 
         $request->validate([
-            'reason' => 'nullable|string|max:1000',
+            'reason' => 'required|string|max:1000',
         ]);
 
         // Unlike a decline, this reopens the request instead of ending it — it goes
@@ -480,6 +489,8 @@ class QuotationRequestController extends Controller
             'factor'             => 'required|numeric|min:0|max:100',
             'notes'              => 'nullable|array',
             'notes.*'            => 'nullable|string',
+            'entry_date'         => 'nullable|date',
+            'entry_time'         => 'nullable|date_format:H:i',
         ]);
 
         $ids       = $request->input('material_id', []);
@@ -531,7 +542,7 @@ class QuotationRequestController extends Controller
                 }
             }
 
-            ProjectMaterial::create([
+            $material = new ProjectMaterial([
                 'quotation_batch_id' => $batchId,
                 'material_name'      => $name,
                 'quantity'           => $qty,
@@ -542,6 +553,8 @@ class QuotationRequestController extends Controller
                 'notes'              => $notes[$i] ?? null,
                 'status'             => 'active',
             ]);
+            $this->applyBackdate($material, $request->entry_date, $request->entry_time);
+            $material->save();
 
             $createdCount++;
         }
@@ -578,6 +591,8 @@ class QuotationRequestController extends Controller
             'role.*'                 => 'nullable|string|max:255',
             'daily_rate'             => 'required|array|min:1',
             'daily_rate.*'           => 'required|numeric|min:0',
+            'entry_date'             => 'nullable|date',
+            'entry_time'             => 'nullable|date_format:H:i',
         ]);
 
         $batch->update(['estimated_working_days' => $request->input('estimated_working_days')]);
@@ -591,13 +606,15 @@ class QuotationRequestController extends Controller
             $role        = trim($roles[$i] ?? '');
             $description = $role ? "{$name} ({$role})" : $name;
 
-            ProjectLabor::create([
+            $labor = new ProjectLabor([
                 'quotation_batch_id' => $batchId,
                 'description'        => $description,
                 'daily_rate'         => $rate,
                 'total_cost'         => round($rate * $batch->estimated_working_days, 2),
                 'status'             => 'active',
             ]);
+            $this->applyBackdate($labor, $request->entry_date, $request->entry_time);
+            $labor->save();
         }
 
         // Keep all existing entries' totals in sync with the (possibly updated) estimated working days

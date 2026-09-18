@@ -155,14 +155,23 @@
             {{-- ============================================================ --}}
             {{-- PROGRESS FORM: shown when admin created a new progress request --}}
             {{-- ============================================================ --}}
-            <div class="emp-pv-card" style="margin-top:20px;background:#fef9c3;border:1px solid #fde68a;">
-                <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-                    <i data-lucide="bell" style="color:#d97706;width:18px;height:18px;"></i>
-                    <h3 class="emp-pv-card-title" style="margin:0;color:#92400e;">Progress Update Requested</h3>
+            <div class="emp-pv-card" style="margin-top:20px;background:#fefce8;border:2px solid #fbbf24;">
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+                    <div style="width:38px;height:38px;border-radius:50%;background:#fde68a;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        <i data-lucide="bell" style="width:18px;height:18px;color:#92400e;"></i>
+                    </div>
+                    <div>
+                        <h3 class="emp-pv-card-title" style="margin:0;color:#78350f;">Progress Update Requested</h3>
+                        <p style="margin:2px 0 0;font-size:12.5px;color:#92400e;">The admin needs a progress update for this project.</p>
+                    </div>
                 </div>
-                <p style="font-size:13.5px;color:#78350f;margin-bottom:16px;">
-                    {{ $openRequest->message ?? 'The admin is requesting a progress update for this project.' }}
-                </p>
+
+                @if($openRequest->message)
+                <div style="background:#fff;border:1px solid #fde68a;border-radius:8px;padding:14px 16px;margin-bottom:20px;">
+                    <div style="font-size:11px;font-weight:800;color:#92400e;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">Admin's Note</div>
+                    <div style="font-size:13.5px;color:#78350f;white-space:pre-wrap;line-height:1.6;">{{ $openRequest->message }}</div>
+                </div>
+                @endif
 
                 <form method="POST"
                       action="{{ route('employee.project.submit_update', $openRequest->id) }}"
@@ -176,9 +185,11 @@
                     </div>
 
                     <div class="form-group" style="margin-top:14px;">
-                        <label class="log-label">WORK DONE </label>
+                        <label class="log-label">WORK DONE
+                            <span style="font-weight:400;color:var(--text-muted);text-transform:none;">(optional)</span>
+                        </label>
                         <textarea name="work_done" class="log-textarea" rows="4"
-                                  placeholder="Describe what was accomplished..." required>{{ old('work_done') }}</textarea>
+                                  placeholder="Describe what was accomplished...">{{ old('work_done') }}</textarea>
                     </div>
 
                     <div class="form-group" style="margin-top:14px;">
@@ -190,10 +201,13 @@
                     </div>
 
                     <div class="form-group" style="margin-top:14px;">
-                        <label class="log-label">SITE PHOTOS </label>
-                        <label class="log-upload-label">
-                            <i data-lucide="upload-cloud"></i>
-                            Click to upload photos — up to 5, max 5MB each
+                        <label class="log-label">SITE PHOTOS
+                            <span style="font-weight:400;color:#dc2626;text-transform:none;">(required)</span>
+                        </label>
+                        <label style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:22px;border:2px dashed #fbbf24;border-radius:10px;cursor:pointer;background:#fffbeb;transition:.2s;">
+                            <i data-lucide="upload-cloud" style="width:24px;height:24px;color:#d97706;"></i>
+                            <span style="font-size:13px;font-weight:700;color:#78350f;">Click to upload photos</span>
+                            <span style="font-size:11.5px;color:#b45309;">Required — up to 5 photos, JPG/PNG, max 5MB each</span>
                             <input type="file" name="photos[]" multiple accept="image/*"
                                    style="display:none;" onchange="previewPhotos(this)" required>
                         </label>
@@ -206,7 +220,7 @@
                     </div>
                     @endif
 
-                    <div style="display:flex;justify-content:flex-end;margin-top:16px;">
+                    <div style="display:flex;justify-content:flex-end;margin-top:18px;">
                         <button type="submit" class="btn btn-primary" style="padding:10px 24px;">
                             <i data-lucide="send" style="width:14px;height:14px;"></i>
                             Submit Update

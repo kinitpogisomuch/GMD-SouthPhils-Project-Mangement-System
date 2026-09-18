@@ -397,25 +397,6 @@ class AdminController extends Controller
         // Per-client rollup powering the Projects page's client drill-down list.
         $clientGroups = $this->buildClientGroups($projects);
 
-        // Materials actually recorded on projects' Bill of Materials (Project Quotation module),
-        // deduped to the most recently used unit per material name — powers the "Previously Used"
-        // suggestions in the Add Project materials picker.
-        $materialProjectCounts = \App\Models\ProjectMaterial::select('material_name')
-            ->selectRaw('COUNT(DISTINCT project_id) as project_count')
-            ->groupBy('material_name')
-            ->pluck('project_count', 'material_name');
-
-        $usedMaterials = \App\Models\ProjectMaterial::select('material_name', 'unit', 'created_at')
-            ->orderByDesc('created_at')
-            ->get()
-            ->unique('material_name')
-            ->map(fn ($m) => [
-                'name'  => $m->material_name,
-                'unit'  => $m->unit,
-                'count' => (int) ($materialProjectCounts[$m->material_name] ?? 1),
-            ])
-            ->values();
-
         // ── Financial Summary (Active projects only: not completed, archived, or cancelled) ──
         $activeStatuses = ['completed', 'archived', 'cancelled'];
         $activeProjectIds = $projects->reject(fn($p) => in_array(strtolower($p->status), $activeStatuses))
@@ -443,7 +424,6 @@ class AdminController extends Controller
             'projects',
             'clientGroups',
             'projectTemplates',
-            'usedMaterials',
             'activeProjectsCount',
             'totalRevenue',
             'actualMaterialCost',

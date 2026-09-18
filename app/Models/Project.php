@@ -7,6 +7,19 @@ use Illuminate\Support\Facades\Auth;
 
 class Project extends Model
 {
+    protected static function booted(): void
+    {
+        // The moment a project finishes, snapshot its real materials/labor/markup/
+        // payment terms into its reusable template — regardless of which of the many
+        // phase-completion code paths flipped the status, so this can't be missed by
+        // only hooking one of them.
+        static::updated(function (Project $project) {
+            if ($project->isDirty('status') && $project->status === 'completed') {
+                ProjectTemplate::snapshotFromCompletedProject($project);
+            }
+        });
+    }
+
     protected $fillable = [
         'name',
         'client',

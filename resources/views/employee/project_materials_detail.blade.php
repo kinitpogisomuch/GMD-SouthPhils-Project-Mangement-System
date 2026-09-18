@@ -172,6 +172,10 @@
                     </div>
                 </div>
                 <div class="form-group">
+                    <label>Date Needed</label>
+                    <input type="date" name="requested_date" value="{{ now()->format('Y-m-d') }}">
+                </div>
+                <div class="form-group">
                     <label>Notes</label>
                     <textarea name="notes" rows="3" placeholder="Describe the shortage or why more is needed..."></textarea>
                 </div>

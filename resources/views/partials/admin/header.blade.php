@@ -997,4 +997,11 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('fileTooLargeModal')?.addEventListener('click', function (e) {
         if (e.target === this) closeFileTooLargeModal();
     });
+
+    // The page-enter intro animation applies a transform to .admin-content, which makes it
+    // a containing block for any position:fixed element nested inside it (every modal on
+    // this page) — since the animation's fill-mode holds that transform indefinitely, modals
+    // stay off-center (relative to .admin-content instead of the real viewport) for the rest
+    // of the page's life. Drop the class once the intro animation has finished.
+    setTimeout(function () { document.body.classList.remove('page-enter'); }, 900);
 </script>

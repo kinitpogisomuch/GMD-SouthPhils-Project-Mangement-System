@@ -96,7 +96,6 @@
                     <strong>{{ $particulars }}</strong>
                 </td>
                 <td style="text-align:center;">
-                    <div style="font-size:9.5px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px;">Total Contract Amount</div>
                     <span style="font-weight:800;">{{ number_format($payment->contract_amount, 2) }}</span>
                 </td>
             </tr>

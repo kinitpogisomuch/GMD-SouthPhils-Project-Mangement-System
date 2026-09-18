@@ -88,6 +88,6 @@ class ClientSignupController extends Controller
         NotificationService::clientSignupPending($client);
 
         return redirect()->route('login')
-            ->with('success', 'Your account has been created and is pending admin approval. You will be able to log in once approved.');
+            ->with('success', 'Your account has been created. Please wait for GMD South Phils to review and approve it — we\'ll send you an email as soon as your account is approved so you can log in.');
     }
 }

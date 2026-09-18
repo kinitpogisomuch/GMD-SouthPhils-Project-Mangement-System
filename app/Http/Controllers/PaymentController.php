@@ -11,9 +11,12 @@ use App\Models\FundTransaction;
 use App\Models\BillingStatement;
 use App\Services\SupabaseStorageService;
 use App\Services\NotificationService;
+use App\Http\Controllers\Concerns\BackdatesRecords;
 
 class PaymentController extends Controller
 {
+    use BackdatesRecords;
+
     protected $storage;
 
     public function __construct(SupabaseStorageService $storage)
@@ -162,7 +165,7 @@ class PaymentController extends Controller
         $validated = $request->validate([
             'payment_stage'    => "required|string|in:{$stageIn}",
             'amount_paid'      => 'required|numeric|min:0.01',
-            'payment_date'     => 'required|date|after_or_equal:today',
+            'payment_date'     => 'required|date',
             'mode_of_payment'  => 'nullable|string|in:cheque,bank_transfer,cash',
             'reference_number' => 'required|string|max:100',
             'notes'            => 'nullable|string|max:1000',
@@ -204,7 +207,8 @@ class PaymentController extends Controller
         FundTransaction::autoReplenish(
             $payment->project,
             (float) $validated['amount_paid'],
-            PaymentTransaction::stageLabel($validated['payment_stage'])
+            PaymentTransaction::stageLabel($validated['payment_stage']),
+            $validated['payment_date']
         );
 
         return redirect()->route('admin.payments.show', $payment->id)
@@ -236,8 +240,7 @@ class PaymentController extends Controller
 
         $statement = $payment->billingStatements()->create($validated);
 
-        return redirect()->route('admin.payments.billing_statements.show', [$payment->id, $statement->id])
-            ->with('success', 'Billing statement generated.');
+        return redirect()->route('admin.payments.billing_statements.show', [$payment->id, $statement->id]);
     }
 
     public function showBillingStatement($id, $statementId)
@@ -305,12 +308,44 @@ class PaymentController extends Controller
                 ->values();
         }
 
+        // The stage currently shown to the client — the earliest unpaid stage, but
+        // only once GMD has actually billed it. Null if nothing's billed yet.
+        $currentStage = $payment->currentBilledStage();
+
         return view('client.payment_detail', compact(
             'payment',
             'stageAmounts',
             'paidStages',
-            'stageTransactions'
+            'stageTransactions',
+            'currentStage'
         ));
+    }
+
+    /**
+     * Unread-badge count for the client header's Payments nav link — how many of
+     * this client's projects currently have a stage billed and awaiting their
+     * proof-of-payment upload. Reflects real actionable state (not notification
+     * read/unread), so it stays accurate even if the client dismissed the alert
+     * without actually uploading anything yet.
+     */
+    public function pendingProofCount()
+    {
+        $clientEmail = session('email');
+        $clientName  = $clientEmail
+            ? Client::where('email', $clientEmail)->value('name')
+            : null;
+
+        if (!$clientName) {
+            return response()->json(['count' => 0]);
+        }
+
+        $count = Payment::with('transactions', 'billingStatements', 'proofs')
+            ->where('client', $clientName)
+            ->get()
+            ->filter(fn ($p) => $p->needsClientAction())
+            ->count();
+
+        return response()->json(['count' => $count]);
     }
 
     public function uploadProof(Request $request, $id)
@@ -333,6 +368,7 @@ class PaymentController extends Controller
             'proof_files'     => 'required|array|min:1|max:5',
             'proof_files.*'   => 'file|mimes:pdf,jpg,jpeg,png|max:10240',
             'notes'           => 'nullable|string|max:1000',
+            'submitted_date'  => 'nullable|date',
         ]);
 
         $fileUrls = $this->storage->uploadMultiple(
@@ -345,11 +381,13 @@ class PaymentController extends Controller
         }
 
         foreach ($fileUrls as $fileUrl) {
-            $payment->proofs()->create([
+            $proof = $payment->proofs()->make([
                 'payment_stage' => $validated['payment_stage'],
                 'file_url'      => $fileUrl,
                 'notes'         => $validated['notes'] ?? null,
             ]);
+            $this->applyBackdate($proof, $validated['submitted_date'] ?? null);
+            $payment->proofs()->save($proof);
         }
 
         return redirect()->route('client.payments.show', $payment->id)

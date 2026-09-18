@@ -269,6 +269,7 @@ Route::prefix('client')->name('client.')->middleware(['role:client', 'profile.co
     Route::post('/messages/send', [MessageController::class, 'send'])->name('messages.send');
     Route::get('/messages/unread-count', [MessageController::class, 'unreadCount'])->name('messages.unread_count');
     Route::get('/payments', [ClientController::class, 'payments'])->name('payments');
+    Route::get('/payments/pending-count', [PaymentController::class, 'pendingProofCount'])->name('payments.pending_count');
     Route::get('/payments/{id}', [PaymentController::class, 'clientShow'])->name('payments.show');
     Route::get('/payments/{id}/billing-statements/{statementId}', [PaymentController::class, 'clientShowBillingStatement'])->name('payments.billing_statements.show');
     Route::post('/payments/{id}/proof', [PaymentController::class, 'uploadProof'])->name('payments.proof.store');

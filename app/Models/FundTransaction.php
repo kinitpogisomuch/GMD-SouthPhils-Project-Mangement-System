@@ -89,7 +89,7 @@ class FundTransaction extends Model
      * Automatically replenish the revolving fund when a project payment is
      * recorded, up to that project's outstanding released amount.
      */
-    public static function autoReplenish(Project $project, float $paymentAmount, string $stageLabel): ?self
+    public static function autoReplenish(Project $project, float $paymentAmount, string $stageLabel, ?string $date = null): ?self
     {
         $outstanding = static::outstandingForProject($project->id);
 
@@ -104,7 +104,7 @@ class FundTransaction extends Model
         $transaction = static::create([
             'type'         => 'replenishment',
             'amount'       => $amount,
-            'date'         => now()->format('Y-m-d'),
+            'date'         => $date ?? now()->format('Y-m-d'),
             'project_id'   => $project->id,
             'purpose'      => $purpose,
             'description'  => $purpose,

@@ -51,7 +51,11 @@
                         @endif
                     </p>
                 </div>
-                @if($showPTRButton)
+                {{-- This button normally lives in the progress form's footer, next to "Save
+                     Progress Update" — but that form (and footer) doesn't render at all once
+                     the delivery phase is either fully done or still waiting on final payment,
+                     so it needs a fallback home here for just those two cases. --}}
+                @if($showPTRButton && $project->current_phase === 'delivery' && ($project->progress === 100 || !$project->isPaymentStageSettled('final_payment')))
                 <button class="cancel-btn" type="button" id="openPTRModal">
                     <i data-lucide="clipboard-check"></i>
                     Performance Test Report
@@ -729,6 +733,15 @@
 
                         @endif
 
+                        @unless($project->current_phase === 'planning' && in_array($subPhase, ['shop_drawing', 'quotation']))
+                        <div class="form-group" style="margin-top:14px;">
+                            <label class="log-label">DATE OF WORK
+                                <span style="font-weight:400;color:var(--muted);text-transform:none;">(defaults to today — set an earlier date when backfilling history)</span>
+                            </label>
+                            <input type="date" name="date_of_work" value="{{ now()->format('Y-m-d') }}">
+                        </div>
+                        @endunless
+
                         @if($errors->any())
                         <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:12px;margin-top:12px;color:#dc2626;font-size:13px;">
                             @foreach($errors->all() as $error)
@@ -742,6 +755,12 @@
                         </div>
 
                         <div id="progressFormFooter" style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px;padding-top:18px;border-top:1px solid var(--border);">
+                            @if($showPTRButton)
+                            <button type="button" class="cancel-btn" id="openPTRModal" style="font-size:13.5px;padding:11px 20px;">
+                                <i data-lucide="clipboard-check"></i>
+                                Performance Test Report
+                            </button>
+                            @endif
                             @if($project->current_phase === 'planning' && in_array($subPhase, ['shop_drawing', 'quotation']))
                             <button type="button" class="cancel-btn" id="openSkipStepModal"
                                     style="font-size:13.5px;padding:11px 20px;">

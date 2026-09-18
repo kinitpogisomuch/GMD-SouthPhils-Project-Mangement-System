@@ -117,13 +117,13 @@
             <form method="POST" action="{{ route('client.quotation.reject', $first->batch_id) }}">
                 @csrf
                 <div class="form-group" style="margin-bottom:18px;">
-                    <label>Reason <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
-                    <textarea name="reason" rows="3" placeholder="e.g. Price is over budget, changed requirements..."></textarea>
+                    <label>Reason</label>
+                    <textarea name="reason" rows="3" required placeholder="e.g. Price is over budget, changed requirements..."></textarea>
                 </div>
                 <div class="modal-actions">
                     <button type="button" class="cancel-btn" onclick="closeModal('rejectQuotationModal-{{ $first->batch_id }}')">Cancel</button>
-                    <button type="submit" class="save-btn" style="background:#dc2626;">
-                        <i data-lucide="edit-3"></i>
+                    <button type="submit" class="save-btn">
+                        <i data-lucide="send"></i>
                         Request Revision
                     </button>
                 </div>

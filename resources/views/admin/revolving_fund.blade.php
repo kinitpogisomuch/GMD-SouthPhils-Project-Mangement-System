@@ -160,14 +160,14 @@
                     </div>
 
                     <div class="table-wrapper" style="flex:1;overflow-y:auto;max-height:480px;">
-                        <table class="data-table" id="fundLedgerTable">
+                        <table class="data-table" id="fundLedgerTable" style="height:100%;">
                             <thead>
                                 <tr>
-                                    <th style="text-align:left;">Project</th>
-                                    <th style="text-align:left;">Purpose</th>
-                                    <th style="text-align:center;">Type</th>
-                                    <th style="text-align:center;">Date</th>
-                                    <th style="text-align:right;padding-right:24px;">Amount</th>
+                                    <th>Project</th>
+                                    <th>Purpose</th>
+                                    <th>Type</th>
+                                    <th>Date</th>
+                                    <th>Amount</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -208,14 +208,16 @@
                                     </td>
                                 </tr>
                                 @empty
-                                <tr>
-                                    <td colspan="5" style="text-align:center;padding:48px 20px;color:var(--muted);">
-                                        No transactions recorded yet.
+                                <tr style="height:100%;">
+                                    <td colspan="5" style="text-align:center;vertical-align:middle;padding:48px 20px;color:var(--muted);border-bottom:none;">
+                                        <i data-lucide="inbox" style="width:32px;height:32px;opacity:.35;display:block;margin:0 auto 12px;"></i>
+                                        <div style="font-size:14px;font-weight:700;color:var(--dark);margin-bottom:4px;">No transactions recorded yet.</div>
+                                        <div style="font-size:12.5px;">Fund releases and replenishments will show up here.</div>
                                     </td>
                                 </tr>
                                 @endforelse
                                 <tr id="noFundMatchRow" style="display:none;">
-                                    <td colspan="5" style="text-align:center;padding:32px;color:var(--muted);">No transactions match your search.</td>
+                                    <td colspan="5" style="text-align:center;padding:32px;color:var(--muted);border-bottom:none;">No transactions match your search.</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -255,7 +257,6 @@
                                     <div>
                                         <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.45);display:block;margin-bottom:6px;">Date</label>
                                         <input type="date" name="date" required
-                                            min="{{ now()->format('Y-m-d') }}"
                                             value="{{ now()->format('Y-m-d') }}"
                                             style="width:100%;height:44px;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.12);border-radius:10px;color:#fff;padding:0 12px;font-size:13px;font-weight:600;">
                                     </div>
@@ -559,7 +560,7 @@
             width: 100%;
             table-layout: fixed;
         }
-        #fundLedgerTable th { font-size: 12px; font-weight: 800; padding: 10px 10px; color: var(--dark); }
+        #fundLedgerTable th { font-size: 12px; font-weight: 800; padding: 10px 10px; }
         #fundLedgerTable td { font-size: 12px; padding: 10px 10px; }
         #fundLedgerTable th:nth-child(1),
         #fundLedgerTable td:nth-child(1) { width: 26%; }

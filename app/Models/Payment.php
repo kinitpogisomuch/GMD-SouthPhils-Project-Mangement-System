@@ -101,6 +101,45 @@ class Payment extends Model
             ->all();
     }
 
+    /**
+     * The one stage currently awaiting the client's payment — the earliest unpaid
+     * stage in sequence — but only once GMD has actually billed it (a sent statement
+     * targeting that stage, or a sent "Full Statement" covering everything). Null
+     * when nothing is currently billed-and-unpaid (either fully paid, or GMD hasn't
+     * sent the next billing statement yet). This is what unlocks the client's
+     * "Upload Proof of Payment" box for a stage on the Payment Detail page.
+     */
+    public function currentBilledStage(): ?string
+    {
+        $paidStages   = $this->paidStages();
+        $currentStage = collect($this->stages())->first(fn ($s) => !in_array($s, $paidStages));
+
+        if (!$currentStage) {
+            return null;
+        }
+
+        $isBilled = $this->billingStatements()
+            ->whereNotNull('sent_at')
+            ->get()
+            ->contains(fn ($s) => is_null($s->billing_stage) || $s->billing_stage === $currentStage);
+
+        return $isBilled ? $currentStage : null;
+    }
+
+    /**
+     * Whether the client still has something to do — a stage is billed and unpaid
+     * (see currentBilledStage()) AND they haven't already submitted proof for it.
+     * Once they upload, the ball is in GMD's court, so this drops false even though
+     * the stage itself stays "Unpaid" until GMD records the payment. Drives the
+     * client header's Payments nav badge.
+     */
+    public function needsClientAction(): bool
+    {
+        $stage = $this->currentBilledStage();
+
+        return $stage !== null && !$this->proofs()->where('payment_stage', $stage)->exists();
+    }
+
     /** Compute status from recorded transactions */
     public function computeStatus(): string
     {

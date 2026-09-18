@@ -38,13 +38,7 @@
             <!-- Header -->
             <div class="page-header">
                 <div>
-                    <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;">
-                        <h1 style="margin:0;">{{ $payment->project->name ?? 'Payment Detail' }}</h1>
-                        <div style="display:flex;align-items:baseline;gap:6px;">
-                            <span style="font-size:22px;font-weight:900;color:var(--dark);">₱{{ number_format($payment->contract_amount, 2) }}</span>
-                            <span style="font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">Total Contract Amount</span>
-                        </div>
-                    </div>
+                    <h1 style="margin:0;">{{ $payment->project->name ?? 'Payment Detail' }}</h1>
                     <p>
                         <span class="client-pill">{{ $payment->client }}</span>
                         @if($payment->project && $payment->project->tankItems->isNotEmpty())
@@ -56,7 +50,7 @@
                     </p>
                 </div>
                 <div style="display:flex;gap:10px;align-items:center;">
-                    <button class="cancel-btn" type="button" id="generateBillingBtn">
+                    <button class="cancel-btn" type="button" id="generateBillingBtn" style="white-space:nowrap;">
                         <i data-lucide="file-text"></i>
                         Generate Billing Statement
                     </button>
@@ -332,7 +326,6 @@
                     <div class="form-group">
                         <label>Payment Date</label>
                         <input type="date" name="payment_date" required
-                               min="{{ now()->format('Y-m-d') }}"
                                value="{{ now()->format('Y-m-d') }}">
                     </div>
 

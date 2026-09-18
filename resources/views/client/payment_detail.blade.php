@@ -33,13 +33,7 @@
 
             <div class="page-header" style="margin-bottom:24px;align-items:flex-start;">
                 <div>
-                    <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;">
-                        <h1 class="page-title" style="margin:0;">{{ $payment->project->name ?? 'Payment Detail' }}</h1>
-                        <div style="display:flex;align-items:baseline;gap:6px;">
-                            <span style="font-size:22px;font-weight:900;color:var(--dark);">₱{{ number_format($payment->contract_amount, 2) }}</span>
-                            <span style="font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">Total Contract Amount</span>
-                        </div>
-                    </div>
+                    <h1 class="page-title" style="margin:0;">{{ $payment->project->name ?? 'Payment Detail' }}</h1>
                     <p class="page-subtitle">
                         @if($payment->project && $payment->project->tankItems->isNotEmpty())
                             @foreach($payment->project->tankItems as $ti)
@@ -93,12 +87,27 @@
                     <div class="card-title">Payment Breakdown by Stage</div>
                 </div>
                 <div class="card-body" style="display:flex;flex-direction:column;gap:14px;">
+                    @php
+                        $anyVisible = !empty($paidStages) || $currentStage !== null;
+                    @endphp
+                    @if(!$anyVisible)
+                    <div style="text-align:center;padding:32px 16px;color:var(--muted);">
+                        <i data-lucide="clock" style="width:28px;height:28px;opacity:.4;display:block;margin:0 auto 10px;"></i>
+                        <p style="font-size:13.5px;font-weight:700;color:var(--dark);margin-bottom:4px;">Waiting for your billing statement</p>
+                        <p style="font-size:12.5px;">GMD South Phils hasn't billed a payment stage yet — check back once you receive it.</p>
+                    </div>
+                    @endif
                     @foreach($payment->stages() as $stage)
+                        @php
+                            $isPaid = in_array($stage, $paidStages);
+                        @endphp
+                        {{-- Only the earliest unpaid stage shows once it's actually been billed —
+                             later stages stay hidden even if billed early, since terms are settled in order. --}}
+                        @continue(!$isPaid && $stage !== $currentStage)
                         @php
                             $expected   = $stageAmounts[$stage] ?? 0;
                             $stagePaid  = isset($stageTransactions[$stage]) ? $stageTransactions[$stage]->sum('amount_paid') : 0;
                             $stageLeft  = max(0, $expected - $stagePaid);
-                            $isPaid     = in_array($stage, $paidStages);
                             $stageLabel = \App\Models\PaymentTransaction::stageLabel($stage);
                             $stagePct   = $expected > 0 ? min(100, round(($stagePaid / $expected) * 100, 1)) : 0;
                         @endphp
@@ -142,7 +151,11 @@
                                     Upload Proof of Payment
                                 </div>
 
-                                @if(!$isPaid)
+                                @if($isPaid)
+                                <div style="font-size:12px;color:var(--muted);">This stage has already been confirmed as paid.</div>
+                                @elseif($stageProofs->isNotEmpty())
+                                <div style="font-size:12px;color:var(--muted);">Proof submitted — waiting for GMD South Phils to confirm your payment.</div>
+                                @else
                                 <form method="POST" action="{{ route('client.payments.proof.store', $payment->id) }}" enctype="multipart/form-data" class="proof-upload-form" data-stage="{{ $stage }}">
                                     @csrf
                                     <input type="hidden" name="payment_stage" value="{{ $stage }}">
@@ -153,6 +166,8 @@
                                     </label>
                                     <input type="file" name="proof_files[]" id="proofFilesInput{{ $stage }}" accept=".pdf,image/*" multiple required style="display:none;">
                                     <div id="proofFilesList{{ $stage }}" class="qr-file-list" style="display:none;"></div>
+                                    <input type="date" name="submitted_date" title="Submitted date (optional — defaults to today)"
+                                           style="width:100%;border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-size:12px;font-family:inherit;box-sizing:border-box;margin-bottom:8px;">
                                     <textarea name="notes" rows="2" placeholder="Optional note (e.g. reference number)"
                                               style="width:100%;border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-size:12px;font-family:inherit;box-sizing:border-box;resize:vertical;margin-bottom:8px;"></textarea>
                                     <button type="submit" class="save-btn" style="width:100%;justify-content:center;padding:9px;font-size:12.5px;">
@@ -160,18 +175,21 @@
                                         Submit Proof
                                     </button>
                                 </form>
-                                @else
-                                <div style="font-size:12px;color:var(--muted);">This stage has already been confirmed as paid.</div>
                                 @endif
 
                                 @if($stageProofs->isNotEmpty())
-                                <div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--border);display:flex;flex-direction:column;gap:6px;">
+                                <div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--border);display:flex;flex-direction:column;gap:8px;">
                                     <div style="font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">Submitted</div>
                                     @foreach($stageProofs as $proof)
-                                    <a href="{{ $proof->file_url }}" target="_blank" style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--accent);text-decoration:none;">
-                                        <i data-lucide="file-text" style="width:12px;height:12px;flex-shrink:0;"></i>
-                                        {{ $proof->created_at->format('M d, Y g:i A') }}
-                                    </a>
+                                    <div>
+                                        <a href="{{ $proof->file_url }}" target="_blank" style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--accent);text-decoration:none;">
+                                            <i data-lucide="file-text" style="width:12px;height:12px;flex-shrink:0;"></i>
+                                            {{ $proof->created_at->format('M d, Y') }}
+                                        </a>
+                                        @if($proof->notes)
+                                        <div style="font-size:11.5px;color:var(--muted);margin-top:3px;">{{ $proof->notes }}</div>
+                                        @endif
+                                    </div>
                                     @endforeach
                                 </div>
                                 @endif
@@ -181,26 +199,43 @@
                 </div>
             </div>
 
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));gap:20px;align-items:start;">
             @if($payment->billingStatements->isNotEmpty())
             <!-- Billing Statements -->
-            <div class="card" style="overflow:hidden;margin-bottom:24px;">
+            <div class="card" style="overflow:hidden;">
                 <div class="card-header">
                     <div class="card-title">Billing Statements</div>
                 </div>
-                <div style="display:flex;flex-direction:column;">
-                    @foreach($payment->billingStatements as $statement)
-                    <a href="{{ route('client.payments.billing_statements.show', [$payment->id, $statement->id]) }}"
-                       style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 20px;border-bottom:1px solid var(--border);text-decoration:none;color:inherit;">
-                        <div style="display:flex;align-items:center;gap:10px;">
-                            <i data-lucide="file-text" style="width:16px;height:16px;color:var(--accent);"></i>
-                            <span style="font-weight:700;">Statement dated {{ $statement->statement_date->format('M d, Y') }}</span>
-                            @if($statement->reference_no)
-                            <span style="font-size:12px;color:var(--muted);">Ref: {{ $statement->reference_no }}</span>
-                            @endif
-                        </div>
-                        <i data-lucide="chevron-right" style="width:16px;height:16px;color:var(--muted);"></i>
-                    </a>
-                    @endforeach
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Stage</th>
+                                <th>Bill</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($payment->billingStatements as $statement)
+                            @php
+                                $stmtStageLabel = $statement->billing_stage
+                                    ? \App\Models\PaymentTransaction::stageLabel($statement->billing_stage)
+                                    : 'Full Statement';
+                            @endphp
+                            <tr>
+                                <td>{{ $statement->statement_date->format('M d, Y') }}</td>
+                                <td>
+                                    <span style="display:inline-flex;align-items:center;font-size:11px;font-weight:700;color:var(--accent);background:var(--accent-soft, rgba(0,0,0,.05));border-radius:20px;padding:3px 10px;">{{ $stmtStageLabel }}</span>
+                                </td>
+                                <td>
+                                    <a href="{{ route('client.payments.billing_statements.show', [$payment->id, $statement->id]) }}" style="display:inline-flex;align-items:center;gap:5px;color:var(--accent);font-weight:700;text-decoration:none;">
+                                        <i data-lucide="file-text" style="width:14px;height:14px;"></i> View
+                                    </a>
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
                 </div>
             </div>
             @endif
@@ -223,7 +258,6 @@
                                     <th>Date</th>
                                     <th>Stage</th>
                                     <th>Amount Paid</th>
-                                    <th>Reference #</th>
                                     <th>Notes</th>
                                     <th>Receipt</th>
                                 </tr>
@@ -234,7 +268,6 @@
                                         <td>{{ \Carbon\Carbon::parse($tx->payment_date)->format('M d, Y') }}</td>
                                         <td>{{ \App\Models\PaymentTransaction::stageLabel($tx->payment_stage) }}</td>
                                         <td><strong style="color:var(--success);">₱{{ number_format($tx->amount_paid, 2) }}</strong></td>
-                                        <td>{{ $tx->reference_number ?? '—' }}</td>
                                         <td>{{ $tx->notes ?? '—' }}</td>
                                         <td>
                                             @php $receiptUrls = !empty($tx->receipt_urls) ? $tx->receipt_urls : array_filter([$tx->receipt_url]); @endphp
@@ -256,6 +289,7 @@
                         </table>
                     </div>
                 @endif
+            </div>
             </div>
 
     </main>

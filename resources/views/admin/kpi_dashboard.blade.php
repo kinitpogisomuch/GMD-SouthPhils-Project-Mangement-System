@@ -17,41 +17,126 @@
         .kd-header-actions .add-btn { height: 44px; padding-top: 0; padding-bottom: 0; }
         .kd-header-actions-divider { width: 1px; height: 24px; background: var(--border); flex-shrink: 0; }
 
-        /* Quarter + year merged into one bordered control */
-        .kd-period-picker {
+        /* Calendar-style quarter picker — same pill look as the Monthly Expenses
+           month picker: icon badge + plain label, no bordered chip / chevron. */
+        .kd-period-picker { position: relative; }
+        .kd-period-trigger {
             display: flex;
             align-items: center;
+            gap: 10px;
             height: 44px;
             border: 1px solid var(--border);
-            background: var(--cream-soft);
+            background: var(--white);
             border-radius: 14px;
-            overflow: hidden;
-        }
-        .kd-period-select {
-            height: 100%;
-            border: none;
-            background: transparent;
-            color: var(--dark);
-            padding: 0 14px;
-            font-size: 13px;
-            font-weight: 700;
-            outline: none;
+            padding: 0 16px 0 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,.03);
             cursor: pointer;
+            transition: border-color .15s ease;
         }
-        .kd-period-divider { width: 1px; height: 22px; background: var(--border); flex-shrink: 0; }
-        .kd-period-apply-btn {
-            height: 100%;
-            border: none;
-            background: var(--dark);
-            color: #fff;
-            padding: 0 18px;
-            font-size: 13px;
-            font-weight: 800;
-            cursor: pointer;
+        .kd-period-trigger:hover { border-color: var(--dark); }
+        .kd-period-trigger-icon {
+            width: 30px;
+            height: 30px;
+            border-radius: 9px;
+            background: #dbeafe;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             flex-shrink: 0;
+        }
+        .kd-period-trigger-icon i { width: 15px; height: 15px; color: #2563eb; }
+        .kd-period-trigger-label { font-size: 14px; font-weight: 800; color: var(--dark); }
+
+        .kd-period-panel {
+            display: none;
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            width: 230px;
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            box-shadow: 0 14px 34px rgba(0,0,0,.14);
+            padding: 12px;
+            z-index: 60;
+        }
+        .kd-period-picker.open .kd-period-panel { display: block; }
+
+        .kd-period-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 13.5px;
+            font-weight: 800;
+            color: var(--dark);
+        }
+        .kd-period-nav-btn {
+            width: 28px;
+            height: 28px;
+            border: none;
+            background: var(--cream-soft);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--dark);
             transition: background .15s ease;
         }
-        .kd-period-apply-btn:hover { background: var(--dark-soft, #444); }
+        .kd-period-nav-btn:hover:not(:disabled) { background: var(--border); }
+        .kd-period-nav-btn:disabled { opacity: .35; cursor: not-allowed; }
+        .kd-period-nav-btn i { width: 15px; height: 15px; }
+
+        /* Level 1: quarters only, 2x2 grid */
+        .kd-period-quarters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .kd-period-quarter-btn {
+            height: 40px;
+            border: 1px solid var(--border);
+            background: var(--cream-soft);
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--dark);
+            cursor: pointer;
+            transition: all .15s ease;
+        }
+        .kd-period-quarter-btn:hover { border-color: var(--dark); }
+        .kd-period-quarter-btn.selected {
+            background: var(--dark);
+            border-color: var(--dark);
+            color: #fff;
+        }
+
+        /* Level 2: drilled into one quarter — "view whole quarter" + its 3 months */
+        .kd-period-months { display: flex; flex-direction: column; gap: 8px; }
+        .kd-period-whole-quarter-btn {
+            border: 1px dashed var(--border);
+            background: transparent;
+            border-radius: 9px;
+            padding: 8px 0;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--muted);
+            cursor: pointer;
+            transition: all .15s ease;
+        }
+        .kd-period-whole-quarter-btn:hover { border-color: var(--dark); color: var(--dark); }
+        .kd-period-months-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+        .kd-period-month-btn {
+            height: 38px;
+            border: 1px solid var(--border);
+            background: var(--cream-soft);
+            border-radius: 9px;
+            font-size: 12.5px;
+            font-weight: 700;
+            color: var(--dark);
+            cursor: pointer;
+            transition: all .15s ease;
+        }
+        .kd-period-month-btn:hover { border-color: var(--dark); background: var(--dark); color: #fff; }
+
+        #kdMonthlyBreakdownTable tbody tr.kd-month-row-highlight { background: #fff3d6; transition: background .3s ease; }
 
         .kd-panel { display: none; }
         .kd-panel.active { display: block; }
@@ -226,16 +311,23 @@
                     <p class="page-subtitle kd-subtitle">GMD South Phils Metal Fabrication Works</p>
                 </div>
                 <div class="kd-header-actions">
-                    <div class="kd-period-picker">
-                        <select class="kd-period-select" id="kdQuarterSelect" style="min-width:60px;">
-                            <option value="1">Q1</option>
-                            <option value="2">Q2</option>
-                            <option value="3">Q3</option>
-                            <option value="4">Q4</option>
-                        </select>
-                        <div class="kd-period-divider"></div>
-                        <select class="kd-period-select" id="kdYearSelect" style="min-width:80px;"></select>
-                        <button type="button" class="kd-period-apply-btn" id="kdApplyPeriodBtn">Set</button>
+                    <div class="kd-period-picker" id="kdPeriodPicker">
+                        <button type="button" class="kd-period-trigger" id="kdPeriodTrigger">
+                            <span class="kd-period-trigger-icon"><i data-lucide="calendar"></i></span>
+                            <span class="kd-period-trigger-label" id="kdPeriodLabel">—</span>
+                        </button>
+                        <div class="kd-period-panel" id="kdPeriodPanel">
+                            <div class="kd-period-panel-header">
+                                <button type="button" class="kd-period-nav-btn" id="kdPeriodPrevYear" aria-label="Previous year">
+                                    <i data-lucide="chevron-left"></i>
+                                </button>
+                                <span id="kdPeriodPanelYear">—</span>
+                                <button type="button" class="kd-period-nav-btn" id="kdPeriodNextYear" aria-label="Next year">
+                                    <i data-lucide="chevron-right"></i>
+                                </button>
+                            </div>
+                            <div class="kd-period-quarters" id="kdPeriodQuarters"></div>
+                        </div>
                     </div>
                     <div class="kd-header-actions-divider"></div>
                     <button type="button" class="cancel-btn" id="kdOpenReportBtn">
@@ -257,6 +349,24 @@
             <div class="kd-panel active" data-panel="scorecard">
                 <div class="kd-insight" id="kdScorecardInsight"></div>
                 <div class="kd-cards" id="kdCards"></div>
+                <div class="kd-chart-card" id="kdMonthlyBreakdownCard">
+                    <div class="kd-chart-title">Monthly breakdown — this quarter</div>
+                    <div class="table-wrapper">
+                        <table class="data-table" id="kdMonthlyBreakdownTable">
+                            <thead>
+                                <tr>
+                                    <th>Month</th>
+                                    <th style="text-align:center;">Completed</th>
+                                    <th style="text-align:right;">Net Profit (Actual)</th>
+                                    <th style="text-align:right;">Net Profit (Target)</th>
+                                    <th style="text-align:center;">On-Time (Actual)</th>
+                                    <th style="text-align:center;">On-Time (Target)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="kdMonthlyBreakdownBody"></tbody>
+                        </table>
+                    </div>
+                </div>
                 <div class="kd-chart-card">
                     <div class="kd-chart-title">KPI target vs actual — comparative view</div>
                     <div class="kd-chart-legend">
@@ -472,23 +582,140 @@
             return 'icon-chip-neutral';
         }
 
-        /* ── Year / Quarter dropdowns ── */
-        function renderPeriodOptions() {
-            var yearSel = document.getElementById('kdYearSelect');
-            yearSel.innerHTML = '';
-            (STATE.payload.availableYears || [STATE.payload.year]).forEach(function (y) {
-                var opt = document.createElement('option');
-                opt.value = y;
-                opt.textContent = y;
-                if (y === STATE.payload.year) opt.selected = true;
-                yearSel.appendChild(opt);
-            });
+        /* ── Calendar-style quarter picker — quarters first, drill into a quarter to
+           pick one of its months ── */
+        var periodPicker  = document.getElementById('kdPeriodPicker');
+        var periodPanel   = document.getElementById('kdPeriodPanel');
+        var pickerYear    = STATE.payload.year; // year currently shown inside the open panel
+        var pickerLevel   = 'quarter';          // 'quarter' | 'month'
+        var pickerQuarter = null;               // set once a quarter is drilled into
 
-            document.getElementById('kdQuarterSelect').value = STATE.payload.quarter;
+        var MONTH_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+        function periodYearBounds() {
+            var years = STATE.payload.availableYears || [STATE.payload.year];
+            return { min: Math.min.apply(null, years), max: Math.max.apply(null, years) };
         }
 
-        function loadPeriod(year, quarter) {
-            fetch(KPI_DATA_URL + '?year=' + year + '&quarter=' + quarter, {
+        var MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+        var prevBtn = document.getElementById('kdPeriodPrevYear');
+        var nextBtn = document.getElementById('kdPeriodNextYear');
+        var yearLbl = document.getElementById('kdPeriodPanelYear');
+        var list    = document.getElementById('kdPeriodQuarters');
+
+        function renderPeriodPanel() {
+            list.innerHTML = '';
+
+            if (pickerLevel === 'quarter') {
+                yearLbl.textContent = pickerYear;
+                var bounds = periodYearBounds();
+                prevBtn.disabled = pickerYear <= bounds.min;
+                nextBtn.style.display = '';
+                nextBtn.disabled = pickerYear >= bounds.max;
+                prevBtn.onclick = function () { if (pickerYear > bounds.min) { pickerYear--; renderPeriodPanel(); } };
+                nextBtn.onclick = function () { if (pickerYear < bounds.max) { pickerYear++; renderPeriodPanel(); } };
+
+                list.className = 'kd-period-quarters';
+                for (var q = 1; q <= 4; q++) {
+                    var qBtn = document.createElement('button');
+                    qBtn.type = 'button';
+                    qBtn.className = 'kd-period-quarter-btn' +
+                        (pickerYear === STATE.payload.year && q === STATE.payload.quarter ? ' selected' : '');
+                    qBtn.textContent = 'Q' + q;
+                    qBtn.dataset.quarter = q;
+                    qBtn.addEventListener('click', function () {
+                        pickerQuarter = parseInt(this.dataset.quarter, 10);
+                        pickerLevel   = 'month';
+                        renderPeriodPanel();
+                    });
+                    list.appendChild(qBtn);
+                }
+            } else {
+                // Drilled into one quarter — show its 3 months, plus a way to load the
+                // whole quarter without picking any single month.
+                yearLbl.textContent = 'Q' + pickerQuarter + ' ' + pickerYear;
+                prevBtn.disabled = false;
+                prevBtn.onclick = function () { pickerLevel = 'quarter'; renderPeriodPanel(); };
+                nextBtn.style.display = 'none';
+
+                list.className = 'kd-period-months';
+
+                var wholeBtn = document.createElement('button');
+                wholeBtn.type = 'button';
+                wholeBtn.className = 'kd-period-whole-quarter-btn';
+                wholeBtn.textContent = 'View all of Q' + pickerQuarter;
+                wholeBtn.addEventListener('click', function () {
+                    loadPeriod(pickerYear, pickerQuarter);
+                    closePeriodPanel();
+                });
+                list.appendChild(wholeBtn);
+
+                var monthsGrid = document.createElement('div');
+                monthsGrid.className = 'kd-period-months-grid';
+                var startMonth = (pickerQuarter - 1) * 3 + 1;
+                for (var i = 0; i < 3; i++) {
+                    var monthNum  = startMonth + i;
+                    var monthAbbr = MONTH_ABBR[monthNum - 1];
+                    var monthFull = MONTH_FULL[monthNum - 1];
+                    var mBtn = document.createElement('button');
+                    mBtn.type = 'button';
+                    mBtn.className = 'kd-period-month-btn';
+                    mBtn.textContent = monthAbbr;
+                    mBtn.dataset.month      = monthNum;
+                    mBtn.dataset.monthLabel = monthAbbr + ' ' + pickerYear;
+                    mBtn.addEventListener('click', function () {
+                        // The scorecard cards/insight/chart now show this specific month's
+                        // actuals vs. its own monthly target — the Monthly Breakdown table
+                        // still shows the whole containing quarter for context, scrolling to
+                        // and flashing this exact month's row.
+                        window.__kdPendingMonthHighlight = this.dataset.monthLabel;
+                        loadPeriod(pickerYear, pickerQuarter, parseInt(this.dataset.month, 10));
+                        closePeriodPanel();
+                    });
+                    monthsGrid.appendChild(mBtn);
+                }
+                list.appendChild(monthsGrid);
+            }
+        }
+
+        function openPeriodPanel() {
+            pickerYear    = STATE.payload.year;
+            pickerLevel   = 'quarter';
+            pickerQuarter = null;
+            renderPeriodPanel();
+            periodPicker.classList.add('open');
+        }
+        function closePeriodPanel() {
+            periodPicker.classList.remove('open');
+        }
+
+        document.getElementById('kdPeriodTrigger').addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (periodPicker.classList.contains('open')) closePeriodPanel();
+            else openPeriodPanel();
+        });
+        periodPanel.addEventListener('click', function (e) { e.stopPropagation(); });
+        document.addEventListener('click', closePeriodPanel);
+
+        var QUARTER_MONTH_RANGE = ['Jan–Mar', 'Apr–Jun', 'Jul–Sep', 'Oct–Dec'];
+
+        function renderPeriodOptions() {
+            // Trigger label reflects the server's own answer (payload.month) rather than a
+            // separately-tracked client flag, so it can never drift out of sync — e.g. after
+            // the Set Targets modal's own quarter switcher forces the view back to quarter-level.
+            var label = STATE.payload.month
+                ? MONTH_FULL[STATE.payload.month - 1] + ' ' + STATE.payload.year + ' (Q' + STATE.payload.quarter + ')'
+                : 'Q' + STATE.payload.quarter + ' ' + STATE.payload.year +
+                  ' (' + QUARTER_MONTH_RANGE[STATE.payload.quarter - 1] + ')';
+            document.getElementById('kdPeriodLabel').textContent = label;
+            pickerYear = STATE.payload.year;
+        }
+
+        function loadPeriod(year, quarter, month) {
+            var url = KPI_DATA_URL + '?year=' + year + '&quarter=' + quarter;
+            if (month) url += '&month=' + month;
+            fetch(url, {
                 headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
             })
             .then(function (r) { return r.json(); })
@@ -498,22 +725,6 @@
                 renderEverything();
             });
         }
-
-        function currentSelectedPeriod() {
-            return {
-                year: parseInt(document.getElementById('kdYearSelect').value, 10),
-                quarter: parseInt(document.getElementById('kdQuarterSelect').value, 10)
-            };
-        }
-
-        // Quarter and year are picked independently, then applied together via
-        // "Set" — fetching on every change caused an intermediate load with the
-        // still-stale value (e.g. new quarter fetched against the old year)
-        // whose response would then reset the dropdown the user just touched.
-        document.getElementById('kdApplyPeriodBtn').addEventListener('click', function () {
-            var p = currentSelectedPeriod();
-            loadPeriod(p.year, p.quarter);
-        });
 
         /* ── Top-level tabs ── */
         document.querySelectorAll('.filter-tab[data-tab]').forEach(function (btn) {
@@ -560,6 +771,7 @@
                 { label: 'Revenue received', value: fmtPeso(p.revenue) },
                 { label: 'Material cost',    value: fmtPeso(p.mat_cost) },
                 { label: 'Labor cost',       value: fmtPeso(p.labor_cost) },
+                { label: 'Overhead cost',    value: fmtPeso(p.overhead_cost) },
                 { label: 'Net profit',       value: fmtPeso(p.net_profit), tone: 'good' },
             ]);
         }
@@ -575,7 +787,7 @@
 
         function budgetBreakdown(b) {
             return breakdownBlock([
-                { label: 'Total contracted',      value: fmtPeso(b.total_contracted) },
+                { label: 'Project budget',        value: fmtPeso(b.estimated_budget) },
                 { label: 'Actual spend',          value: fmtPeso(b.actual_cost) },
                 { label: 'Net savings',           value: fmtPeso(b.net_savings), tone: b.net_savings >= 0 ? 'good' : 'bad' },
                 { label: 'Projects over budget',  value: b.over_budget_count + ' of ' + b.total_completed },
@@ -686,6 +898,40 @@
             document.getElementById('kdCards').innerHTML =
                 profitCard(sc.profit) + onTimeCard(sc.on_time) + budgetCard(sc.budget);
             if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        /* ── Monthly Breakdown table — actual vs. the monthly targets set per-month.
+           Always sourced from quarter_scorecard so it keeps showing all 3 months of
+           the containing quarter even while the main cards above are on one month. ── */
+        function renderMonthlyBreakdown() {
+            var body = document.getElementById('kdMonthlyBreakdownBody');
+            var rows = (STATE.payload.quarter_scorecard || {}).monthly_breakdown || [];
+
+            body.innerHTML = rows.map(function (m) {
+                var profitTargetText = m.profit_target === null ? '—' : fmtPeso(m.profit_target);
+                var onTimeTargetText = m.on_time_target === null ? '—' : m.on_time_target;
+                return '<tr data-month-label="' + m.label + '">' +
+                    '<td>' + m.label + '</td>' +
+                    '<td style="text-align:center;">' + m.project_count + '</td>' +
+                    '<td style="text-align:right;font-weight:800;">' + fmtPeso(m.profit_actual) + '</td>' +
+                    '<td style="text-align:right;color:var(--muted);">' + profitTargetText + '</td>' +
+                    '<td style="text-align:center;font-weight:800;">' + m.on_time_actual + '</td>' +
+                    '<td style="text-align:center;color:var(--muted);">' + onTimeTargetText + '</td>' +
+                '</tr>';
+            }).join('');
+
+            // A month click in the period picker sets this before loadPeriod() re-renders —
+            // once the new quarter's rows are in, scroll to and briefly flash that month's row.
+            if (window.__kdPendingMonthHighlight) {
+                var label = window.__kdPendingMonthHighlight;
+                window.__kdPendingMonthHighlight = null;
+                var row = body.querySelector('[data-month-label="' + label + '"]');
+                if (row) {
+                    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    row.classList.add('kd-month-row-highlight');
+                    setTimeout(function () { row.classList.remove('kd-month-row-highlight'); }, 2000);
+                }
+            }
         }
 
         /* ── Scorecard insight ── */
@@ -1025,6 +1271,7 @@
             // Text/HTML content renders first and independently of the charts below, so a
             // Chart.js failure (e.g. an unsupported browser) can never blank out the rest of the page.
             safely(function () { renderCards(sc); });
+            safely(function () { renderMonthlyBreakdown(); });
             safely(function () { renderScorecardInsight(sc); });
             safely(function () { renderTrendInsight(STATE.payload.trend); });
             safely(function () { renderComparativeChart(sc); });
@@ -1082,7 +1329,9 @@
            touching the dashboard behind it — used both when opening and when the modal's
            own quarter/year dropdown is changed. */
         function populateModalFromPayload(payload) {
-            var sc = payload.scorecard;
+            // Targets are always set per-quarter, regardless of whether the main dashboard
+            // behind the modal is currently showing one specific month.
+            var sc = payload.quarter_scorecard || payload.scorecard;
             var months = QUARTER_MONTHS[payload.quarter];
 
             for (var i = 0; i < 3; i++) {

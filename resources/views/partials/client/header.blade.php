@@ -40,9 +40,10 @@
             <span>My Projects</span>
         </a>
         <a href="{{ route('client.payments') }}"
-           class="{{ request()->routeIs('client.payments') ? 'active' : '' }}">
+           class="{{ request()->routeIs('client.payments') ? 'active' : '' }}" style="position:relative;">
             <i data-lucide="credit-card"></i>
             <span>Payments</span>
+            <span id="paymentsNavBadge" class="notification-count-badge" style="display:none;"></span>
         </a>
         @endif
         <a href="{{ route('client.quotation.create') }}"
@@ -525,6 +526,29 @@
     window.__refreshUnreadBadge = loadUnreadMessages;
 })();
 
+(function () {
+    const BILLING_UNREAD_URL = '{{ route("client.payments.pending_count") }}';
+
+    function loadBillingUnread() {
+        fetch(BILLING_UNREAD_URL, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(r => r.json())
+            .then(data => {
+                const badge = document.getElementById('paymentsNavBadge');
+                if (!badge) return;
+                if (data.count > 0) {
+                    badge.style.display = 'flex';
+                    badge.textContent = data.count > 9 ? '9+' : data.count;
+                } else {
+                    badge.style.display = 'none';
+                }
+            })
+            .catch(() => {});
+    }
+
+    loadBillingUnread();
+    setInterval(loadBillingUnread, 30000);
+})();
+
 // ─── Chat Popup ────────────────────────────────────────────────────────────
 @if($messagingUnlocked)
 (function () {
@@ -962,4 +986,11 @@
 
 })();
 @endif
+
+// The page-enter intro animation applies a transform to .admin-content, which makes it
+// a containing block for any position:fixed element nested inside it (every modal on
+// this page) — since the animation's fill-mode holds that transform indefinitely, modals
+// stay off-center (relative to .admin-content instead of the real viewport) for the rest
+// of the page's life. Drop the class once the intro animation has finished.
+setTimeout(function () { document.body.classList.remove('page-enter'); }, 900);
 </script>

@@ -5,15 +5,17 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Project;
 use App\Models\ProjectMaterial;
-use App\Models\ProjectTemplate;
 use App\Models\ProjectLabor;
 use App\Models\Employee;
 use App\Models\MaterialRequest;
 use App\Models\MaterialPurchase;
 use App\Services\NotificationService;
+use App\Http\Controllers\Concerns\BackdatesRecords;
 
 class ProjectMaterialController extends Controller
 {
+    use BackdatesRecords;
+
     // -----------------------------------------------------------------------
     // Admin
     // -----------------------------------------------------------------------
@@ -156,6 +158,8 @@ class ProjectMaterialController extends Controller
             'factor'             => 'required|numeric|min:0|max:100',
             'notes'              => 'nullable|array',
             'notes.*'            => 'nullable|string',
+            'entry_date'         => 'nullable|date',
+            'entry_time'         => 'nullable|date_format:H:i',
         ]);
 
         $ids       = $request->input('material_id', []);
@@ -210,7 +214,7 @@ class ProjectMaterialController extends Controller
                 }
             }
 
-            ProjectMaterial::create([
+            $material = new ProjectMaterial([
                 'project_id'     => (int) $projectId,
                 'material_name'  => $name,
                 'quantity'       => $qty,
@@ -221,14 +225,14 @@ class ProjectMaterialController extends Controller
                 'notes'          => $notes[$i] ?? null,
                 'status'         => 'active',
             ]);
+            $this->applyBackdate($material, $request->entry_date, $request->entry_time);
+            $material->save();
 
             $createdCount++;
         }
 
         // The Material Factor applies to the whole project — keep every material's factor in sync.
         ProjectMaterial::where('project_id', $projectId)->update(['factor' => $factor]);
-
-        $this->syncLinkedTemplateMaterials($projectId);
 
         $messages = [];
         if ($createdCount > 0) {
@@ -247,36 +251,6 @@ class ProjectMaterialController extends Controller
             ->with('success', $message);
     }
 
-    /**
-     * Keep the reusable Project Template's BOM in sync with the project it was created from,
-     * so materials added/edited/removed here (Project Quotation module) also show up when this
-     * project's template is reused for a new project.
-     */
-    private function syncLinkedTemplateMaterials($projectId): void
-    {
-        $templates = ProjectTemplate::where('project_id', $projectId)->get();
-        if ($templates->isEmpty()) {
-            return;
-        }
-
-        $materials = ProjectMaterial::where('project_id', $projectId)
-            ->where('status', 'active')
-            ->orderBy('created_at')
-            ->get()
-            ->map(fn ($m) => [
-                'material_name'  => $m->material_name,
-                'quantity'       => $m->quantity,
-                'unit'           => $m->unit,
-                'price_per_unit' => $m->price_per_unit,
-            ])
-            ->values()
-            ->toArray();
-
-        foreach ($templates as $template) {
-            $template->update(['materials' => $materials]);
-        }
-    }
-
     public function storeLabor(Request $request, $projectId)
     {
         $project = Project::findOrFail($projectId);
@@ -289,6 +263,8 @@ class ProjectMaterialController extends Controller
             'role.*'           => 'nullable|string|max:255',
             'daily_rate'       => 'required|array|min:1',
             'daily_rate.*'     => 'required|numeric|min:0',
+            'entry_date'       => 'nullable|date',
+            'entry_time'       => 'nullable|date_format:H:i',
         ]);
 
         $project->update(['estimated_working_days' => $request->input('estimated_working_days')]);
@@ -302,13 +278,15 @@ class ProjectMaterialController extends Controller
             $role        = trim($roles[$i] ?? '');
             $description = $role ? "{$name} ({$role})" : $name;
 
-            ProjectLabor::create([
+            $labor = new ProjectLabor([
                 'project_id'  => (int) $projectId,
                 'description' => $description,
                 'daily_rate'  => $rate,
                 'total_cost'  => round($rate * $project->estimated_working_days, 2),
                 'status'      => 'active',
             ]);
+            $this->applyBackdate($labor, $request->entry_date, $request->entry_time);
+            $labor->save();
         }
 
         // Keep all existing entries' totals in sync with the (possibly updated) estimated working days
@@ -494,6 +472,7 @@ class ProjectMaterialController extends Controller
             'quantity'            => 'required|integer|min:1',
             'unit'                => 'nullable|string|max:50',
             'notes'               => 'nullable|string|max:500',
+            'requested_date'      => 'nullable|date',
         ]);
 
         $employee = Employee::find(session('user_id'));
@@ -507,7 +486,7 @@ class ProjectMaterialController extends Controller
             'unit'                => $validated['unit'] ?? '',
             'project'             => $project->name,
             'supplier'            => 'Pending Assignment',
-            'requested_date'      => now()->toDateString(),
+            'requested_date'      => $validated['requested_date'] ?? now()->toDateString(),
             'status'              => 'pending',
             'notes'               => $validated['notes'] ?? null,
         ]);

@@ -41,8 +41,9 @@ class KpiDashboardController extends Controller
     {
         $year    = (int) $request->input('year', now()->year);
         $quarter = (int) $request->input('quarter', ceil(now()->month / 3));
+        $month   = $request->filled('month') ? (int) $request->input('month') : null;
 
-        return response()->json($this->buildPayload($year, $quarter));
+        return response()->json($this->buildPayload($year, $quarter, $month));
     }
 
     /*
@@ -73,7 +74,7 @@ class KpiDashboardController extends Controller
         $quarters = [];
         for ($k = $fromKey; $k <= $toKey; $k++) {
             $p = $this->quarterFromKey($k);
-            $quarters[] = $this->computeQuarterKpis($p['year'], $p['quarter']);
+            $quarters[] = $this->computeQuarterKpis($p['year'], $p['quarter'], false);
         }
 
         return response()->json([
@@ -178,6 +179,14 @@ class KpiDashboardController extends Controller
         return ($year * 4 + $quarter) < ($current['year'] * 4 + $current['quarter']);
     }
 
+    /** Same idea as isFinalized(), at month granularity. */
+    private function isMonthFinalized(int $year, int $month): bool
+    {
+        $now = Carbon::now();
+
+        return ($year * 12 + $month) < ($now->year * 12 + $now->month);
+    }
+
     /** Selectable years — from the earliest year with completed-project data through the current year. */
     private function availableYears(): array
     {
@@ -201,10 +210,19 @@ class KpiDashboardController extends Controller
         return [$start, $end];
     }
 
-    /** Full scorecard + trend + target payload for one period. */
-    private function buildPayload(int $year, int $quarter): array
+    /**
+     * Full scorecard + trend + target payload for one period. When $month is given,
+     * the main "scorecard" reflects that single month instead of the whole quarter
+     * (targets are set per month, so admins expect the cards to move at that same
+     * granularity) — "quarter_scorecard" is always the containing quarter's full
+     * object regardless, since the trend/forecast/Set-Targets-modal/Monthly-Breakdown
+     * table are all inherently quarter-scoped and must never silently swap to a
+     * single month's numbers.
+     */
+    private function buildPayload(int $year, int $quarter, ?int $month = null): array
     {
-        $scorecard = $this->computeQuarterKpis($year, $quarter);
+        $quarterScorecard = $this->computeQuarterKpis($year, $quarter, true);
+        $scorecard = $month ? $this->computeMonthKpis($year, $month) : $quarterScorecard;
 
         $trend = [];
         for ($i = 3; $i >= 0; $i--) {
@@ -213,16 +231,24 @@ class KpiDashboardController extends Controller
             $q = $offset % 4;
             if ($q < 0) { $q += 4; $y -= 1; }
             $q += 1;
-            $trend[] = $this->computeQuarterKpis($y, $q);
+
+            // The trailing 4-quarter window always ends on the selected quarter — reuse
+            // the scorecard already computed above instead of paying for it twice, and
+            // skip the per-month breakdown for the other 3 (trend/forecast never show it).
+            $trend[] = ($y === $year && $q === $quarter)
+                ? $quarterScorecard
+                : $this->computeQuarterKpis($y, $q, false);
         }
 
         return [
-            'year'           => $year,
-            'quarter'        => $quarter,
-            'availableYears' => $this->availableYears(),
-            'scorecard'      => $scorecard,
-            'trend'          => $trend,
-            'forecast'       => $this->computeForecast($year, $quarter, $trend),
+            'year'              => $year,
+            'quarter'           => $quarter,
+            'month'             => $month,
+            'availableYears'    => $this->availableYears(),
+            'scorecard'         => $scorecard,
+            'quarter_scorecard' => $quarterScorecard,
+            'trend'             => $trend,
+            'forecast'          => $this->computeForecast($year, $quarter, $trend),
         ];
     }
 
@@ -278,11 +304,13 @@ class KpiDashboardController extends Controller
         ];
     }
 
-    /** Compute the 3 KPIs (+ industry scale + target comparison) for one quarter. */
-    private function computeQuarterKpis(int $year, int $quarter): array
+    /**
+     * Raw actuals (revenue, costs, on-time count, etc.) for any date range — the
+     * shared core both the quarter and month scorecards are built from, so the two
+     * granularities can never silently drift apart in how a number is computed.
+     */
+    private function computeActualsForRange(Carbon $start, Carbon $end): array
     {
-        [$start, $end] = $this->quarterRange($year, $quarter);
-
         $projects = Project::where('status', 'completed')
             ->whereBetween('updated_at', [$start, $end])
             ->get();
@@ -302,9 +330,12 @@ class KpiDashboardController extends Controller
             ->groupBy('project_id')
             ->pluck('total', 'project_id');
 
+        // Estimated materials — applies the same per-material waste/handling factor
+        // Project::estimatedBudget() uses for Financial Overview's "Est. Materials",
+        // so the live-estimate fallback below matches what it's standing in for.
         $bomMatCostByProject = ProjectMaterial::whereIn('project_id', $projectIds)
             ->where('status', 'active')
-            ->selectRaw('project_id, SUM(total_cost) as total')
+            ->selectRaw('project_id, SUM(total_cost * (1 + COALESCE(factor, 7) / 100.0)) as total')
             ->groupBy('project_id')
             ->pluck('total', 'project_id');
 
@@ -314,19 +345,25 @@ class KpiDashboardController extends Controller
             ->groupBy('project_id')
             ->pluck('total', 'project_id');
 
+        // Active-only, matching Project::estimatedBudget()'s labor() — used both as the
+        // actual-cost fallback and as the live estimate's labor component below.
         $activeLaborByProject = ProjectLabor::whereIn('project_id', $projectIds)
             ->where('status', 'active')
             ->selectRaw('project_id, SUM(total_cost) as total')
             ->groupBy('project_id')
             ->pluck('total', 'project_id');
 
-        $bomLaborByProject = ProjectLabor::whereIn('project_id', $projectIds)
-            ->selectRaw('project_id, SUM(total_cost) as total')
+        // Monthly overhead allocated to each project — same source Financial Overview's
+        // Net Profit subtracts, so Project Profit Margin reflects it too.
+        $overheadByProject = \DB::table('monthly_expense_projects')
+            ->whereIn('project_id', $projectIds)
+            ->selectRaw('project_id, SUM(allocated_amount) as total')
             ->groupBy('project_id')
             ->pluck('total', 'project_id');
 
         $totalRevenue        = 0.0;
         $totalActualCost     = 0.0;
+        $totalOverhead       = 0.0;
         $totalEstBudget      = 0.0;
         $totalMatSpend       = 0.0;
         $totalLaborSpend     = 0.0;
@@ -346,15 +383,24 @@ class KpiDashboardController extends Controller
                 $actualLaborCost = (float) ($activeLaborByProject[$project->id] ?? 0);
             }
             $totalActualSpend = $actualMatSpend + $actualLaborCost;
+            $overheadCost     = (float) ($overheadByProject[$project->id] ?? 0);
 
             $bomMatCost   = (float) ($bomMatCostByProject[$project->id] ?? 0);
-            $bomLaborCost = (float) ($bomLaborByProject[$project->id] ?? 0);
-            $bomBudget    = $bomMatCost + $bomLaborCost;
+            $bomLaborCost = (float) ($activeLaborByProject[$project->id] ?? 0);
+
+            // Budget Adherence measures against the frozen Project Budget locked in at
+            // payment setup — the same value Project Financial Overview shows — instead
+            // of a live BOM total that would drift every time the BOM changes. Falls
+            // back to the live estimate only for payments that predate that field.
+            $bomBudget = ($payment && (float) $payment->project_budget > 0)
+                ? (float) $payment->project_budget
+                : $bomMatCost + $bomLaborCost;
 
             $onTime = $project->end_date && $project->updated_at->startOfDay()->lte($project->end_date);
 
             $totalRevenue    += $received;
             $totalActualCost += $totalActualSpend;
+            $totalOverhead   += $overheadCost;
             $totalEstBudget  += $bomBudget;
             $totalMatSpend   += $actualMatSpend;
             $totalLaborSpend += $actualLaborCost;
@@ -374,14 +420,104 @@ class KpiDashboardController extends Controller
             }
         }
 
-        $totalCompleted = $projects->count();
-        $netProfit      = $totalRevenue - $totalActualCost;
-        $avgMargin      = $totalRevenue > 0 ? round(($netProfit / $totalRevenue) * 100, 1) : 0.0;
-        $onTimeRate     = $totalCompleted > 0 ? round(($onTimeCount / $totalCompleted) * 100, 1) : 0.0;
-        $adherenceRate  = $totalEstBudget > 0 ? round(($totalActualCost / $totalEstBudget) * 100, 1) : 0.0;
-        $delayedCount   = $totalCompleted - $onTimeCount;
-        $avgDelayDays   = $delayedCount > 0 ? (int) round($totalDelayDays / $delayedCount) : 0;
-        $netSavings     = $totalEstBudget - $totalActualCost;
+        return [
+            'total_completed'       => $projects->count(),
+            'total_revenue'         => $totalRevenue,
+            'total_actual_cost'     => $totalActualCost,
+            'total_overhead'        => $totalOverhead,
+            'total_est_budget'      => $totalEstBudget,
+            'total_mat_spend'       => $totalMatSpend,
+            'total_labor_spend'     => $totalLaborSpend,
+            'total_contracted'      => $totalContracted,
+            'total_delay_days'      => $totalDelayDays,
+            'over_budget_count'     => $overBudgetCount,
+            'on_time_count'         => $onTimeCount,
+            'delayed_project_codes' => $delayedProjectCodes,
+        ];
+    }
+
+    /**
+     * Builds the profit/on_time/budget scorecard shape from a set of actuals
+     * (see computeActualsForRange()) and the target values to compare against —
+     * shared by both the quarter and month scorecards.
+     */
+    private function formatScorecard(
+        array $a,
+        ?float $profitTarget,
+        ?int $onTimeTarget,
+        ?float $budgetTarget,
+        bool $hasTarget,
+        array $profitTargetMonthly,
+        array $onTimeTargetMonthly
+    ): array {
+        $totalCompleted = $a['total_completed'];
+        $netProfit      = $a['total_revenue'] - $a['total_actual_cost'] - $a['total_overhead'];
+        $avgMargin      = $a['total_revenue'] > 0 ? round(($netProfit / $a['total_revenue']) * 100, 1) : 0.0;
+        $onTimeRate     = $totalCompleted > 0 ? round(($a['on_time_count'] / $totalCompleted) * 100, 1) : 0.0;
+        $adherenceRate  = $a['total_est_budget'] > 0 ? round(($a['total_actual_cost'] / $a['total_est_budget']) * 100, 1) : 0.0;
+        $delayedCount   = $totalCompleted - $a['on_time_count'];
+        $avgDelayDays   = $delayedCount > 0 ? (int) round($a['total_delay_days'] / $delayedCount) : 0;
+        $netSavings     = $a['total_est_budget'] - $a['total_actual_cost'];
+
+        return [
+            'profit' => [
+                'net_profit'   => round($netProfit, 2),
+                'avg_margin'   => $avgMargin,
+                'revenue'      => round($a['total_revenue'], 2),
+                'mat_cost'     => round($a['total_mat_spend'], 2),
+                'labor_cost'   => round($a['total_labor_spend'], 2),
+                'overhead_cost'=> round($a['total_overhead'], 2),
+                'has_target'   => $hasTarget,
+                'target'       => $profitTarget,
+                'target_monthly' => $profitTargetMonthly,
+                'variance'     => $hasTarget ? round($netProfit - $profitTarget, 2) : null,
+                'hit'          => $hasTarget ? ($netProfit >= $profitTarget) : null,
+                'progress_pct' => $hasTarget ? ($profitTarget > 0 ? min(100, round(($netProfit / $profitTarget) * 100, 1)) : ($netProfit > 0 ? 100 : 0)) : null,
+                'scale'        => $this->profitMarginScale($avgMargin),
+            ],
+            'on_time' => [
+                'on_time_count'   => $a['on_time_count'],
+                'total_completed' => $totalCompleted,
+                'rate'            => $onTimeRate,
+                'delayed_count'   => $delayedCount,
+                'avg_delay_days'  => $avgDelayDays,
+                'has_target'      => $hasTarget,
+                'target'          => $onTimeTarget,
+                'target_monthly'  => $onTimeTargetMonthly,
+                'variance'        => $hasTarget ? ($a['on_time_count'] - $onTimeTarget) : null,
+                'hit'             => $hasTarget ? ($a['on_time_count'] >= $onTimeTarget) : null,
+                'progress_pct'    => $hasTarget ? ($onTimeTarget > 0 ? min(100, round(($a['on_time_count'] / $onTimeTarget) * 100, 1)) : ($a['on_time_count'] > 0 ? 100 : 0)) : null,
+                'scale'           => $this->onTimeScale($onTimeRate),
+                'delayed_projects'=> $a['delayed_project_codes'],
+            ],
+            'budget' => [
+                'adherence_rate'    => $adherenceRate,
+                'actual_cost'       => round($a['total_actual_cost'], 2),
+                'estimated_budget'  => round($a['total_est_budget'], 2),
+                'total_contracted'  => round($a['total_contracted'], 2),
+                'net_savings'       => round($netSavings, 2),
+                'over_budget_count' => $a['over_budget_count'],
+                'total_completed'   => $totalCompleted,
+                'has_target'        => $hasTarget,
+                'target'            => $budgetTarget,
+                'variance'          => $hasTarget ? round($adherenceRate - $budgetTarget, 1) : null,
+                'hit'               => $hasTarget ? ($adherenceRate >= $budgetTarget) : null,
+                'progress_pct'      => $hasTarget ? ($budgetTarget > 0 ? min(100, round(($adherenceRate / $budgetTarget) * 100, 1)) : ($adherenceRate > 0 ? 100 : 0)) : null,
+                'scale'             => $this->budgetAdherenceScale($adherenceRate),
+            ],
+        ];
+    }
+
+    /**
+     * Compute the 3 KPIs (+ industry scale + target comparison) for one quarter.
+     * $includeMonthlyBreakdown skips the 3 extra per-month computations when the
+     * caller only needs the quarter totals (trend/forecast/report quarters never
+     * display the monthly breakdown, only the main scorecard does).
+     */
+    private function computeQuarterKpis(int $year, int $quarter, bool $includeMonthlyBreakdown = true): array
+    {
+        [$start, $end] = $this->quarterRange($year, $quarter);
+        $a = $this->computeActualsForRange($start, $end);
 
         // Targets are strictly per-quarter — a quarter with no target explicitly saved for it
         // has no target at all (never borrowed from another quarter).
@@ -401,57 +537,100 @@ class KpiDashboardController extends Controller
 
         $current = $this->currentPeriod();
 
+        // Per-month actuals within this quarter, paired with the monthly targets set
+        // in "Set KPI targets" — powers the Monthly Breakdown table. Targets are set
+        // per month, so admins expect to see progress at that same granularity, not
+        // just the quarter as a whole.
+        $monthlyBreakdown = [];
+        if ($includeMonthlyBreakdown) {
+            $startMonth = ($quarter - 1) * 3 + 1;
+            for ($i = 0; $i < 3; $i++) {
+                $monthActual = $this->computeMonthActuals($year, $startMonth + $i);
+                $monthlyBreakdown[] = [
+                    'label'          => $monthActual['label'],
+                    'project_count'  => $monthActual['project_count'],
+                    'profit_actual'  => $monthActual['net_profit'],
+                    'profit_target'  => $hasTarget ? $profitTargetMonthly[$i] : null,
+                    'on_time_actual' => $monthActual['on_time_count'],
+                    'on_time_target' => $hasTarget ? $onTimeTargetMonthly[$i] : null,
+                ];
+            }
+        }
+
+        $scorecard = $this->formatScorecard($a, $profitTarget, $onTimeTarget, $budgetTarget, $hasTarget, $profitTargetMonthly, $onTimeTargetMonthly);
+
+        return array_merge([
+            'year'              => $year,
+            'quarter'           => $quarter,
+            'month'             => null,
+            'label'             => 'Q' . $quarter . ' ' . $year,
+            'project_count'     => $a['total_completed'],
+            'is_current'        => ($year === $current['year'] && $quarter === $current['quarter']),
+            'is_finalized'      => $this->isFinalized($year, $quarter),
+            'monthly_breakdown' => $monthlyBreakdown,
+        ], $scorecard);
+    }
+
+    /**
+     * Compute the full scorecard (profit/on_time/budget + target comparison) for a
+     * single calendar month, using that month's own target — the one entered as
+     * m1/m2/m3 on the containing quarter's "Set KPI targets". Budget Adherence has
+     * no monthly-specific benchmark (it's a fixed tolerance band, not something
+     * split across months), so it reuses the quarter's.
+     */
+    private function computeMonthKpis(int $year, int $month): array
+    {
+        $start = Carbon::create($year, $month, 1)->startOfDay();
+        $end   = (clone $start)->endOfMonth()->endOfDay();
+        $a = $this->computeActualsForRange($start, $end);
+
+        $quarter    = (int) ceil($month / 3);
+        $monthIndex = ($month - 1) % 3; // 0, 1, or 2 within that quarter
+
+        $target    = KpiQuarterTarget::forPeriod($year, $quarter);
+        $hasTarget = $target !== null;
+
+        $profitField = 'profit_target_m' . ($monthIndex + 1);
+        $onTimeField = 'on_time_target_m' . ($monthIndex + 1);
+
+        $profitTarget = $hasTarget ? (float) $target->$profitField : null;
+        $onTimeTarget = $hasTarget ? (int) $target->$onTimeField : null;
+        $budgetTarget = $hasTarget ? (float) $target->budget_adherence_target : null;
+
+        // target_monthly only matters for the quarter-level scorecard (it's what
+        // "Set KPI targets" reads to prefill its 3 monthly inputs) — unused here.
+        $scorecard = $this->formatScorecard($a, $profitTarget, $onTimeTarget, $budgetTarget, $hasTarget, [0, 0, 0], [0, 0, 0]);
+
+        $now = Carbon::now();
+
+        return array_merge([
+            'year'              => $year,
+            'quarter'           => $quarter,
+            'month'             => $month,
+            'label'             => $start->format('F Y'),
+            'project_count'     => $a['total_completed'],
+            'is_current'        => ($year === $now->year && $month === $now->month),
+            'is_finalized'      => $this->isMonthFinalized($year, $month),
+            'monthly_breakdown' => [],
+        ], $scorecard);
+    }
+
+    /**
+     * Net profit + on-time delivery actuals for a single calendar month — a lighter
+     * subset of computeMonthKpis() (no target comparison, no budget), used only to
+     * populate the Monthly Breakdown table's rows.
+     */
+    private function computeMonthActuals(int $year, int $month): array
+    {
+        $start = Carbon::create($year, $month, 1)->startOfDay();
+        $end   = (clone $start)->endOfMonth()->endOfDay();
+        $a = $this->computeActualsForRange($start, $end);
+
         return [
-            'year'            => $year,
-            'quarter'         => $quarter,
-            'label'           => 'Q' . $quarter . ' ' . $year,
-            'project_count'   => $totalCompleted,
-            'is_current'      => ($year === $current['year'] && $quarter === $current['quarter']),
-            'is_finalized'    => $this->isFinalized($year, $quarter),
-            'profit'          => [
-                'net_profit'   => round($netProfit, 2),
-                'avg_margin'   => $avgMargin,
-                'revenue'      => round($totalRevenue, 2),
-                'mat_cost'     => round($totalMatSpend, 2),
-                'labor_cost'   => round($totalLaborSpend, 2),
-                'has_target'   => $hasTarget,
-                'target'       => $profitTarget,
-                'target_monthly' => $profitTargetMonthly,
-                'variance'     => $hasTarget ? round($netProfit - $profitTarget, 2) : null,
-                'hit'          => $hasTarget ? ($netProfit >= $profitTarget) : null,
-                'progress_pct' => $hasTarget ? ($profitTarget > 0 ? min(100, round(($netProfit / $profitTarget) * 100, 1)) : ($netProfit > 0 ? 100 : 0)) : null,
-                'scale'        => $this->profitMarginScale($avgMargin),
-            ],
-            'on_time'         => [
-                'on_time_count'   => $onTimeCount,
-                'total_completed' => $totalCompleted,
-                'rate'            => $onTimeRate,
-                'delayed_count'   => $delayedCount,
-                'avg_delay_days'  => $avgDelayDays,
-                'has_target'      => $hasTarget,
-                'target'          => $onTimeTarget,
-                'target_monthly'  => $onTimeTargetMonthly,
-                'variance'        => $hasTarget ? ($onTimeCount - $onTimeTarget) : null,
-                'hit'             => $hasTarget ? ($onTimeCount >= $onTimeTarget) : null,
-                'progress_pct'    => $hasTarget ? ($onTimeTarget > 0 ? min(100, round(($onTimeCount / $onTimeTarget) * 100, 1)) : ($onTimeCount > 0 ? 100 : 0)) : null,
-                'scale'           => $this->onTimeScale($onTimeRate),
-                'delayed_projects'=> $delayedProjectCodes,
-            ],
-            'budget'          => [
-                'adherence_rate'    => $adherenceRate,
-                'actual_cost'       => round($totalActualCost, 2),
-                'estimated_budget'  => round($totalEstBudget, 2),
-                'total_contracted'  => round($totalContracted, 2),
-                'net_savings'       => round($netSavings, 2),
-                'over_budget_count' => $overBudgetCount,
-                'total_completed'   => $totalCompleted,
-                'has_target'        => $hasTarget,
-                'target'            => $budgetTarget,
-                'variance'          => $hasTarget ? round($adherenceRate - $budgetTarget, 1) : null,
-                'hit'               => $hasTarget ? ($adherenceRate >= $budgetTarget) : null,
-                'progress_pct'      => $hasTarget ? ($budgetTarget > 0 ? min(100, round(($adherenceRate / $budgetTarget) * 100, 1)) : ($adherenceRate > 0 ? 100 : 0)) : null,
-                'scale'             => $this->budgetAdherenceScale($adherenceRate),
-            ],
+            'label'         => $start->format('M Y'),
+            'project_count' => $a['total_completed'],
+            'net_profit'    => round($a['total_revenue'] - $a['total_actual_cost'] - $a['total_overhead'], 2),
+            'on_time_count' => $a['on_time_count'],
         ];
     }
 

@@ -128,6 +128,7 @@ class FundController extends Controller
             'amount'     => 'required|numeric|min:0.01',
             'purpose'    => 'required|string|max:255',
             'remarks'    => 'nullable|string|max:1000',
+            'date'       => 'required|date',
         ]);
 
         $currentBalance = FundSetting::getCurrentBalance();
@@ -142,7 +143,7 @@ class FundController extends Controller
         FundTransaction::create([
             'type'          => 'release',
             'amount'        => $validated['amount'],
-            'date'          => now()->format('Y-m-d'),
+            'date'          => $validated['date'],
             'project_id'    => $validated['project_id'],
             'purpose'       => $validated['purpose'],
             'description'   => $validated['purpose'],

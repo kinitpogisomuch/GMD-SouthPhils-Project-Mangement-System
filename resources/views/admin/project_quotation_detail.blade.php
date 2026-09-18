@@ -416,6 +416,10 @@
                                style="width:80px;padding:6px 10px;border:1px solid rgba(0,0,0,0.14);border-radius:6px;font-size:13px;font-weight:900;color:var(--dark);text-align:right;">
                         <span style="font-size:13px;font-weight:700;color:var(--muted);">%</span>
                         <span style="font-size:12px;color:var(--muted);">— applied to all materials in this project</span>
+                        <label for="addMaterialEntryDate" style="font-size:12px;font-weight:700;color:var(--muted);white-space:nowrap;margin-left:16px;">Entry Date</label>
+                        <input type="date" name="entry_date" id="addMaterialEntryDate"
+                               style="padding:6px 10px;border:1px solid rgba(0,0,0,0.14);border-radius:6px;font-size:13px;font-weight:600;color:var(--dark);">
+                        <span style="font-size:12px;color:var(--muted);">— leave blank for today; set an earlier date when backfilling history</span>
                     </div>
                     <div style="overflow-x:auto;max-height:420px;overflow-y:auto;">
                         <table style="width:100%;border-collapse:collapse;min-width:760px;">
@@ -666,7 +670,11 @@
                         <input type="number" name="estimated_working_days" id="addLaborEstDays" required min="0" step="0.01"
                                value="{{ $project->estimated_working_days }}" oninput="updateAllLaborRowTotals()">
                     </div>
-                    <div style="font-size:12px;color:var(--muted);padding-bottom:11px;">Applies to all employees on this project — not entered per employee.</div>
+                    <div class="form-group" style="max-width:200px;margin-bottom:0;">
+                        <label>Entry Date</label>
+                        <input type="date" name="entry_date">
+                    </div>
+                    <div style="font-size:12px;color:var(--muted);padding-bottom:11px;">Applies to all employees on this project — not entered per employee. Leave the date blank for today, or set an earlier one when backfilling history.</div>
                 </div>
 
                 <div style="overflow-x:auto;max-height:420px;overflow-y:auto;">

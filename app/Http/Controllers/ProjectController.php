@@ -377,11 +377,6 @@ class ProjectController extends Controller
             'tank_items.*.capacity'   => 'required|string',
             'tank_items.*.dimensions' => 'required|string',
             'tank_items.*.quantity'   => 'required|integer|min:1',
-            'materials'                    => 'nullable|array',
-            'materials.*.material_name'    => 'required|string|max:255',
-            'materials.*.quantity'         => 'nullable|numeric|min:0.01',
-            'materials.*.unit'             => 'nullable|string|max:50',
-            'materials.*.price_per_unit'   => 'nullable|numeric|min:0',
             'start_date' => 'required|date',
             'end_date'   => 'required|date|after_or_equal:start_date',
             'client'     => 'required|string',
@@ -487,7 +482,7 @@ class ProjectController extends Controller
                     'status'            => 'Pending Down Payment',
                     'payment_terms'     => $termLabel,
                     'payment_term_type' => $batch->payment_term_type,
-                    'date'              => now()->toDateString(),
+                    'date'              => $request->start_date,
                 ]);
             }
 
@@ -511,54 +506,6 @@ class ProjectController extends Controller
             ]);
         }
 
-        // Save the bill of materials (if provided) as the project's initial BOM.
-        // Prices can be left blank and filled in later on the Project Materials page.
-        // Skipped when converting from a quotation — its materials were already
-        // re-parented above, so re-adding form input here would duplicate them.
-        if (!$convertedFromBatch) {
-            foreach ($request->input('materials', []) as $material) {
-                if (empty($material['material_name'])) {
-                    continue;
-                }
-
-                $quantity  = $material['quantity'] ?? 1;
-                $unitPrice = $material['price_per_unit'] ?? 0;
-
-                ProjectMaterial::create([
-                    'project_id'     => $project->id,
-                    'material_name'  => $material['material_name'],
-                    'quantity'       => $quantity,
-                    'unit'           => $material['unit'] ?? '',
-                    'price_per_unit' => $unitPrice,
-                    'total_cost'     => round($quantity * $unitPrice, 2),
-                    'factor'         => 7,
-                    'status'         => 'active',
-                ]);
-            }
-        }
-
-        // Auto-save tank specs (and materials) as a reusable template for custom
-        // (not from-template) projects, skipping it when an identical template already
-        // exists, or when this project came from a quotation conversion (one-off tank
-        // specs from a specific client's request, not a reusable starting point).
-        if (!$convertedFromBatch && !$request->boolean('from_existing_template')) {
-            $normalizedItems = $this->normalizeTankItems($request->tank_items);
-
-            $isDuplicate = ProjectTemplate::all()->contains(
-                fn ($tpl) => $this->normalizeTankItems($tpl->tank_items) === $normalizedItems
-            );
-
-            if (!$isDuplicate) {
-                ProjectTemplate::create([
-                    'project_id'   => $project->id,
-                    'name'         => $name,
-                    'project_name' => $name,
-                    'tank_items'   => array_values($request->tank_items),
-                    'materials'    => array_values($request->input('materials', [])),
-                ]);
-            }
-        }
-
         NotificationService::projectCreated($project);
 
         return redirect()->route('admin.projects.client', $project->client)->with('success', 'Project created successfully!');
@@ -574,19 +521,6 @@ class ProjectController extends Controller
         ProjectTemplate::findOrFail($id)->delete();
 
         return response()->json(['success' => true]);
-    }
-
-    /**
-     * Reduce a tank_items array to just the fields that matter for duplicate detection.
-     */
-    private function normalizeTankItems($items)
-    {
-        return collect($items)->map(fn ($item) => [
-            'tank_type'  => $item['tank_type']  ?? null,
-            'capacity'   => $item['capacity']   ?? null,
-            'dimensions' => $item['dimensions'] ?? null,
-            'quantity'   => (int) ($item['quantity'] ?? 1),
-        ])->values()->toArray();
     }
 
     /*
@@ -965,6 +899,7 @@ class ProjectController extends Controller
             'update_label' => 'phase_advance',
             'work_done'    => 'Down payment settled. Project advanced to the Procurement phase.',
             'percentage'   => $newProgress,
+            'date_of_work' => $request->filled('date_of_work') ? $request->date_of_work : now()->toDateString(),
         ]);
 
         NotificationService::phaseAdvanced(
@@ -1001,6 +936,7 @@ class ProjectController extends Controller
             'phase'      => 'procurement',
             'work_done'  => 'Materials have been delivered and procurement is complete.',
             'percentage' => $newProgress,
+            'date_of_work' => $request->filled('date_of_work') ? $request->date_of_work : now()->toDateString(),
         ]);
 
         NotificationService::phaseAdvanced(
@@ -1041,6 +977,7 @@ class ProjectController extends Controller
             'phase'      => 'matl_prep',
             'work_done'  => 'Material preparation has been completed.',
             'percentage' => $newProgress,
+            'date_of_work' => $request->filled('date_of_work') ? $request->date_of_work : now()->toDateString(),
         ]);
 
         NotificationService::phaseAdvanced(
@@ -1100,6 +1037,7 @@ class ProjectController extends Controller
             'work_done'  => 'Fabrication (cutting, assembly, and welding) has been completed.',
             'percentage' => $newProgress,
             'photos'     => $photoUrls,
+            'date_of_work' => $request->filled('date_of_work') ? $request->date_of_work : now()->toDateString(),
         ]);
 
         NotificationService::phaseAdvanced(
@@ -1140,6 +1078,7 @@ class ProjectController extends Controller
             'phase'      => 'inspection',
             'work_done'  => 'Inspection completed successfully.',
             'percentage' => $newProgress,
+            'date_of_work' => $request->filled('date_of_work') ? $request->date_of_work : now()->toDateString(),
         ]);
 
         NotificationService::phaseAdvanced(
@@ -1190,6 +1129,7 @@ class ProjectController extends Controller
             'work_done'  => $request->remarks ?: 'Painting has been completed.',
             'percentage' => $newProgress,
             'photos'     => $photoUrls,
+            'date_of_work' => $request->filled('date_of_work') ? $request->date_of_work : now()->toDateString(),
         ]);
 
         NotificationService::phaseAdvanced(
@@ -1241,6 +1181,7 @@ class ProjectController extends Controller
             'work_done'    => $request->completion_notes ?: 'Project completion update.',
             'percentage'   => $newProgress,
             'photos'       => $photoUrls,
+            'date_of_work' => $request->filled('date_of_work') ? $request->date_of_work : now()->toDateString(),
         ]);
 
         NotificationService::phaseAdvanced(
@@ -1297,6 +1238,7 @@ class ProjectController extends Controller
             'work_done'    => $request->delivery_notes ?: 'Project delivered to the client.',
             'percentage'   => $newProgress,
             'photos'       => $photoUrls,
+            'date_of_work' => $request->filled('date_of_work') ? $request->date_of_work : now()->toDateString(),
         ]);
 
         NotificationService::projectCompleted($project);
@@ -1357,7 +1299,7 @@ class ProjectController extends Controller
 
         $validator = Validator::make($request->all(), [
             'date_of_work' => 'required|date',
-            'work_done'    => 'required|string',
+            'work_done'    => 'nullable|string',
             'issues'       => 'nullable|string',
             'photos'       => 'required|array|min:1|max:5',
             'photos.*'     => 'required|image|max:5120',
