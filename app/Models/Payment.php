@@ -91,12 +91,29 @@ class Payment extends Model
         return ['down_payment', 'final_payment'];
     }
 
-    /** Which stages have at least one recorded transaction */
+    /** Amount already paid toward a given stage (partial payments accumulate) */
+    public function stagePaidAmount(string $stage): float
+    {
+        return (float) $this->transactions
+            ->where('payment_stage', $stage)
+            ->sum('amount_paid');
+    }
+
+    /** Remaining balance owed on a given stage */
+    public function stageRemaining(string $stage): float
+    {
+        $expected = $this->stageAmounts()[$stage] ?? 0;
+
+        return max(0, round($expected - $this->stagePaidAmount($stage), 2));
+    }
+
+    /** Which stages have been paid in full (partial payments don't count until settled) */
     public function paidStages(): array
     {
-        return $this->transactions
-            ->pluck('payment_stage')
-            ->unique()
+        $amounts = $this->stageAmounts();
+
+        return collect($this->stages())
+            ->filter(fn ($stage) => ($amounts[$stage] ?? 0) > 0 && $this->stagePaidAmount($stage) >= $amounts[$stage])
             ->values()
             ->all();
     }

@@ -15,6 +15,7 @@ class QuotationBatch extends Model
         'estimated_working_days',
         'project_budget',
         'markup',
+        'markup_percent',
         'contract_value',
         'quotation_files',
         'payment_term_type',
@@ -24,6 +25,7 @@ class QuotationBatch extends Model
         'estimated_working_days' => 'integer',
         'project_budget'         => 'float',
         'markup'                 => 'float',
+        'markup_percent'         => 'float',
         'contract_value'         => 'float',
         'quotation_files'        => 'array',
     ];

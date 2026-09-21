@@ -923,8 +923,12 @@
 
     // The page-enter intro animation applies a transform to .admin-content, which makes it
     // a containing block for any position:fixed element nested inside it (every modal on
-    // this page) — since the animation's fill-mode holds that transform indefinitely, modals
-    // stay off-center (relative to .admin-content instead of the real viewport) for the rest
-    // of the page's life. Drop the class once the intro animation has finished.
-    setTimeout(function () { document.body.classList.remove('page-enter'); }, 900);
+    // this page) — since the animation's fill-mode holds that transform indefinitely, a modal
+    // opened before the animation ends only covers .admin-content instead of the real viewport,
+    // leaving the header clickable behind it. The setTimeout below is a fallback for that; the
+    // capturing click listener guarantees the class is gone before ANY click (e.g. an "Add
+    // Material" button pressed a split second after page load) can open a modal.
+    function endPageEnter() { document.body.classList.remove('page-enter'); }
+    setTimeout(endPageEnter, 900);
+    document.addEventListener('click', endPageEnter, { once: true, capture: true });
 </script>

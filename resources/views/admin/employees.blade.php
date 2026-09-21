@@ -793,8 +793,8 @@
                 {{-- ── Projects ── --}}
                 <div style="margin-bottom:16px;">
                     <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:6px;">
-                        <i data-lucide="folder" style="width:12px;height:12px;"></i> Project(s)
-                        <span style="font-weight:500;text-transform:none;letter-spacing:0;">(optional — select all that apply)</span>
+                        <i data-lucide="folder" style="width:12px;height:12px;"></i> Project(s) <span style="color:var(--danger);">*</span>
+                        <span style="font-weight:500;text-transform:none;letter-spacing:0;">(select at least one)</span>
                     </div>
                     <div id="rpProjectList" style="display:flex;flex-direction:column;gap:8px;max-height:220px;overflow-y:auto;padding-right:2px;">
                         <div style="font-size:12px;color:var(--muted);text-align:center;padding:16px 0;">Loading projects…</div>
@@ -1753,6 +1753,15 @@
             var isEdit    = !!recordId;
 
             errEl.style.display = 'none';
+
+            // Build equal-split allocations for selected projects
+            var projIds   = getSelectedProjectIds();
+            if (projIds.length === 0) {
+                errEl.textContent   = 'Please select at least one project.';
+                errEl.style.display = '';
+                return;
+            }
+
             submitBtn.disabled  = true;
 
             // Single attendance fields
@@ -1761,8 +1770,6 @@
             var totalDays = fullD + halfD * 0.5;
             var totalOT   = parseFloat(document.getElementById('rpOvertimeHours').value) || 0;
 
-            // Build equal-split allocations for selected projects
-            var projIds   = getSelectedProjectIds();
             var rate      = parseFloat(document.getElementById('rpDailyRate').value) || 0;
             var hourly    = rate / 8;
             var gross     = rate * totalDays + totalOT * hourly;

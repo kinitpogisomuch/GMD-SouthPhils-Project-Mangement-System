@@ -184,6 +184,13 @@ class PaymentController extends Controller
             return back()->withErrors(['payment_stage' => 'Earlier payment stages must be recorded first.']);
         }
 
+        $remaining = $payment->stageRemaining($validated['payment_stage']);
+        if ($validated['amount_paid'] > $remaining) {
+            return back()
+                ->withErrors(['amount_paid' => 'Amount exceeds the remaining balance for this stage (₱' . number_format($remaining, 2) . ').'])
+                ->withInput();
+        }
+
         $receiptUrls = $this->storage->uploadMultiple(
             $request->file('receipt_files', []),
             'payments/' . $payment->id . '/receipts'

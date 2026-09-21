@@ -292,11 +292,13 @@
                                     $priorDone   = empty(array_diff($priorStages, $paidStages));
                                     $isLocked    = !$isPaid && !$priorDone;
                                     $isDisabled  = $isPaid || $isLocked;
+                                    $stageRemaining = $payment->stageRemaining($stage);
+                                    $stagePaidSoFar = $payment->stagePaidAmount($stage);
                                     $stageLabel  = \App\Models\PaymentTransaction::stageLabel($stage) . ' (₱' . number_format($stageAmounts[$stage] ?? 0, 2) . ')';
                                 @endphp
                                 <div class="stage-select-option{{ $isDisabled ? ' disabled' : '' }}"
                                      data-value="{{ $stage }}"
-                                     data-expected="{{ $stageAmounts[$stage] ?? 0 }}"
+                                     data-expected="{{ $stageRemaining }}"
                                      data-label="{{ $stageLabel }}"
                                      @if(!$isDisabled) onclick="selectStage(this)" @endif>
                                     <span>{{ $stageLabel }}</span>
@@ -304,6 +306,8 @@
                                         <span class="stage-select-status" style="color:#16a34a;">✓ Paid</span>
                                     @elseif($isLocked)
                                         <span class="stage-select-status" style="color:#b91c1c;">Pay prior stage first</span>
+                                    @elseif($stagePaidSoFar > 0)
+                                        <span class="stage-select-status" style="color:#b45309;">₱{{ number_format($stagePaidSoFar, 2) }} paid — ₱{{ number_format($stageRemaining, 2) }} left</span>
                                     @endif
                                 </div>
                                 @endforeach
@@ -370,8 +374,9 @@
                 </div>
 
                 <div style="background:var(--cream-soft);border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:var(--muted);">
-                    <strong style="color:var(--dark);">Expected for selected stage:</strong>
+                    <strong style="color:var(--dark);">Remaining for selected stage:</strong>
                     <span id="expectedAmount" style="font-weight:700;color:var(--accent);">—</span>
+                    <span style="display:block;margin-top:2px;">You can pay less than this to make a partial payment — the remaining balance stays open for a follow-up payment.</span>
                 </div>
 
                 <div class="modal-actions">
@@ -655,9 +660,11 @@
         if (expected > 0) {
             expectedEl.textContent = '₱' + expected.toLocaleString('en-PH', { minimumFractionDigits: 2 });
             amountInput.value = expected.toFixed(2);
+            amountInput.max = expected.toFixed(2);
         } else {
             expectedEl.textContent = '—';
             amountInput.value = '';
+            amountInput.removeAttribute('max');
         }
     }
 

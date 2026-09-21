@@ -244,9 +244,9 @@
                         @csrf
                         <input type="hidden" name="open_send_modal" id="openSendModalFlag" value="0">
                         <div class="form-group" style="margin-bottom:0;">
-                            <label>Markup / Profit (₱)</label>
-                            <input type="number" name="markup" id="markupInput" min="0" step="0.01" required
-                                   value="{{ $batch->markup ?? 0 }}" placeholder="e.g. 50000"
+                            <label>Markup / Profit (%)</label>
+                            <input type="number" name="markup_percent" id="markupInput" min="0" max="100" step="0.01" required
+                                   value="{{ $batch->markup_percent ?? 0 }}" placeholder="e.g. 10"
                                    oninput="updateMarkupPreview()" style="width:200px;">
                         </div>
                         <div class="form-group" style="margin-bottom:0;">
@@ -301,7 +301,7 @@
                             <tr>
                                 <td style="font-weight:700;">{{ $material->material_name }}</td>
                                 <td>{{ $material->unit ?: '—' }}</td>
-                                <td class="num-cell">{{ number_format($material->quantity, 2) }}</td>
+                                <td class="num-cell">{{ rtrim(rtrim(number_format($material->quantity, 2), '0'), '.') }}</td>
                                 <td class="num-cell">₱{{ number_format($material->price_per_unit, 2) }}</td>
                                 <td class="num-cell" style="font-weight:800;">₱{{ number_format($material->total_cost, 2) }}</td>
                                 <td>{{ $material->created_at->format('M d, Y') }}</td>
@@ -317,8 +317,13 @@
                         @if($materials->where('status', 'active')->isNotEmpty())
                         <tfoot>
                             <tr>
-                                <td colspan="4" class="table-total-label">Grand Total</td>
+                                <td colspan="4" class="table-total-label">Grand Total (no Material Factor)</td>
                                 <td class="table-total-value">₱{{ number_format($estimatedCost, 2) }}</td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td colspan="4" class="table-total-label">Grand Total (with {{ number_format($materialFactor, 1) }}% Material Factor)</td>
+                                <td class="table-total-value">₱{{ number_format($estimatedCost * (1 + $materialFactor / 100), 2) }}</td>
                                 <td></td>
                             </tr>
                         </tfoot>
@@ -645,10 +650,6 @@
     function openModal(id) { var m = document.getElementById(id); if (m) { m.classList.add('show'); document.body.style.overflow = 'hidden'; } }
     function closeModal(id) { var m = document.getElementById(id); if (m) { m.classList.remove('show'); document.body.style.overflow = ''; } }
 
-    document.querySelectorAll('.modal-overlay').forEach(function (modal) {
-        modal.addEventListener('click', function (e) { if (e.target === this) closeModal(this.id); });
-    });
-
     // ---- Send to Client ----
     var openSendQBtn = document.getElementById('openSendQuotationModal');
     if (openSendQBtn) openSendQBtn.addEventListener('click', function () {
@@ -670,7 +671,8 @@
     // ---- Markup (standalone container, outside any modal) ----
     var MARKUP_BUDGET = {{ $estimatedBudget['total'] }};
     function updateMarkupPreview() {
-        var markup = parseFloat(document.getElementById('markupInput').value) || 0;
+        var pct    = parseFloat(document.getElementById('markupInput').value) || 0;
+        var markup = MARKUP_BUDGET * pct / 100;
         var total  = MARKUP_BUDGET + markup;
         document.getElementById('markupContractValuePreview').textContent =
             '₱' + total.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });

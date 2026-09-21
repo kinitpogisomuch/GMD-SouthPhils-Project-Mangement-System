@@ -77,7 +77,7 @@
                                 <td style="font-size:14px;font-weight:700;color:var(--dark);">{{ $sup->address ?? '—' }}</td>
                                 <td class="action-cell">
                                     <button class="action-btn edit" title="Edit"
-                                        onclick="openEditSupplier({{ $sup->id }}, {{ json_encode($sup->name) }}, {{ json_encode($sup->company) }}, {{ json_encode($sup->phone) }}, {{ json_encode($sup->email) }}, {{ json_encode($sup->address) }})">
+                                        onclick="openEditSupplier({{ $sup->id }}, {{ json_encode($sup->name) }}, {{ json_encode($sup->phone) }}, {{ json_encode($sup->email) }}, {{ json_encode($sup->address) }})">
                                         <i data-lucide="pencil"></i>
                                     </button>
                                     <button class="action-btn delete" title="Delete"
@@ -198,12 +198,8 @@
                 @csrf
                 <div class="form-grid">
                     <div class="form-group">
-                        <label>Name</label>
-                        <input type="text" name="name" placeholder="e.g. Juan dela Cruz" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Company</label>
-                        <input type="text" name="company" placeholder="e.g. Steel Supply Co.">
+                        <label>Supplier Name</label>
+                        <input type="text" name="name" placeholder="e.g. Steel Supply Co." required>
                     </div>
                     <div class="form-group">
                         <label>Phone</label>
@@ -251,12 +247,8 @@
                 @method('PUT')
                 <div class="form-grid">
                     <div class="form-group">
-                        <label>Name</label>
+                        <label>Supplier Name</label>
                         <input type="text" name="name" id="editSupName" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Company</label>
-                        <input type="text" name="company" id="editSupCompany">
                     </div>
                     <div class="form-group">
                         <label>Phone</label>
@@ -348,10 +340,9 @@
             noMatch.style.display = visibleCount === 0 ? '' : 'none';
         }
 
-        function openEditSupplier(id, name, company, phone, email, address) {
+        function openEditSupplier(id, name, phone, email, address) {
             document.getElementById('editSupplierForm').action = supplierBaseUrl + '/' + id;
             document.getElementById('editSupName').value    = name    || '';
-            document.getElementById('editSupCompany').value = company || '';
             document.getElementById('editSupPhone').value   = phone   || '';
             document.getElementById('editSupEmail').value   = email   || '';
             document.getElementById('editSupAddress').value = address || '';

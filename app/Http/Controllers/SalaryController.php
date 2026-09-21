@@ -88,7 +88,7 @@ class SalaryController extends Controller
         $validated = $request->validate([
             'employee_id'    => 'required|exists:employees,id',
             'pay_period'     => 'required|date_format:Y-m-d',
-            'project_ids'    => 'nullable|array',
+            'project_ids'    => 'required|array|min:1',
             'project_ids.*'  => 'exists:projects,id',
             'days_worked'    => 'required|numeric|min:0|max:7',
             'half_days'      => 'nullable|numeric|min:0|max:7',
@@ -136,7 +136,7 @@ class SalaryController extends Controller
             'half_days'      => 'nullable|numeric|min:0|max:7',
             'overtime_hours' => 'nullable|numeric|min:0|max:24',
             'payment_method' => 'required|in:cash,gcash',
-            'project_ids'    => 'nullable|array',
+            'project_ids'    => 'required|array|min:1',
             'project_ids.*'  => 'exists:projects,id',
             'notes'          => 'nullable|string|max:500',
         ]);

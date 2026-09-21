@@ -399,12 +399,16 @@ class QuotationRequestController extends Controller
         $batch = $this->resolveBatch($batchId);
 
         $validated = $request->validate([
-            'markup'             => 'required|numeric|min:0',
+            'markup_percent'     => 'required|numeric|min:0|max:100',
             'payment_term_type'  => 'nullable|in:big_project,small_project',
         ]);
 
+        $projectBudget = $batch->estimatedBudget()['total'];
+        $markup        = round($projectBudget * $validated['markup_percent'] / 100, 2);
+
         $batch->update([
-            'markup'             => $validated['markup'],
+            'markup'             => $markup,
+            'markup_percent'     => $validated['markup_percent'],
             'payment_term_type'  => $validated['payment_term_type'] ?? $batch->payment_term_type,
         ]);
 
