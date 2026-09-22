@@ -178,7 +178,7 @@
                                     @endif
                                 </td>
                                 <td>
-                                    <a href="{{ route('admin.payments.client', urlencode($group['client'])) }}"
+                                    <a href="{{ route('admin.payments.client', urlencode($group['client_key'])) }}"
                                        class="action-btn view" title="View Client's Payments">
                                         <i data-lucide="eye"></i>
                                     </a>

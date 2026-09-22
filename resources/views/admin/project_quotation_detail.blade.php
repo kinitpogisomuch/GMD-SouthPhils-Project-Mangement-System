@@ -141,7 +141,7 @@
                 </a>
                 <i data-lucide="chevron-right" style="width:14px;height:14px;"></i>
                 <a href="{{ route('admin.project_materials.client', urlencode($project->client)) }}" style="color:var(--muted);text-decoration:none;font-weight:600;">
-                    {{ $project->client }}
+                    {{ $project->live_client_name }}
                 </a>
                 <i data-lucide="chevron-right" style="width:14px;height:14px;"></i>
                 <span style="color:var(--dark);font-weight:700;">{{ $project->name }}</span>
@@ -1399,7 +1399,7 @@
                             '</tr>' +
                             '<tr>' +
                                 '<td class="bs-field-label">Client:</td>' +
-                                '<td class="bs-field-value">{{ $project->client }}</td>' +
+                                '<td class="bs-field-value">{{ $project->live_client_name }}</td>' +
                                 '<td class="bs-field-label">Date:</td>' +
                                 '<td class="bs-field-value">' + today + '</td>' +
                             '</tr>' +
@@ -1427,7 +1427,7 @@
 
             var body =
                 '<h1>Bill of Materials — {{ $project->name }}</h1>' +
-                '<p class="sub">Client: {{ $project->client }} &nbsp;|&nbsp; Generated: ' + today + ' &nbsp;|&nbsp; Material Factor: {{ number_format($materialFactor, 1) }}%</p>' +
+                '<p class="sub">Client: {{ $project->live_client_name }} &nbsp;|&nbsp; Generated: ' + today + ' &nbsp;|&nbsp; Material Factor: {{ number_format($materialFactor, 1) }}%</p>' +
                 '<h2>Materials</h2>' +
                 '<table><thead><tr><th>#</th><th>Material Name</th><th class="r">Qty</th><th class="r">Price/Unit</th><th class="r">Base Total</th><th class="r">Adjusted Total</th></tr></thead>' +
                 '<tbody>' + (matRows || '<tr><td colspan="6">No materials.</td></tr>') + '</tbody>' +
@@ -1521,7 +1521,7 @@
                 '@media print{body{margin:16px;}}';
             win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>BOM — {{ $project->name }}</title><style>' + css + '</style></head><body>' +
                 '<h1>Bill of Materials — {{ $project->name }}</h1>' +
-                '<p class="sub">Client: {{ $project->client }} &nbsp;|&nbsp; Generated: ' + today + ' &nbsp;|&nbsp; Material Factor: {{ number_format($materialFactor, 1) }}%</p>' +
+                '<p class="sub">Client: {{ $project->live_client_name }} &nbsp;|&nbsp; Generated: ' + today + ' &nbsp;|&nbsp; Material Factor: {{ number_format($materialFactor, 1) }}%</p>' +
                 '<table><thead><tr><th>#</th><th>Material Name</th><th class="r">Qty</th><th class="r">Price/Unit</th><th class="r">Base Total</th><th class="r">Adjusted Total</th></tr></thead>' +
                 '<tbody>' + (matRows || '<tr><td colspan="6">No materials.</td></tr>') + '</tbody>' +
                 '</table>' +

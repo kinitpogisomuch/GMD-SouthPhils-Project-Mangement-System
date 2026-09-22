@@ -159,7 +159,7 @@
                                 <td><strong style="font-size:14px;font-weight:700;color:var(--dark);">{{ number_format($group['total_qty_used'], 0) }}</strong></td>
                                 <td style="font-size:14px;font-weight:700;color:var(--dark);">{{ $group['last_created_at']?->format('M d, Y') ?? '—' }}</td>
                                 <td class="action-cell">
-                                    <a href="{{ route('admin.material_usage.client', urlencode($group['client'])) }}"
+                                    <a href="{{ route('admin.material_usage.client', urlencode($group['client_key'])) }}"
                                        class="action-btn view" title="View Client's Projects">
                                         <i data-lucide="eye"></i>
                                     </a>

@@ -57,7 +57,7 @@
                             @forelse($projects as $project)
                             <tr>
                                 <td><strong>{{ $project->name }}</strong></td>
-                                <td>{{ $project->client }}</td>
+                                <td>{{ $project->live_client_name }}</td>
                                 <td>
                                     <span class="status-badge {{ $project->status === 'completed' ? 'completed' : 'ongoing' }}">
                                         {{ ucfirst(str_replace('_', ' ', $project->current_phase ?? 'Planning')) }}

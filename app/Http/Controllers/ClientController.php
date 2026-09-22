@@ -18,10 +18,47 @@ class ClientController extends Controller
         return Client::where('email', $email)->value('name');
     }
 
+    /**
+     * This client's own projects. Scoped primarily by client_id (stable —
+     * survives the client renaming or editing their profile), with a
+     * name-matching fallback for the rare project that predates the link.
+     */
+    private function ownProjectsQuery()
+    {
+        $clientId   = session('user_id');
+        $clientName = $this->clientName();
+
+        return Project::where(function ($q) use ($clientId, $clientName) {
+            $q->where('client_id', $clientId);
+            if ($clientName) {
+                $q->orWhere(function ($q2) use ($clientName) {
+                    $q2->whereNull('client_id')->where('client', $clientName);
+                });
+            }
+        });
+    }
+
+    /** This client's own payments, scoped the same way via their project. */
+    private function ownPaymentsQuery()
+    {
+        $clientId   = session('user_id');
+        $clientName = $this->clientName();
+
+        return Payment::with('project')->whereHas('project', function ($q) use ($clientId, $clientName) {
+            $q->where(function ($q2) use ($clientId, $clientName) {
+                $q2->where('client_id', $clientId);
+                if ($clientName) {
+                    $q2->orWhere(function ($q3) use ($clientName) {
+                        $q3->whereNull('client_id')->where('client', $clientName);
+                    });
+                }
+            });
+        });
+    }
+
     public function dashboard()
     {
-        $clientName = $this->clientName();
-        $hasProject = $clientName && Project::where('client', $clientName)->exists();
+        $hasProject = $this->ownProjectsQuery()->exists();
 
         if (!$hasProject) {
             $client = Client::find(session('user_id'));
@@ -38,23 +75,15 @@ class ClientController extends Controller
             }
         }
 
-        $projects = $clientName
-            ? Project::where('client', $clientName)->orderBy('created_at', 'desc')->take(3)->get()
-            : collect();
-
-        $payments = $clientName
-            ? Payment::with('project')->where('client', $clientName)->orderBy('created_at', 'desc')->take(3)->get()
-            : collect();
+        $projects = $this->ownProjectsQuery()->orderBy('created_at', 'desc')->take(3)->get();
+        $payments = $this->ownPaymentsQuery()->orderBy('created_at', 'desc')->take(3)->get();
 
         return view('client.dashboard', compact('projects', 'payments'));
     }
 
     public function projectList()
     {
-        $clientName = $this->clientName();
-        $projects = $clientName
-            ? Project::where('client', $clientName)->orderBy('created_at', 'desc')->get()
-            : collect();
+        $projects = $this->ownProjectsQuery()->orderBy('created_at', 'desc')->get();
 
         $reviews = Review::whereIn('project_id', $projects->pluck('id'))->get()->keyBy('project_id');
 
@@ -70,11 +99,7 @@ class ClientController extends Controller
 
     public function payments()
     {
-        $clientName = $this->clientName();
-
-        $payments = $clientName
-            ? Payment::with('project')->where('client', $clientName)->orderBy('created_at', 'desc')->get()
-            : collect();
+        $payments = $this->ownPaymentsQuery()->orderBy('created_at', 'desc')->get();
 
         return view('client.payments', compact('payments'));
     }

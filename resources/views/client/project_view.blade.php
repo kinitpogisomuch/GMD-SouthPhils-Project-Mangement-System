@@ -67,7 +67,7 @@
                         </span>
                     </div>
                     <p class="page-subtitle">
-                        {{ $project->client }}&nbsp;·&nbsp;{{ $project->tank_type }}&nbsp;·&nbsp;{{ $project->capacity }}
+                        {{ $project->live_client_name }}&nbsp;·&nbsp;{{ $project->tank_type }}&nbsp;·&nbsp;{{ $project->capacity }}
                     </p>
                 </div>
             </div>

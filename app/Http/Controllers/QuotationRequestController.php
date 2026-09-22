@@ -225,15 +225,21 @@ class QuotationRequestController extends Controller
         $requests = QuotationRequest::with('client')->orderBy('created_at', 'desc')->get();
 
         $projects     = Project::orderBy('created_at', 'desc')->get();
-        $clientGroups = $projects->groupBy('client')->map(function ($group, $client) {
-            return [
-                'client'    => $client,
-                'total'     => $group->count(),
-                'active'    => $group->whereNotIn('status', ['completed', 'archived'])->count(),
-                'completed' => $group->where('status', 'completed')->count(),
-                'archived'  => $group->where('status', 'archived')->count(),
-            ];
-        })->sortBy(fn ($g) => strtolower($g['client']))->values();
+        // Group by client_id when a project is linked (so a client rename or
+        // relink is reflected immediately); fall back to the raw name string
+        // for the rare project that predates the client_id link.
+        $clientGroups = $projects->groupBy(fn ($p) => $p->client_id ? 'id:' . $p->client_id : 'name:' . $p->client)
+            ->map(function ($group) {
+                $first = $group->first();
+                return [
+                    'client'    => $first->live_client_name,
+                    'client_key'=> $first->client_id ?: $first->client,
+                    'total'     => $group->count(),
+                    'active'    => $group->whereNotIn('status', ['completed', 'archived'])->count(),
+                    'completed' => $group->where('status', 'completed')->count(),
+                    'archived'  => $group->where('status', 'archived')->count(),
+                ];
+            })->sortBy(fn ($g) => strtolower($g['client']))->values();
 
         $activeTab = $request->query('tab') === 'projects' ? 'projects' : 'requests';
 

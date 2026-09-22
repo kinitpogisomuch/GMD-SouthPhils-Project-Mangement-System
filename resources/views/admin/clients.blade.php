@@ -99,7 +99,7 @@
                                     'created_at'       => $client->created_at?->format('M d, Y'),
                                     'rejection_reason' => $client->rejection_reason,
                                 ]) }}">
-                                <td>
+                                <td class="td-wrap" style="min-width:180px;">
                                     {{ $client->full_name }}
                                 </td>
                                 <td>

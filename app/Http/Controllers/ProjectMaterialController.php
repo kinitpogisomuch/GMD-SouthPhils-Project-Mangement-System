@@ -22,14 +22,20 @@ class ProjectMaterialController extends Controller
 
     public function adminClient($client)
     {
-        $client = urldecode($client);
+        $decoded = urldecode($client);
 
-        $projects = Project::with('activeMaterials', 'activeLabor', 'payments', 'assignedEmployees')
-            ->where('client', $client)
-            ->orderBy('created_at', 'desc')
-            ->get();
+        $query = Project::with('activeMaterials', 'activeLabor', 'payments', 'assignedEmployees');
+        if (ctype_digit($decoded)) {
+            $query->where('client_id', (int) $decoded);
+        } else {
+            $query->where('client', $decoded);
+        }
+
+        $projects = $query->orderBy('created_at', 'desc')->get();
 
         abort_if($projects->isEmpty(), 404);
+
+        $client = $projects->first()->live_client_name;
 
         return view('admin.project_quotation_client', compact('client', 'projects'));
     }

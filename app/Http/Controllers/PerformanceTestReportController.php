@@ -73,14 +73,20 @@ class PerformanceTestReportController extends Controller
 
     public function clientShow($projectId, $reportId)
     {
-        $clientEmail = session('email');
-        $clientName  = $clientEmail
-            ? Client::where('email', $clientEmail)->value('name')
-            : null;
-
         $project = Project::findOrFail($projectId);
 
-        if (!$clientName || $project->client !== $clientName) {
+        // Ownership check compares by client_id (stable) so a client renaming
+        // themselves never locks them out of their own report. Falls back to
+        // name-matching for the rare project predating the client_id link.
+        if ($project->client_id) {
+            $ownsProject = (int) $project->client_id === (int) session('user_id');
+        } else {
+            $clientEmail = session('email');
+            $clientName  = $clientEmail ? Client::where('email', $clientEmail)->value('name') : null;
+            $ownsProject = $clientName && $project->client === $clientName;
+        }
+
+        if (!$ownsProject) {
             abort(403);
         }
 

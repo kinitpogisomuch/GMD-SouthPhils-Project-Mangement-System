@@ -44,6 +44,25 @@ class ProjectController extends Controller
         'delivery'    => 100,
     ];
 
+    /**
+     * Whether the currently logged-in client session owns this project.
+     * Compares by client_id (stable identity) so a client renaming or
+     * updating their profile can never lock them out of their own project.
+     * Falls back to the old name-matching for the rare project that predates
+     * the client_id link.
+     */
+    private function projectBelongsToSessionClient(Project $project): bool
+    {
+        if ($project->client_id) {
+            return (int) $project->client_id === (int) session('user_id');
+        }
+
+        $clientEmail = session('email');
+        $clientName  = $clientEmail ? Client::where('email', $clientEmail)->value('name') : null;
+
+        return $clientName && $project->client === $clientName;
+    }
+
     /*
     |--------------------------------------------------------------------------
     | Admin View
@@ -81,12 +100,13 @@ class ProjectController extends Controller
                         ? $this->phases[$currentIndex + 1]
                         : null;
 
-        // Resolve client details: prefer fields stored on the project,
-        // fall back to the matching record in the clients table.
-        $clientRecord   = Client::where('name', $project->client)->first();
-        $clientAddress  = $project->address        ?? ($clientRecord?->address  ?? null);
-        $clientContact  = $project->contact_number ?? ($clientRecord?->contact  ?? null);
-        $clientEmail    = $project->email          ?? ($clientRecord?->email    ?? null);
+        // Resolve client details live from the linked client account (kept in
+        // sync with the client's own profile edits), falling back to the
+        // frozen snapshot columns for projects that predate the client_id link.
+        $clientName     = $project->live_client_name;
+        $clientAddress  = $project->live_client_address;
+        $clientContact  = $project->live_client_contact;
+        $clientEmail    = $project->live_client_email;
 
         // ── Financial data ──────────────────────────────────────────────
         $payment = $project->getPaymentRecord();
@@ -167,7 +187,7 @@ class ProjectController extends Controller
 
         return view('admin.project_view', compact(
             'project', 'updates', 'openRequest', 'pendingUpdates', 'nextPhase',
-            'clientAddress', 'clientContact', 'clientEmail',
+            'clientName', 'clientAddress', 'clientContact', 'clientEmail',
             // financial
             'payment', 'contractAmount', 'projectBudget', 'markup', 'budgetAdherence',
             'budgetReceived', 'totalReceived', 'remainingBudget',
@@ -194,13 +214,10 @@ class ProjectController extends Controller
                 ->with('error', 'That project no longer exists.');
         }
 
-        // Security: ensure this project belongs to the logged-in client
-        $clientEmail = session('email');
-        $clientName  = $clientEmail
-            ? \App\Models\Client::where('email', $clientEmail)->value('name')
-            : null;
-
-        if (!$clientName || $project->client !== $clientName) {
+        // Security: ensure this project belongs to the logged-in client. Compared
+        // by client_id (stable) rather than name, so a client renaming themselves
+        // never locks them out of their own project.
+        if (!$this->projectBelongsToSessionClient($project)) {
             abort(403, 'You do not have permission to view this project.');
         }
 
@@ -224,10 +241,7 @@ class ProjectController extends Controller
     {
         $project = Project::findOrFail($id);
 
-        $clientEmail = session('email');
-        $clientName  = $clientEmail ? Client::where('email', $clientEmail)->value('name') : null;
-
-        if (!$clientName || $project->client !== $clientName) {
+        if (!$this->projectBelongsToSessionClient($project)) {
             abort(403, 'You do not have permission to view this project.');
         }
 
@@ -272,10 +286,7 @@ class ProjectController extends Controller
     {
         $project = Project::findOrFail($id);
 
-        $clientEmail = session('email');
-        $clientName  = $clientEmail ? Client::where('email', $clientEmail)->value('name') : null;
-
-        if (!$clientName || $project->client !== $clientName) {
+        if (!$this->projectBelongsToSessionClient($project)) {
             abort(403, 'You do not have permission to view this project.');
         }
 
@@ -398,9 +409,23 @@ class ProjectController extends Controller
         // Use first tank item as the project-level summary fields
         $firstTank = $request->tank_items[0];
 
+        // Resolve the real client account so the project stays linked to live
+        // profile info instead of only a frozen name/email/contact snapshot.
+        $clientId = null;
+        if ($request->filled('quotation_batch_id')) {
+            $clientId = \App\Models\QuotationBatch::find($request->quotation_batch_id)?->client_id;
+        }
+        if (!$clientId && $request->email) {
+            $clientId = Client::whereRaw('LOWER(email) = LOWER(?)', [trim($request->email)])->value('id');
+        }
+        if (!$clientId && $request->client) {
+            $clientId = Client::whereRaw('LOWER(name) = LOWER(?)', [trim($request->client)])->value('id');
+        }
+
         $project = Project::create([
             'name'              => $name,
             'client'            => $request->client,
+            'client_id'         => $clientId,
             'contact_number'    => $request->contact_number,
             'email'             => $request->email,
             'address'           => $request->address,

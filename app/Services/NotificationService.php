@@ -57,9 +57,10 @@ class NotificationService
         string $priority,
         ?int   $projectId,
         ?int   $progressId,
-        ?string $actionUrl
+        ?string $actionUrl,
+        $occurredAt = null
     ): void {
-        Notification::create([
+        $notification = new Notification([
             'user_id'             => $userId,
             'user_type'           => $userType,
             'title'               => $title,
@@ -71,6 +72,17 @@ class NotificationService
             'action_url'          => $actionUrl,
             'is_read'             => false,
         ]);
+
+        // When the underlying record was logged for a past date (backdated
+        // historical entry), stamp the notification with that same date so
+        // the feed's "X days ago" reflects when it actually happened, not
+        // when it was typed into the system.
+        if ($occurredAt) {
+            $notification->created_at = $occurredAt;
+            $notification->updated_at = $occurredAt;
+        }
+
+        $notification->save();
     }
 
     // -------------------------------------------------------------------------
@@ -119,12 +131,13 @@ class NotificationService
         string  $priority = 'info',
         ?int    $projectId = null,
         ?int    $progressId = null,
-        ?string $actionUrl = null
+        ?string $actionUrl = null,
+        $occurredAt = null
     ): void {
         User::where('role', 'admin')->get()->each(function ($admin) use (
-            $title, $message, $type, $priority, $projectId, $progressId, $actionUrl
+            $title, $message, $type, $priority, $projectId, $progressId, $actionUrl, $occurredAt
         ) {
-            self::send($admin->id, 'admin', $title, $message, $type, $priority, $projectId, $progressId, $actionUrl);
+            self::send($admin->id, 'admin', $title, $message, $type, $priority, $projectId, $progressId, $actionUrl, $occurredAt);
         });
     }
 
@@ -188,7 +201,7 @@ class NotificationService
     }
 
     /** Material usage logged for a project → activity log for admins */
-    public static function materialUsageLogged(Project $project, string $materialName, float $quantity, ?string $loggedBy = null): void
+    public static function materialUsageLogged(Project $project, string $materialName, float $quantity, ?string $loggedBy = null, $usedDate = null): void
     {
         $message = "Material usage logged for Project: {$project->name}.\nMaterial: {$materialName}\nQuantity Used: {$quantity}";
 
@@ -203,7 +216,8 @@ class NotificationService
             'info',
             $project->id,
             null,
-            "/admin/material-usage/{$project->id}"
+            "/admin/material-usage/{$project->id}",
+            $usedDate
         );
     }
 
@@ -602,7 +616,8 @@ class NotificationService
             'info',
             null,
             null,
-            '/admin/quotation-requests'
+            '/admin/quotation-requests',
+            $request->created_at
         );
     }
 

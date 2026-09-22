@@ -24,6 +24,25 @@ class PaymentController extends Controller
         $this->storage = $storage;
     }
 
+    /**
+     * Whether the currently logged-in client session owns this payment.
+     * Compares by the linked project's client_id (stable identity) so a
+     * client renaming or updating their profile can never lock them out of
+     * their own payment. Falls back to the old name-matching for the rare
+     * payment whose project predates the client_id link.
+     */
+    private function paymentBelongsToSessionClient(Payment $payment): bool
+    {
+        if ($payment->project && $payment->project->client_id) {
+            return (int) $payment->project->client_id === (int) session('user_id');
+        }
+
+        $clientEmail = session('email');
+        $clientName  = $clientEmail ? Client::where('email', $clientEmail)->value('name') : null;
+
+        return $clientName && $payment->client === $clientName;
+    }
+
     /** GET /admin/payments/pending-count — powers the sidebar nav badge */
     public function pendingSettlementCount()
     {
@@ -52,36 +71,47 @@ class PaymentController extends Controller
         // Every client with at least one active project shows up here — not
         // just clients who already have a payment record — so admin can spot
         // who still needs a payment setup done, right from this list.
-        $paymentsByClient = $payments->groupBy('client');
+        //
+        // Grouped by client_id when a project is linked (so a client rename
+        // or relink is reflected immediately); falls back to the raw name
+        // string for the rare project that predates the client_id link.
+        $groupKey = fn (Project $p) => $p->client_id ? 'id:' . $p->client_id : 'name:' . $p->client;
 
-        $projectCountsByClient = Project::where('status', '!=', 'archived')
-            ->selectRaw('client, count(*) as cnt')
-            ->groupBy('client')
-            ->pluck('cnt', 'client');
+        $paymentsByClient = $payments->groupBy(function (Payment $p) use ($groupKey) {
+            return $p->project ? $groupKey($p->project) : 'name:' . $p->client;
+        });
+
+        $nonArchivedProjects = Project::where('status', '!=', 'archived')->get();
+        $projectsByClient    = $nonArchivedProjects->groupBy($groupKey);
 
         // Projects currently stalled waiting on a payment stage, grouped by
         // client, so the list can flag exactly who admin needs to chase.
         $activeProjectsByClient = Project::whereNotIn('status', ['completed', 'archived'])
             ->get()
-            ->groupBy('client');
+            ->groupBy($groupKey);
 
-        $clientGroups = $projectCountsByClient->keys()->map(function ($clientName) use ($paymentsByClient, $projectCountsByClient, $activeProjectsByClient) {
-            $group = $paymentsByClient->get($clientName, collect());
+        $clientGroups = $projectsByClient->map(function ($group, $key) use ($paymentsByClient, $activeProjectsByClient) {
+            $first      = $group->first();
+            $clientName = $first->live_client_name;
+            $clientKey  = $first->client_id ?: $first->client;
 
-            $contractTotal = $group->sum('contract_amount');
-            $receivedTotal = $group->sum(fn($p) => $p->totalPaid());
-            $statuses      = $group->map(fn($p) => $p->computeStatus());
+            $paymentGroup = $paymentsByClient->get($key, collect());
 
-            $needsSettlement = $activeProjectsByClient->get($clientName, collect())
+            $contractTotal = $paymentGroup->sum('contract_amount');
+            $receivedTotal = $paymentGroup->sum(fn($p) => $p->totalPaid());
+            $statuses      = $paymentGroup->map(fn($p) => $p->computeStatus());
+
+            $needsSettlement = $activeProjectsByClient->get($key, collect())
                 ->contains(fn (Project $p) => $p->awaitingPaymentStage() !== null);
 
             return [
                 'client'           => $clientName,
-                'project_count'    => $projectCountsByClient[$clientName],
+                'client_key'       => $clientKey,
+                'project_count'    => $group->count(),
                 'contract_total'   => $contractTotal,
                 'received_total'   => $receivedTotal,
                 'balance_total'    => max(0, $contractTotal - $receivedTotal),
-                'has_payments'     => $group->isNotEmpty(),
+                'has_payments'     => $paymentGroup->isNotEmpty(),
                 'has_pending'      => $statuses->contains('Pending Down Payment'),
                 'has_in_progress'  => $statuses->contains(fn($s) => in_array($s, ['Down Payment Paid', 'Progress Payment Paid'])),
                 'all_fully_paid'   => $statuses->isNotEmpty() && $statuses->every(fn($s) => $s === 'Fully Paid'),
@@ -99,7 +129,7 @@ class PaymentController extends Controller
 
                 return [
                     'or_number'    => $tx->reference_number,
-                    'client'       => $tx->payment->client ?? '—',
+                    'client'       => $tx->payment->project?->live_client_name ?? $tx->payment->client ?? '—',
                     'project'      => $tx->payment->project->name ?? '—',
                     'stage'        => PaymentTransaction::stageLabel($tx->payment_stage),
                     'amount'       => (float) $tx->amount_paid,
@@ -123,12 +153,24 @@ class PaymentController extends Controller
 
     public function clientPayments($client)
     {
-        $clientName = urldecode($client);
+        $decoded = urldecode($client);
 
-        $payments = Payment::with(['project', 'transactions'])
-            ->where('client', $clientName)
-            ->orderBy('created_at', 'desc')
-            ->get();
+        if (ctype_digit($decoded)) {
+            $clientId   = (int) $decoded;
+            $clientName = Client::find($clientId)?->full_name ?? 'Unknown Client';
+
+            $payments = Payment::with(['project', 'transactions'])
+                ->whereHas('project', fn ($q) => $q->where('client_id', $clientId))
+                ->orderBy('created_at', 'desc')
+                ->get();
+        } else {
+            $clientName = $decoded;
+
+            $payments = Payment::with(['project', 'transactions'])
+                ->where('client', $clientName)
+                ->orderBy('created_at', 'desc')
+                ->get();
+        }
 
         return view('admin.payments_client', compact('payments', 'clientName'));
     }
@@ -276,14 +318,9 @@ class PaymentController extends Controller
 
     public function clientShowBillingStatement($id, $statementId)
     {
-        $clientEmail = session('email');
-        $clientName  = $clientEmail
-            ? Client::where('email', $clientEmail)->value('name')
-            : null;
-
         $payment = Payment::with(['project', 'transactions'])->findOrFail($id);
 
-        if (!$clientName || $payment->client !== $clientName) {
+        if (!$this->paymentBelongsToSessionClient($payment)) {
             abort(403);
         }
 
@@ -294,14 +331,9 @@ class PaymentController extends Controller
 
     public function clientShow($id)
     {
-        $clientEmail = session('email');
-        $clientName  = $clientEmail
-            ? Client::where('email', $clientEmail)->value('name')
-            : null;
-
         $payment = Payment::with(['project', 'transactions'])->findOrFail($id);
 
-        if (!$clientName || $payment->client !== $clientName) {
+        if (!$this->paymentBelongsToSessionClient($payment)) {
             abort(403);
         }
 
@@ -337,17 +369,14 @@ class PaymentController extends Controller
      */
     public function pendingProofCount()
     {
-        $clientEmail = session('email');
-        $clientName  = $clientEmail
-            ? Client::where('email', $clientEmail)->value('name')
-            : null;
+        $clientId = session('user_id');
 
-        if (!$clientName) {
+        if (!$clientId) {
             return response()->json(['count' => 0]);
         }
 
         $count = Payment::with('transactions', 'billingStatements', 'proofs')
-            ->where('client', $clientName)
+            ->whereHas('project', fn ($q) => $q->where('client_id', $clientId))
             ->get()
             ->filter(fn ($p) => $p->needsClientAction())
             ->count();
@@ -357,14 +386,9 @@ class PaymentController extends Controller
 
     public function uploadProof(Request $request, $id)
     {
-        $clientEmail = session('email');
-        $clientName  = $clientEmail
-            ? Client::where('email', $clientEmail)->value('name')
-            : null;
+        $payment = Payment::with('project')->findOrFail($id);
 
-        $payment = Payment::findOrFail($id);
-
-        if (!$clientName || $payment->client !== $clientName) {
+        if (!$this->paymentBelongsToSessionClient($payment)) {
             abort(403);
         }
 

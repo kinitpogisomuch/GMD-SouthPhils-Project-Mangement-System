@@ -23,6 +23,7 @@ class Project extends Model
     protected $fillable = [
         'name',
         'client',
+        'client_id',
         'contact_number',
         'email',
         'address',
@@ -206,6 +207,46 @@ class Project extends Model
     public function review()
     {
         return $this->hasOne(Review::class);
+    }
+
+    // Relationship: the client account this project belongs to. Named
+    // distinctly from the legacy `client` string column so both can coexist —
+    // reading $project->client still returns the frozen snapshot string.
+    public function clientAccount()
+    {
+        return $this->belongsTo(Client::class, 'client_id');
+    }
+
+    // Live client display info, falling back to the frozen snapshot columns
+    // for projects that predate the client_id link (or where no match was found).
+    public function getLiveClientNameAttribute(): ?string
+    {
+        return $this->clientAccount?->full_name ?? $this->client;
+    }
+
+    public function getLiveClientEmailAttribute(): ?string
+    {
+        return $this->clientAccount?->email ?? $this->email;
+    }
+
+    public function getLiveClientContactAttribute(): ?string
+    {
+        return $this->clientAccount?->contact ?? $this->contact_number;
+    }
+
+    public function getLiveClientAddressAttribute(): ?string
+    {
+        $account = $this->clientAccount;
+        if (!$account) {
+            return $this->address;
+        }
+
+        $parts = array_filter([
+            $account->street_address, $account->barangay, $account->city,
+            $account->province, $account->region,
+        ]);
+
+        return $parts ? implode(', ', $parts) : ($account->address ?? $this->address);
     }
 
     // Relationship: Get the user who last updated the phase

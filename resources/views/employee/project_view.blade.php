@@ -26,7 +26,7 @@
             <div class="pv-page-header">
                 <div>
                     <h1>{{ $project->name }}</h1>
-                    <p>{{ $project->client }} &nbsp;·&nbsp; {{ $project->tank_type }} &nbsp;·&nbsp; {{ $project->capacity }}</p>
+                    <p>{{ $project->live_client_name }} &nbsp;·&nbsp; {{ $project->tank_type }} &nbsp;·&nbsp; {{ $project->capacity }}</p>
                 </div>
             </div>
 
@@ -359,7 +359,7 @@
                 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">
                     <div style="background:#FDFBF8;border:1px solid var(--border);border-radius:12px;padding:14px;">
                         <span style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">CLIENT</span>
-                        <strong style="font-size:14px;color:var(--dark);">{{ $project->client }}</strong>
+                        <strong style="font-size:14px;color:var(--dark);">{{ $project->live_client_name }}</strong>
                     </div>
                     <div style="background:#FDFBF8;border:1px solid var(--border);border-radius:12px;padding:14px;">
                         <span style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">TANK TYPE</span>

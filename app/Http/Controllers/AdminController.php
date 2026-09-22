@@ -27,7 +27,7 @@ class AdminController extends Controller
         $totalMaterialCost      = ProjectMaterial::where('status', 'active')->sum('total_cost');
         $projectsWithMaterials  = ProjectMaterial::where('status', 'active')
             ->distinct('project_id')->count('project_id');
-        $projects               = Project::whereNotIn('status', ['archived'])
+        $projects               = Project::with('clientAccount')->whereNotIn('status', ['archived'])
             ->orderBy('created_at', 'desc')->take(6)->get();
 
         // Payment stats
@@ -435,13 +435,22 @@ class AdminController extends Controller
 
     public function projectsClient($client)
     {
-        $client   = urldecode($client);
-        $projects = Project::with('assignedEmployees', 'tankItems')
-            ->where('client', $client)
-            ->orderBy('created_at', 'desc')
-            ->get();
+        $decoded = urldecode($client);
+
+        // The client list links by client_id when available (stable across
+        // renames); older links / unlinked projects fall back to the name.
+        $query = Project::with('assignedEmployees', 'tankItems');
+        if (ctype_digit($decoded)) {
+            $query->where('client_id', (int) $decoded);
+        } else {
+            $query->where('client', $decoded);
+        }
+
+        $projects = $query->orderBy('created_at', 'desc')->get();
 
         abort_if($projects->isEmpty(), 404);
+
+        $client = $projects->first()->live_client_name;
 
         return view('admin.projects_client', compact('client', 'projects'));
     }
@@ -466,9 +475,15 @@ class AdminController extends Controller
      */
     private function buildClientGroups($projects)
     {
-        return $projects->groupBy('client')->map(function ($group, $client) {
+        // Group by client_id when a project is linked (so a client rename or
+        // relink is reflected immediately); fall back to the raw name string
+        // for the rare project that predates the client_id link.
+        return $projects->groupBy(fn ($p) => $p->client_id ? 'id:' . $p->client_id : 'name:' . $p->client)
+            ->map(function ($group) {
+            $first = $group->first();
             return [
-                'client'        => $client,
+                'client'        => $first->live_client_name,
+                'client_key'    => $first->client_id ?: $first->client,
                 'total'         => $group->count(),
                 'active'        => $group->whereNotIn('status', ['completed', 'archived'])->count(),
                 'completed'     => $group->where('status', 'completed')->count(),
@@ -1066,12 +1081,23 @@ class AdminController extends Controller
     {
         $clients = Client::orderBy('created_at', 'desc')->get();
 
-        $projectCounts = \App\Models\Project::selectRaw('client, COUNT(*) as count')
+        // Counted by client_id (stable — survives a client rename or relink),
+        // with a name-matching fallback for the rare project that predates
+        // the client_id link.
+        $projectCountsById   = \App\Models\Project::whereNotNull('client_id')
+            ->selectRaw('client_id, COUNT(*) as count')
+            ->groupBy('client_id')
+            ->pluck('count', 'client_id');
+        $projectCountsByName = \App\Models\Project::whereNull('client_id')
+            ->selectRaw('client, COUNT(*) as count')
             ->groupBy('client')
             ->pluck('count', 'client');
 
-        $clients->each(function ($client) use ($projectCounts) {
-            $client->setAttribute('projects_count', $projectCounts[$client->name] ?? 0);
+        $clients->each(function ($client) use ($projectCountsById, $projectCountsByName) {
+            $client->setAttribute(
+                'projects_count',
+                $projectCountsById[$client->id] ?? $projectCountsByName[$client->name] ?? 0
+            );
         });
 
         // Clients pending approval float to the top; once approved/rejected they

@@ -23,19 +23,25 @@ class MaterialUsageController extends Controller
     {
         $projects = Project::with('activeMaterials', 'activeMaterialUsages')->get();
 
-        $clientGroups = $projects->groupBy('client')->map(function ($group, $clientName) {
-            return [
-                'client'          => $clientName,
-                'project_count'   => $group->count(),
-                'materials_count' => $group->sum(fn ($p) => $p->activeMaterials->count()),
-                'usage_count'     => $group->sum(fn ($p) => $p->activeMaterialUsages->count()),
-                'total_qty_used'  => $group->sum(fn ($p) => $p->activeMaterialUsages->sum('quantity_used')),
-                'last_created_at' => $group->max('created_at'),
-                'has_active'      => $group->contains(fn ($p) => !in_array($p->status, ['completed', 'archived'])),
-                'has_completed'   => $group->contains(fn ($p) => $p->status === 'completed'),
-                'has_archived'    => $group->contains(fn ($p) => $p->status === 'archived'),
-            ];
-        })->sortBy(fn ($g) => strtolower($g['client']))->values();
+        // Group by client_id when a project is linked (so a client rename or
+        // relink is reflected immediately); fall back to the raw name string
+        // for the rare project that predates the client_id link.
+        $clientGroups = $projects->groupBy(fn ($p) => $p->client_id ? 'id:' . $p->client_id : 'name:' . $p->client)
+            ->map(function ($group) {
+                $first = $group->first();
+                return [
+                    'client'          => $first->live_client_name,
+                    'client_key'      => $first->client_id ?: $first->client,
+                    'project_count'   => $group->count(),
+                    'materials_count' => $group->sum(fn ($p) => $p->activeMaterials->count()),
+                    'usage_count'     => $group->sum(fn ($p) => $p->activeMaterialUsages->count()),
+                    'total_qty_used'  => $group->sum(fn ($p) => $p->activeMaterialUsages->sum('quantity_used')),
+                    'last_created_at' => $group->max('created_at'),
+                    'has_active'      => $group->contains(fn ($p) => !in_array($p->status, ['completed', 'archived'])),
+                    'has_completed'   => $group->contains(fn ($p) => $p->status === 'completed'),
+                    'has_archived'    => $group->contains(fn ($p) => $p->status === 'archived'),
+                ];
+            })->sortBy(fn ($g) => strtolower($g['client']))->values();
 
         $suppliers = SupplierContact::orderBy('name')->get();
 
@@ -44,12 +50,20 @@ class MaterialUsageController extends Controller
 
     public function clientIndex($client)
     {
-        $clientName = urldecode($client);
+        $decoded = urldecode($client);
 
-        $projects = Project::with('activeMaterials', 'activeMaterialUsages')
-            ->where('client', $clientName)
-            ->orderBy('name')
-            ->get();
+        $query = Project::with('activeMaterials', 'activeMaterialUsages');
+        if (ctype_digit($decoded)) {
+            $query->where('client_id', (int) $decoded);
+        } else {
+            $query->where('client', $decoded);
+        }
+
+        $projects = $query->orderBy('name')->get();
+
+        abort_if($projects->isEmpty(), 404);
+
+        $clientName = $projects->first()->live_client_name;
 
         return view('admin.material_usage_client', compact('projects', 'clientName'));
     }
@@ -259,7 +273,10 @@ class MaterialUsageController extends Controller
                 $project,
                 $request->input('material_name'),
                 (float) $request->input('quantity_used'),
-                $loggedBy
+                $loggedBy,
+                // Stamp the notification with the date the material was actually
+                // used (which may be backdated), not the moment it was typed in.
+                \Carbon\Carbon::parse($request->input('used_date'))
             );
         }
 

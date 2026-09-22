@@ -142,7 +142,7 @@
                         <a href="{{ route('admin.project_view', $project->id) }}" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;text-decoration:none;color:inherit;border-bottom:1px solid var(--border);">
                             <div style="min-width:0;">
                                 <div style="font-size:12.5px;font-weight:700;color:var(--dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ $project->name }}</div>
-                                <div style="font-size:11px;color:var(--muted-light);margin-top:1px;">{{ $project->client }}</div>
+                                <div style="font-size:11px;color:var(--muted-light);margin-top:1px;">{{ $project->live_client_name }}</div>
                             </div>
                             <span style="font-size:11px;font-weight:800;color:#B42318;white-space:nowrap;flex-shrink:0;">{{ (int) $project->end_date->diffInDays(now(), true) }}d late</span>
                         </a>
@@ -477,7 +477,7 @@
                                 <span class="db-project-name">{{ $project->name }}</span>
                             </div>
 
-                            <div class="db-project-client">{{ $project->client }}</div>
+                            <div class="db-project-client">{{ $project->live_client_name }}</div>
                             <div class="db-project-date">{{ $project->start_date->format('M j, Y') }}</div>
 
                             <span class="status-badge {{ $badge['css'] }}" style="justify-self:start;">{{ $badge['label'] }}</span>

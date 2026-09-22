@@ -108,14 +108,14 @@
                         </thead>
                         <tbody>
                             @forelse($clientGroups as $g)
-                            <tr data-search="{{ strtolower($g['client']) }}" onclick="window.location='{{ route('admin.projects.client', $g['client']) }}'" style="cursor:pointer;">
-                                <td><span class="pf-client-name">{{ $g['client'] }}</span></td>
+                            <tr data-search="{{ strtolower($g['client']) }}" onclick="window.location='{{ route('admin.projects.client', $g['client_key']) }}'" style="cursor:pointer;">
+                                <td class="td-wrap" style="min-width:180px;"><span class="pf-client-name">{{ $g['client'] }}</span></td>
                                 <td style="text-align:center;"><span class="client-pill" style="background-color:#F3F4F6;color:#1F2937;border-color:#D1D5DB;">{{ $g['total'] }}</span></td>
                                 <td style="text-align:center;"><span class="client-pill" style="background-color:#EAF0FF;color:#2563EB;border-color:#BFDBFE;">{{ $g['active'] }}</span></td>
                                 <td style="text-align:center;"><span class="client-pill" style="background-color:#E7F6EC;color:#207A3A;border-color:#A7E3B8;">{{ $g['completed'] }}</span></td>
                                 <td style="text-align:center;"><span class="client-pill" style="background-color:#F3F4F6;color:#6B7280;border-color:#D1D5DB;">{{ $g['archived'] }}</span></td>
                                 <td class="action-cell" style="text-align:center;">
-                                    <a href="{{ route('admin.projects.client', $g['client']) }}" class="action-btn view" title="View Client's Projects" onclick="event.stopPropagation()">
+                                    <a href="{{ route('admin.projects.client', $g['client_key']) }}" class="action-btn view" title="View Client's Projects" onclick="event.stopPropagation()">
                                         <i data-lucide="eye"></i>
                                     </a>
                                 </td>
@@ -1004,10 +1004,10 @@
             var tr = document.createElement('tr');
             tr.dataset.search = g.client.toLowerCase();
             tr.style.cursor = 'pointer';
-            var url = PROJECT_CLIENT_URL_TEMPLATE.replace('__CLIENT__', encodeURIComponent(g.client));
+            var url = PROJECT_CLIENT_URL_TEMPLATE.replace('__CLIENT__', encodeURIComponent(g.client_key));
             tr.setAttribute('onclick', "window.location='" + url.replace(/'/g, "\\'") + "'");
             tr.innerHTML =
-                '<td><span class="pf-client-name"></span></td>' +
+                '<td class="td-wrap" style="min-width:180px;"><span class="pf-client-name"></span></td>' +
                 '<td style="text-align:center;"><span class="client-pill" style="background-color:#F3F4F6;color:#1F2937;border-color:#D1D5DB;">' + g.total + '</span></td>' +
                 '<td style="text-align:center;"><span class="client-pill" style="background-color:#EAF0FF;color:#2563EB;border-color:#BFDBFE;">' + g.active + '</span></td>' +
                 '<td style="text-align:center;"><span class="client-pill" style="background-color:#E7F6EC;color:#207A3A;border-color:#A7E3B8;">' + g.completed + '</span></td>' +

@@ -13,14 +13,22 @@ class ReviewController extends Controller
     {
         $project = Project::findOrFail($projectId);
 
-        $clientEmail = session('email');
-        $clientName  = $clientEmail
-            ? Client::where('email', $clientEmail)->value('name')
-            : null;
+        // Ownership check compares by client_id (stable) so a client renaming
+        // themselves never locks them out of reviewing their own project.
+        // Falls back to name-matching for the rare project predating the link.
+        if ($project->client_id) {
+            $ownsProject = (int) $project->client_id === (int) session('user_id');
+        } else {
+            $clientEmail = session('email');
+            $lookupName  = $clientEmail ? Client::where('email', $clientEmail)->value('name') : null;
+            $ownsProject = $lookupName && $project->client === $lookupName;
+        }
 
-        if (!$clientName || $project->client !== $clientName) {
+        if (!$ownsProject) {
             abort(403, 'You do not have permission to review this project.');
         }
+
+        $clientName = $project->live_client_name;
 
         if ($project->status !== 'completed') {
             return redirect()->route('client.projects')

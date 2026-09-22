@@ -56,7 +56,7 @@
                     </div>
                     <div>
                         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px;">Client</div>
-                        <div style="font-weight:700;">{{ $project->client }}</div>
+                        <div style="font-weight:700;">{{ $project->live_client_name }}</div>
                     </div>
                     <div>
                         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px;">Current Phase</div>

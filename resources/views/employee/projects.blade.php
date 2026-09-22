@@ -39,7 +39,7 @@
                         <div class="project-info">
                             <div class="project-title">{{ $project->name }}</div>
                             <div class="project-meta">
-                                Client: <strong class="project-meta-strong">{{ $project->client }}</strong> &nbsp;·&nbsp;
+                                Client: <strong class="project-meta-strong">{{ $project->live_client_name }}</strong> &nbsp;·&nbsp;
                                 Tank Type: <strong class="project-meta-strong">{{ $project->tank_type }}</strong>
                                 &nbsp;·&nbsp; Capacity: <strong class="project-meta-strong">{{ $project->capacity }}</strong>
                             </div>

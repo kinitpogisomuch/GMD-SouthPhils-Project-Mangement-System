@@ -23,7 +23,7 @@
                 </a>
                 <i data-lucide="chevron-right" style="width:14px;height:14px;"></i>
                 <a href="{{ route('admin.projects.client', urlencode($project->client)) }}" style="color:var(--muted);text-decoration:none;font-weight:600;">
-                    {{ $project->client }}
+                    {{ $clientName }}
                 </a>
                 <i data-lucide="chevron-right" style="width:14px;height:14px;"></i>
                 <span style="color:var(--dark);font-weight:700;">{{ $project->name }}</span>
@@ -40,7 +40,7 @@
                         {{ $project->name }}
                     </h1>
                     <p>
-                        <span class="client-pill">{{ $project->client }}</span>
+                        <span class="client-pill">{{ $clientName }}</span>
                         @if($project->tankItems->isNotEmpty())
                             @foreach($project->tankItems as $ti)
                             &nbsp;·&nbsp;
@@ -916,7 +916,7 @@
 
                 <div class="pi-section-label"><i data-lucide="user" style="width:13px;height:13px;"></i> Client Details</div>
                 <div class="project-detail-grid" style="margin-top:10px;margin-bottom:20px;">
-                    <div class="project-detail-box"><span>Client</span><strong>{{ $project->client }}</strong></div>
+                    <div class="project-detail-box"><span>Client</span><strong>{{ $clientName }}</strong></div>
                     <div class="project-detail-box"><span>Contact Number</span><strong>{{ $clientContact ?? '—' }}</strong></div>
                     <div class="project-detail-box"><span>Email</span><strong>{{ $clientEmail ?? '—' }}</strong></div>
                     <div class="project-detail-box" style="grid-column:span 3;"><span>Address</span><strong>{{ $clientAddress ?? '—' }}</strong></div>
@@ -1185,7 +1185,7 @@
                 <div class="form-grid">
                     <div class="form-group">
                         <label>Client Name</label>
-                        <input type="text" name="client_name" value="{{ $project->client }}">
+                        <input type="text" name="client_name" value="{{ $clientName }}">
                     </div>
                     <div class="form-group">
                         <label>Report Date</label>
@@ -1193,7 +1193,7 @@
                     </div>
                     <div class="form-group form-group-full">
                         <label>Project Location</label>
-                        <input type="text" name="project_location" value="{{ $project->address }}">
+                        <input type="text" name="project_location" value="{{ $clientAddress }}">
                     </div>
                     <div class="form-group form-group-full">
                         <label>Subject</label>
