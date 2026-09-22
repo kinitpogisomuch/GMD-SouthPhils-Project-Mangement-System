@@ -6,9 +6,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use App\Models\Client;
 use App\Services\NotificationService;
+use App\Http\Controllers\Concerns\BackdatesRecords;
 
 class ClientSignupController extends Controller
 {
+    use BackdatesRecords;
+
+
     public function show()
     {
         if (session('role') === 'admin')    return redirect()->route('admin.dashboard');
@@ -36,6 +40,8 @@ class ClientSignupController extends Controller
             'barangay'       => 'required|string|max:255',
             'street_address' => 'required|string|max:500',
             'username'       => 'required|string|max:50|alpha_dash|unique:clients,username',
+            'signup_date'    => 'nullable|date',
+            'signup_time'    => 'nullable|date_format:H:i',
             'password'       => ['required', 'string', 'min:6', 'confirmed',
                 function ($_, $value, $fail) {
                     if (!preg_match('/[A-Z]/', $value)) {
@@ -69,7 +75,7 @@ class ClientSignupController extends Controller
             $request->region,
         ]));
 
-        $client = Client::create([
+        $client = new Client([
             'name'           => $request->full_name,
             'email'          => $request->email,
             'contact'        => $request->contact_number,
@@ -84,6 +90,8 @@ class ClientSignupController extends Controller
             'password'       => $request->password,
             'first_login'    => false,
         ]);
+        $this->applyBackdate($client, $request->signup_date, $request->signup_time);
+        $client->save();
 
         NotificationService::clientSignupPending($client);
 

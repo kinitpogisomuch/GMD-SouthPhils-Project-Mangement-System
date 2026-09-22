@@ -574,7 +574,8 @@ class NotificationService
             'warning',
             null,
             null,
-            '/admin/clients'
+            '/admin/clients',
+            $client->created_at
         );
     }
 

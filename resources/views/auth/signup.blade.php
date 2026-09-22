@@ -297,6 +297,21 @@
 
                     <div class="su-form-row" style="margin-top:16px;">
                         <div class="su-form-group">
+                            <label>Signup Date <span style="font-size:11px;color:var(--muted);font-weight:400;">(optional — leave blank for today)</span></label>
+                            <input type="date" name="signup_date" value="{{ old('signup_date') }}"
+                                   class="{{ $errors->has('signup_date') ? 'input-error' : '' }}">
+                            @error('signup_date')<span class="field-error">{{ $message }}</span>@enderror
+                        </div>
+                        <div class="su-form-group">
+                            <label>Signup Time <span style="font-size:11px;color:var(--muted);font-weight:400;">(optional)</span></label>
+                            <input type="time" name="signup_time" value="{{ old('signup_time') }}"
+                                   class="{{ $errors->has('signup_time') ? 'input-error' : '' }}">
+                            @error('signup_time')<span class="field-error">{{ $message }}</span>@enderror
+                        </div>
+                    </div>
+
+                    <div class="su-form-row" style="margin-top:16px;">
+                        <div class="su-form-group">
                             <label>Password</label>
                             <div class="pw-wrap">
                                 <input type="password" name="password" id="signupPassword"
