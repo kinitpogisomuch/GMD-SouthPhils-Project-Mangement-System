@@ -97,12 +97,13 @@ class NotificationService
         string  $priority = 'info',
         ?int    $projectId = null,
         ?int    $progressId = null,
-        ?string $actionUrl = null
+        ?string $actionUrl = null,
+        $occurredAt = null
     ): void {
         Employee::where('status', 'Active')->get()->each(function ($emp) use (
-            $title, $message, $type, $priority, $projectId, $progressId, $actionUrl
+            $title, $message, $type, $priority, $projectId, $progressId, $actionUrl, $occurredAt
         ) {
-            self::send($emp->id, 'employee', $title, $message, $type, $priority, $projectId, $progressId, $actionUrl);
+            self::send($emp->id, 'employee', $title, $message, $type, $priority, $projectId, $progressId, $actionUrl, $occurredAt);
         });
     }
 
@@ -149,7 +150,8 @@ class NotificationService
         string  $type,
         string  $priority = 'info',
         ?int    $progressId = null,
-        ?string $actionUrl = null
+        ?string $actionUrl = null,
+        $occurredAt = null
     ): void {
         $client = null;
 
@@ -162,7 +164,7 @@ class NotificationService
         }
 
         if ($client) {
-            self::send($client->id, 'client', $title, $message, $type, $priority, $project->id, $progressId, $actionUrl);
+            self::send($client->id, 'client', $title, $message, $type, $priority, $project->id, $progressId, $actionUrl, $occurredAt);
         }
     }
 
@@ -358,7 +360,8 @@ class NotificationService
             'info',
             $project->id,
             null,
-            "/employee/project-view/{$project->id}"
+            "/employee/project-view/{$project->id}",
+            $project->created_at
         );
 
         self::notifyProjectClient(
@@ -368,7 +371,8 @@ class NotificationService
             self::TYPE_PROJECT_CREATED,
             'success',
             null,
-            "/client/project-view/{$project->id}"
+            "/client/project-view/{$project->id}",
+            $project->created_at
         );
     }
 
@@ -581,7 +585,7 @@ class NotificationService
     }
 
     /** Admin approved a pending client account → notify the client */
-    public static function clientApproved(Client $client): void
+    public static function clientApproved(Client $client, $occurredAt = null): void
     {
         self::notifyClient(
             $client->id,
@@ -590,7 +594,8 @@ class NotificationService
             self::TYPE_CLIENT_APPROVED,
             'success',
             null,
-            '/login'
+            '/login',
+            $occurredAt
         );
     }
 

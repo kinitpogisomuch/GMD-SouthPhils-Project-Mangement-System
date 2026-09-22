@@ -107,15 +107,36 @@ class Payment extends Model
         return max(0, round($expected - $this->stagePaidAmount($stage), 2));
     }
 
-    /** Which stages have been paid in full (partial payments don't count until settled) */
+    /**
+     * Which stages are "settled" — i.e. unlock the phase gate tied to them.
+     *
+     * Real clients rarely pay in the exact 50/30/20 split, so this is judged
+     * against the CUMULATIVE total received so far, not the amount recorded
+     * under that specific stage's label. E.g. for a big project, the Down
+     * Payment gate unlocks once total payments reach 50% of the contract,
+     * Progress Payment at 80%, Final at 100% — however that money was
+     * actually tagged across transactions. Stages stay sequential (a later
+     * stage can't be settled unless every earlier cumulative threshold is
+     * also met), matching the phases' own sequential progression.
+     */
     public function paidStages(): array
     {
-        $amounts = $this->stageAmounts();
+        $amounts    = $this->stageAmounts();
+        $totalPaid  = round($this->totalPaid(), 2);
+        $cumulative = 0.0;
+        $settled    = [];
 
-        return collect($this->stages())
-            ->filter(fn ($stage) => ($amounts[$stage] ?? 0) > 0 && $this->stagePaidAmount($stage) >= $amounts[$stage])
-            ->values()
-            ->all();
+        foreach ($this->stages() as $stage) {
+            $cumulative += (float) ($amounts[$stage] ?? 0);
+
+            if ($cumulative <= 0 || $totalPaid + 0.01 < round($cumulative, 2)) {
+                break;
+            }
+
+            $settled[] = $stage;
+        }
+
+        return $settled;
     }
 
     /**

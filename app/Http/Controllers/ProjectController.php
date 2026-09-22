@@ -17,9 +17,12 @@ use App\Models\FundTransaction;
 use App\Models\PaymentTransaction;
 use App\Services\SupabaseStorageService;
 use App\Services\NotificationService;
+use App\Http\Controllers\Concerns\BackdatesRecords;
 
 class ProjectController extends Controller
 {
+    use BackdatesRecords;
+
     protected $storage;
 
     public function __construct(SupabaseStorageService $storage)
@@ -392,6 +395,8 @@ class ProjectController extends Controller
             'end_date'   => 'required|date|after_or_equal:start_date',
             'client'     => 'required|string',
             'quotation_batch_id' => 'nullable|string|exists:quotation_batches,id',
+            'created_date' => 'nullable|date',
+            'created_time' => 'nullable|date_format:H:i',
         ]);
 
         $start    = \Carbon\Carbon::parse($request->start_date);
@@ -422,7 +427,7 @@ class ProjectController extends Controller
             $clientId = Client::whereRaw('LOWER(name) = LOWER(?)', [trim($request->client)])->value('id');
         }
 
-        $project = Project::create([
+        $project = new Project([
             'name'              => $name,
             'client'            => $request->client,
             'client_id'         => $clientId,
@@ -443,6 +448,9 @@ class ProjectController extends Controller
             'duration'          => $duration,
             'notes'             => $request->notes,
         ]);
+        // Backdated when logging a project that was actually created in the past.
+        $this->applyBackdate($project, $request->created_date, $request->created_time);
+        $project->save();
 
         $convertedFromBatch = $request->filled('quotation_batch_id');
 
@@ -905,11 +913,9 @@ class ProjectController extends Controller
     */
     private function handlePlanningPayment(Request $request, Project $project)
     {
-        if (!$project->isPaymentStageSettled('down_payment')) {
-            return redirect()->route('admin.project_view', $project->id)
-                ->with('error', 'Waiting for payment settlement. The 50% down payment must be settled before proceeding.');
-        }
-
+        // Payment settlement is a soft reminder (shown + confirmed client-side
+        // before this submits), not a hard block — see the confirm-step panel
+        // in project_view.blade.php.
         $newProgress = Project::PHASE_PROGRESS['planning'];
 
         $project->update([
@@ -1022,14 +1028,8 @@ class ProjectController extends Controller
     */
     private function handleFabrication(Request $request, Project $project)
     {
-        $payment      = $project->getPaymentRecord();
-        $isBigProject = $payment && $payment->payment_term_type === 'big_project';
-
-        if ($isBigProject && !$project->isPaymentStageSettled('progress_payment')) {
-            return redirect()->route('admin.project_view', $project->id)
-                ->with('error', 'Waiting for progress payment settlement. The 30% progress payment must be settled before proceeding.');
-        }
-
+        // Payment settlement is a soft reminder, not a hard block — see
+        // handlePlanningPayment() above.
         $request->validate([
             'cutting_completed'  => 'required|accepted',
             'assembly_completed' => 'required|accepted',
@@ -1083,13 +1083,17 @@ class ProjectController extends Controller
     private function handleInspection(Request $request, Project $project)
     {
         $request->validate([
-            'pressure_test_passed' => 'required|accepted',
-            'soap_testing_passed'  => 'required|accepted',
+            'pressure_test_passed'  => 'nullable|boolean',
+            'soap_testing_passed'   => 'nullable|boolean',
+            'pneumatic_test_passed' => 'nullable|boolean',
+            'leak_test_passed'      => 'nullable|boolean',
         ]);
 
         $project->setPhaseData('inspection', [
-            'pressure_test_passed' => true,
-            'soap_testing_passed'  => true,
+            'pressure_test_passed'  => $request->boolean('pressure_test_passed'),
+            'soap_testing_passed'   => $request->boolean('soap_testing_passed'),
+            'pneumatic_test_passed' => $request->boolean('pneumatic_test_passed'),
+            'leak_test_passed'      => $request->boolean('leak_test_passed'),
         ]);
 
         $newProgress = Project::PHASE_PROGRESS['inspection'];
@@ -1226,11 +1230,8 @@ class ProjectController extends Controller
     */
     private function handleDelivery(Request $request, Project $project)
     {
-        if (!$project->isPaymentStageSettled('final_payment')) {
-            return redirect()->route('admin.project_view', $project->id)
-                ->with('error', 'Waiting for final payment settlement. The final payment must be settled before project delivery.');
-        }
-
+        // Payment settlement is a soft reminder, not a hard block — see
+        // handlePlanningPayment() above.
         $request->validate([
             'photos'         => 'required|array|min:1',
             'photos.*'       => 'required|image|max:5120',

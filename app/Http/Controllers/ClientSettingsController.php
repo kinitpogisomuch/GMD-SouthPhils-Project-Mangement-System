@@ -138,12 +138,24 @@ class ClientSettingsController extends Controller
             ->with('success', $restore ? 'Client restored successfully.' : 'Client archived successfully.');
     }
 
-    public function approve($id)
+    public function approve(Request $request, $id)
     {
         $client = Client::findOrFail($id);
+
+        $request->validate([
+            'approved_date' => 'nullable|date',
+            'approved_time' => 'nullable|date_format:H:i',
+        ]);
+
+        // Backdated when logging an approval that actually happened in the past.
+        $approvedAt = $request->filled('approved_date')
+            ? \Carbon\Carbon::parse($request->approved_date . ' ' . ($request->approved_time ?: '00:00'))
+            : now();
+
+        $client->updated_at = $approvedAt;
         $client->update(['status' => 'Active']);
 
-        \App\Services\NotificationService::clientApproved($client);
+        \App\Services\NotificationService::clientApproved($client, $approvedAt);
 
         if ($client->email) {
             try {

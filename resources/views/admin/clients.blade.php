@@ -419,6 +419,20 @@
             <form method="POST" id="approveClientForm">
                 @csrf
                 @method('PATCH')
+                <div class="form-grid" style="padding:0 24px 8px;">
+                    <div class="form-group">
+                        <label style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:8px;">
+                            Approved Date <span style="font-weight:400;text-transform:none;">(optional — leave blank for today)</span>
+                        </label>
+                        <input type="date" name="approved_date">
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:8px;">
+                            Approved Time <span style="font-weight:400;text-transform:none;">(optional)</span>
+                        </label>
+                        <input type="time" name="approved_time">
+                    </div>
+                </div>
                 <div class="modal-actions">
                     <button type="button" class="cancel-btn" id="cancelApproveClient">Cancel</button>
                     <button type="submit" class="save-btn">

@@ -110,84 +110,6 @@
                 </div>
             </div>
 
-            <!-- Payment Stages Breakdown -->
-            <div class="table-card" style="margin-bottom:24px;padding-bottom:0;">
-                <div class="table-toolbar" style="padding-bottom:14px;margin-bottom:0;border-bottom:1px solid var(--border);">
-                    <div>
-                        <div style="font-weight:800;font-size:15px;color:var(--dark);">Payment Breakdown by Stage</div>
-                        <div style="font-size:12px;color:var(--muted);margin-top:2px;">Expected vs actual payments per stage</div>
-                    </div>
-                </div>
-                <div class="table-wrapper">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th style="text-align:left;">Stage</th>
-                                <th style="text-align:right;">Expected Amount</th>
-                                <th style="text-align:right;">Total Paid</th>
-                                <th style="text-align:right;">Remaining</th>
-                                <th style="text-align:center;">Status</th>
-                                <th style="text-align:center;">Client Proof</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($payment->stages() as $stage)
-                            @php
-                                $expected    = $stageAmounts[$stage] ?? 0;
-                                $stagePaid   = isset($stageTransactions[$stage]) ? $stageTransactions[$stage]->sum('amount_paid') : 0;
-                                $stageLeft   = max(0, $expected - $stagePaid);
-                                $isPaid      = in_array($stage, $paidStages);
-                                $stageLabel  = \App\Models\PaymentTransaction::stageLabel($stage);
-                                $stageProofs = $payment->proofs->where('payment_stage', $stage);
-                                $stagePct    = $expected > 0 ? min(100, round(($stagePaid / $expected) * 100)) : 0;
-                            @endphp
-                            <tr>
-                                <td><strong>{{ $stageLabel }}</strong></td>
-                                <td style="text-align:right;font-weight:600;color:var(--muted);">₱{{ number_format($expected, 2) }}</td>
-                                <td style="text-align:right;color:#16a34a;font-weight:800;">₱{{ number_format($stagePaid, 2) }}</td>
-                                <td style="text-align:right;color:{{ $stageLeft > 0 ? '#b91c1c' : 'var(--muted)' }};font-weight:800;">₱{{ number_format($stageLeft, 2) }}</td>
-                                <td style="text-align:center;">
-                                    @if($isPaid)
-                                        <span class="status-badge completed">Paid</span>
-                                    @elseif($stagePaid > 0)
-                                        <span class="status-badge partial">Partial</span>
-                                    @else
-                                        <span class="status-badge pending">Unpaid</span>
-                                    @endif
-                                </td>
-                                <td style="text-align:center;">
-                                    @if($stageProofs->isNotEmpty())
-                                    <div style="display:flex;flex-direction:column;gap:4px;align-items:center;">
-                                        @foreach($stageProofs as $proof)
-                                        <a href="{{ $proof->file_url }}" target="_blank" title="{{ $proof->notes ?? 'View submitted proof' }}"
-                                           style="display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:700;color:var(--accent);background:var(--accent-soft);border-radius:20px;padding:3px 10px;text-decoration:none;">
-                                            <i data-lucide="file-check" style="width:12px;height:12px;"></i>
-                                            {{ $proof->created_at->format('M d, Y') }}
-                                        </a>
-                                        @endforeach
-                                    </div>
-                                    @else
-                                    <span style="color:var(--muted);">—</span>
-                                    @endif
-                                </td>
-                            </tr>
-                            @endforeach
-                        </tbody>
-                        <tfoot>
-                            <tr style="background:linear-gradient(180deg,#333333 0%,#2a2a2a 100%)">
-                                <td style="padding:16px 24px;font-weight:800;color:#fff;font-size:13.5px;">Total</td>
-                                <td style="padding:16px 14px;text-align:right;color:rgba(255,255,255,.7);font-weight:700;">₱{{ number_format($payment->contract_amount, 2) }}</td>
-                                <td style="padding:16px 14px;text-align:right;color:#4ade80;font-weight:800;">₱{{ number_format($totalPaid, 2) }}</td>
-                                <td style="padding:16px 14px;text-align:right;color:{{ $balance > 0 ? '#f87171' : '#4ade80' }};font-weight:800;">₱{{ number_format($balance, 2) }}</td>
-                                <td style="padding:16px 14px;text-align:center;">
-                                    <span class="status-badge {{ \App\Models\Payment::statusBadgeClass($status) }}">{{ $status }}</span>
-                                </td>
-                                <td style="padding:16px 24px;"></td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-            </div>
 
             <!-- Payment History -->
             <div class="table-card">
@@ -288,26 +210,15 @@
                                 @foreach($payment->stages() as $i => $stage)
                                 @php
                                     $isPaid      = in_array($stage, $paidStages);
-                                    $priorStages = array_slice($payment->stages(), 0, $i);
-                                    $priorDone   = empty(array_diff($priorStages, $paidStages));
-                                    $isLocked    = !$isPaid && !$priorDone;
-                                    $isDisabled  = $isPaid || $isLocked;
-                                    $stageRemaining = $payment->stageRemaining($stage);
-                                    $stagePaidSoFar = $payment->stagePaidAmount($stage);
-                                    $stageLabel  = \App\Models\PaymentTransaction::stageLabel($stage) . ' (₱' . number_format($stageAmounts[$stage] ?? 0, 2) . ')';
+                                    $stageLabel  = \App\Models\PaymentTransaction::stageLabel($stage);
                                 @endphp
-                                <div class="stage-select-option{{ $isDisabled ? ' disabled' : '' }}"
+                                <div class="stage-select-option"
                                      data-value="{{ $stage }}"
-                                     data-expected="{{ $stageRemaining }}"
                                      data-label="{{ $stageLabel }}"
-                                     @if(!$isDisabled) onclick="selectStage(this)" @endif>
+                                     onclick="selectStage(this)">
                                     <span>{{ $stageLabel }}</span>
                                     @if($isPaid)
                                         <span class="stage-select-status" style="color:#16a34a;">✓ Paid</span>
-                                    @elseif($isLocked)
-                                        <span class="stage-select-status" style="color:#b91c1c;">Pay prior stage first</span>
-                                    @elseif($stagePaidSoFar > 0)
-                                        <span class="stage-select-status" style="color:#b45309;">₱{{ number_format($stagePaidSoFar, 2) }} paid — ₱{{ number_format($stageRemaining, 2) }} left</span>
                                     @endif
                                 </div>
                                 @endforeach
@@ -371,12 +282,6 @@
                         <div id="receiptFilePreview" class="qr-file-list" style="display:none;"></div>
                         <span id="receiptFileErr" style="display:none;color:#b91c1c;font-size:12px;font-weight:600;margin-top:6px;">Please upload at least one collection receipt.</span>
                     </div>
-                </div>
-
-                <div style="background:var(--cream-soft);border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:var(--muted);">
-                    <strong style="color:var(--dark);">Remaining for selected stage:</strong>
-                    <span id="expectedAmount" style="font-weight:700;color:var(--accent);">—</span>
-                    <span style="display:block;margin-top:2px;">You can pay less than this to make a partial payment — the remaining balance stays open for a follow-up payment.</span>
                 </div>
 
                 <div class="modal-actions">
@@ -452,7 +357,7 @@
                             <option value="">Full Statement — show all stages</option>
                             @foreach($payment->stages() as $stage)
                             <option value="{{ $stage }}" @if(in_array($stage, $paidStages)) disabled @endif>
-                                {{ \App\Models\PaymentTransaction::stageLabel($stage) }} (₱{{ number_format($stageAmounts[$stage] ?? 0, 2) }})@if(in_array($stage, $paidStages)) — Already Paid @endif
+                                {{ \App\Models\PaymentTransaction::stageLabel($stage) }}@if(in_array($stage, $paidStages)) — Already Paid @endif
                             </option>
                             @endforeach
                         </select>
@@ -500,8 +405,6 @@
     const cancelBtn  = document.getElementById('cancelRecordModal');
     const modal      = document.getElementById('recordPaymentModal');
     const recordForm = document.getElementById('recordPaymentForm');
-    const amountInput = document.getElementById('amountPaidInput');
-    const expectedEl  = document.getElementById('expectedAmount');
 
     const stageWrap    = document.getElementById('stageSelectWrap');
     const stageTrigger = document.getElementById('stageSelectTrigger');
@@ -649,23 +552,11 @@
     });
 
     function selectStage(el) {
-        const expected = parseFloat(el.dataset.expected || 0);
-
         stageSelect.value = el.dataset.value;
         stageLabelEl.textContent = el.dataset.label;
         stageTrigger.classList.remove('placeholder');
         stageWrap.classList.remove('open');
         stageErr.style.display = 'none';
-
-        if (expected > 0) {
-            expectedEl.textContent = '₱' + expected.toLocaleString('en-PH', { minimumFractionDigits: 2 });
-            amountInput.value = expected.toFixed(2);
-            amountInput.max = expected.toFixed(2);
-        } else {
-            expectedEl.textContent = '—';
-            amountInput.value = '';
-            amountInput.removeAttribute('max');
-        }
     }
 
     const receiptFileInput = document.getElementById('receiptFileInput');

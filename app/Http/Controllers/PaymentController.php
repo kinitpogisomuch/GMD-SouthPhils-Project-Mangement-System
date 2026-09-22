@@ -180,21 +180,11 @@ class PaymentController extends Controller
         $payment = Payment::with(['project', 'transactions'])->findOrFail($id);
         $payment->recalculate();
 
-        $stageAmounts = $payment->stageAmounts();
-        $paidStages   = $payment->paidStages();
-
-        $stageTransactions = [];
-        foreach ($payment->stages() as $stage) {
-            $stageTransactions[$stage] = $payment->transactions
-                ->where('payment_stage', $stage)
-                ->values();
-        }
+        $paidStages = $payment->paidStages();
 
         return view('admin.payment_detail', compact(
             'payment',
-            'stageAmounts',
-            'paidStages',
-            'stageTransactions'
+            'paidStages'
         ));
     }
 
@@ -214,24 +204,6 @@ class PaymentController extends Controller
             'receipt_files'    => 'required|array|min:1|max:5',
             'receipt_files.*'  => 'file|mimes:pdf,jpg,jpeg,png|max:10240',
         ]);
-
-        $paidStages  = $payment->paidStages();
-        $stageIndex  = array_search($validated['payment_stage'], $stageOptions);
-        $priorStages = array_slice($stageOptions, 0, $stageIndex);
-
-        if (in_array($validated['payment_stage'], $paidStages)) {
-            return back()->withErrors(['payment_stage' => 'This stage has already been paid.']);
-        }
-        if (array_diff($priorStages, $paidStages)) {
-            return back()->withErrors(['payment_stage' => 'Earlier payment stages must be recorded first.']);
-        }
-
-        $remaining = $payment->stageRemaining($validated['payment_stage']);
-        if ($validated['amount_paid'] > $remaining) {
-            return back()
-                ->withErrors(['amount_paid' => 'Amount exceeds the remaining balance for this stage (₱' . number_format($remaining, 2) . ').'])
-                ->withInput();
-        }
 
         $receiptUrls = $this->storage->uploadMultiple(
             $request->file('receipt_files', []),

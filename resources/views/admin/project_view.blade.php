@@ -31,8 +31,7 @@
 
             <!-- Page Header -->
             @php
-                $showPTRButton = in_array($project->current_phase, ['inspection', 'painting', 'completion', 'delivery'])
-                    || $project->status === 'completed';
+                $showPTRButton = $project->current_phase === 'inspection';
             @endphp
             <div class="page-header">
                 <div>
@@ -102,12 +101,12 @@
                     <div class="fd-ov-item">
                         <span class="fd-ov-label">Contract Value</span>
                         <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Project Budget + Markup</span>
-                        <span class="fd-ov-val">{{ $contractAmount > 0 ? '₱'.number_format($contractAmount,2) : '—' }}</span>
+                        <span class="fd-ov-val">{{ $contractAmount > 0 ? '₱'.number_format($contractAmount,0) : '—' }}</span>
                     </div>
                     <div class="fd-ov-item">
                         <span class="fd-ov-label">Project Budget</span>
                         <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Est. Materials + Est. Labor</span>
-                        <span class="fd-ov-val">{{ $projectBudget > 0 ? '₱'.number_format($projectBudget,2) : '—' }}</span>
+                        <span class="fd-ov-val">{{ $projectBudget > 0 ? '₱'.number_format($projectBudget,0) : '—' }}</span>
                     </div>
                     <div class="fd-ov-item">
                         <span class="fd-ov-label">Total Received</span>
@@ -115,28 +114,28 @@
                             {{ $payment && $payment->status === 'Fully Paid' ? 'Fully Paid' : 'Amount received' }}
                         </span>
                         <span class="fd-ov-val" style="color:#4ade80;">
-                            {{ $budgetReceived > 0 ? '₱'.number_format($budgetReceived,2) : '—' }}
+                            {{ $budgetReceived > 0 ? '₱'.number_format($budgetReceived,0) : '—' }}
                         </span>
                     </div>
                     <div class="fd-ov-item">
                         <span class="fd-ov-label">Est. Materials</span>
                         <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Total BOM cost</span>
-                        <span class="fd-ov-val">{{ $estMaterialCost > 0 ? '₱'.number_format($estMaterialCost,2) : '—' }}</span>
+                        <span class="fd-ov-val">{{ $estMaterialCost > 0 ? '₱'.number_format($estMaterialCost,0) : '—' }}</span>
                     </div>
                     <div class="fd-ov-item">
                         <span class="fd-ov-label">Actual Materials</span>
                         <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Material purchases</span>
-                        <span class="fd-ov-val">{{ $actMaterialCost > 0 ? '₱'.number_format($actMaterialCost,2) : '—' }}</span>
+                        <span class="fd-ov-val">{{ $actMaterialCost > 0 ? '₱'.number_format($actMaterialCost,0) : '—' }}</span>
                     </div>
                     <div class="fd-ov-item">
                         <span class="fd-ov-label">Est. Labor</span>
                         <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">From project quotation</span>
-                        <span class="fd-ov-val">{{ $estLaborCost > 0 ? '₱'.number_format($estLaborCost,2) : '—' }}</span>
+                        <span class="fd-ov-val">{{ $estLaborCost > 0 ? '₱'.number_format($estLaborCost,0) : '—' }}</span>
                     </div>
                     <div class="fd-ov-item">
                         <span class="fd-ov-label">Actual Labor</span>
                         <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Total gross &middot; salary module</span>
-                        <span class="fd-ov-val">{{ $actLaborCost > 0 ? '₱'.number_format($actLaborCost,2) : '—' }}</span>
+                        <span class="fd-ov-val">{{ $actLaborCost > 0 ? '₱'.number_format($actLaborCost,0) : '—' }}</span>
                     </div>
                     @php
                         $totalActualSpend = $actMaterialCost + $actLaborCost + $overheadShare;
@@ -146,7 +145,7 @@
                         <span class="fd-ov-label">Total Actual Spend</span>
                         <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Materials + Labor + Overhead</span>
                         <span class="fd-ov-val" style="color:{{ $totalActualSpend > 0 ? '#f87171' : 'rgba(255,255,255,0.35)' }};font-size:17px;">
-                            {{ $totalActualSpend > 0 ? '₱'.number_format($totalActualSpend,2) : '—' }}
+                            {{ $totalActualSpend > 0 ? '₱'.number_format($totalActualSpend,0) : '—' }}
                         </span>
                     </div>
                     <div class="fd-ov-item fd-ov-highlight">
@@ -156,7 +155,7 @@
                         <span class="fd-ov-val" style="color:rgba(255,255,255,0.35);font-size:13px;font-weight:600;">Available when completed</span>
                         @elseif($netProfit !== null)
                         <span class="fd-ov-val" style="color:{{ $netProfit >= 0 ? '#4ade80' : '#f87171' }};font-size:17px;">
-                            {{ $netProfit >= 0 ? '+' : '' }}₱{{ number_format($netProfit, 2) }}
+                            {{ $netProfit >= 0 ? '+' : '' }}₱{{ number_format($netProfit, 0) }}
                         </span>
                         @else
                         <span class="fd-ov-val" style="color:rgba(255,255,255,0.35);">—</span>
@@ -169,7 +168,7 @@
                     @endphp
                     <div style="display:flex;justify-content:space-between;font-size:11.5px;color:rgba(255,255,255,0.5);margin-bottom:6px;">
                         <span>{{ $payLabel }}</span>
-                        <span>{{ $collPct }}% &middot; {{ $budgetReceived > 0 ? '₱'.number_format($budgetReceived,2) : '—' }} of ₱{{ number_format($contractAmount,2) }}</span>
+                        <span>{{ $collPct }}% &middot; {{ $budgetReceived > 0 ? '₱'.number_format($budgetReceived,0) : '—' }} of ₱{{ number_format($contractAmount,0) }}</span>
                     </div>
                     <div style="height:8px;background:rgba(255,255,255,0.12);border-radius:999px;overflow:hidden;">
                         <div style="height:100%;width:{{ $collPct }}%;background:{{ $collPct >= 100 ? '#4ade80' : '#facc15' }};border-radius:999px;transition:width 0.5s;"></div>
@@ -324,16 +323,29 @@
                         $sdStatus       = $shopDrawing['status'] ?? 'not_submitted';
                         $subPhase       = $project->current_sub_phase ?? 'shop_drawing';
                         $paymentUrl     = $payment ? route('admin.payments.show', $payment->id) : route('admin.payments');
-                        // Fabrication (big projects) and delivery both sit behind a payment
-                        // gate — once settled, show a "Confirm Payment" step first instead of
-                        // dropping straight into the checklist/upload fields.
-                        $showConfirmGate = ($project->current_phase === 'fabrication' && $isBigProject && $project->isPaymentStageSettled('progress_payment'))
-                                          || ($project->current_phase === 'delivery' && $project->isPaymentStageSettled('final_payment'));
+
+                        // Payment settlement is a SOFT reminder, not a hard block — real
+                        // clients rarely pay the exact 50/30/20 split, and GMD sometimes
+                        // proceeds ahead of full settlement. Each payment-tied sub-phase/
+                        // phase always shows a confirm-step first: green when the tranche
+                        // is settled, amber with a "Proceed Anyway" option when it isn't —
+                        // no dollar amounts shown either way, just the reminder.
+                        $planningPaymentGate = $project->current_phase === 'planning' && $subPhase === 'payment';
+                        $fabricationGate     = $project->current_phase === 'fabrication' && $isBigProject;
+                        $deliveryGate        = $project->current_phase === 'delivery';
+
+                        $paymentGateStage = $planningPaymentGate ? 'down_payment'
+                                          : ($fabricationGate ? 'progress_payment'
+                                          : ($deliveryGate ? 'final_payment' : null));
+
+                        $gateSettled = !$paymentGateStage || !$payment || $project->isPaymentStageSettled($paymentGateStage);
+
+                        $showConfirmGate = $planningPaymentGate || $fabricationGate || $deliveryGate;
                         // If this render is a redirect-back from a failed submission, the real
                         // form fields must already be showing (that's what was submitted), so
                         // skip the confirm step and go straight to the fields + errors.
                         $revealFormFields = $errors->any();
-                        $sparsePhase    = ($project->current_phase === 'planning' && $subPhase === 'payment' && $project->isPaymentStageSettled('down_payment'))
+                        $sparsePhase    = $planningPaymentGate
                                           || $project->current_phase === 'procurement'
                                           || $project->current_phase === 'matl_prep'
                                           || $project->current_phase === 'inspection'
@@ -354,20 +366,18 @@
                     <div style="flex:1;display:flex;flex-direction:column;">
 
                     @php
-                        $hideRequestBtn = $project->current_phase === 'planning'
-                            || ($project->current_phase === 'fabrication' && $isBigProject && !$project->isPaymentStageSettled('progress_payment'))
-                            || ($project->current_phase === 'delivery' && !$project->isPaymentStageSettled('final_payment'))
+                        // Payment-gated phases hide this only during the brief confirm-step —
+                        // once the admin proceeds (confirmed or "Proceed Anyway"), it reappears.
+                        $hideRequestBtn = $project->current_phase === 'planning' && $subPhase !== 'payment'
                             || ($project->current_phase === 'procurement' && !($project->activeMaterials()->exists() && $project->activeLabor()->exists()))
-                            || $showConfirmGate;
+                            || ($showConfirmGate && !$revealFormFields);
                     @endphp
-                    @unless($hideRequestBtn)
-                    <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
+                    <div id="requestFromEmployeeWrap" style="display:flex;justify-content:flex-end;margin-bottom:14px;{{ $hideRequestBtn ? 'display:none;' : '' }}">
                         <button type="button" class="cancel-btn" id="openRequestModal" style="font-size:12.5px;padding:8px 14px;">
                             <i data-lucide="send"></i>
                             Request from Employee
                         </button>
                     </div>
-                    @endunless
 
                     @if($project->current_phase === 'planning' && $subPhase === 'shop_drawing' && $sdStatus === 'pending_approval')
                         <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:16px;padding:30px 20px;">
@@ -378,48 +388,6 @@
                                 <p style="font-size:16px;font-weight:800;color:var(--dark);margin-bottom:6px;">Awaiting Client Review</p>
                                 <p style="font-size:13.5px;color:var(--muted);max-width:320px;line-height:1.6;">Shop drawing and tank design have been sent to the client and are awaiting their review.</p>
                             </div>
-                        </div>
-                    @elseif($project->current_phase === 'planning' && $subPhase === 'payment' && !$project->isPaymentStageSettled('down_payment'))
-                        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:16px;padding:30px 20px;">
-                            <div style="width:64px;height:64px;border-radius:50%;background:#FFF3D6;display:flex;align-items:center;justify-content:center;">
-                                <i data-lucide="alert-triangle" style="width:32px;height:32px;color:#b45309;"></i>
-                            </div>
-                            <div>
-                                <p style="font-size:16px;font-weight:800;color:var(--dark);margin-bottom:6px;">Payment Pending</p>
-                                <p style="font-size:13.5px;color:var(--muted);max-width:320px;line-height:1.6;">Payment must be settled in the Payment Module before proceeding. Waiting for payment settlement.</p>
-                            </div>
-                            <a href="{{ $paymentUrl }}" class="save-btn" style="display:inline-flex;align-items:center;gap:8px;font-size:13.5px;padding:11px 22px;text-decoration:none;">
-                                <i data-lucide="credit-card"></i>
-                                {{ $payment ? 'View Payment Status' : 'Set Up Payment' }}
-                            </a>
-                        </div>
-                    @elseif($project->current_phase === 'fabrication' && $isBigProject && !$project->isPaymentStageSettled('progress_payment'))
-                        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:16px;padding:30px 20px;">
-                            <div style="width:64px;height:64px;border-radius:50%;background:#FFF3D6;display:flex;align-items:center;justify-content:center;">
-                                <i data-lucide="alert-triangle" style="width:32px;height:32px;color:#b45309;"></i>
-                            </div>
-                            <div>
-                                <p style="font-size:16px;font-weight:800;color:var(--dark);margin-bottom:6px;">Progress Payment Pending</p>
-                                <p style="font-size:13.5px;color:var(--muted);max-width:320px;line-height:1.6;">30% Progress Payment must be settled before proceeding. Waiting for progress payment settlement.</p>
-                            </div>
-                            <a href="{{ $paymentUrl }}" class="save-btn" style="display:inline-flex;align-items:center;gap:8px;font-size:13.5px;padding:11px 22px;text-decoration:none;">
-                                <i data-lucide="credit-card"></i>
-                                View Payment Status
-                            </a>
-                        </div>
-                    @elseif($project->current_phase === 'delivery' && !$project->isPaymentStageSettled('final_payment'))
-                        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:16px;padding:30px 20px;">
-                            <div style="width:64px;height:64px;border-radius:50%;background:#FFF3D6;display:flex;align-items:center;justify-content:center;">
-                                <i data-lucide="alert-triangle" style="width:32px;height:32px;color:#b45309;"></i>
-                            </div>
-                            <div>
-                                <p style="font-size:16px;font-weight:800;color:var(--dark);margin-bottom:6px;">Final Payment Pending</p>
-                                <p style="font-size:13.5px;color:var(--muted);max-width:320px;line-height:1.6;">{{ $isBigProject ? 'Final 20% Payment' : 'Final 50% Payment' }} must be settled before project delivery. Waiting for final payment settlement.</p>
-                            </div>
-                            <a href="{{ $paymentUrl }}" class="save-btn" style="display:inline-flex;align-items:center;gap:8px;font-size:13.5px;padding:11px 22px;text-decoration:none;">
-                                <i data-lucide="credit-card"></i>
-                                View Payment Status
-                            </a>
                         </div>
                     @elseif($project->current_phase === 'procurement' && !($project->activeMaterials()->exists() && $project->activeLabor()->exists()))
                         <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:16px;padding:30px 20px;">
@@ -502,6 +470,7 @@
 
                         @elseif($project->current_phase === 'planning' && $subPhase === 'payment')
 
+                            @if($gateSettled)
                             <div style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;padding:10px 20px;">
                                 <div style="width:64px;height:64px;border-radius:50%;background:#dcfce7;display:flex;align-items:center;justify-content:center;">
                                     <i data-lucide="check-circle-2" style="width:32px;height:32px;color:#16a34a;"></i>
@@ -511,8 +480,20 @@
                                     <p style="font-size:13.5px;color:var(--muted);max-width:320px;line-height:1.6;">50% down payment has been confirmed. You may now advance this project to the Procurement phase.</p>
                                 </div>
                             </div>
+                            @else
+                            <div style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;padding:10px 20px;">
+                                <div style="width:64px;height:64px;border-radius:50%;background:#FFF3D6;display:flex;align-items:center;justify-content:center;">
+                                    <i data-lucide="alert-triangle" style="width:32px;height:32px;color:#b45309;"></i>
+                                </div>
+                                <div>
+                                    <p style="font-size:16px;font-weight:800;color:var(--dark);margin-bottom:6px;">Payment Reminder</p>
+                                    <p style="font-size:13.5px;color:var(--muted);max-width:340px;line-height:1.6;">The down payment for this phase must be ensured/settled before continuing. Please confirm with the Payment Module, or proceed anyway if GMD has agreed to continue regardless.</p>
+                                    <a href="{{ $paymentUrl }}" style="display:inline-block;margin-top:6px;font-size:12.5px;font-weight:700;color:var(--accent);">View Payment Status →</a>
+                                </div>
+                            </div>
+                            @endif
 
-                            @php $submitLabel = 'Advance to Procurement'; @endphp
+                            @php $submitLabel = $gateSettled ? 'Advance to Procurement' : 'Proceed Anyway'; @endphp
 
                         @elseif($project->current_phase === 'procurement')
 
@@ -569,6 +550,7 @@
 
                             @if($isBigProject)
                             <div id="fabricationConfirmStep" style="display:{{ $revealFormFields ? 'none' : 'flex' }};flex-direction:column;align-items:center;text-align:center;gap:14px;padding:10px 20px;">
+                                @if($gateSettled)
                                 <div style="width:64px;height:64px;border-radius:50%;background:#dcfce7;display:flex;align-items:center;justify-content:center;">
                                     <i data-lucide="check-circle-2" style="width:32px;height:32px;color:#16a34a;"></i>
                                 </div>
@@ -576,6 +558,16 @@
                                     <p style="font-size:16px;font-weight:800;color:var(--dark);margin-bottom:6px;">Progress Payment Confirmed</p>
                                     <p style="font-size:13.5px;color:var(--muted);max-width:320px;line-height:1.6;">30% progress payment has been confirmed. Click Confirm Payment below to proceed to the fabrication checklist.</p>
                                 </div>
+                                @else
+                                <div style="width:64px;height:64px;border-radius:50%;background:#FFF3D6;display:flex;align-items:center;justify-content:center;">
+                                    <i data-lucide="alert-triangle" style="width:32px;height:32px;color:#b45309;"></i>
+                                </div>
+                                <div>
+                                    <p style="font-size:16px;font-weight:800;color:var(--dark);margin-bottom:6px;">Payment Reminder</p>
+                                    <p style="font-size:13.5px;color:var(--muted);max-width:340px;line-height:1.6;">The progress payment for this phase must be ensured/settled before continuing. Please confirm with the Payment Module, or proceed anyway if GMD has agreed to continue regardless.</p>
+                                    <a href="{{ $paymentUrl }}" style="display:inline-block;margin-top:6px;font-size:12.5px;font-weight:700;color:var(--accent);">View Payment Status →</a>
+                                </div>
+                                @endif
                             </div>
                             <div id="fabricationFormFields" style="display:{{ $revealFormFields ? 'block' : 'none' }};">
                             @endif
@@ -618,14 +610,24 @@
                         @elseif($project->current_phase === 'inspection')
 
                             <label class="pv-checklist-item pv-checklist-item-lg">
-                                <input type="checkbox" name="pressure_test_passed" value="1" required>
+                                <input type="checkbox" name="pressure_test_passed" value="1">
                                 <i data-lucide="gauge" class="pv-checklist-icon"></i>
                                 <span>Pressure Test Passed</span>
                             </label>
                             <label class="pv-checklist-item pv-checklist-item-lg">
-                                <input type="checkbox" name="soap_testing_passed" value="1" required>
+                                <input type="checkbox" name="soap_testing_passed" value="1">
                                 <i data-lucide="droplets" class="pv-checklist-icon"></i>
                                 <span>Soap Testing Passed</span>
+                            </label>
+                            <label class="pv-checklist-item pv-checklist-item-lg">
+                                <input type="checkbox" name="pneumatic_test_passed" value="1">
+                                <i data-lucide="wind" class="pv-checklist-icon"></i>
+                                <span>Pneumatic Test Passed</span>
+                            </label>
+                            <label class="pv-checklist-item pv-checklist-item-lg">
+                                <input type="checkbox" name="leak_test_passed" value="1">
+                                <i data-lucide="droplet" class="pv-checklist-icon"></i>
+                                <span>Leak Test Passed</span>
                             </label>
 
                             <div class="form-group" style="margin-top:14px;">
@@ -696,6 +698,7 @@
                         @elseif($project->current_phase === 'delivery')
 
                             <div id="deliveryConfirmStep" style="display:{{ $revealFormFields ? 'none' : 'flex' }};flex-direction:column;align-items:center;text-align:center;gap:14px;padding:10px 20px;">
+                                @if($gateSettled)
                                 <div style="width:64px;height:64px;border-radius:50%;background:#dcfce7;display:flex;align-items:center;justify-content:center;">
                                     <i data-lucide="check-circle-2" style="width:32px;height:32px;color:#16a34a;"></i>
                                 </div>
@@ -703,6 +706,16 @@
                                     <p style="font-size:16px;font-weight:800;color:var(--dark);margin-bottom:6px;">{{ $isBigProject ? 'Final 20% Payment' : 'Final 50% Payment' }} Confirmed</p>
                                     <p style="font-size:13.5px;color:var(--muted);max-width:320px;line-height:1.6;">Final payment has been confirmed. Click Confirm Payment below to proceed to the delivery details.</p>
                                 </div>
+                                @else
+                                <div style="width:64px;height:64px;border-radius:50%;background:#FFF3D6;display:flex;align-items:center;justify-content:center;">
+                                    <i data-lucide="alert-triangle" style="width:32px;height:32px;color:#b45309;"></i>
+                                </div>
+                                <div>
+                                    <p style="font-size:16px;font-weight:800;color:var(--dark);margin-bottom:6px;">Payment Reminder</p>
+                                    <p style="font-size:13.5px;color:var(--muted);max-width:340px;line-height:1.6;">The final payment for this phase must be ensured/settled before continuing. Please confirm with the Payment Module, or proceed anyway if GMD has agreed to continue regardless.</p>
+                                    <a href="{{ $paymentUrl }}" style="display:inline-block;margin-top:6px;font-size:12.5px;font-weight:700;color:var(--accent);">View Payment Status →</a>
+                                </div>
+                                @endif
                             </div>
                             <div id="deliveryFormFields" style="display:{{ $revealFormFields ? 'block' : 'none' }};">
 
@@ -769,11 +782,11 @@
                             </button>
                             @endif
                             @if($showConfirmGate)
-                            <button type="button" class="save-btn" id="paymentConfirmBtn"
+                            <button type="button" class="{{ $gateSettled ? 'save-btn' : 'cancel-btn' }}" id="paymentConfirmBtn"
                                     onclick="proceedAfterPaymentConfirm('{{ $project->current_phase }}')"
                                     style="font-size:13.5px;padding:11px 24px;{{ $revealFormFields ? 'display:none;' : '' }}">
-                                <i data-lucide="check"></i>
-                                Confirm Payment
+                                <i data-lucide="{{ $gateSettled ? 'check' : 'alert-triangle' }}"></i>
+                                {{ $gateSettled ? 'Confirm Payment' : 'Proceed Anyway' }}
                             </button>
                             @endif
                             @if(empty($hideSubmitButton))
@@ -1311,10 +1324,12 @@
             const formFields  = document.getElementById(phase + 'FormFields');
             const confirmBtn  = document.getElementById('paymentConfirmBtn');
             const submitBtn   = document.getElementById('progressSubmitBtn');
+            const requestWrap = document.getElementById('requestFromEmployeeWrap');
             if (confirmStep) confirmStep.style.display = 'none';
             if (formFields)  formFields.style.display = 'block';
             if (confirmBtn)  confirmBtn.style.display = 'none';
             if (submitBtn)   submitBtn.style.display = '';
+            if (requestWrap) requestWrap.style.display = 'flex';
         }
 
         const adminFileMaps = new Map();

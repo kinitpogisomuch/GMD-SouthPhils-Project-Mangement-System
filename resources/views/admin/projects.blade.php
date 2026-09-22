@@ -315,6 +315,18 @@
                         </div>
                     </div>
 
+                    <div class="form-section-label" style="margin-top:18px;">Record Entry</div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Created Date <span style="font-weight:400;color:var(--muted);">(optional — leave blank for today)</span></label>
+                            <input type="date" name="created_date">
+                        </div>
+                        <div class="form-group">
+                            <label>Created Time <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
+                            <input type="time" name="created_time">
+                        </div>
+                    </div>
+
                 </div>
 
                 {{-- Fixed action buttons --}}
