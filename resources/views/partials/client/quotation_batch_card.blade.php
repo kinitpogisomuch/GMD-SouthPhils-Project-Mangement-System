@@ -19,7 +19,7 @@
     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border);">
         <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);font-weight:700;">
             <i data-lucide="calendar" style="width:14px;height:14px;"></i>
-            Submitted {{ $first->created_at->format('M d, Y \a\t g:i A') }}
+            Submitted {{ $first->created_at->format('M d, Y') }}
         </div>
         <div style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:800;color:{{ $meta['color'] }};background:{{ $meta['bg'] }};border-radius:8px;padding:4px 11px;text-transform:uppercase;letter-spacing:.03em;">
             <i data-lucide="{{ $meta['icon'] }}" style="width:12px;height:12px;"></i>
@@ -90,17 +90,48 @@
 
     @if($status === 'quotation_sent')
     <div style="display:flex;gap:10px;">
-        <form method="POST" action="{{ route('client.quotation.approve', $first->batch_id) }}">
-            @csrf
-            <button type="submit" class="save-btn">
-                <i data-lucide="thumbs-up"></i>
-                Approve Quotation
-            </button>
-        </form>
+        <button type="button" class="save-btn" onclick="openModal('approveQuotationModal-{{ $first->batch_id }}')">
+            <i data-lucide="thumbs-up"></i>
+            Approve Quotation
+        </button>
         <button type="button" class="cancel-btn" onclick="openModal('rejectQuotationModal-{{ $first->batch_id }}')">
             <i data-lucide="edit-3"></i>
             Request Revision
         </button>
+    </div>
+
+    <div class="modal-overlay" id="approveQuotationModal-{{ $first->batch_id }}">
+        <div class="modal-card" style="max-width:420px;">
+            <div class="modal-header">
+                <div>
+                    <h2>Approve Quotation?</h2>
+                    <p>GMD South Phils will be notified and can convert this into a project.</p>
+                </div>
+                <button class="modal-close" type="button" onclick="closeModal('approveQuotationModal-{{ $first->batch_id }}')">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <form method="POST" action="{{ route('client.quotation.approve', $first->batch_id) }}">
+                @csrf
+                <div class="form-grid" style="margin-bottom:18px;">
+                    <div class="form-group">
+                        <label>Approved Date <span style="font-size:11px;color:var(--muted);font-weight:400;">(optional — leave blank for today)</span></label>
+                        <input type="date" name="approved_date">
+                    </div>
+                    <div class="form-group">
+                        <label>Approved Time <span style="font-size:11px;color:var(--muted);font-weight:400;">(optional)</span></label>
+                        <input type="time" name="approved_time">
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="cancel-btn" onclick="closeModal('approveQuotationModal-{{ $first->batch_id }}')">Cancel</button>
+                    <button type="submit" class="save-btn">
+                        <i data-lucide="thumbs-up"></i>
+                        Approve Quotation
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <div class="modal-overlay" id="rejectQuotationModal-{{ $first->batch_id }}">

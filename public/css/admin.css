@@ -4056,6 +4056,11 @@ td.action-cell .action-btn + .action-btn {
 
 .delete-confirm-icon svg { width: 26px; height: 26px; }
 
+.delete-confirm-icon.icon-success {
+    background-color: #dcfce7;
+    color: #16a34a;
+}
+
 .delete-confirm-body p {
     font-size: 15px;
     font-weight: 700;

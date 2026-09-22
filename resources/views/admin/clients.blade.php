@@ -413,7 +413,7 @@
                 </button>
             </div>
             <div class="delete-confirm-body">
-                <div class="delete-confirm-icon"><i data-lucide="check-circle"></i></div>
+                <div class="delete-confirm-icon icon-success"><i data-lucide="check-circle"></i></div>
                 <p id="approveClientMsg">Are you sure you want to approve this client?</p>
             </div>
             <form method="POST" id="approveClientForm">

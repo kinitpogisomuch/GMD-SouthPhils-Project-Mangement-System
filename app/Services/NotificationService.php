@@ -174,11 +174,12 @@ class NotificationService
         string  $type,
         string  $priority = 'info',
         ?int    $projectId = null,
-        ?string $actionUrl = null
+        ?string $actionUrl = null,
+        $occurredAt = null
     ): void {
         $client = Client::find($clientId);
         if ($client) {
-            self::send($client->id, 'client', $title, $message, $type, $priority, $projectId, null, $actionUrl);
+            self::send($client->id, 'client', $title, $message, $type, $priority, $projectId, null, $actionUrl, $occurredAt);
         }
     }
 
@@ -647,7 +648,8 @@ class NotificationService
             self::TYPE_QUOTATION_REQUEST_QUOTATION_SENT,
             'info',
             null,
-            '/client/request-quotation'
+            '/client/request-quotation',
+            $request->quotation_sent_at
         );
     }
 
@@ -661,7 +663,8 @@ class NotificationService
             'success',
             null,
             null,
-            '/admin/quotation-requests'
+            '/admin/quotation-requests',
+            $request->approved_at
         );
     }
 

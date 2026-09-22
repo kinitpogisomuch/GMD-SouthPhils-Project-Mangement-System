@@ -145,7 +145,7 @@ class QuotationRequestController extends Controller
     }
 
     /** Approves every tank request in the batch together — the client reviews and decides on one combined quotation. */
-    public function approveQuotation($batchId)
+    public function approveQuotation(Request $request, $batchId)
     {
         $client = Client::findOrFail(session('user_id'));
 
@@ -162,12 +162,22 @@ class QuotationRequestController extends Controller
                 ->with('error', 'There is no quotation currently awaiting your approval.');
         }
 
-        QuotationRequest::where('batch_id', $batchId)->update([
-            'status'      => 'approved',
-            'approved_at' => now(),
+        $request->validate([
+            'approved_date' => 'nullable|date',
+            'approved_time' => 'nullable|date_format:H:i',
         ]);
 
-        NotificationService::quotationRequestApproved($requests->first());
+        // Backdated when logging an approval that actually happened in the past.
+        $approvedAt = $request->filled('approved_date')
+            ? \Carbon\Carbon::parse($request->approved_date . ' ' . ($request->approved_time ?: '00:00'))
+            : now();
+
+        QuotationRequest::where('batch_id', $batchId)->update([
+            'status'      => 'approved',
+            'approved_at' => $approvedAt,
+        ]);
+
+        NotificationService::quotationRequestApproved($requests->first()->fresh());
 
         return redirect()->route('client.quotation.create')
             ->with('success', 'Quotation approved! Our team will proceed with your project shortly.');
@@ -438,6 +448,8 @@ class QuotationRequestController extends Controller
         $request->validate([
             'quotation_files'    => 'required|array|min:1|max:5',
             'quotation_files.*'  => 'file|mimes:pdf,jpg,jpeg,png|max:10240',
+            'sent_date'          => 'nullable|date',
+            'sent_time'          => 'nullable|date_format:H:i',
         ]);
 
         // Snapshotted here, never recomputed live afterward — see migration comment.
@@ -457,6 +469,12 @@ class QuotationRequestController extends Controller
             }
         }
 
+        // Backdated when logging a quotation that was actually sent in the past.
+        $sentAt = $request->filled('sent_date')
+            ? \Carbon\Carbon::parse($request->sent_date . ' ' . ($request->sent_time ?: '00:00'))
+            : now();
+
+        $batch->updated_at = $sentAt;
         $batch->update([
             'project_budget'  => $projectBudget,
             'markup'          => $markup,
@@ -466,7 +484,7 @@ class QuotationRequestController extends Controller
 
         QuotationRequest::where('batch_id', $batchId)->update([
             'status'            => 'quotation_sent',
-            'quotation_sent_at' => now(),
+            'quotation_sent_at' => $sentAt,
             // Clear any earlier revision-request reason — this fresh send addresses it.
             'decline_reason'    => null,
         ]);

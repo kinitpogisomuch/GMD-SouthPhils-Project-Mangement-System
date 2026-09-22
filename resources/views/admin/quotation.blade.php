@@ -142,7 +142,7 @@
                                     'reference_files'   => $qr->reference_files ?? [],
                                     'quotation_files'   => !empty($qr->quotation_files) ? [$qr->quotation_files] : [],
                                     'decline_reason'    => $qr->decline_reason,
-                                    'submitted_at'      => $qr->created_at->format('M d, Y \a\t g:i A'),
+                                    'submitted_at'      => $qr->created_at->format('M d, Y'),
                                     'build_quotation_url' => route('admin.quotation_requests.batch_detail', $qr->batch_id),
                                     'convert_url'         => route('admin.projects', ['prefill_quotation_batch' => $qr->batch_id]),
                                 ]) }}"

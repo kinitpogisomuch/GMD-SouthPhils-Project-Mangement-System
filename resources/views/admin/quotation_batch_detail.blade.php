@@ -263,7 +263,7 @@
                         </button>
                     </form>
                     <div style="font-size:13px;color:var(--muted);padding-bottom:11px;">
-                        Contract Value: <strong id="markupContractValuePreview" style="color:var(--dark);">₱{{ number_format($estimatedBudget['total'] + (float) ($batch->markup ?? 0), 2) }}</strong>
+                        Contract Value: <strong id="markupContractValuePreview" style="color:var(--dark);">₱{{ number_format($estimatedBudget['total'] + (float) ($batch->markup ?? 0), 0) }}</strong>
                         <span style="display:block;font-size:11.5px;margin-top:2px;">Added on top of the Project Budget — not shown to the client.</span>
                     </div>
                 </div>
@@ -605,26 +605,37 @@
                 <div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">
                         <span style="font-size:13px;color:var(--muted);">Project Budget</span>
-                        <strong style="font-size:13px;">₱{{ number_format($estimatedBudget['total'], 2) }}</strong>
+                        <strong style="font-size:13px;">₱{{ number_format($estimatedBudget['total'], 0) }}</strong>
                     </div>
                     <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">
-                        <span style="font-size:12px;color:var(--muted);">— Est. Materials ₱{{ number_format($estimatedBudget['materials'], 2) }} + Est. Labor ₱{{ number_format($estimatedBudget['labor'], 2) }}</span>
+                        <span style="font-size:12px;color:var(--muted);">— Est. Materials ₱{{ number_format($estimatedBudget['materials'], 0) }} + Est. Labor ₱{{ number_format($estimatedBudget['labor'], 0) }}</span>
                     </div>
                     <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;">
                         <span style="font-size:13px;color:var(--muted);">Markup / Profit</span>
-                        <strong style="font-size:13px;">₱{{ number_format($batch->markup ?? 0, 2) }}</strong>
+                        <strong style="font-size:13px;">₱{{ number_format($batch->markup ?? 0, 0) }}</strong>
                     </div>
                 </div>
 
                 <div style="background:var(--dark);border-radius:10px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
                     <span style="font-size:12px;font-weight:700;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.05em;">Contract Value</span>
-                    <span style="font-size:20px;font-weight:900;color:#fff;">₱{{ number_format($estimatedBudget['total'] + (float) ($batch->markup ?? 0), 2) }}</span>
+                    <span style="font-size:20px;font-weight:900;color:#fff;">₱{{ number_format($estimatedBudget['total'] + (float) ($batch->markup ?? 0), 0) }}</span>
                 </div>
 
                 <div class="form-group" style="margin-bottom:20px;">
                     <label>Quotation File(s) <span style="color:var(--danger);">*</span></label>
                     <input type="file" name="quotation_files[]" multiple accept=".pdf,image/*" required style="width:100%;">
                     <p style="font-size:12px;color:var(--muted);margin-top:6px;">PDF or image, up to 5 files, max 10MB each — this is what the client will see as the quotation.</p>
+                </div>
+
+                <div class="form-grid" style="margin-bottom:20px;">
+                    <div class="form-group">
+                        <label>Sent Date <span style="font-size:11px;color:var(--muted);font-weight:400;">(optional — leave blank for today)</span></label>
+                        <input type="date" name="sent_date">
+                    </div>
+                    <div class="form-group">
+                        <label>Sent Time <span style="font-size:11px;color:var(--muted);font-weight:400;">(optional)</span></label>
+                        <input type="time" name="sent_time">
+                    </div>
                 </div>
 
                 <div class="modal-actions">
@@ -675,7 +686,7 @@
         var markup = MARKUP_BUDGET * pct / 100;
         var total  = MARKUP_BUDGET + markup;
         document.getElementById('markupContractValuePreview').textContent =
-            '₱' + total.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            '₱' + Math.round(total).toLocaleString('en-PH');
     }
 
     // ---- Add Material rows (two-step: entry table -> review; prefilled with existing rows) ----
