@@ -1574,6 +1574,34 @@
             var onTimeSeries  = data.quarters.map(function (q) { return q.on_time.on_time_count; });
             var budgetSeries  = data.quarters.map(function (q) { return q.budget.adherence_rate; });
 
+            // ── Cost & Revenue Breakdown: the "why" behind the profit numbers above ──
+            var revenueSeries   = data.quarters.map(function (q) { return q.profit.revenue; });
+            var matCostSeries   = data.quarters.map(function (q) { return q.profit.mat_cost; });
+            var laborCostSeries = data.quarters.map(function (q) { return q.profit.labor_cost; });
+            var overheadSeries  = data.quarters.map(function (q) { return q.profit.overhead_cost; });
+
+            var totalRevenueAll  = revenueSeries.reduce(function (s, v) { return s + v; }, 0);
+            var totalMatCostAll  = matCostSeries.reduce(function (s, v) { return s + v; }, 0);
+            var totalLaborAll    = laborCostSeries.reduce(function (s, v) { return s + v; }, 0);
+            var totalOverheadAll = overheadSeries.reduce(function (s, v) { return s + v; }, 0);
+
+            function pctOfRevenue(v) {
+                return totalRevenueAll > 0 ? (v / totalRevenueAll * 100).toFixed(1) + '% of revenue' : '—';
+            }
+
+            var costRows = data.quarters.map(function (q) {
+                var totalCostQ = q.profit.mat_cost + q.profit.labor_cost + q.profit.overhead_cost;
+                return '<tr>' +
+                    '<td><strong>' + q.label + '</strong></td>' +
+                    '<td class="r">' + fmtPeso(q.profit.revenue) + '</td>' +
+                    '<td class="r">' + fmtPeso(q.profit.mat_cost) + '</td>' +
+                    '<td class="r">' + fmtPeso(q.profit.labor_cost) + '</td>' +
+                    '<td class="r">' + fmtPeso(q.profit.overhead_cost) + '</td>' +
+                    '<td class="r">' + fmtPeso(totalCostQ) + '</td>' +
+                    '<td class="r">' + fmtPeso(q.profit.net_profit) + '</td>' +
+                '</tr>';
+            }).join('');
+
             return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>KPI Report — ' + data.from_label + ' to ' + data.to_label + '</title>' +
                 '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"><\/script>' +
                 '<style>' +
@@ -1624,6 +1652,25 @@
                     '<ul>' + takeaways.map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ul>' +
                     '<div class="recommendation">→ ' + recommendation + '</div>' +
                 '</div>' +
+                '<div class="section-title">Cost &amp; Revenue Breakdown</div>' +
+                '<div class="stats">' +
+                    '<div class="stat"><div class="stat-label">Total Revenue</div><div class="stat-value">' + fmtPeso(totalRevenueAll) + '</div></div>' +
+                    '<div class="stat"><div class="stat-label">Material Cost</div><div class="stat-value">' + fmtPeso(totalMatCostAll) + '</div><div class="stat-sub">' + pctOfRevenue(totalMatCostAll) + '</div></div>' +
+                    '<div class="stat"><div class="stat-label">Labor Cost</div><div class="stat-value">' + fmtPeso(totalLaborAll) + '</div><div class="stat-sub">' + pctOfRevenue(totalLaborAll) + '</div></div>' +
+                    '<div class="stat"><div class="stat-label">Overhead Cost</div><div class="stat-value">' + fmtPeso(totalOverheadAll) + '</div><div class="stat-sub">' + pctOfRevenue(totalOverheadAll) + '</div></div>' +
+                '</div>' +
+                '<div class="chart-box" style="margin-bottom:26px;"><div class="chart-title">Cost Composition vs Revenue by Quarter</div><div class="chart-canvas" style="height:220px;"><canvas id="repChartCost"></canvas></div></div>' +
+                '<table style="margin-bottom:26px;"><thead><tr>' +
+                    '<th>Quarter</th><th class="r">Revenue</th><th class="r">Material</th><th class="r">Labor</th><th class="r">Overhead</th><th class="r">Total Cost</th><th class="r">Net Profit</th>' +
+                '</tr></thead><tbody>' + costRows + '</tbody>' +
+                '<tfoot><tr><td>Total</td>' +
+                    '<td class="r">' + fmtPeso(totalRevenueAll) + '</td>' +
+                    '<td class="r">' + fmtPeso(totalMatCostAll) + '</td>' +
+                    '<td class="r">' + fmtPeso(totalLaborAll) + '</td>' +
+                    '<td class="r">' + fmtPeso(totalOverheadAll) + '</td>' +
+                    '<td class="r">' + fmtPeso(totalMatCostAll + totalLaborAll + totalOverheadAll) + '</td>' +
+                    '<td class="r">' + fmtPeso(totalProfit) + '</td>' +
+                '</tr></tfoot></table>' +
                 '<div class="section-title">Quarter-by-Quarter Detail</div>' +
                 '<table><thead><tr>' +
                     '<th>Quarter</th><th class="r">Projects</th>' +
@@ -1642,12 +1689,24 @@
                         'var profitData = ' + JSON.stringify(profitSeries) + ';' +
                         'var onTimeData = ' + JSON.stringify(onTimeSeries) + ';' +
                         'var budgetData = ' + JSON.stringify(budgetSeries) + ';' +
+                        'var revenueData = ' + JSON.stringify(revenueSeries) + ';' +
+                        'var matCostData = ' + JSON.stringify(matCostSeries) + ';' +
+                        'var laborCostData = ' + JSON.stringify(laborCostSeries) + ';' +
+                        'var overheadData = ' + JSON.stringify(overheadSeries) + ';' +
                         'var opts = function (formatter) { return { responsive:true, maintainAspectRatio:false, layout:{padding:{top:10,right:6,bottom:2,left:2}}, plugins:{legend:{display:false}}, ' +
                             'scales:{ x:{ grid:{display:false}, ticks:{font:{size:9},color:"#666"} }, y:{ grid:{color:"rgba(0,0,0,.06)"}, ticks:{font:{size:9},color:"#666",callback:formatter} } } }; };' +
                         'if (window.Chart) {' +
                             'new Chart(document.getElementById("repChartProfit"), { type:"line", data:{ labels:labels, datasets:[{ data:profitData, borderColor:"#207A3A", backgroundColor:"rgba(32,122,58,.12)", fill:true, tension:.3, pointRadius:3, borderWidth:2 }] }, options: opts(function(v){ return "₱"+Math.round(v/1000)+"k"; }) });' +
                             'new Chart(document.getElementById("repChartOnTime"), { type:"line", data:{ labels:labels, datasets:[{ data:onTimeData, borderColor:"#2A4EAA", backgroundColor:"rgba(42,78,170,.12)", fill:true, tension:.3, pointRadius:3, borderWidth:2 }] }, options: opts(function(v){ return v; }) });' +
                             'new Chart(document.getElementById("repChartBudget"), { type:"line", data:{ labels:labels, datasets:[{ data:budgetData, borderColor:"#8A6100", backgroundColor:"rgba(138,97,0,.12)", fill:true, tension:.3, pointRadius:3, borderWidth:2 }] }, options: opts(function(v){ return v+"%"; }) });' +
+                            'new Chart(document.getElementById("repChartCost"), { data:{ labels:labels, datasets:[' +
+                                '{ type:"bar", label:"Material", data:matCostData, backgroundColor:"#2A4EAA", stack:"cost" },' +
+                                '{ type:"bar", label:"Labor", data:laborCostData, backgroundColor:"#8A6100", stack:"cost" },' +
+                                '{ type:"bar", label:"Overhead", data:overheadData, backgroundColor:"#B42318", stack:"cost" },' +
+                                '{ type:"line", label:"Revenue", data:revenueData, borderColor:"#207A3A", backgroundColor:"rgba(32,122,58,.12)", tension:.3, pointRadius:3, borderWidth:2 }' +
+                            '] }, options:{ responsive:true, maintainAspectRatio:false, layout:{padding:{top:10,right:6,bottom:2,left:2}}, ' +
+                                'plugins:{legend:{display:true, position:"bottom", labels:{font:{size:9}, boxWidth:10}}}, ' +
+                                'scales:{ x:{ stacked:true, grid:{display:false}, ticks:{font:{size:9},color:"#666"} }, y:{ stacked:true, grid:{color:"rgba(0,0,0,.06)"}, ticks:{font:{size:9},color:"#666",callback:function(v){ return "₱"+Math.round(v/1000)+"k"; }} } } } });' +
                         '}' +
                         'setTimeout(function () { window.print(); }, 350);' +
                     '});' +

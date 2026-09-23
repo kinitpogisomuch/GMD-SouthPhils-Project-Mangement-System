@@ -154,21 +154,33 @@
                     $plannedNames    = $plannedMaterials->pluck('material_name');
                     $extraNames      = $purchasesByName->keys()->diff($plannedNames);
                     $allMaterialRows = $plannedNames->concat($extraNames)->unique()->values();
+                    // BOM materials that don't have a single unit purchased yet —
+                    // powers the "Add All Un-Purchased" shortcut on the log form.
+                    $unpurchasedMats = $plannedMaterials->filter(function ($m) use ($purchasesByName) {
+                        $group = $purchasesByName->get($m->material_name);
+                        return !$group || $group->sum('qty_bought') <= 0;
+                    })->values();
+                    $unpurchasedMatsJs = $unpurchasedMats->map(function ($m) {
+                        return ['id' => $m->id, 'name' => $m->material_name, 'unit' => $m->unit, 'cost' => $m->price_per_unit];
+                    })->values();
                 @endphp
 
-                {{-- Summary + Form side by side --}}
-                <div style="display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start;margin-bottom:16px;">
-
-                {{-- Left: Summary table --}}
-                <div class="pm-card" style="margin-bottom:0;display:flex;flex-direction:column;min-width:0;height:500px;overflow:hidden;">
+                {{-- Summary table (full width — the purchase form now lives in a modal) --}}
+                <div class="pm-card" style="margin-bottom:16px;display:flex;flex-direction:column;min-width:0;height:500px;overflow:hidden;">
                     <div class="pm-card-header">
                         <div>
                             <div class="pm-card-title">Purchased materials &mdash; summary</div>
                             <div class="pm-card-sub">Aggregated totals per material &middot; updates KPI automatically</div>
                         </div>
-                        @if($allMaterialRows->isNotEmpty())
-                        <span style="font-size:12px;font-weight:700;color:var(--muted);">{{ $allMaterialRows->count() }} material{{ $allMaterialRows->count() !== 1 ? 's' : '' }} &nbsp;·&nbsp; Total: <strong style="color:#16a34a;">&#x20B1;{{ number_format($totalPurchased,2) }}</strong></span>
-                        @endif
+                        <div style="display:flex;align-items:center;gap:14px;">
+                            @if($allMaterialRows->isNotEmpty())
+                            <span style="font-size:12px;font-weight:700;color:var(--muted);">{{ $allMaterialRows->count() }} material{{ $allMaterialRows->count() !== 1 ? 's' : '' }} &nbsp;·&nbsp; Total: <strong style="color:#16a34a;">&#x20B1;{{ number_format($totalPurchased,2) }}</strong></span>
+                            @endif
+                            <button type="button" class="add-btn" id="openLogPurchaseModal" style="white-space:nowrap;">
+                                <i data-lucide="plus"></i>
+                                Log New Purchase
+                            </button>
+                        </div>
                     </div>
 
                     @php $pcols = 'table-layout:fixed;border-collapse:collapse;width:100%;'; @endphp
@@ -262,57 +274,45 @@
 
                 </div>{{-- end summary card --}}
 
-                {{-- Right: Log New Purchase form as sidebar card --}}
-                <div class="pm-card" style="margin-bottom:0;background:linear-gradient(180deg,#333333 0%,#2a2a2a 100%);border-color:transparent;display:flex;flex-direction:column;height:500px;overflow:hidden;">
+                {{-- Log New Purchase modal — supports multiple material rows in one
+                     submission, so a whole supplier run can be logged at once instead
+                     of one purchase at a time. --}}
+                <div class="modal-overlay" id="logPurchaseModal">
+                <div class="modal-card pm-card" style="max-width:760px;width:95%;max-height:88vh;margin-bottom:0;background:linear-gradient(180deg,#333333 0%,#2a2a2a 100%);border-color:transparent;display:flex;flex-direction:column;overflow:hidden;">
                     <div class="pm-card-header" style="padding-bottom:12px;border-bottom-color:rgba(255,255,255,.1);flex-shrink:0;">
                         <div>
-                            <div class="pm-card-title" style="font-size:13px;color:#fff;">Log New Purchase</div>
-                            <div class="pm-card-sub" style="color:rgba(255,255,255,.45);">Record a material purchase</div>
+                            <div class="pm-card-title" style="font-size:14px;color:#fff;">Log New Purchase</div>
+                            <div class="pm-card-sub" style="color:rgba(255,255,255,.45);">Record one or more material purchases at once</div>
                         </div>
+                        <button type="button" class="modal-close" id="closeLogPurchaseModal" style="background-color:rgba(255,255,255,.08);border-color:rgba(255,255,255,.14);color:rgba(255,255,255,.75);">
+                            <i data-lucide="x"></i>
+                        </button>
                     </div>
-                    <form method="POST" action="{{ route('admin.material_usage.store_purchase', $project->id) }}" style="padding:10px 16px 16px;flex:1;overflow-y:auto;" class="dark-form">
+                    <form method="POST" action="{{ route('admin.material_usage.store_purchase', $project->id) }}" id="logPurchaseForm" style="padding:10px 20px 20px;flex:1;overflow-y:auto;" class="dark-form">
                         @csrf
-                        <input type="hidden" name="material_name" id="purchaseNameHidden">
-                        <div style="display:flex;flex-direction:column;gap:12px;">
-                            <div class="pm-add-field">
-                                <label>Material</label>
-                                <select name="project_material_id" id="purchaseBomSelect" onchange="prefillPurchase(this)">
-                                    <option value="" disabled selected hidden>Select material...</option>
-                                    @foreach($activeMats as $mat)
-                                    <option value="{{ $mat->id }}"
-                                            data-name="{{ $mat->material_name }}"
-                                            data-unit="{{ $mat->unit }}"
-                                            data-cost="{{ $mat->price_per_unit }}">
-                                        {{ Str::limit($mat->material_name, 32) }}
-                                    </option>
-                                    @endforeach
-                                    <option value="__other__">Other (type manually)</option>
-                                </select>
-                                <input type="text" id="purchaseNameCustom"
-                                       placeholder="Type material name" maxlength="255"
-                                       style="display:none;margin-top:6px;"
-                                       oninput="document.getElementById('purchaseNameHidden').value=this.value">
-                            </div>
-                            <div class="pm-add-field">
-                                <label>Unit</label>
-                                <input type="text" name="unit" id="purchaseUnit" placeholder="pcs" maxlength="50">
-                            </div>
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                                <div class="pm-add-field">
-                                    <label>Qty</label>
-                                    <input type="number" name="qty_bought" id="purchaseQty" min="0.01" step="0.01" value="1" required oninput="calcPurchaseTotal()">
-                                </div>
-                                <div class="pm-add-field">
-                                    <label>Unit Cost (&#x20B1;)</label>
-                                    <input type="number" name="actual_unit_cost" id="purchaseUnitCost" min="0" step="0.01" value="0" required oninput="calcPurchaseTotal()">
-                                </div>
-                            </div>
-                            <div class="pm-add-field">
-                                <label>Total (Auto)</label>
-                                <input type="text" id="purchaseTotalDisplay" readonly
-                                       style="background:var(--cream-soft);cursor:default;color:#16a34a;font-weight:800;"
-                                       value="&#x20B1;0.00">
-                            </div>
+                        <div style="display:flex;gap:8px;margin-bottom:12px;">
+                            <button type="button" class="cancel-btn" style="justify-content:center;font-size:12.5px;padding:9px 16px;" onclick="addPurchaseRow()">
+                                <i data-lucide="plus" style="width:14px;height:14px;"></i> Add Material
+                            </button>
+                            @if($unpurchasedMats->isNotEmpty())
+                            <button type="button" class="cancel-btn" style="justify-content:center;font-size:12.5px;padding:9px 16px;" onclick="addAllUnpurchasedRows()">
+                                <i data-lucide="list-plus" style="width:14px;height:14px;"></i> Add All Un-Purchased ({{ $unpurchasedMats->count() }})
+                            </button>
+                            @endif
+                        </div>
+
+                        <div style="display:grid;grid-template-columns:2.2fr 0.9fr 0.8fr 1fr 1fr 26px;gap:8px;padding:0 4px 6px;margin-bottom:2px;">
+                            <span style="font-size:10.5px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.04em;">Material</span>
+                            <span style="font-size:10.5px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.04em;">Unit</span>
+                            <span style="font-size:10.5px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.04em;">Qty</span>
+                            <span style="font-size:10.5px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.04em;">Unit Cost (₱)</span>
+                            <span style="font-size:10.5px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.04em;">Row Total</span>
+                            <span></span>
+                        </div>
+
+                        <div id="purchaseRowsContainer"></div>
+
+                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:12px;align-items:end;">
                             <div class="pm-add-field">
                                 <label>Supplier</label>
                                 @if(isset($suppliers) && $suppliers->isNotEmpty())
@@ -334,14 +334,61 @@
                                 <label>Date</label>
                                 <input type="date" name="purchase_date" required value="{{ now()->format('Y-m-d') }}">
                             </div>
-                            <button type="submit" class="save-btn" style="width:100%;justify-content:center;height:44px;">
-                                <i data-lucide="check"></i> Save Purchase
-                            </button>
+                            <div class="pm-add-field">
+                                <label>Grand Total (Auto)</label>
+                                <input type="text" id="purchaseGrandTotal" readonly
+                                       style="background:rgba(255,255,255,.06);cursor:default;color:#4ade80;font-weight:800;border-color:rgba(255,255,255,.14);"
+                                       value="&#x20B1;0.00">
+                            </div>
                         </div>
+
+                        <button type="submit" class="save-btn" style="width:100%;justify-content:center;height:44px;margin-top:16px;">
+                            <i data-lucide="check"></i> Save Purchases
+                        </button>
                     </form>
                 </div>
 
-                </div>{{-- end side-by-side grid --}}
+                {{-- Hidden template for one purchase row — cloned by JS via addPurchaseRow() --}}
+                <template id="purchaseRowTemplate">
+                    <div class="purchase-row" style="display:grid;grid-template-columns:2.2fr 0.9fr 0.8fr 1fr 1fr 26px;gap:8px;align-items:start;padding:6px 4px;margin-bottom:6px;">
+                        <div class="pm-add-field">
+                            <select name="project_material_id[]" class="purchase-row-bom-select" onchange="prefillPurchaseRow(this)">
+                                <option value="" disabled selected hidden>Select material...</option>
+                                @foreach($activeMats as $mat)
+                                <option value="{{ $mat->id }}"
+                                        data-name="{{ $mat->material_name }}"
+                                        data-unit="{{ $mat->unit }}"
+                                        data-cost="{{ $mat->price_per_unit }}">
+                                    {{ Str::limit($mat->material_name, 40) }}
+                                </option>
+                                @endforeach
+                                <option value="__other__">Other (type manually)</option>
+                            </select>
+                            <input type="hidden" name="material_name[]" class="purchase-row-name-hidden">
+                            <input type="text" class="purchase-row-name-custom"
+                                   placeholder="Type material name" maxlength="255"
+                                   style="display:none;margin-top:6px;">
+                        </div>
+                        <div class="pm-add-field">
+                            <input type="text" name="unit[]" class="purchase-row-unit" placeholder="pcs" maxlength="50">
+                        </div>
+                        <div class="pm-add-field">
+                            <input type="text" inputmode="decimal" name="qty_bought[]" class="purchase-row-qty" value="1" required oninput="formatMoneyInput(this); calcAllPurchaseTotals();">
+                        </div>
+                        <div class="pm-add-field">
+                            <input type="text" inputmode="decimal" name="actual_unit_cost[]" class="purchase-row-cost" value="0" required oninput="formatMoneyInput(this); calcAllPurchaseTotals();">
+                        </div>
+                        <div class="pm-add-field">
+                            <input type="text" class="purchase-row-total" readonly value="&#x20B1;0.00"
+                                   style="background:rgba(255,255,255,.06);cursor:default;color:#4ade80;font-weight:800;border-color:rgba(255,255,255,.14);">
+                        </div>
+                        <button type="button" class="remove-purchase-row-btn" onclick="removePurchaseRow(this)" title="Remove row"
+                                style="background:none;border:none;color:rgba(255,255,255,.45);cursor:pointer;padding:0;height:40px;display:flex;align-items:center;justify-content:center;">
+                            <i data-lucide="x" style="width:14px;height:14px;"></i>
+                        </button>
+                    </div>
+                </template>
+                </div>{{-- end logPurchaseModal overlay --}}
 
                 {{-- Purchase History — separate card --}}
                 @if($purchases->isNotEmpty())
@@ -493,21 +540,47 @@
                     $usagePlannedNames  = $plannedMaterials->pluck('material_name');
                     $usageExtraNames    = $usageGrouped->keys()->diff($usagePlannedNames);
                     $allUsageRows       = $usagePlannedNames->concat($usageExtraNames)->unique()->values();
+                    // Materials with purchased stock first — the ones actually usable
+                    // right now shouldn't be buried under a list of "No Stock" rows.
+                    $allUsageRows       = $allUsageRows->sortByDesc(function ($matName) use ($plannedMaterials, $purchases) {
+                        $bomMat = $plannedMaterials->firstWhere('material_name', $matName);
+                        $bomId  = $bomMat->id ?? null;
+                        return $bomId && isset($purchases) ? $purchases->where('project_material_id', $bomId)->sum('qty_bought') : 0;
+                    })->values();
+
+                    // Every BOM material is selectable (matching the Purchase modal) —
+                    // remaining stock is shown as a hint per option, not a filter, so
+                    // usage can still be logged even for materials not purchased yet.
+                    $stockMap = [];
+                    foreach ($activeMats as $m) {
+                        $bought      = isset($purchases) ? $purchases->where('project_material_id', $m->id)->sum('qty_bought') : 0;
+                        $alreadyUsed = $usageEntries->where('status', 'active')->where('project_material_id', $m->id)->sum('quantity_used');
+                        $stockMap[$m->id] = max(0, $bought - $alreadyUsed);
+                    }
+                    // "Add All In-Stock" shortcut still only targets materials that
+                    // actually have remaining purchased stock.
+                    $matsInStock = $activeMats->filter(fn($m) => ($stockMap[$m->id] ?? 0) > 0)->values();
+                    $inStockMatsJs = $matsInStock->map(function ($m) use ($stockMap) {
+                        return ['id' => $m->id, 'name' => $m->material_name, 'unit' => $m->unit, 'max' => $stockMap[$m->id] ?? 0];
+                    })->values();
                 @endphp
 
-                {{-- Summary + Form side by side --}}
-                <div style="display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start;margin-bottom:16px;">
-
-                {{-- Left: Summary table --}}
-                <div class="pm-card" style="margin-bottom:0;display:flex;flex-direction:column;min-width:0;height:500px;overflow:hidden;">
+                {{-- Summary table (full width — the usage form now lives in a modal) --}}
+                <div class="pm-card" style="margin-bottom:16px;display:flex;flex-direction:column;min-width:0;height:500px;overflow:hidden;">
                     <div class="pm-card-header">
                         <div>
                             <div class="pm-card-title">Material usage &mdash; summary</div>
                             <div class="pm-card-sub">Aggregated usage per material &middot; logged by employees</div>
                         </div>
-                        @if($allUsageRows->isNotEmpty())
-                        <span style="font-size:12px;font-weight:700;color:var(--muted);">{{ $allUsageRows->count() }} material{{ $allUsageRows->count() !== 1 ? 's' : '' }} &nbsp;·&nbsp; Total: <strong style="color:var(--dark);">{{ number_format($activeUsageEntries->sum('quantity_used'), 0) }}</strong></span>
-                        @endif
+                        <div style="display:flex;align-items:center;gap:14px;">
+                            @if($allUsageRows->isNotEmpty())
+                            <span style="font-size:12px;font-weight:700;color:var(--muted);">{{ $allUsageRows->count() }} material{{ $allUsageRows->count() !== 1 ? 's' : '' }} &nbsp;·&nbsp; Total: <strong style="color:var(--dark);">{{ number_format($activeUsageEntries->sum('quantity_used'), 0) }}</strong></span>
+                            @endif
+                            <button type="button" class="add-btn" id="openLogUsageModal" style="white-space:nowrap;">
+                                <i data-lucide="plus"></i>
+                                Log Material Usage
+                            </button>
+                        </div>
                     </div>
                     @php $ucols = 'table-layout:fixed;border-collapse:collapse;width:100%;'; @endphp
                     <div style="flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;">
@@ -614,67 +687,85 @@
                     @endif
                 </div>{{-- end summary card --}}
 
-                {{-- Right: Log Usage form as sidebar card --}}
-                <div class="pm-card" style="margin-bottom:0;display:flex;flex-direction:column;background:linear-gradient(180deg,#333333 0%,#2a2a2a 100%);border-color:transparent;height:500px;overflow:hidden;">
+                {{-- Log Material Usage modal — supports multiple material rows in
+                     one submission, mirroring the Log New Purchase modal. --}}
+                <div class="modal-overlay" id="logUsageModal">
+                <div class="modal-card pm-card" style="max-width:700px;width:95%;max-height:88vh;margin-bottom:0;background:linear-gradient(180deg,#333333 0%,#2a2a2a 100%);border-color:transparent;display:flex;flex-direction:column;overflow:hidden;">
                     <div class="pm-card-header" style="padding-bottom:12px;border-bottom-color:rgba(255,255,255,.1);flex-shrink:0;">
                         <div>
-                            <div class="pm-card-title" style="font-size:13px;color:#fff;">Log Material Usage</div>
-                            <div class="pm-card-sub" style="color:rgba(255,255,255,.45);">Record consumed material</div>
+                            <div class="pm-card-title" style="font-size:14px;color:#fff;">Log Material Usage</div>
+                            <div class="pm-card-sub" style="color:rgba(255,255,255,.45);">Record one or more consumed materials at once</div>
                         </div>
+                        <button type="button" class="modal-close" id="closeLogUsageModal" style="background-color:rgba(255,255,255,.08);border-color:rgba(255,255,255,.14);color:rgba(255,255,255,.75);">
+                            <i data-lucide="x"></i>
+                        </button>
                     </div>
-                    <form method="POST" action="{{ route('admin.material_usage.store', $project->id) }}" style="padding:10px 16px 16px;flex:1;overflow-y:auto;" class="dark-form">
+                    <form method="POST" action="{{ route('admin.material_usage.store', $project->id) }}" id="logUsageForm" style="padding:10px 20px 20px;flex:1;overflow-y:auto;" class="dark-form">
                         @csrf
-                        <div style="display:flex;flex-direction:column;gap:12px;flex:1;">
-                            @php
-                                // Only show materials that have purchases, with remaining stock
-                                $purchasedMatIds = isset($purchases) ? $purchases->pluck('project_material_id')->filter()->unique() : collect();
-                                $matsWithStock = $activeMats->filter(fn($m) => $purchasedMatIds->contains($m->id));
-                                $stockMap = [];
-                                foreach($matsWithStock as $m) {
-                                    $bought = isset($purchases) ? $purchases->where('project_material_id', $m->id)->sum('qty_bought') : 0;
-                                    $alreadyUsed = $usageEntries->where('status','active')->where('project_material_id', $m->id)->sum('quantity_used');
-                                    $stockMap[$m->id] = max(0, $bought - $alreadyUsed);
-                                }
-                            @endphp
-                            <div class="pm-add-field">
-                                <label>Material</label>
-                                <select name="project_material_id" id="usageBomSelect" onchange="prefillUsage(this)">
-                                    <option value="" disabled selected hidden>Select material...</option>
-                                    @foreach($matsWithStock as $mat)
-                                    <option value="{{ $mat->id }}"
-                                            data-name="{{ $mat->material_name }}"
-                                            data-unit="{{ $mat->unit }}"
-                                            data-max="{{ $stockMap[$mat->id] ?? 0 }}">
-                                        {{ Str::limit($mat->material_name, 28) }} ({{ $stockMap[$mat->id] ?? 0 }} remaining)
-                                    </option>
-                                    @endforeach
-                                </select>
-                                <input type="hidden" name="material_name" id="usageNameHidden">
-                                <span id="usageStockHint" style="font-size:11px;color:rgba(255,255,255,.4);margin-top:4px;display:none;"></span>
-                            </div>
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                                <div class="pm-add-field">
-                                    <label>Qty Used</label>
-                                    <input type="number" name="quantity_used" id="usageQtyInput" min="0.01" step="0.01" value="1" required>
-                                </div>
-                                <div class="pm-add-field">
-                                    <label>Unit</label>
-                                    <input type="text" name="unit" id="usageUnit" placeholder="pcs" maxlength="50">
-                                </div>
-                            </div>
-                            <div class="pm-add-field">
-                                <label>Date</label>
-                                <input type="date" name="used_date" required value="{{ now()->format('Y-m-d') }}">
-                            </div>
-                            <div style="flex:1;"></div>
-                            <button type="submit" class="save-btn" style="width:100%;justify-content:center;height:44px;margin-top:0;">
-                                <i data-lucide="check"></i> Log Usage
+                        <div style="display:flex;gap:8px;margin-bottom:12px;">
+                            <button type="button" class="cancel-btn" style="justify-content:center;font-size:12.5px;padding:9px 16px;" onclick="addUsageRow()">
+                                <i data-lucide="plus" style="width:14px;height:14px;"></i> Add Material
                             </button>
+                            @if($matsInStock->isNotEmpty())
+                            <button type="button" class="cancel-btn" style="justify-content:center;font-size:12.5px;padding:9px 16px;" onclick="addAllInStockRows()">
+                                <i data-lucide="list-plus" style="width:14px;height:14px;"></i> Add All In-Stock ({{ $matsInStock->count() }})
+                            </button>
+                            @endif
                         </div>
+
+                        <div style="display:grid;grid-template-columns:2.4fr 1fr 0.9fr 26px;gap:8px;padding:0 4px 6px;margin-bottom:2px;">
+                            <span style="font-size:10.5px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.04em;">Material</span>
+                            <span style="font-size:10.5px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.04em;">Unit</span>
+                            <span style="font-size:10.5px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.04em;">Qty Used</span>
+                            <span></span>
+                        </div>
+
+                        <div id="usageRowsContainer"></div>
+
+                        <div class="pm-add-field" style="max-width:220px;margin-top:12px;">
+                            <label>Date</label>
+                            <input type="date" name="used_date" required value="{{ now()->format('Y-m-d') }}">
+                        </div>
+
+                        <button type="submit" class="save-btn" style="width:100%;justify-content:center;height:44px;margin-top:16px;">
+                            <i data-lucide="check"></i> Log Usage
+                        </button>
                     </form>
                 </div>
 
-                </div>{{-- end side-by-side grid --}}
+                {{-- Hidden template for one usage row — cloned by JS via addUsageRow() --}}
+                <template id="usageRowTemplate">
+                    <div class="usage-row" style="display:grid;grid-template-columns:2.4fr 1fr 0.9fr 26px;gap:8px;align-items:start;padding:6px 4px;margin-bottom:6px;">
+                        <div class="pm-add-field">
+                            <select name="project_material_id[]" class="usage-row-bom-select" onchange="prefillUsageRow(this)">
+                                <option value="" disabled selected hidden>Select material...</option>
+                                @foreach($activeMats as $mat)
+                                @php $matStock = $stockMap[$mat->id] ?? 0; @endphp
+                                <option value="{{ $mat->id }}"
+                                        data-name="{{ $mat->material_name }}"
+                                        data-unit="{{ $mat->unit }}"
+                                        data-max="{{ $matStock }}"
+                                        @if($matStock <= 0) disabled @endif>
+                                    {{ Str::limit($mat->material_name, 32) }} — {{ $matStock > 0 ? $matStock . ' in stock' : 'No stock (purchase first)' }}
+                                </option>
+                                @endforeach
+                            </select>
+                            <input type="hidden" name="material_name[]" class="usage-row-name-hidden">
+                            <span class="usage-row-stock-hint" style="font-size:10.5px;color:rgba(255,255,255,.4);margin-top:4px;display:none;"></span>
+                        </div>
+                        <div class="pm-add-field">
+                            <input type="text" name="unit[]" class="usage-row-unit" placeholder="pcs" maxlength="50">
+                        </div>
+                        <div class="pm-add-field">
+                            <input type="text" inputmode="decimal" name="quantity_used[]" class="usage-row-qty" value="1" required oninput="formatMoneyInput(this);">
+                        </div>
+                        <button type="button" class="remove-usage-row-btn" onclick="removeUsageRow(this)" title="Remove row"
+                                style="background:none;border:none;color:rgba(255,255,255,.45);cursor:pointer;padding:0;height:40px;display:flex;align-items:center;justify-content:center;">
+                            <i data-lucide="x" style="width:14px;height:14px;"></i>
+                        </button>
+                    </div>
+                </template>
+                </div>{{-- end logUsageModal overlay --}}
 
                 {{-- Usage History — separate card --}}
                 @if($usageEntries->isNotEmpty())
@@ -739,6 +830,27 @@
         const ACTIVE_TAB = "{{ session('active_tab', 'bom') }}";
         if (typeof lucide !== 'undefined') lucide.createIcons();
 
+        function openModal(id) {
+            var m = document.getElementById(id);
+            if (m) { m.classList.add('show'); document.body.style.overflow = 'hidden'; }
+        }
+        function closeModal(id) {
+            var m = document.getElementById(id);
+            if (m) { m.classList.remove('show'); document.body.style.overflow = ''; }
+        }
+
+        document.getElementById('openLogPurchaseModal')?.addEventListener('click', function () { openModal('logPurchaseModal'); });
+        document.getElementById('closeLogPurchaseModal')?.addEventListener('click', function () { closeModal('logPurchaseModal'); });
+        document.getElementById('logPurchaseModal')?.addEventListener('click', function (e) {
+            if (e.target === this) closeModal('logPurchaseModal');
+        });
+
+        document.getElementById('openLogUsageModal')?.addEventListener('click', function () { openModal('logUsageModal'); });
+        document.getElementById('closeLogUsageModal')?.addEventListener('click', function () { closeModal('logUsageModal'); });
+        document.getElementById('logUsageModal')?.addEventListener('click', function (e) {
+            if (e.target === this) closeModal('logUsageModal');
+        });
+
         document.querySelectorAll('.pm-tab').forEach(function(btn) {
             btn.classList.toggle('active', btn.dataset.tab === ACTIVE_TAB);
             btn.addEventListener('click', function() {
@@ -752,71 +864,176 @@
             p.classList.toggle('active', p.id === 'tab-' + ACTIVE_TAB);
         });
 
-        function prefillPurchase(sel) {
-            var opt      = sel.options[sel.selectedIndex];
-            var custom   = document.getElementById('purchaseNameCustom');
-            var hidden   = document.getElementById('purchaseNameHidden');
-            var isOther  = (sel.value === '__other__' || sel.value === '');
+        // ---- Multi-row material purchase log ----
+        var UNPURCHASED_MATS = @json($unpurchasedMatsJs);
 
-            var unitInput = document.getElementById('purchaseUnit');
+        function addPurchaseRow(prefill) {
+            var tpl       = document.getElementById('purchaseRowTemplate');
+            var container = document.getElementById('purchaseRowsContainer');
+            var row       = tpl.content.cloneNode(true).firstElementChild;
+            container.appendChild(row);
+
+            if (prefill) {
+                var sel = row.querySelector('.purchase-row-bom-select');
+                sel.value = prefill.id;
+                prefillPurchaseRow(sel);
+                if (prefill.cost) {
+                    var costInput = row.querySelector('.purchase-row-cost');
+                    costInput.value = prefill.cost;
+                    formatMoneyInput(costInput);
+                }
+            }
+
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+            calcAllPurchaseTotals();
+            return row;
+        }
+
+        function removePurchaseRow(btn) {
+            var row = btn.closest('.purchase-row');
+            if (row) row.remove();
+            calcAllPurchaseTotals();
+        }
+
+        function addAllUnpurchasedRows() {
+            UNPURCHASED_MATS.forEach(function (m) { addPurchaseRow(m); });
+        }
+
+        function prefillPurchaseRow(sel) {
+            var row      = sel.closest('.purchase-row');
+            var opt      = sel.options[sel.selectedIndex];
+            var custom   = row.querySelector('.purchase-row-name-custom');
+            var hidden   = row.querySelector('.purchase-row-name-hidden');
+            var unitInput = row.querySelector('.purchase-row-unit');
+            var isOther  = (sel.value === '__other__' || sel.value === '');
 
             if (isOther) {
                 custom.style.display = '';
                 custom.value = '';
                 custom.required = true;
+                custom.oninput = function () { hidden.value = custom.value; };
                 hidden.value = '';
                 custom.focus();
-                // clear BOM project_material_id
                 sel.value = '__other__';
             } else {
                 custom.style.display = 'none';
                 custom.required = false;
                 custom.value = '';
                 hidden.value = opt.dataset.name || '';
-                if (unitInput) {
-                    unitInput.value = opt.dataset.unit || '';
-                }
+                if (unitInput) unitInput.value = opt.dataset.unit || '';
                 if (opt.dataset.cost) {
-                    document.getElementById('purchaseUnitCost').value = opt.dataset.cost;
-                    calcPurchaseTotal();
+                    var costInput = row.querySelector('.purchase-row-cost');
+                    costInput.value = opt.dataset.cost;
+                    formatMoneyInput(costInput);
                 }
             }
+            calcAllPurchaseTotals();
         }
 
-        // init on load: custom input hidden until "Other" is chosen
-        document.addEventListener('DOMContentLoaded', function() {
-            var custom = document.getElementById('purchaseNameCustom');
-            if (custom) custom.style.display = 'none';
+        // Live thousand-separator formatting for money/quantity text inputs.
+        function formatMoneyInput(el) {
+            var raw = el.value.replace(/[^0-9.]/g, '');
+            var parts = raw.split('.');
+            var intPart = parts[0].replace(/^0+(?=\d)/, '');
+            var formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            var decPart = parts.length > 1 ? '.' + parts.slice(1).join('').slice(0, 2) : '';
+            el.value = formattedInt + decPart;
+        }
+
+        function calcAllPurchaseTotals() {
+            var grand = 0;
+            document.querySelectorAll('#purchaseRowsContainer .purchase-row').forEach(function (row) {
+                var qty   = parseFloat(row.querySelector('.purchase-row-qty').value.replace(/,/g, '')) || 0;
+                var cost  = parseFloat(row.querySelector('.purchase-row-cost').value.replace(/,/g, '')) || 0;
+                var total = qty * cost;
+                grand += total;
+                row.querySelector('.purchase-row-total').value = '₱' + total.toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2});
+            });
+            document.getElementById('purchaseGrandTotal').value = '₱' + grand.toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2});
+        }
+
+        var logPurchaseForm = document.getElementById('logPurchaseForm');
+        if (logPurchaseForm) {
+            logPurchaseForm.addEventListener('submit', function (e) {
+                var rows = document.querySelectorAll('#purchaseRowsContainer .purchase-row');
+                if (!rows.length) {
+                    e.preventDefault();
+                    alert('Add at least one material before saving.');
+                    return;
+                }
+                rows.forEach(function (row) {
+                    ['purchase-row-qty', 'purchase-row-cost'].forEach(function (cls) {
+                        var el = row.querySelector('.' + cls);
+                        if (el) el.value = el.value.replace(/,/g, '');
+                    });
+                });
+            });
+        }
+
+        var logUsageForm = document.getElementById('logUsageForm');
+        if (logUsageForm) {
+            logUsageForm.addEventListener('submit', function (e) {
+                var rows = document.querySelectorAll('#usageRowsContainer .usage-row');
+                if (!rows.length) {
+                    e.preventDefault();
+                    alert('Add at least one material before saving.');
+                    return;
+                }
+                rows.forEach(function (row) {
+                    var qtyEl = row.querySelector('.usage-row-qty');
+                    if (qtyEl) qtyEl.value = qtyEl.value.replace(/,/g, '');
+                });
+            });
+        }
+
+        // Start with one empty row on page load.
+        document.addEventListener('DOMContentLoaded', function () {
+            addPurchaseRow();
+            addUsageRow();
         });
 
-        function calcPurchaseTotal() {
-            var qty  = parseFloat(document.getElementById('purchaseQty').value) || 0;
-            var cost = parseFloat(document.getElementById('purchaseUnitCost').value) || 0;
-            var total = qty * cost;
-            document.getElementById('purchaseTotalDisplay').value = '₱' + total.toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2});
+        // ---- Multi-row material usage log ----
+        var IN_STOCK_MATS = @json($inStockMatsJs);
+
+        function addUsageRow(prefill) {
+            var tpl       = document.getElementById('usageRowTemplate');
+            var container = document.getElementById('usageRowsContainer');
+            var row       = tpl.content.cloneNode(true).firstElementChild;
+            container.appendChild(row);
+
+            if (prefill) {
+                var sel = row.querySelector('.usage-row-bom-select');
+                sel.value = prefill.id;
+                prefillUsageRow(sel);
+            }
+
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+            return row;
         }
 
-        function prefillUsage(sel) {
+        function removeUsageRow(btn) {
+            var row = btn.closest('.usage-row');
+            if (row) row.remove();
+        }
+
+        function addAllInStockRows() {
+            IN_STOCK_MATS.forEach(function (m) { addUsageRow(m); });
+        }
+
+        function prefillUsageRow(sel) {
+            var row     = sel.closest('.usage-row');
             var opt     = sel.options[sel.selectedIndex];
-            var hidden  = document.getElementById('usageNameHidden');
-            var unitInp = document.getElementById('usageUnit');
-            var qtyInp  = document.getElementById('usageQtyInput');
-            var hint    = document.getElementById('usageStockHint');
+            var hidden  = row.querySelector('.usage-row-name-hidden');
+            var unitInp = row.querySelector('.usage-row-unit');
+            var hint    = row.querySelector('.usage-row-stock-hint');
 
             hidden.value = opt.dataset.name || '';
             if (unitInp && opt.dataset.unit) unitInp.value = opt.dataset.unit;
 
             var maxStock = parseFloat(opt.dataset.max) || 0;
-            if (qtyInp && maxStock > 0) {
-                qtyInp.max = maxStock;
-                qtyInp.value = Math.min(parseFloat(qtyInp.value) || 1, maxStock);
-                if (hint) {
-                    hint.textContent = 'Max: ' + maxStock + ' units remaining in stock';
-                    hint.style.display = 'block';
-                }
-            } else if (qtyInp) {
-                qtyInp.removeAttribute('max');
-                if (hint) hint.style.display = 'none';
+            if (hint) {
+                hint.textContent = maxStock + ' in stock right now';
+                hint.style.display = 'block';
             }
         }
 

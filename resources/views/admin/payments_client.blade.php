@@ -110,7 +110,7 @@
                                         @endif
                                         <span style="font-size:12.5px;font-weight:800;color:var(--dark);line-height:1.3;white-space:normal;word-break:break-word;">{{ $nameMain }}</span>
                                         @if($awaitingStage)
-                                        <span title="Project can't proceed until {{ \App\Models\PaymentTransaction::stageLabel($awaitingStage) }} is settled" style="display:inline-flex;align-items:center;gap:3px;margin-top:3px;font-size:9.5px;font-weight:800;color:#b45309;background:#fff3cd;border-radius:999px;padding:2px 7px;width:fit-content;">
+                                        <span title="No payment recorded yet for {{ \App\Models\PaymentTransaction::stageLabel($awaitingStage) }}" style="display:inline-flex;align-items:center;gap:3px;margin-top:3px;font-size:9.5px;font-weight:800;color:#b45309;background:#fff3cd;border-radius:999px;padding:2px 7px;width:fit-content;">
                                             <i data-lucide="alert-triangle" style="width:9px;height:9px;"></i> Needs {{ \App\Models\PaymentTransaction::stageLabel($awaitingStage) }}
                                         </span>
                                         @endif

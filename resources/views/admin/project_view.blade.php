@@ -340,7 +340,17 @@
 
                         $gateSettled = !$paymentGateStage || !$payment || $project->isPaymentStageSettled($paymentGateStage);
 
+                        // Procurement is a hard gate: "Materials Delivered" alone doesn't
+                        // advance the phase — there must be real purchase records logged in
+                        // the Materials module first.
+                        $procurementNeedsMaterials = $project->current_phase === 'procurement' && !$project->hasEnoughPurchasedMaterials();
+
                         $showConfirmGate = $planningPaymentGate || $fabricationGate || $deliveryGate;
+                        // Fabrication/delivery have real checklist fields hidden behind a
+                        // "Confirm Payment"/"Proceed Anyway" click; planning/payment has no
+                        // separate fields to reveal, so it submits directly — no redundant
+                        // second button that just repeats the same action.
+                        $needsConfirmStep = $fabricationGate || $deliveryGate;
                         // If this render is a redirect-back from a failed submission, the real
                         // form fields must already be showing (that's what was submitted), so
                         // skip the confirm step and go straight to the fields + errors.
@@ -368,9 +378,10 @@
                     @php
                         // Payment-gated phases hide this only during the brief confirm-step —
                         // once the admin proceeds (confirmed or "Proceed Anyway"), it reappears.
-                        $hideRequestBtn = $project->current_phase === 'planning' && $subPhase !== 'payment'
+                        $hideRequestBtn = $project->current_phase === 'planning'
                             || ($project->current_phase === 'procurement' && !($project->activeMaterials()->exists() && $project->activeLabor()->exists()))
-                            || ($showConfirmGate && !$revealFormFields);
+                            || $procurementNeedsMaterials
+                            || ($needsConfirmStep && !$revealFormFields);
                     @endphp
                     <div id="requestFromEmployeeWrap" style="display:flex;justify-content:flex-end;margin-bottom:14px;{{ $hideRequestBtn ? 'display:none;' : '' }}">
                         <button type="button" class="cancel-btn" id="openRequestModal" style="font-size:12.5px;padding:8px 14px;">
@@ -401,6 +412,20 @@
                             <a href="{{ route('admin.project_materials.detail', $project->id) }}" class="save-btn" style="display:inline-flex;align-items:center;gap:8px;font-size:13.5px;padding:11px 22px;text-decoration:none;">
                                 <i data-lucide="clipboard-list"></i>
                                 View Project Quotation
+                            </a>
+                        </div>
+                    @elseif($procurementNeedsMaterials)
+                        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:16px;padding:30px 20px;">
+                            <div style="width:64px;height:64px;border-radius:50%;background:#EAF0FF;display:flex;align-items:center;justify-content:center;">
+                                <i data-lucide="shopping-cart" style="width:32px;height:32px;color:#1e40af;"></i>
+                            </div>
+                            <div>
+                                <p style="font-size:16px;font-weight:800;color:var(--dark);margin-bottom:6px;">Materials Pending</p>
+                                <p style="font-size:13.5px;color:var(--muted);max-width:320px;line-height:1.6;">Materials must be purchased and logged in the Materials module before procurement can be marked complete.</p>
+                            </div>
+                            <a href="{{ route('admin.material_usage.detail', $project->id) }}" class="save-btn" style="display:inline-flex;align-items:center;gap:8px;font-size:13.5px;padding:11px 22px;text-decoration:none;">
+                                <i data-lucide="shopping-cart"></i>
+                                Log Material Purchases
                             </a>
                         </div>
                     @else
@@ -470,28 +495,29 @@
 
                         @elseif($project->current_phase === 'planning' && $subPhase === 'payment')
 
+                            <div style="display:flex;justify-content:center;padding:10px 20px;">
                             @if($gateSettled)
-                            <div style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;padding:10px 20px;">
-                                <div style="width:64px;height:64px;border-radius:50%;background:#dcfce7;display:flex;align-items:center;justify-content:center;">
-                                    <i data-lucide="check-circle-2" style="width:32px;height:32px;color:#16a34a;"></i>
+                                <div class="pv-payment-gate-card pv-payment-gate-success">
+                                    <div class="pv-payment-gate-icon">
+                                        <i data-lucide="check-circle-2" style="width:26px;height:26px;color:#16a34a;"></i>
+                                    </div>
+                                    <p class="pv-payment-gate-title">Down Payment Confirmed</p>
+                                    <p class="pv-payment-gate-text">50% down payment has been confirmed. You may now advance this project to the Procurement phase.</p>
                                 </div>
-                                <div>
-                                    <p style="font-size:16px;font-weight:800;color:var(--dark);margin-bottom:6px;">Down Payment Confirmed</p>
-                                    <p style="font-size:13.5px;color:var(--muted);max-width:320px;line-height:1.6;">50% down payment has been confirmed. You may now advance this project to the Procurement phase.</p>
-                                </div>
-                            </div>
                             @else
-                            <div style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;padding:10px 20px;">
-                                <div style="width:64px;height:64px;border-radius:50%;background:#FFF3D6;display:flex;align-items:center;justify-content:center;">
-                                    <i data-lucide="alert-triangle" style="width:32px;height:32px;color:#b45309;"></i>
+                                <div class="pv-payment-gate-card pv-payment-gate-warning">
+                                    <div class="pv-payment-gate-icon">
+                                        <i data-lucide="alert-triangle" style="width:26px;height:26px;color:#b45309;"></i>
+                                    </div>
+                                    <p class="pv-payment-gate-title">Payment Reminder</p>
+                                    <p class="pv-payment-gate-text">The down payment for this phase must be ensured/settled before continuing. Please confirm with the Payment Module, or proceed anyway if GMD has agreed to continue regardless.</p>
+                                    <a href="{{ $paymentUrl }}" class="pv-payment-gate-link">
+                                        <i data-lucide="credit-card" style="width:13px;height:13px;"></i>
+                                        View Payment Status
+                                    </a>
                                 </div>
-                                <div>
-                                    <p style="font-size:16px;font-weight:800;color:var(--dark);margin-bottom:6px;">Payment Reminder</p>
-                                    <p style="font-size:13.5px;color:var(--muted);max-width:340px;line-height:1.6;">The down payment for this phase must be ensured/settled before continuing. Please confirm with the Payment Module, or proceed anyway if GMD has agreed to continue regardless.</p>
-                                    <a href="{{ $paymentUrl }}" style="display:inline-block;margin-top:6px;font-size:12.5px;font-weight:700;color:var(--accent);">View Payment Status →</a>
-                                </div>
-                            </div>
                             @endif
+                            </div>
 
                             @php $submitLabel = $gateSettled ? 'Advance to Procurement' : 'Proceed Anyway'; @endphp
 
@@ -549,23 +575,26 @@
                         @elseif($project->current_phase === 'fabrication')
 
                             @if($isBigProject)
-                            <div id="fabricationConfirmStep" style="display:{{ $revealFormFields ? 'none' : 'flex' }};flex-direction:column;align-items:center;text-align:center;gap:14px;padding:10px 20px;">
+                            <div id="fabricationConfirmStep" style="display:{{ $revealFormFields ? 'none' : 'flex' }};justify-content:center;padding:10px 20px;">
                                 @if($gateSettled)
-                                <div style="width:64px;height:64px;border-radius:50%;background:#dcfce7;display:flex;align-items:center;justify-content:center;">
-                                    <i data-lucide="check-circle-2" style="width:32px;height:32px;color:#16a34a;"></i>
-                                </div>
-                                <div>
-                                    <p style="font-size:16px;font-weight:800;color:var(--dark);margin-bottom:6px;">Progress Payment Confirmed</p>
-                                    <p style="font-size:13.5px;color:var(--muted);max-width:320px;line-height:1.6;">30% progress payment has been confirmed. Click Confirm Payment below to proceed to the fabrication checklist.</p>
+                                <div class="pv-payment-gate-card pv-payment-gate-success">
+                                    <div class="pv-payment-gate-icon">
+                                        <i data-lucide="check-circle-2" style="width:26px;height:26px;color:#16a34a;"></i>
+                                    </div>
+                                    <p class="pv-payment-gate-title">Progress Payment Confirmed</p>
+                                    <p class="pv-payment-gate-text">30% progress payment has been confirmed. Click Confirm Payment below to proceed to the fabrication checklist.</p>
                                 </div>
                                 @else
-                                <div style="width:64px;height:64px;border-radius:50%;background:#FFF3D6;display:flex;align-items:center;justify-content:center;">
-                                    <i data-lucide="alert-triangle" style="width:32px;height:32px;color:#b45309;"></i>
-                                </div>
-                                <div>
-                                    <p style="font-size:16px;font-weight:800;color:var(--dark);margin-bottom:6px;">Payment Reminder</p>
-                                    <p style="font-size:13.5px;color:var(--muted);max-width:340px;line-height:1.6;">The progress payment for this phase must be ensured/settled before continuing. Please confirm with the Payment Module, or proceed anyway if GMD has agreed to continue regardless.</p>
-                                    <a href="{{ $paymentUrl }}" style="display:inline-block;margin-top:6px;font-size:12.5px;font-weight:700;color:var(--accent);">View Payment Status →</a>
+                                <div class="pv-payment-gate-card pv-payment-gate-warning">
+                                    <div class="pv-payment-gate-icon">
+                                        <i data-lucide="alert-triangle" style="width:26px;height:26px;color:#b45309;"></i>
+                                    </div>
+                                    <p class="pv-payment-gate-title">Payment Reminder</p>
+                                    <p class="pv-payment-gate-text">The progress payment for this phase must be ensured/settled before continuing. Please confirm with the Payment Module, or proceed anyway if GMD has agreed to continue regardless.</p>
+                                    <a href="{{ $paymentUrl }}" class="pv-payment-gate-link">
+                                        <i data-lucide="credit-card" style="width:13px;height:13px;"></i>
+                                        View Payment Status
+                                    </a>
                                 </div>
                                 @endif
                             </div>
@@ -697,23 +726,26 @@
 
                         @elseif($project->current_phase === 'delivery')
 
-                            <div id="deliveryConfirmStep" style="display:{{ $revealFormFields ? 'none' : 'flex' }};flex-direction:column;align-items:center;text-align:center;gap:14px;padding:10px 20px;">
+                            <div id="deliveryConfirmStep" style="display:{{ $revealFormFields ? 'none' : 'flex' }};justify-content:center;padding:10px 20px;">
                                 @if($gateSettled)
-                                <div style="width:64px;height:64px;border-radius:50%;background:#dcfce7;display:flex;align-items:center;justify-content:center;">
-                                    <i data-lucide="check-circle-2" style="width:32px;height:32px;color:#16a34a;"></i>
-                                </div>
-                                <div>
-                                    <p style="font-size:16px;font-weight:800;color:var(--dark);margin-bottom:6px;">{{ $isBigProject ? 'Final 20% Payment' : 'Final 50% Payment' }} Confirmed</p>
-                                    <p style="font-size:13.5px;color:var(--muted);max-width:320px;line-height:1.6;">Final payment has been confirmed. Click Confirm Payment below to proceed to the delivery details.</p>
+                                <div class="pv-payment-gate-card pv-payment-gate-success">
+                                    <div class="pv-payment-gate-icon">
+                                        <i data-lucide="check-circle-2" style="width:26px;height:26px;color:#16a34a;"></i>
+                                    </div>
+                                    <p class="pv-payment-gate-title">{{ $isBigProject ? 'Final 20% Payment' : 'Final 50% Payment' }} Confirmed</p>
+                                    <p class="pv-payment-gate-text">Final payment has been confirmed. Click Confirm Payment below to proceed to the delivery details.</p>
                                 </div>
                                 @else
-                                <div style="width:64px;height:64px;border-radius:50%;background:#FFF3D6;display:flex;align-items:center;justify-content:center;">
-                                    <i data-lucide="alert-triangle" style="width:32px;height:32px;color:#b45309;"></i>
-                                </div>
-                                <div>
-                                    <p style="font-size:16px;font-weight:800;color:var(--dark);margin-bottom:6px;">Payment Reminder</p>
-                                    <p style="font-size:13.5px;color:var(--muted);max-width:340px;line-height:1.6;">The final payment for this phase must be ensured/settled before continuing. Please confirm with the Payment Module, or proceed anyway if GMD has agreed to continue regardless.</p>
-                                    <a href="{{ $paymentUrl }}" style="display:inline-block;margin-top:6px;font-size:12.5px;font-weight:700;color:var(--accent);">View Payment Status →</a>
+                                <div class="pv-payment-gate-card pv-payment-gate-warning">
+                                    <div class="pv-payment-gate-icon">
+                                        <i data-lucide="alert-triangle" style="width:26px;height:26px;color:#b45309;"></i>
+                                    </div>
+                                    <p class="pv-payment-gate-title">Payment Reminder</p>
+                                    <p class="pv-payment-gate-text">The final payment for this phase must be ensured/settled before continuing. Please confirm with the Payment Module, or proceed anyway if GMD has agreed to continue regardless.</p>
+                                    <a href="{{ $paymentUrl }}" class="pv-payment-gate-link">
+                                        <i data-lucide="credit-card" style="width:13px;height:13px;"></i>
+                                        View Payment Status
+                                    </a>
                                 </div>
                                 @endif
                             </div>
@@ -781,17 +813,17 @@
                                 Mark as Already Completed
                             </button>
                             @endif
-                            @if($showConfirmGate)
+                            @if($needsConfirmStep)
                             <button type="button" class="{{ $gateSettled ? 'save-btn' : 'cancel-btn' }}" id="paymentConfirmBtn"
                                     onclick="proceedAfterPaymentConfirm('{{ $project->current_phase }}')"
                                     style="font-size:13.5px;padding:11px 24px;{{ $revealFormFields ? 'display:none;' : '' }}">
-                                <i data-lucide="{{ $gateSettled ? 'check' : 'alert-triangle' }}"></i>
+                                <i data-lucide="{{ $gateSettled ? 'check' : 'arrow-right' }}"></i>
                                 {{ $gateSettled ? 'Confirm Payment' : 'Proceed Anyway' }}
                             </button>
                             @endif
                             @if(empty($hideSubmitButton))
-                            <button type="submit" class="save-btn" id="progressSubmitBtn" style="font-size:13.5px;padding:11px 24px;{{ ($showConfirmGate && !$revealFormFields) ? 'display:none;' : '' }}">
-                                <i data-lucide="save"></i>
+                            <button type="submit" class="{{ $planningPaymentGate && !$gateSettled ? 'cancel-btn' : 'save-btn' }}" id="progressSubmitBtn" style="font-size:13.5px;padding:11px 24px;{{ ($needsConfirmStep && !$revealFormFields) ? 'display:none;' : '' }}">
+                                <i data-lucide="{{ $planningPaymentGate && !$gateSettled ? 'arrow-right' : 'save' }}"></i>
                                 {{ $submitLabel ?? 'Save Progress Update' }}
                             </button>
                             @endif

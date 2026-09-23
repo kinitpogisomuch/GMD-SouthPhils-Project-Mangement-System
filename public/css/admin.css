@@ -4996,6 +4996,78 @@ td.action-cell .action-btn + .action-btn {
     color: #1e3a8a;
 }
 
+/* Payment-gate reminder card — shown on payment-tied phases in the Add
+   Progress Update panel (Planning/Payment, Fabrication, Delivery). */
+.pv-payment-gate-card {
+    width: 100%;
+    max-width: 400px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 10px;
+    padding: 26px 24px;
+    border-radius: 16px;
+}
+
+.pv-payment-gate-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pv-payment-gate-title {
+    font-size: 15.5px;
+    font-weight: 800;
+    margin: 0;
+}
+
+.pv-payment-gate-text {
+    font-size: 13px;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.pv-payment-gate-success {
+    background: #E7F6EC;
+    border: 1px solid #86efac;
+}
+.pv-payment-gate-success .pv-payment-gate-icon { box-shadow: 0 2px 8px rgba(22, 163, 74, 0.18); }
+.pv-payment-gate-success .pv-payment-gate-title { color: #14532d; }
+.pv-payment-gate-success .pv-payment-gate-text  { color: #166534; }
+
+.pv-payment-gate-warning {
+    background: #FFF3D6;
+    border: 1px solid #fcd34d;
+}
+.pv-payment-gate-warning .pv-payment-gate-icon { box-shadow: 0 2px 8px rgba(180, 83, 9, 0.18); }
+.pv-payment-gate-warning .pv-payment-gate-title { color: #78350f; }
+.pv-payment-gate-warning .pv-payment-gate-text  { color: #92400e; }
+
+.pv-payment-gate-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+    font-size: 12.5px;
+    font-weight: 800;
+    color: #78350f;
+    background: #fff;
+    border: 1px solid #fcd34d;
+    border-radius: 999px;
+    padding: 8px 18px;
+    text-decoration: none;
+    transition: background-color .15s, box-shadow .15s;
+}
+.pv-payment-gate-link:hover {
+    background: #FFFBEB;
+    box-shadow: 0 2px 6px rgba(180, 83, 9, 0.15);
+}
+
 /* Color-coded tank spec chips — reused for quotation summaries and the
    quotation-requests table so type/capacity/timeline read as distinct at a glance. */
 .qr-tank-line {

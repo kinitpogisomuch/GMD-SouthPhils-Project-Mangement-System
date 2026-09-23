@@ -80,6 +80,12 @@ class Project extends Model
         return $this->tankItems->first();
     }
 
+    // Minimum number of distinct materials that must have an actual purchase
+    // logged (not just planned in the BOM) before Procurement can be marked
+    // complete — keeps the "Materials Delivered" checkbox from being a pure
+    // rubber stamp with nothing purchased behind it.
+    const MIN_PURCHASED_MATERIALS = 6;
+
     // Define the phase order
     const PHASES = [
         'planning',
@@ -134,6 +140,31 @@ class Project extends Model
     public function activeMaterials()
     {
         return $this->hasMany(ProjectMaterial::class)->where('status', 'active');
+    }
+
+    /** Relationship: Project has many logged material purchases */
+    public function materialPurchases()
+    {
+        return $this->hasMany(MaterialPurchase::class);
+    }
+
+    /**
+     * How many distinct materials have at least one purchase actually logged
+     * (not just planned in the BOM) — keys on the linked BOM material when
+     * present, falling back to the typed name for "Other" entries.
+     */
+    public function purchasedMaterialsCount(): int
+    {
+        return $this->materialPurchases()
+            ->get()
+            ->map(fn (MaterialPurchase $p) => $p->project_material_id ?? ('name:' . strtolower(trim($p->material_name))))
+            ->unique()
+            ->count();
+    }
+
+    public function hasEnoughPurchasedMaterials(): bool
+    {
+        return $this->purchasedMaterialsCount() >= self::MIN_PURCHASED_MATERIALS;
     }
 
     // Relationship: Project has many material usage log entries
@@ -430,27 +461,34 @@ class Project extends Model
     }
 
     /**
-     * The payment stage currently blocking this project's phase progression
-     * ('down_payment', 'progress_payment', 'final_payment'), or null if the
-     * project isn't stalled waiting on a payment. Mirrors the same gates
-     * shown on the admin project page's "Add Progress Update" panel.
+     * The payment stage currently flagging this project for "Needs
+     * Settlement" ('down_payment', 'progress_payment', 'final_payment'), or
+     * null if there's nothing to flag. This is a soft reminder, not a hard
+     * gate — phase progression is never blocked on it. The badge clears as
+     * soon as ANY amount has been recorded toward the relevant stage, even
+     * a partial payment — it doesn't require the stage to be fully settled.
      */
     public function awaitingPaymentStage(): ?string
     {
         $payment      = $this->getPaymentRecord();
         $isBigProject = $payment && $payment->payment_term_type === 'big_project';
 
-        if ($this->current_phase === 'planning' && $this->current_sub_phase === 'payment' && !$this->isPaymentStageSettled('down_payment')) {
+        if ($this->current_phase === 'planning' && $this->current_sub_phase === 'payment' && !$this->hasAnyPaymentTowardStage($payment, 'down_payment')) {
             return 'down_payment';
         }
-        if ($this->current_phase === 'fabrication' && $isBigProject && !$this->isPaymentStageSettled('progress_payment')) {
+        if ($this->current_phase === 'fabrication' && $isBigProject && !$this->hasAnyPaymentTowardStage($payment, 'progress_payment')) {
             return 'progress_payment';
         }
-        if ($this->current_phase === 'delivery' && !$this->isPaymentStageSettled('final_payment')) {
+        if ($this->current_phase === 'delivery' && !$this->hasAnyPaymentTowardStage($payment, 'final_payment')) {
             return 'final_payment';
         }
 
         return null;
+    }
+
+    private function hasAnyPaymentTowardStage(?Payment $payment, string $stage): bool
+    {
+        return $payment && $payment->stagePaidAmount($stage) > 0;
     }
 
     // Scope for ongoing projects

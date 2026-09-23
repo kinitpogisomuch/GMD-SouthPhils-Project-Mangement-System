@@ -950,6 +950,13 @@ class ProjectController extends Controller
     */
     private function handleProcurement(Request $request, Project $project)
     {
+        // Hard gate: the "Materials Delivered" checkbox alone isn't enough —
+        // there must be real purchase records logged in the Materials module.
+        if (!$project->hasEnoughPurchasedMaterials()) {
+            return redirect()->route('admin.project_view', $project->id)
+                ->with('error', 'Materials must be purchased and logged in the Materials module before procurement can be marked complete.');
+        }
+
         $request->validate([
             'materials_delivered' => 'required|accepted',
         ]);

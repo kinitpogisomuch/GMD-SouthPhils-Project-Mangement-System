@@ -234,9 +234,9 @@
                     </div>
                     <div class="form-group">
                         <label>Amount Paid (₱)</label>
-                        <input type="number" name="amount_paid" id="amountPaidInput"
-                               required min="0.01" step="0.01"
-                               placeholder="e.g. 425000">
+                        <input type="text" inputmode="decimal" name="amount_paid" id="amountPaidInput"
+                               required placeholder="e.g. 425,000"
+                               oninput="formatMoneyInput(this)">
                     </div>
                     <div class="form-group">
                         <label>Payment Date</label>
@@ -559,11 +559,29 @@
         stageErr.style.display = 'none';
     }
 
+    // Live thousand-separator formatting for money/quantity text inputs —
+    // keeps the raw comma-free value in a data attribute so it's easy to
+    // strip back out right before the form actually submits.
+    function formatMoneyInput(el) {
+        var raw = el.value.replace(/[^0-9.]/g, '');
+        var parts = raw.split('.');
+        var intPart = parts[0].replace(/^0+(?=\d)/, '');
+        var formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        var decPart = parts.length > 1 ? '.' + parts.slice(1).join('').slice(0, 2) : '';
+        el.value = formattedInt + decPart;
+    }
+
+    function stripCommas(el) {
+        if (el) el.value = el.value.replace(/,/g, '');
+    }
+
     const receiptFileInput = document.getElementById('receiptFileInput');
     const receiptFileErr   = document.getElementById('receiptFileErr');
     const receiptDropzone  = document.getElementById('receiptDropzone');
 
     recordForm.addEventListener('submit', function (e) {
+        stripCommas(document.getElementById('amountPaidInput'));
+
         var invalid = false;
 
         if (!stageSelect.value) {
