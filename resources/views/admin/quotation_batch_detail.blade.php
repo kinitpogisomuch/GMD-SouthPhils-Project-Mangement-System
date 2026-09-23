@@ -232,7 +232,7 @@
                     <div class="fd-ov-item fd-ov-highlight">
                         <span class="fd-ov-label">Project Budget</span>
                         <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Est. materials + labor</span>
-                        <span class="fd-ov-val" style="color:#4ade80;font-size:17px;">₱{{ number_format($estimatedBudget['total'], 2) }}</span>
+                        <span class="fd-ov-val" style="color:#4ade80;font-size:17px;">₱{{ number_format(round($estimatedBudget['total']), 0) }}</span>
                     </div>
                 </div>
             </div>
@@ -318,12 +318,12 @@
                         <tfoot>
                             <tr>
                                 <td colspan="4" class="table-total-label">Grand Total (no Material Factor)</td>
-                                <td class="table-total-value">₱{{ number_format($estimatedCost, 2) }}</td>
+                                <td class="table-total-value">₱{{ number_format(round($estimatedCost), 0) }}</td>
                                 <td></td>
                             </tr>
                             <tr>
                                 <td colspan="4" class="table-total-label">Grand Total (with {{ number_format($materialFactor, 1) }}% Material Factor)</td>
-                                <td class="table-total-value">₱{{ number_format($estimatedCost * (1 + $materialFactor / 100), 2) }}</td>
+                                <td class="table-total-value">₱{{ number_format(round($estimatedCost * (1 + $materialFactor / 100)), 0) }}</td>
                                 <td></td>
                             </tr>
                         </tfoot>
@@ -1080,7 +1080,7 @@
 
         html += '<tr style="border-top:2px solid rgba(0,0,0,0.1);background:var(--cream-soft,#f5f5f5);">';
         html += '<td colspan="4" style="padding:12px;font-size:13px;font-weight:700;color:var(--dark);text-align:right;">' + summaryLabel + '</td>';
-        html += '<td style="padding:12px;font-size:15px;font-weight:900;color:var(--dark);" colspan="2">₱' + grandTotal.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</td>';
+        html += '<td style="padding:12px;font-size:15px;font-weight:900;color:var(--dark);" colspan="2">₱' + Math.round(grandTotal).toLocaleString('en-PH') + '</td>';
         html += '</tr></tbody></table></div>';
 
         var deleteCount = document.querySelectorAll('#addMaterialForm input[name="delete_material_id[]"]').length;

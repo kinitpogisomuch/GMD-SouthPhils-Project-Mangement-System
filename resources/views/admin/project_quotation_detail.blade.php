@@ -1246,7 +1246,7 @@
 
             html += '<tr style="border-top:2px solid rgba(0,0,0,0.1);background:var(--cream-soft,#f5f5f5);">';
             html += '<td colspan="4" style="padding:12px;font-size:13px;font-weight:700;color:var(--dark);text-align:right;">' + summaryLabel + '</td>';
-            html += '<td style="padding:12px;font-size:15px;font-weight:900;color:var(--dark);" colspan="2">₱' + parseFloat(grandTotal).toLocaleString('en-PH', {minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
+            html += '<td style="padding:12px;font-size:15px;font-weight:900;color:var(--dark);" colspan="2">₱' + Math.round(grandTotal).toLocaleString('en-PH') + '</td>';
             html += '</tr></tbody></table></div>';
 
             var deleteCount = document.querySelectorAll('#addMaterialForm input[name="delete_material_id[]"]').length;

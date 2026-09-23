@@ -81,13 +81,13 @@
                 <div class="info-card teal">
                     <div class="info-card-icon teal"><i data-lucide="file-text"></i></div>
                     <h3>Contract Amount</h3>
-                    <div class="value">₱{{ number_format($payment->contract_amount, 2) }}</div>
+                    <div class="value">₱{{ number_format(round($payment->contract_amount), 0) }}</div>
                     <div class="info-card-sub">{{ $payment->payment_terms }}</div>
                 </div>
                 <div class="info-card green">
                     <div class="info-card-icon green"><i data-lucide="check-circle"></i></div>
                     <h3>Total Paid</h3>
-                    <div class="value">₱{{ number_format($totalPaid, 2) }}</div>
+                    <div class="value">₱{{ number_format(round($totalPaid), 0) }}</div>
                     <div class="info-card-sub">
                         {{ round($payment->contract_amount > 0 ? ($totalPaid / $payment->contract_amount) * 100 : 0, 1) }}% of contract
                     </div>
@@ -95,7 +95,7 @@
                 <div class="info-card blue">
                     <div class="info-card-icon blue"><i data-lucide="alert-circle"></i></div>
                     <h3>Remaining Balance</h3>
-                    <div class="value">₱{{ number_format($balance, 2) }}</div>
+                    <div class="value">₱{{ number_format(round($balance), 0) }}</div>
                     <div class="info-card-sub">Still outstanding</div>
                 </div>
                 <div class="info-card orange">
@@ -136,7 +136,7 @@
                             <tr>
                                 <td style="white-space:nowrap;color:var(--muted);">{{ \Carbon\Carbon::parse($tx->payment_date)->format('M d, Y') }}</td>
                                 <td><strong>{{ \App\Models\PaymentTransaction::stageLabel($tx->payment_stage) }}</strong></td>
-                                <td style="text-align:center;"><strong style="color:#16a34a;">₱{{ number_format($tx->amount_paid, 2) }}</strong></td>
+                                <td style="text-align:center;"><strong style="color:#16a34a;">₱{{ number_format(round($tx->amount_paid), 0) }}</strong></td>
                                 <td style="text-align:center;">
                                     @if($tx->mode_of_payment)
                                     @php
