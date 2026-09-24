@@ -638,23 +638,33 @@
 
                         @elseif($project->current_phase === 'inspection')
 
+                            @php
+                                $inspectionData = $project->phaseData('inspection', []);
+                                $inspectionTestKeys = ['pressure_test_passed', 'soap_testing_passed', 'pneumatic_test_passed', 'leak_test_passed'];
+                                $inspectionPassedCount = collect($inspectionTestKeys)->filter(fn($k) => !empty($inspectionData[$k]))->count();
+                            @endphp
+
+                            <div style="font-size:12.5px;font-weight:700;color:var(--muted);margin-bottom:10px;">
+                                {{ $inspectionPassedCount }} of {{ count($inspectionTestKeys) }} tests passed
+                            </div>
+
                             <label class="pv-checklist-item pv-checklist-item-lg">
-                                <input type="checkbox" name="pressure_test_passed" value="1">
+                                <input type="checkbox" name="pressure_test_passed" value="1" {{ !empty($inspectionData['pressure_test_passed']) ? 'checked' : '' }}>
                                 <i data-lucide="gauge" class="pv-checklist-icon"></i>
                                 <span>Pressure Test Passed</span>
                             </label>
                             <label class="pv-checklist-item pv-checklist-item-lg">
-                                <input type="checkbox" name="soap_testing_passed" value="1">
+                                <input type="checkbox" name="soap_testing_passed" value="1" {{ !empty($inspectionData['soap_testing_passed']) ? 'checked' : '' }}>
                                 <i data-lucide="droplets" class="pv-checklist-icon"></i>
                                 <span>Soap Testing Passed</span>
                             </label>
                             <label class="pv-checklist-item pv-checklist-item-lg">
-                                <input type="checkbox" name="pneumatic_test_passed" value="1">
+                                <input type="checkbox" name="pneumatic_test_passed" value="1" {{ !empty($inspectionData['pneumatic_test_passed']) ? 'checked' : '' }}>
                                 <i data-lucide="wind" class="pv-checklist-icon"></i>
                                 <span>Pneumatic Test Passed</span>
                             </label>
                             <label class="pv-checklist-item pv-checklist-item-lg">
-                                <input type="checkbox" name="leak_test_passed" value="1">
+                                <input type="checkbox" name="leak_test_passed" value="1" {{ !empty($inspectionData['leak_test_passed']) ? 'checked' : '' }}>
                                 <i data-lucide="droplet" class="pv-checklist-icon"></i>
                                 <span>Leak Test Passed</span>
                             </label>
@@ -672,7 +682,7 @@
                                 <div id="inspectionPreview" class="pv-file-grid"></div>
                             </div>
 
-                            @php $submitLabel = 'Save Progress Update'; @endphp
+                            @php $submitLabel = 'Save Progress'; @endphp
 
                         @elseif($project->current_phase === 'painting')
 
@@ -822,9 +832,15 @@
                             </button>
                             @endif
                             @if(empty($hideSubmitButton))
-                            <button type="submit" class="{{ $planningPaymentGate && !$gateSettled ? 'cancel-btn' : 'save-btn' }}" id="progressSubmitBtn" style="font-size:13.5px;padding:11px 24px;{{ ($needsConfirmStep && !$revealFormFields) ? 'display:none;' : '' }}">
+                            <button type="submit" class="{{ ($planningPaymentGate && !$gateSettled) || $project->current_phase === 'inspection' ? 'cancel-btn' : 'save-btn' }}" id="progressSubmitBtn" style="font-size:13.5px;padding:11px 24px;{{ ($needsConfirmStep && !$revealFormFields) ? 'display:none;' : '' }}">
                                 <i data-lucide="{{ $planningPaymentGate && !$gateSettled ? 'arrow-right' : 'save' }}"></i>
                                 {{ $submitLabel ?? 'Save Progress Update' }}
+                            </button>
+                            @endif
+                            @if($project->current_phase === 'inspection')
+                            <button type="submit" name="mark_completed" value="1" class="save-btn" id="inspectionMarkCompleteBtn" style="font-size:13.5px;padding:11px 24px;">
+                                <i data-lucide="check-circle-2"></i>
+                                Mark as Completed
                             </button>
                             @endif
                         </div>
@@ -847,7 +863,7 @@
                         </span>
                     </div>
 
-                    <div style="flex:1;overflow-y:auto;max-height:520px;display:flex;flex-direction:column;padding-right:4px;">
+                    <div style="flex:1;overflow-y:auto;min-height:0;display:flex;flex-direction:column;padding-right:4px;">
 
                         @php
                             $imageExtRegex = '/\.(jpe?g|png|gif|webp|bmp)(\?.*)?$/i';

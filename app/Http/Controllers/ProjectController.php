@@ -1094,27 +1094,65 @@ class ProjectController extends Controller
             'soap_testing_passed'   => 'nullable|boolean',
             'pneumatic_test_passed' => 'nullable|boolean',
             'leak_test_passed'      => 'nullable|boolean',
+            'progress_photos'       => 'nullable|array|max:5',
+            'progress_photos.*'     => 'file|mimes:jpg,jpeg,png,webp,pdf|max:10240',
         ]);
 
-        $project->setPhaseData('inspection', [
-            'pressure_test_passed'  => $request->boolean('pressure_test_passed'),
-            'soap_testing_passed'   => $request->boolean('soap_testing_passed'),
-            'pneumatic_test_passed' => $request->boolean('pneumatic_test_passed'),
-            'leak_test_passed'      => $request->boolean('leak_test_passed'),
+        $photoUrls = [];
+        if ($request->hasFile('progress_photos')) {
+            $photoUrls = $this->storage->uploadMultiple($request->file('progress_photos'), 'projects/' . $project->id . '/inspection');
+        }
+
+        // Inspection supports multiple test submissions — once a test is marked
+        // passed it stays passed across saves, so partial progress from an earlier
+        // visit is never lost by a later save that doesn't re-check every box.
+        $existing = $project->phaseData('inspection', []);
+        $tests = [
+            'pressure_test_passed'  => ($existing['pressure_test_passed']  ?? false) || $request->boolean('pressure_test_passed'),
+            'soap_testing_passed'   => ($existing['soap_testing_passed']   ?? false) || $request->boolean('soap_testing_passed'),
+            'pneumatic_test_passed' => ($existing['pneumatic_test_passed'] ?? false) || $request->boolean('pneumatic_test_passed'),
+            'leak_test_passed'      => ($existing['leak_test_passed']      ?? false) || $request->boolean('leak_test_passed'),
+        ];
+        $project->setPhaseData('inspection', array_merge($tests, [
+            'completed' => $existing['completed'] ?? false,
+        ]));
+
+        $markCompleted = $request->boolean('mark_completed');
+
+        // Unlike other phases (one progress update per phase), Inspection logs every
+        // save so each test round remains visible in Progress History.
+        ProjectUpdate::create([
+            'project_id'   => $project->id,
+            'submitted_by' => session('user_id') ?? \App\Models\User::where('role', 'admin')->value('id') ?? 1,
+            'type'         => 'admin_direct',
+            'phase'        => 'inspection',
+            'work_done'    => $markCompleted ? 'Inspection completed successfully.' : 'Inspection test results logged.',
+            'percentage'   => $project->progress,
+            'date_of_work' => $request->filled('date_of_work') ? $request->date_of_work : now()->toDateString(),
+            'photos'       => $photoUrls,
+            'status'       => 'approved',
         ]);
+
+        if (!$markCompleted) {
+            return redirect()->route('admin.project_view', $project->id)
+                ->with('success', 'Inspection progress saved. Add more tests, then click "Mark as Completed" once the inspection is finished.');
+        }
+
+        if (!($tests['pressure_test_passed'] && $tests['soap_testing_passed'] && $tests['pneumatic_test_passed'] && $tests['leak_test_passed'])) {
+            return redirect()->route('admin.project_view', $project->id)
+                ->with('error', 'All inspection tests must be marked passed before the phase can be completed.');
+        }
+
+        $project->setPhaseData('inspection', array_merge($tests, [
+            'completed'    => true,
+            'completed_at' => now()->toDateTimeString(),
+        ]));
 
         $newProgress = Project::PHASE_PROGRESS['inspection'];
 
         $project->update([
             'current_phase' => 'painting',
             'progress'      => $newProgress,
-        ]);
-
-        $this->createAdminUpdate($project, [
-            'phase'      => 'inspection',
-            'work_done'  => 'Inspection completed successfully.',
-            'percentage' => $newProgress,
-            'date_of_work' => $request->filled('date_of_work') ? $request->date_of_work : now()->toDateString(),
         ]);
 
         NotificationService::phaseAdvanced(

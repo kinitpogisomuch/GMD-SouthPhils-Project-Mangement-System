@@ -51,7 +51,7 @@
                     </div>
                     <div class="pf-summary-body">
                         <div class="pf-summary-label">Total Revenue</div>
-                        <div class="pf-summary-value">₱{{ number_format($totalRevenue, 2) }}</div>
+                        <div class="pf-summary-value">₱{{ number_format(round($totalRevenue), 0) }}</div>
                         <div class="pf-summary-sub">Contract value of active projects</div>
                     </div>
                 </div>
@@ -74,7 +74,7 @@
                     <div class="pf-summary-body">
                         <div class="pf-summary-label">Net Profit</div>
                         <div class="pf-summary-value" style="{{ $netProfit < 0 ? 'color:#dc2626;' : '' }}">
-                            {{ $netProfit < 0 ? '-' : '' }}₱{{ number_format(abs($netProfit), 2) }}
+                            {{ $netProfit < 0 ? '-' : '' }}₱{{ number_format(round(abs($netProfit)), 0) }}
                         </div>
                         <div class="pf-summary-sub">Revenue − Material − Labor − Overhead</div>
                     </div>
