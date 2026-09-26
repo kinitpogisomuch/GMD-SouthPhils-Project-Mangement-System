@@ -51,7 +51,7 @@ class ProjectMaterialController extends Controller
         $totalMaterials  = $activeMaterials->count();
         $totalQuantity   = $activeMaterials->sum('quantity');
         $estimatedCost   = $activeMaterials->sum('total_cost');
-        $materialFactor  = $materials->first()->factor ?? 7;
+        $materialFactor  = $materials->first()->factor ?? 0;
 
         $regularEmployees = Employee::where('status', 'Active')
             ->where('employee_type', 'Regular')
@@ -149,6 +149,9 @@ class ProjectMaterialController extends Controller
     public function store(Request $request, $projectId)
     {
         $project = Project::findOrFail($projectId);
+        if ($blocked = $this->completedGuard($project)) {
+            return $blocked;
+        }
 
         $request->validate([
             'material_id'        => 'nullable|array',
@@ -168,11 +171,55 @@ class ProjectMaterialController extends Controller
             'entry_time'         => 'nullable|date_format:H:i',
         ]);
 
+        [$createdCount, $updatedCount, $deletedCount] = $this->syncMaterials($request, $project);
+
+        $messages = [];
+        if ($createdCount > 0) {
+            $messages[] = $createdCount === 1 ? "1 material added" : "{$createdCount} materials added";
+        }
+        if ($updatedCount > 0) {
+            $messages[] = $updatedCount === 1 ? "1 material updated" : "{$updatedCount} materials updated";
+        }
+        if ($deletedCount > 0) {
+            $messages[] = $deletedCount === 1 ? "1 material deleted" : "{$deletedCount} materials deleted";
+        }
+        $message = $messages ? implode(', ', $messages) . '.' : 'No changes were made.';
+
+        return redirect()
+            ->route('admin.project_materials.detail', $projectId)
+            ->with('success', $message);
+    }
+
+    /**
+     * A completed project's quotation is view only. Returns a redirect (with an error)
+     * when the project is completed, or null when editing is allowed.
+     */
+    private function completedGuard(Project $project)
+    {
+        if ($project->status !== 'completed') {
+            return null;
+        }
+
+        return redirect()
+            ->route('admin.project_materials.detail', $project->id)
+            ->with('error', 'This project is completed, so its quotation is view only.');
+    }
+
+    /**
+     * Apply the material rows/deletions in the request to a project and keep every
+     * material's factor in sync. Rows without a name are skipped so a blank row left in
+     * the form never fails the whole save.
+     *
+     * @return array{0:int,1:int,2:int} created, updated, deleted counts
+     */
+    private function syncMaterials(Request $request, Project $project): array
+    {
+        $projectId = $project->id;
         $ids       = $request->input('material_id', []);
         $deleteIds = $request->input('delete_material_id', []);
-        $names     = $request->input('material_name');
-        $qtys      = $request->input('quantity');
-        $prices    = $request->input('price_per_unit');
+        $names     = $request->input('material_name', []);
+        $qtys      = $request->input('quantity', []);
+        $prices    = $request->input('price_per_unit', []);
         $units     = $request->input('unit', []);
         $notes     = $request->input('notes', []);
         $factor    = (float) $request->input('factor');
@@ -197,8 +244,12 @@ class ProjectMaterialController extends Controller
         }
 
         foreach ($names as $i => $name) {
-            $qty   = (float) $qtys[$i];
-            $price = (float) $prices[$i];
+            if (trim((string) $name) === '') {
+                continue;
+            }
+
+            $qty   = (float) ($qtys[$i] ?? 0);
+            $price = (float) ($prices[$i] ?? 0);
             $id    = !empty($ids[$i]) ? (int) $ids[$i] : null;
 
             if ($id) {
@@ -240,26 +291,194 @@ class ProjectMaterialController extends Controller
         // The Material Factor applies to the whole project — keep every material's factor in sync.
         ProjectMaterial::where('project_id', $projectId)->update(['factor' => $factor]);
 
-        $messages = [];
-        if ($createdCount > 0) {
-            $messages[] = $createdCount === 1 ? "1 material added" : "{$createdCount} materials added";
+        return [$createdCount, $updatedCount, $deletedCount];
+    }
+
+    /**
+     * The project quotation page's single Save: materials (add / edit / delete) and labor
+     * (add / archive-restore) plus the working days are submitted together and applied in
+     * one transaction, and only when the quotation is complete — every row fully filled in,
+     * at least one material and one labor entry.
+     */
+    public function saveAll(Request $request, $projectId)
+    {
+        $project = Project::findOrFail($projectId);
+        if ($blocked = $this->completedGuard($project)) {
+            return $blocked;
         }
-        if ($updatedCount > 0) {
-            $messages[] = $updatedCount === 1 ? "1 material updated" : "{$updatedCount} materials updated";
+
+        // Pricing (markup + payment terms) lives in the project's Payment record. It is only
+        // editable when that record exists, and the terms are frozen once a payment is recorded.
+        $pay          = $project->getPaymentRecord();
+        $termsLocked  = $pay && $pay->transactions()->exists();
+
+        $request->validate([
+            'markup_percent'         => $pay ? 'required|numeric|min:0|max:100' : 'nullable',
+            'payment_term_type'      => ($pay && !$termsLocked) ? 'required|in:big_project,small_project' : 'nullable',
+            'factor'                 => 'required|numeric|min:0|max:100',
+            'estimated_working_days' => 'required|numeric|gt:0',
+            'entry_date'             => 'nullable|date',
+            'entry_time'             => 'nullable|date_format:H:i',
+
+            'material_id'            => 'nullable|array',
+            'delete_material_id'     => 'nullable|array',
+            'material_name'          => 'nullable|array',
+            'material_name.*'        => 'nullable|string|max:255',
+            'quantity'               => 'nullable|array',
+            'quantity.*'             => 'nullable|numeric|min:0',
+            'price_per_unit'         => 'nullable|array',
+            'price_per_unit.*'       => 'nullable|numeric|min:0',
+            'unit'                   => 'nullable|array',
+            'unit.*'                 => 'nullable|string|max:50',
+            'notes'                  => 'nullable|array',
+            'notes.*'                => 'nullable|string',
+
+            'employee_name'          => 'nullable|array',
+            'employee_name.*'        => 'required|string|max:255',
+            'role'                   => 'nullable|array',
+            'role.*'                 => 'nullable|string|max:255',
+            'daily_rate'             => 'nullable|array',
+            'daily_rate.*'           => 'nullable|numeric|min:0',
+            'labor_toggle_id'        => 'nullable|array',
+            'labor_toggle_id.*'      => 'integer',
+        ], [], [
+            'markup_percent'         => 'markup',
+            'payment_term_type'      => 'payment terms',
+            'factor'                 => 'material factor',
+            'estimated_working_days' => 'estimated working days',
+        ]);
+
+        $incomplete = [];
+        foreach ($request->input('material_name', []) as $i => $name) {
+            if (trim((string) $name) === '') {
+                continue;
+            }
+            $row = $i + 1;
+            if (trim((string) $request->input("unit.$i")) === '') {
+                $incomplete["unit.$i"] = "Materials row {$row}: enter a unit.";
+            }
+            if ((float) ($request->input("quantity.$i") ?? 0) <= 0) {
+                $incomplete["quantity.$i"] = "Materials row {$row}: quantity must be greater than 0.";
+            }
+            if (trim((string) $request->input("price_per_unit.$i")) === '') {
+                $incomplete["price_per_unit.$i"] = "Materials row {$row}: enter the price per unit.";
+            }
         }
-        if ($deletedCount > 0) {
-            $messages[] = $deletedCount === 1 ? "1 material deleted" : "{$deletedCount} materials deleted";
+        foreach ($request->input('employee_name', []) as $i => $name) {
+            $row = $i + 1;
+            if (trim((string) $request->input("role.$i")) === '') {
+                $incomplete["role.$i"] = "Labor row {$row}: choose a role.";
+            }
+            if (trim((string) $request->input("daily_rate.$i")) === '') {
+                $incomplete["daily_rate.$i"] = "Labor row {$row}: enter the daily rate.";
+            }
         }
-        $message = $messages ? implode(', ', $messages) . '.' : 'No changes were made.';
+        if ($incomplete) {
+            throw \Illuminate\Validation\ValidationException::withMessages($incomplete);
+        }
+
+        $summary = [];
+
+        \DB::transaction(function () use ($request, $project, $projectId, $pay, $termsLocked, &$summary) {
+            [$created, $updated, $deleted] = $this->syncMaterials($request, $project);
+            if ($created) { $summary[] = $created === 1 ? '1 material added' : "{$created} materials added"; }
+            if ($updated) { $summary[] = $updated === 1 ? '1 material updated' : "{$updated} materials updated"; }
+            if ($deleted) { $summary[] = $deleted === 1 ? '1 material deleted' : "{$deleted} materials deleted"; }
+
+            // Labor — working days first, so new rows and existing totals both use the final value
+            $project->update(['estimated_working_days' => $request->input('estimated_working_days')]);
+            $days = (float) $project->estimated_working_days;
+
+            $roles = $request->input('role', []);
+            $rates = $request->input('daily_rate', []);
+            $added = 0;
+            foreach ($request->input('employee_name', []) as $i => $name) {
+                $rate        = (float) ($rates[$i] ?? 0);
+                $role        = trim($roles[$i] ?? '');
+                $description = $role ? "{$name} ({$role})" : $name;
+
+                $labor = new ProjectLabor([
+                    'project_id'  => (int) $projectId,
+                    'description' => $description,
+                    'daily_rate'  => $rate,
+                    'total_cost'  => round($rate * $days, 2),
+                    'status'      => 'active',
+                ]);
+                $this->applyBackdate($labor, $request->entry_date, $request->entry_time);
+                $labor->save();
+                $added++;
+            }
+            if ($added) { $summary[] = $added === 1 ? '1 labor entry added' : "{$added} labor entries added"; }
+
+            foreach ((array) $request->input('labor_toggle_id', []) as $laborId) {
+                $entry = ProjectLabor::where('project_id', $projectId)->find((int) $laborId);
+                if ($entry) {
+                    $entry->status = $entry->status === 'archived' ? 'active' : 'archived';
+                    $entry->save();
+                }
+            }
+
+            \DB::statement(
+                'UPDATE project_labor SET total_cost = ROUND((daily_rate * ?)::numeric, 2) WHERE project_id = ?',
+                [$days, $projectId]
+            );
+
+            // Pricing — only touch the Payment record when the markup or the terms actually changed.
+            // Markup is a percentage of the FROZEN project budget (the fixed target Budget Adherence
+            // measures against), so editing materials never moves the agreed contract by itself.
+            if ($pay) {
+                $newPct    = round((float) $request->input('markup_percent'), 2);
+                $newTerms  = $termsLocked ? $pay->payment_term_type : $request->input('payment_term_type');
+                $oldBudget = (float) $pay->project_budget;
+                $oldPct    = $oldBudget > 0 ? round((float) $pay->markup / $oldBudget * 100, 2) : null;
+
+                if ($oldPct === null || abs($newPct - $oldPct) > 0.004 || $newTerms !== $pay->payment_term_type) {
+                    $budget   = $oldBudget > 0 ? $oldBudget : (float) $project->fresh()->estimatedBudget()['total'];
+                    $markup   = round($budget * $newPct / 100, 2);
+                    $contract = round($budget + $markup, 2);
+                    $paid     = $pay->totalPaid();
+
+                    if ($contract + 0.01 < $paid) {
+                        throw \Illuminate\Validation\ValidationException::withMessages([
+                            'markup_percent' => 'The contract value can\'t be lower than the ₱' . number_format($paid, 2) . ' already paid.',
+                        ]);
+                    }
+
+                    $pay->update([
+                        'project_budget'    => $budget,
+                        'markup'            => $markup,
+                        'contract_amount'   => $contract,
+                        'payment_term_type' => $newTerms,
+                        'payment_terms'     => $newTerms === 'big_project' ? '3 Phases (50% / 30% / 20%)' : '2 Phases (50% / 50%)',
+                        'down_payment'      => round($contract * 0.5, 2),
+                        'balance'           => max(0, round($contract - $paid, 2)),
+                    ]);
+                    $pay->update(['status' => $pay->fresh()->computeStatus()]);
+                    $summary[] = 'pricing updated';
+                }
+            }
+
+            // The finished quotation must contain at least one material and one labor entry.
+            // Throwing here rolls the whole transaction back, so nothing is half-saved.
+            if (!ProjectMaterial::where('project_id', $projectId)->where('status', 'active')->exists()) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['material_name' => 'Add at least one material before saving.']);
+            }
+            if (!ProjectLabor::where('project_id', $projectId)->where('status', 'active')->exists()) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['employee_name' => 'Add at least one labor entry before saving.']);
+            }
+        });
 
         return redirect()
             ->route('admin.project_materials.detail', $projectId)
-            ->with('success', $message);
+            ->with('success', $summary ? 'Quotation saved — ' . implode(', ', $summary) . '.' : 'Quotation saved.');
     }
 
     public function storeLabor(Request $request, $projectId)
     {
         $project = Project::findOrFail($projectId);
+        if ($blocked = $this->completedGuard($project)) {
+            return $blocked;
+        }
 
         $request->validate([
             'estimated_working_days' => 'required|numeric|min:0',
@@ -312,6 +531,9 @@ class ProjectMaterialController extends Controller
     public function updateLabor(Request $request, $projectId, $laborId)
     {
         $project = Project::findOrFail($projectId);
+        if ($blocked = $this->completedGuard($project)) {
+            return $blocked;
+        }
         $entry   = ProjectLabor::where('project_id', $projectId)->findOrFail($laborId);
 
         $validated = $request->validate([
@@ -333,6 +555,9 @@ class ProjectMaterialController extends Controller
     public function updateEstimatedDays(Request $request, $projectId)
     {
         $project = Project::findOrFail($projectId);
+        if ($blocked = $this->completedGuard($project)) {
+            return $blocked;
+        }
 
         $validated = $request->validate([
             'estimated_working_days' => 'required|numeric|min:0',
@@ -352,6 +577,9 @@ class ProjectMaterialController extends Controller
 
     public function archiveLabor($projectId, $laborId)
     {
+        if ($blocked = $this->completedGuard(Project::findOrFail($projectId))) {
+            return $blocked;
+        }
         $entry         = ProjectLabor::where('project_id', $projectId)->findOrFail($laborId);
         $entry->status = $entry->status === 'archived' ? 'active' : 'archived';
         $entry->save();

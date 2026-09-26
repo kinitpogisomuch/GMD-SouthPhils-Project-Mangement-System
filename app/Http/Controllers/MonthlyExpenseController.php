@@ -106,6 +106,12 @@ class MonthlyExpenseController extends Controller
         $month = $v['month_year'];
         $projectIds = $v['project_ids'] ?? [];
 
+        // An allocation splits the month's logged expenses — with none logged there is nothing to save.
+        if (!MonthlyExpense::where('month_year', $month)->exists()) {
+            return redirect()->route('admin.monthly-expenses.index', ['month' => $month])
+                ->with('error', 'Log at least one expense item for this month before saving the allocation.');
+        }
+
         // Remove previous allocations for this month
         DB::table('monthly_expense_projects')->where('month_year', $month)->delete();
 

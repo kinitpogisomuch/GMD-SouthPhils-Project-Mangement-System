@@ -142,6 +142,25 @@ class Project extends Model
         return $this->hasMany(ProjectMaterial::class)->where('status', 'active');
     }
 
+    const INSPECTION_TESTS = ['pressure_test_passed', 'soap_testing_passed', 'pneumatic_test_passed', 'leak_test_passed'];
+
+    /**
+     * How many times each inspection test has been logged as passed. Different
+     * tanks call for different tests, so there is no required count — it's just
+     * a running tally. Older records stored a plain true/false; true counts as 1.
+     */
+    public function inspectionPassCounts(): array
+    {
+        $data = $this->phaseData('inspection', []);
+
+        $counts = [];
+        foreach (self::INSPECTION_TESTS as $key) {
+            $counts[$key] = max(0, (int) ($data[$key] ?? 0));
+        }
+
+        return $counts;
+    }
+
     /** Relationship: Project has many logged material purchases */
     public function materialPurchases()
     {
@@ -463,10 +482,10 @@ class Project extends Model
     /**
      * The payment stage currently flagging this project for "Needs
      * Settlement" ('down_payment', 'progress_payment', 'final_payment'), or
-     * null if there's nothing to flag. This is a soft reminder, not a hard
-     * gate — phase progression is never blocked on it. The badge clears as
-     * soon as ANY amount has been recorded toward the relevant stage, even
-     * a partial payment — it doesn't require the stage to be fully settled.
+     * null if there's nothing to flag. It is also a hard gate on phase
+     * progression (see ProjectController::addUpdate()). It clears as soon as
+     * ANY amount has been recorded toward the relevant stage, even a partial
+     * payment — it doesn't require the stage to be fully settled.
      */
     public function awaitingPaymentStage(): ?string
     {

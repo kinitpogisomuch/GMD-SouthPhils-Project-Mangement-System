@@ -45,10 +45,19 @@ class QuotationRequestController extends Controller
             ->get()
             ->groupBy(fn ($r) => $r->batch_id ?: ('single-' . $r->id));
 
+        // Finished business (accepted or declined) is the module's third tab, so the client never
+        // has to leave the Quotation page to look back at earlier requests.
+        $historyBatches = QuotationRequest::where('client_id', $client->id)
+            ->whereIn('status', ['converted', 'declined'])
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->groupBy(fn ($r) => $r->batch_id ?: ('single-' . $r->id));
+
         return view('client.quotation_request', [
             'client'         => $client,
             'tankTypes'      => ProjectTankItem::TANK_TYPES,
             'pendingBatches' => $pendingBatches,
+            'historyBatches' => $historyBatches,
         ]);
     }
 
@@ -57,91 +66,80 @@ class QuotationRequestController extends Controller
         $client = Client::findOrFail(session('user_id'));
 
         $request->validate([
-            'tank_items'                    => 'nullable|array',
-            'tank_items.*.tank_type'        => 'required|string|in:' . implode(',', ProjectTankItem::TANK_TYPES),
-            'tank_items.*.capacity'         => 'nullable|string|max:255',
-            'tank_items.*.quantity'         => 'nullable|integer|min:1',
-            'tank_items.*.target_timeline'  => 'nullable|date',
-            'location'                      => 'required|string|max:1000',
-            'notes'                         => 'nullable|string|max:2000',
-            'submitted_date'                => 'nullable|date',
-            'submitted_time'                => 'nullable|date_format:H:i',
-            'reference_files'               => 'nullable|array|max:5',
+            // Tank requirements are mandatory (at least one tank). Each tank is either for delivery
+            // (which needs an address) or for pick-up (which doesn't); its own design upload is optional.
+            'tank_items'                        => 'required|array|min:1',
+            'tank_items.*.tank_type'            => 'required|string|in:' . implode(',', ProjectTankItem::TANK_TYPES),
+            'tank_items.*.capacity'             => 'required|string|max:255',
+            'tank_items.*.quantity'             => 'required|integer|min:1',
+            'tank_items.*.target_timeline'      => 'nullable|date',
+            'tank_items.*.fulfillment'          => 'required|in:delivery,pickup',
+            'tank_items.*.address'              => 'required_if:tank_items.*.fulfillment,delivery|nullable|string|max:1000',
+            'tank_items.*.design_files'         => 'nullable|array|max:5',
             // "extensions" (not "mimes") because CAD tools like AutoCAD don't produce a
             // MIME type PHP's file-info can reliably sniff — Laravel's "mimes" rule would
             // reject valid .dwg uploads, so we trust the file's extension instead.
-            'reference_files.*'             => 'file|extensions:pdf,jpg,jpeg,png,dwg|max:10240',
+            'tank_items.*.design_files.*'       => 'file|extensions:pdf,jpg,jpeg,png,dwg|max:10240',
+            'notes'                             => 'nullable|string|max:2000',
+            'submitted_date'                    => 'nullable|date',
+            'submitted_time'                    => 'nullable|date_format:H:i',
+        ], [
+            'tank_items.required'                     => 'Please add at least one tank requirement.',
+            'tank_items.min'                          => 'Please add at least one tank requirement.',
+            'tank_items.*.tank_type.required'         => 'Choose a tank type for every tank.',
+            'tank_items.*.capacity.required'          => 'Enter the capacity / size for every tank.',
+            'tank_items.*.quantity.required'          => 'Enter a quantity for every tank.',
+            'tank_items.*.fulfillment.required'       => 'Choose delivery or pick-up for every tank.',
+            'tank_items.*.address.required_if'        => 'Enter the delivery address for every tank that is for delivery.',
         ]);
 
-        $tankItems = $request->input('tank_items', []);
+        // Every tank is its own request — its own batch, so its own quotation, its own approval, project and
+        // payments. The client approves each quotation separately, so tanks in one submission (which may go to
+        // different addresses, or be picked up) must never share a quotation.
+        $created = collect();
+        $tankNo  = 0;
 
-        // A client can fill in tank specs, attach photos of a tank they already
-        // own, or both — but the request needs at least one of the two.
-        if (empty($tankItems) && !$request->hasFile('reference_files')) {
-            return redirect()->back()
-                ->withErrors(['tank_items' => 'Please add at least one tank requirement, or attach a photo of your existing tank.'])
-                ->withInput();
-        }
+        foreach ($request->input('tank_items', []) as $tankKey => $item) {
+            $tankNo++;
+            $batchId    = (string) Str::uuid();
+            $delivery   = ($item['fulfillment'] ?? 'delivery') === 'delivery';
+            $files      = $request->file("tank_items.$tankKey.design_files", []);
+            $designUrls = $files
+                ? $this->storage->uploadMultiple($files, 'quotation-requests/' . $batchId . '/reference')
+                : [];
 
-        // Each tank the client adds becomes its own independent quotation request —
-        // its own status, its own quotation file, its own approve/decline — tagged
-        // with a shared batch_id purely so the UI can show "submitted together".
-        $batchId = (string) Str::uuid();
-
-        // Optional photos/files of a tank the client already owns — shared across
-        // the whole batch, not per tank, so it's uploaded once and copied to each row.
-        $referenceUrls = $this->storage->uploadMultiple(
-            $request->file('reference_files', []),
-            'quotation-requests/' . $batchId . '/reference'
-        );
-
-        // No tank specs at all means the client is only sending their own tank —
-        // still create one row so the reference photos have somewhere to live.
-        if (empty($tankItems)) {
-            $tankItems = [['tank_type' => null, 'capacity' => null, 'quantity' => 1, 'target_timeline' => null]];
-        }
-
-        $created = collect($tankItems)->map(function ($item) use ($client, $batchId, $request, $referenceUrls) {
             $quotationRequest = new QuotationRequest([
                 'client_id'       => $client->id,
                 'batch_id'        => $batchId,
-                'tank_type'       => $item['tank_type'] ?? null,
-                'capacity'        => $item['capacity'] ?? null,
-                'quantity'        => $item['quantity'] ?? 1,
+                'tank_type'       => $item['tank_type'],
+                'capacity'        => $item['capacity'],
+                'quantity'        => $item['quantity'],
                 'target_timeline' => $item['target_timeline'] ?? null,
-                'location'        => $request->location,
+                'fulfillment'     => $delivery ? 'delivery' : 'pickup',
+                'location'        => $delivery ? trim($item['address']) : null,
                 'notes'           => $request->notes,
-                'reference_files' => !empty($referenceUrls) ? $referenceUrls : null,
+                'reference_files' => !empty($designUrls) ? $designUrls : null,
                 'status'          => 'pending',
             ]);
             $this->applyBackdate($quotationRequest, $request->submitted_date, $request->submitted_time);
             $quotationRequest->save();
 
-            return $quotationRequest;
-        });
+            $created->push($quotationRequest);
+        }
 
         $created->each(fn ($qr) => NotificationService::quotationRequestSubmitted($qr));
 
         $message = $created->count() > 1
-            ? 'Your ' . $created->count() . ' quotation requests have been submitted! Our team will review them shortly.'
+            ? 'Your ' . $created->count() . ' tanks were sent as ' . $created->count() . ' separate quotation requests — each one gets its own quotation and approval. Our team will review them shortly.'
             : 'Your request has been submitted! Our team will review it shortly.';
 
         return redirect()->route('client.quotation.create')->with('success', $message);
     }
 
+    /** Quotation History used to be its own page; it is now the History tab of the Quotation module. */
     public function status()
     {
-        $client = Client::findOrFail(session('user_id'));
-
-        // History is for finished business only — active/in-review requests live on
-        // the "Request Quotation" page instead, so they aren't shown twice.
-        $requests = QuotationRequest::where('client_id', $client->id)
-            ->whereIn('status', ['converted', 'declined'])
-            ->orderBy('created_at', 'desc')
-            ->get()
-            ->groupBy(fn ($r) => $r->batch_id ?: ('single-' . $r->id));
-
-        return view('client.quotation_status', compact('requests'));
+        return redirect()->route('client.quotation.create', ['tab' => 'history']);
     }
 
     /** Approves every tank request in the batch together — the client reviews and decides on one combined quotation. */
@@ -379,7 +377,7 @@ class QuotationRequestController extends Controller
         $activeMaterials = $materials->where('status', 'active');
         $totalMaterials  = $activeMaterials->count();
         $estimatedCost   = $activeMaterials->sum('total_cost');
-        $materialFactor  = $materials->first()->factor ?? 7;
+        $materialFactor  = $materials->first()->factor ?? 0;   // new quotations start at 0% until a factor is set
 
         $laborEntries      = ProjectLabor::where('quotation_batch_id', $batchId)
             ->orderBy('created_at')
@@ -441,9 +439,42 @@ class QuotationRequestController extends Controller
             ->with('success', 'Markup updated.');
     }
 
+    /**
+     * What is still missing from the saved quotation before it can go to the client.
+     * An empty array means the Quotation Builder is complete.
+     */
+    private function quotationGaps(QuotationBatch $batch): array
+    {
+        $gaps = [];
+
+        if ($batch->markup_percent === null)          { $gaps[] = 'Markup / Profit'; }
+        if (empty($batch->payment_term_type))         { $gaps[] = 'Payment Terms'; }
+        if ((float) $batch->estimated_working_days <= 0) { $gaps[] = 'Estimated Working Days'; }
+
+        $materials = $batch->activeMaterials()->get();
+        if ($materials->isEmpty()) {
+            $gaps[] = 'at least one material';
+        } elseif ($materials->contains(fn ($m) => trim((string) $m->unit) === '' || (float) $m->quantity <= 0)) {
+            $gaps[] = 'a unit and quantity on every material';
+        }
+
+        if (!$batch->activeLabor()->exists()) {
+            $gaps[] = 'at least one labor entry';
+        }
+
+        return $gaps;
+    }
+
     public function sendBatchQuotation(Request $request, $batchId)
     {
         $batch = $this->resolveBatch($batchId);
+
+        // Only a finished Quotation Builder can be sent — the button is disabled until then, this is the backstop.
+        if ($gaps = $this->quotationGaps($batch)) {
+            return redirect()
+                ->route('admin.quotation_requests.batch_detail', $batchId)
+                ->with('error', 'Complete the Quotation Builder before sending to the client: ' . implode(', ', $gaps) . '.');
+        }
 
         $request->validate([
             'quotation_files'    => 'required|array|min:1|max:5',
@@ -521,74 +552,7 @@ class QuotationRequestController extends Controller
             'entry_time'         => 'nullable|date_format:H:i',
         ]);
 
-        $ids       = $request->input('material_id', []);
-        $deleteIds = $request->input('delete_material_id', []);
-        $names     = $request->input('material_name');
-        $qtys      = $request->input('quantity');
-        $prices    = $request->input('price_per_unit');
-        $units     = $request->input('unit', []);
-        $notes     = $request->input('notes', []);
-        $factor    = (float) $request->input('factor');
-
-        $createdCount = 0;
-        $updatedCount = 0;
-        $deletedCount = 0;
-
-        foreach ($deleteIds as $deleteId) {
-            if (empty($deleteId)) {
-                continue;
-            }
-
-            $material = ProjectMaterial::where('quotation_batch_id', $batchId)->find((int) $deleteId);
-
-            if ($material) {
-                $material->delete();
-                $deletedCount++;
-            }
-        }
-
-        foreach ($names as $i => $name) {
-            $qty   = (float) $qtys[$i];
-            $price = (float) $prices[$i];
-            $id    = !empty($ids[$i]) ? (int) $ids[$i] : null;
-
-            if ($id) {
-                $material = ProjectMaterial::where('quotation_batch_id', $batchId)->find($id);
-
-                if ($material) {
-                    $material->update([
-                        'material_name'  => $name,
-                        'quantity'       => $qty,
-                        'unit'           => $units[$i] ?? $material->unit,
-                        'price_per_unit' => $price,
-                        'total_cost'     => round($qty * $price, 2),
-                        'notes'          => $notes[$i] ?? null,
-                    ]);
-
-                    $updatedCount++;
-                    continue;
-                }
-            }
-
-            $material = new ProjectMaterial([
-                'quotation_batch_id' => $batchId,
-                'material_name'      => $name,
-                'quantity'           => $qty,
-                'unit'               => $units[$i] ?? '',
-                'price_per_unit'     => $price,
-                'total_cost'         => round($qty * $price, 2),
-                'factor'             => $factor,
-                'notes'              => $notes[$i] ?? null,
-                'status'             => 'active',
-            ]);
-            $this->applyBackdate($material, $request->entry_date, $request->entry_time);
-            $material->save();
-
-            $createdCount++;
-        }
-
-        // The Material Factor applies to the whole quotation — keep every material's factor in sync.
-        ProjectMaterial::where('quotation_batch_id', $batchId)->update(['factor' => $factor]);
+        [$createdCount, $updatedCount, $deletedCount] = $this->syncMaterials($request, $batchId);
 
         $messages = [];
         if ($createdCount > 0) {
@@ -658,6 +622,247 @@ class QuotationRequestController extends Controller
             ->route('admin.quotation_requests.batch_detail', $batchId)
             ->with('success', "Successfully added {$label} to the quotation.");
     }
+
+    /**
+     * Apply the material rows/deletions in the request to a quotation batch and
+     * keep every material's factor in sync. Rows without a name are skipped so a
+     * blank row left in the form never fails the whole save.
+     *
+     * @return array{0:int,1:int,2:int} created, updated, deleted counts
+     */
+    private function syncMaterials(Request $request, string $batchId): array
+    {
+        $ids       = $request->input('material_id', []);
+        $deleteIds = $request->input('delete_material_id', []);
+        $names     = $request->input('material_name', []);
+        $qtys      = $request->input('quantity', []);
+        $prices    = $request->input('price_per_unit', []);
+        $units     = $request->input('unit', []);
+        $notes     = $request->input('notes', []);
+        $factor    = (float) $request->input('factor');
+
+        $createdCount = 0;
+        $updatedCount = 0;
+        $deletedCount = 0;
+
+        foreach ($deleteIds as $deleteId) {
+            if (empty($deleteId)) {
+                continue;
+            }
+
+            $material = ProjectMaterial::where('quotation_batch_id', $batchId)->find((int) $deleteId);
+
+            if ($material) {
+                $material->delete();
+                $deletedCount++;
+            }
+        }
+
+        foreach ($names as $i => $name) {
+            if (trim((string) $name) === '') {
+                continue;
+            }
+
+            $qty   = (float) ($qtys[$i] ?? 0);
+            $price = (float) ($prices[$i] ?? 0);
+            $id    = !empty($ids[$i]) ? (int) $ids[$i] : null;
+
+            if ($id) {
+                $material = ProjectMaterial::where('quotation_batch_id', $batchId)->find($id);
+
+                if ($material) {
+                    $material->update([
+                        'material_name'  => $name,
+                        'quantity'       => $qty,
+                        'unit'           => $units[$i] ?? $material->unit,
+                        'price_per_unit' => $price,
+                        'total_cost'     => round($qty * $price, 2),
+                        'notes'          => $notes[$i] ?? null,
+                    ]);
+
+                    $updatedCount++;
+                    continue;
+                }
+            }
+
+            $material = new ProjectMaterial([
+                'quotation_batch_id' => $batchId,
+                'material_name'      => $name,
+                'quantity'           => $qty,
+                'unit'               => $units[$i] ?? '',
+                'price_per_unit'     => $price,
+                'total_cost'         => round($qty * $price, 2),
+                'factor'             => $factor,
+                'notes'              => $notes[$i] ?? null,
+                'status'             => 'active',
+            ]);
+            $this->applyBackdate($material, $request->entry_date, $request->entry_time);
+            $material->save();
+
+            $createdCount++;
+        }
+
+        // The Material Factor applies to the whole quotation — keep every material's factor in sync.
+        ProjectMaterial::where('quotation_batch_id', $batchId)->update(['factor' => $factor]);
+
+        return [$createdCount, $updatedCount, $deletedCount];
+    }
+
+    /**
+     * The Build Quotation page's single Save: markup, payment terms, materials
+     * (add / edit / delete) and labor (add / archive-restore) are all submitted
+     * together and applied in one transaction, so a failure never leaves the
+     * quotation half-saved.
+     */
+    public function saveAll(Request $request, $batchId)
+    {
+        $batch = $this->resolveBatch($batchId);
+
+        $request->validate([
+            'markup_percent'         => 'required|numeric|min:0|max:100',
+            'payment_term_type'      => 'required|in:big_project,small_project',
+            'factor'                 => 'required|numeric|min:0|max:100',
+            'estimated_working_days' => 'required|numeric|gt:0',
+            'entry_date'             => 'nullable|date',
+            'entry_time'             => 'nullable|date_format:H:i',
+
+            'material_id'            => 'nullable|array',
+            'delete_material_id'     => 'nullable|array',
+            'material_name'          => 'nullable|array',
+            'material_name.*'        => 'nullable|string|max:255',
+            'quantity'               => 'nullable|array',
+            'quantity.*'             => 'nullable|numeric|min:0',
+            'price_per_unit'         => 'nullable|array',
+            'price_per_unit.*'       => 'nullable|numeric|min:0',
+            'unit'                   => 'nullable|array',
+            'unit.*'                 => 'nullable|string|max:50',
+            'notes'                  => 'nullable|array',
+            'notes.*'                => 'nullable|string',
+
+            'employee_name'          => 'nullable|array',
+            'employee_name.*'        => 'required|string|max:255',
+            'role'                   => 'nullable|array',
+            'role.*'                 => 'nullable|string|max:255',
+            'daily_rate'             => 'nullable|array',
+            'daily_rate.*'           => 'nullable|numeric|min:0',
+            'labor_toggle_id'        => 'nullable|array',
+            'labor_toggle_id.*'      => 'integer',
+        ], [], [
+            'markup_percent'         => 'markup',
+            'payment_term_type'      => 'payment terms',
+            'factor'                 => 'material factor',
+            'estimated_working_days' => 'estimated working days',
+        ]);
+
+        // A quotation is only saved when it is complete: every material row fully filled in
+        // (blank-named rows are ignored), and every new labor row with an employee, role and rate.
+        $incomplete = [];
+        foreach ($request->input('material_name', []) as $i => $name) {
+            if (trim((string) $name) === '') {
+                continue;
+            }
+            $row = $i + 1;
+            if (trim((string) $request->input("unit.$i")) === '') {
+                $incomplete["unit.$i"] = "Materials row {$row}: enter a unit.";
+            }
+            if ((float) ($request->input("quantity.$i") ?? 0) <= 0) {
+                $incomplete["quantity.$i"] = "Materials row {$row}: quantity must be greater than 0.";
+            }
+            if (trim((string) $request->input("price_per_unit.$i")) === '') {
+                $incomplete["price_per_unit.$i"] = "Materials row {$row}: enter the price per unit.";
+            }
+        }
+        foreach ($request->input('employee_name', []) as $i => $name) {
+            $row = $i + 1;
+            if (trim((string) $request->input("role.$i")) === '') {
+                $incomplete["role.$i"] = "Labor row {$row}: choose a role.";
+            }
+            if (trim((string) $request->input("daily_rate.$i")) === '') {
+                $incomplete["daily_rate.$i"] = "Labor row {$row}: enter the daily rate.";
+            }
+        }
+        if ($incomplete) {
+            throw \Illuminate\Validation\ValidationException::withMessages($incomplete);
+        }
+
+        $summary = [];
+
+        \DB::transaction(function () use ($request, $batch, $batchId, &$summary) {
+            // Materials
+            [$created, $updated, $deleted] = $this->syncMaterials($request, $batchId);
+            if ($created) { $summary[] = $created === 1 ? '1 material added' : "{$created} materials added"; }
+            if ($updated) { $summary[] = $updated === 1 ? '1 material updated' : "{$updated} materials updated"; }
+            if ($deleted) { $summary[] = $deleted === 1 ? '1 material deleted' : "{$deleted} materials deleted"; }
+
+            // Labor — days first, so new rows and existing totals both use the final value
+            if ($request->filled('estimated_working_days')) {
+                $batch->update(['estimated_working_days' => $request->input('estimated_working_days')]);
+            }
+            $days = (float) ($batch->estimated_working_days ?? 0);
+
+            $roles = $request->input('role', []);
+            $rates = $request->input('daily_rate', []);
+            $added = 0;
+            foreach ($request->input('employee_name', []) as $i => $name) {
+                $rate        = (float) ($rates[$i] ?? 0);
+                $role        = trim($roles[$i] ?? '');
+                $description = $role ? "{$name} ({$role})" : $name;
+
+                $labor = new ProjectLabor([
+                    'quotation_batch_id' => $batchId,
+                    'description'        => $description,
+                    'daily_rate'         => $rate,
+                    'total_cost'         => round($rate * $days, 2),
+                    'status'             => 'active',
+                ]);
+                $this->applyBackdate($labor, $request->entry_date, $request->entry_time);
+                $labor->save();
+                $added++;
+            }
+            if ($added) { $summary[] = $added === 1 ? '1 labor entry added' : "{$added} labor entries added"; }
+
+            foreach ((array) $request->input('labor_toggle_id', []) as $laborId) {
+                $entry = ProjectLabor::where('quotation_batch_id', $batchId)->find((int) $laborId);
+                if ($entry) {
+                    $entry->status = $entry->status === 'archived' ? 'active' : 'archived';
+                    $entry->save();
+                }
+            }
+
+            \DB::statement(
+                'UPDATE project_labor SET total_cost = ROUND((daily_rate * ?)::numeric, 2) WHERE quotation_batch_id = ?',
+                [$days, $batchId]
+            );
+
+            // The finished quotation must contain at least one material and one labor entry.
+            // Throwing here rolls the whole transaction back, so nothing is half-saved.
+            if (!ProjectMaterial::where('quotation_batch_id', $batchId)->where('status', 'active')->exists()) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['material_name' => 'Add at least one material before saving.']);
+            }
+            if (!ProjectLabor::where('quotation_batch_id', $batchId)->where('status', 'active')->exists()) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['employee_name' => 'Add at least one labor entry before saving.']);
+            }
+
+            // Markup last — it is a percentage of the Project Budget, which the rows above just changed
+            $projectBudget = $batch->fresh()->estimatedBudget()['total'];
+            $batch->update([
+                'markup'            => round($projectBudget * (float) $request->input('markup_percent') / 100, 2),
+                'markup_percent'    => $request->input('markup_percent'),
+                'payment_term_type' => $request->input('payment_term_type') ?: $batch->payment_term_type,
+            ]);
+        });
+
+        // "Send to Client" saves first so the modal always shows what is persisted.
+        $routeParams = ['batchId' => $batchId];
+        if ($request->boolean('open_send_modal')) {
+            $routeParams['open_send'] = 1;
+        }
+
+        return redirect()
+            ->route('admin.quotation_requests.batch_detail', $routeParams)
+            ->with('success', $summary ? 'Quotation saved — ' . implode(', ', $summary) . '.' : 'Quotation saved.');
+    }
+
 
     public function deleteMaterial($batchId, $materialId)
     {

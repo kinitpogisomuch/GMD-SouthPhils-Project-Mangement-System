@@ -301,7 +301,7 @@
                             @endif
                         </div>
 
-                        <div style="display:grid;grid-template-columns:2.2fr 0.9fr 0.8fr 1fr 1fr 26px;gap:8px;padding:0 4px 6px;margin-bottom:2px;">
+                        <div id="purchaseRowsHeader" style="display:none;grid-template-columns:2.2fr 0.9fr 0.8fr 1fr 1fr 26px;gap:8px;padding:0 4px 6px;margin-bottom:2px;">
                             <span style="font-size:10.5px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.04em;">Material</span>
                             <span style="font-size:10.5px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.04em;">Unit</span>
                             <span style="font-size:10.5px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.04em;">Qty</span>
@@ -311,6 +311,9 @@
                         </div>
 
                         <div id="purchaseRowsContainer"></div>
+                        <div id="purchaseRowsEmpty" style="padding:34px 16px;margin-bottom:6px;text-align:center;font-size:13px;color:rgba(255,255,255,.5);border:1px dashed rgba(255,255,255,.16);border-radius:12px;">
+                            No materials added yet. Click <strong style="color:#fff;">Add Material</strong> to get started.
+                        </div>
 
                         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:12px;align-items:end;">
                             <div class="pm-add-field">
@@ -713,7 +716,7 @@
                             @endif
                         </div>
 
-                        <div style="display:grid;grid-template-columns:2.4fr 1fr 0.9fr 26px;gap:8px;padding:0 4px 6px;margin-bottom:2px;">
+                        <div id="usageRowsHeader" style="display:none;grid-template-columns:2.4fr 1fr 0.9fr 26px;gap:8px;padding:0 4px 6px;margin-bottom:2px;">
                             <span style="font-size:10.5px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.04em;">Material</span>
                             <span style="font-size:10.5px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.04em;">Unit</span>
                             <span style="font-size:10.5px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.04em;">Qty Used</span>
@@ -721,6 +724,9 @@
                         </div>
 
                         <div id="usageRowsContainer"></div>
+                        <div id="usageRowsEmpty" style="padding:34px 16px;margin-bottom:6px;text-align:center;font-size:13px;color:rgba(255,255,255,.5);border:1px dashed rgba(255,255,255,.16);border-radius:12px;">
+                            No materials added yet. Click <strong style="color:#fff;">Add Material</strong> to get started.
+                        </div>
 
                         <div class="pm-add-field" style="max-width:220px;margin-top:12px;">
                             <label>Date</label>
@@ -866,6 +872,7 @@
 
         // ---- Multi-row material purchase log ----
         var UNPURCHASED_MATS = @json($unpurchasedMatsJs);
+        var PURCHASE_EMPTY_HTML = document.getElementById('purchaseRowsEmpty').innerHTML;
 
         function addPurchaseRow(prefill) {
             var tpl       = document.getElementById('purchaseRowTemplate');
@@ -886,6 +893,7 @@
 
             if (typeof lucide !== 'undefined') lucide.createIcons();
             calcAllPurchaseTotals();
+            updatePurchaseEmptyState();
             return row;
         }
 
@@ -893,6 +901,19 @@
             var row = btn.closest('.purchase-row');
             if (row) row.remove();
             calcAllPurchaseTotals();
+            updatePurchaseEmptyState();
+        }
+
+        // Nothing but the "Add Material" message until the first row is added.
+        function updatePurchaseEmptyState() {
+            var hasRows = document.querySelector('#purchaseRowsContainer .purchase-row') !== null;
+            document.getElementById('purchaseRowsEmpty').style.display  = hasRows ? 'none' : '';
+            document.getElementById('purchaseRowsHeader').style.display = hasRows ? 'grid' : 'none';
+            // reset the message (a failed save turns it into a red warning)
+            var empty = document.getElementById('purchaseRowsEmpty');
+            empty.innerHTML = PURCHASE_EMPTY_HTML;
+            empty.style.borderColor = 'rgba(255,255,255,.16)';
+            empty.style.color = 'rgba(255,255,255,.5)';
         }
 
         function addAllUnpurchasedRows() {
@@ -958,7 +979,10 @@
                 var rows = document.querySelectorAll('#purchaseRowsContainer .purchase-row');
                 if (!rows.length) {
                     e.preventDefault();
-                    alert('Add at least one material before saving.');
+                    var empty = document.getElementById('purchaseRowsEmpty');
+                    empty.style.borderColor = '#f87171';
+                    empty.style.color = '#fca5a5';
+                    empty.textContent = 'Add at least one material before saving.';
                     return;
                 }
                 rows.forEach(function (row) {
@@ -976,7 +1000,10 @@
                 var rows = document.querySelectorAll('#usageRowsContainer .usage-row');
                 if (!rows.length) {
                     e.preventDefault();
-                    alert('Add at least one material before saving.');
+                    var empty = document.getElementById('usageRowsEmpty');
+                    empty.style.borderColor = '#f87171';
+                    empty.style.color = '#fca5a5';
+                    empty.textContent = 'Add at least one material before saving.';
                     return;
                 }
                 rows.forEach(function (row) {
@@ -986,10 +1013,11 @@
             });
         }
 
-        // Start with one empty row on page load.
+        // Both logs start empty — just the "Add Material" message until a row is added.
+        var USAGE_EMPTY_HTML = document.getElementById('usageRowsEmpty').innerHTML;
         document.addEventListener('DOMContentLoaded', function () {
-            addPurchaseRow();
-            addUsageRow();
+            updatePurchaseEmptyState();
+            updateUsageEmptyState();
         });
 
         // ---- Multi-row material usage log ----
@@ -1008,12 +1036,26 @@
             }
 
             if (typeof lucide !== 'undefined') lucide.createIcons();
+            updateUsageEmptyState();
             return row;
         }
 
         function removeUsageRow(btn) {
             var row = btn.closest('.usage-row');
             if (row) row.remove();
+            updateUsageEmptyState();
+        }
+
+        // Nothing but the "Add Material" message until the first row is added.
+        function updateUsageEmptyState() {
+            var hasRows = document.querySelector('#usageRowsContainer .usage-row') !== null;
+            var empty   = document.getElementById('usageRowsEmpty');
+            document.getElementById('usageRowsHeader').style.display = hasRows ? 'grid' : 'none';
+            empty.style.display = hasRows ? 'none' : '';
+            // reset the message (a failed save turns it into a red warning)
+            empty.innerHTML = USAGE_EMPTY_HTML;
+            empty.style.borderColor = 'rgba(255,255,255,.16)';
+            empty.style.color = 'rgba(255,255,255,.5)';
         }
 
         function addAllInStockRows() {

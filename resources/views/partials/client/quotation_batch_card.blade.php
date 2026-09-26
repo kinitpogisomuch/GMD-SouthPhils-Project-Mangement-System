@@ -44,30 +44,73 @@
         @endforeach
     </div>
 
-    @if(!empty($first->reference_files))
+    {{-- Delivery / pick-up, per tank --}}
+    <div style="margin-bottom:16px;display:flex;flex-direction:column;gap:6px;">
+        @foreach($batch as $qr)
+        <div style="display:flex;align-items:flex-start;gap:8px;font-size:12.5px;color:var(--dark);line-height:1.5;">
+            <i data-lucide="{{ ($qr->fulfillment ?? 'delivery') === 'pickup' ? 'package-check' : 'truck' }}" style="width:14px;height:14px;color:var(--muted);flex-shrink:0;margin-top:2px;"></i>
+            <span>
+                <strong>{{ $qr->tank_type ?: 'Tank' }}</strong> —
+                @if(($qr->fulfillment ?? 'delivery') === 'pickup')
+                    For pick-up
+                @else
+                    Delivery to {{ $qr->location ?: 'the address on file' }}
+                @endif
+            </span>
+        </div>
+        @endforeach
+    </div>
+    @php
+        // Each tank carries its own design files. Requests sent before that change stored the same shared
+        // set on every tank — show that once instead of repeating it under each tank.
+        $tanksWithFiles = $batch->filter(fn ($qr) => !empty($qr->reference_files));
+        $legacyShared   = $batch->count() > 1
+            && $tanksWithFiles->count() === $batch->count()
+            && $tanksWithFiles->map(fn ($qr) => json_encode($qr->reference_files))->unique()->count() === 1;
+        $filePill = 'display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--accent);text-decoration:none;background:#fff;border:1px solid var(--border);border-radius:20px;padding:6px 13px;';
+    @endphp
+    @if($tanksWithFiles->isNotEmpty())
     <div style="margin-bottom:16px;padding-top:12px;border-top:1px dashed var(--border);">
         <div style="font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">
             Your Attached Files
         </div>
-        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+        @if($batch->count() === 1 || $legacyShared)
+        <div style="display:flex;flex-wrap:wrap;gap:8px;" data-receipt-set>
             @foreach($first->reference_files as $i => $file)
-            <a href="{{ $file }}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--accent);text-decoration:none;background:#fff;border:1px solid var(--border);border-radius:20px;padding:6px 13px;">
+            <a href="{{ $file }}" target="_blank" data-receipt style="{{ $filePill }}">
                 <i data-lucide="paperclip" style="width:12px;height:12px;"></i>
                 Attachment {{ $i + 1 }}
             </a>
             @endforeach
         </div>
+        @else
+        @foreach($tanksWithFiles as $qr)
+        <div style="margin-bottom:10px;">
+            <div style="font-size:12px;font-weight:800;color:var(--dark);margin-bottom:6px;display:flex;align-items:center;gap:6px;">
+                <i data-lucide="package" style="width:12px;height:12px;color:var(--muted);"></i>
+                {{ $qr->tank_type }}{{ $qr->quantity > 1 ? ' ×' . $qr->quantity : '' }}@if(!empty($qr->capacity)) &middot; {{ $qr->capacity }}@endif
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;" data-receipt-set>
+                @foreach($qr->reference_files as $i => $file)
+                <a href="{{ $file }}" target="_blank" data-receipt style="{{ $filePill }}">
+                    <i data-lucide="paperclip" style="width:12px;height:12px;"></i>
+                    Design {{ $i + 1 }}
+                </a>
+                @endforeach
+            </div>
+        </div>
+        @endforeach
+        @endif
     </div>
     @endif
-
     @if(!empty($quotationBatch?->quotation_files))
     <div style="margin-bottom:16px;">
         <div style="font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">
             Attached Drawing / Reference
         </div>
-        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+        <div style="display:flex;flex-wrap:wrap;gap:8px;" data-receipt-set>
             @foreach($quotationBatch->quotation_files as $i => $file)
-            <a href="{{ $file }}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--accent);text-decoration:none;background:#fff;border:1px solid var(--border);border-radius:20px;padding:6px 13px;">
+            <a href="{{ $file }}" target="_blank" data-receipt style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--accent);text-decoration:none;background:#fff;border:1px solid var(--border);border-radius:20px;padding:6px 13px;">
                 <i data-lucide="file-text" style="width:12px;height:12px;"></i>
                 File {{ $i + 1 }}
             </a>
@@ -164,10 +207,6 @@
     @endif
 
     <div class="form-grid" style="margin-top:18px;">
-        <div class="form-group form-group-full">
-            <label>Project / Delivery Location</label>
-            <textarea disabled rows="2">{{ $first->location }}</textarea>
-        </div>
         @if($first->notes)
         <div class="form-group form-group-full">
             <label>Additional Notes</label>

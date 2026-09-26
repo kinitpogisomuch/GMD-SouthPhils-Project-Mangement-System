@@ -98,9 +98,7 @@
                 <div class="table-card" style="display:flex;flex-direction:column;">
                     <div class="table-toolbar">
                         <div style="display:flex;align-items:center;gap:8px;">
-                            <i data-lucide="receipt" style="width:16px;height:16px;color:var(--muted);"></i>
                             <span style="font-size:14px;font-weight:800;color:var(--dark);">Expense Items</span>
-                            <span style="font-size:12px;color:var(--muted);">{{ $dt->format('F Y') }}</span>
                         </div>
                     </div>
 
@@ -189,6 +187,7 @@
                                     <select name="category" id="expenseCategorySelect" required
                                             onchange="toggleExpenseCustomCategory(this)"
                                             style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--white);">
+                                        <option value="" disabled selected hidden>Select category...</option>
                                         <option value="Electricity">Electricity</option>
                                         <option value="Water">Water</option>
                                         <option value="Rent">Rent</option>
@@ -226,7 +225,6 @@
                 <div class="table-card" style="overflow:visible;display:flex;flex-direction:column;">
                     <div class="table-toolbar">
                         <div style="display:flex;align-items:center;gap:8px;">
-                            <i data-lucide="git-branch" style="width:16px;height:16px;color:var(--muted);"></i>
                             <span style="font-size:14px;font-weight:800;color:var(--dark);">Project Allocation</span>
                         </div>
                     </div>
@@ -309,6 +307,11 @@
                                 This month's allocation is saved. Click <strong>&nbsp;Edit Allocation&nbsp;</strong> to make changes.
                             </div>
                             @endif
+
+                            <div id="allocError" role="alert" style="display:none;align-items:flex-start;gap:8px;background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12.5px;line-height:1.5;color:#b91c1c;">
+                                <i data-lucide="alert-circle" style="width:15px;height:15px;flex-shrink:0;margin-top:1px;"></i>
+                                <span>There are no expense items for {{ $dt->format('F Y') }} yet. Log at least one expense item first — there is nothing to allocate until then.</span>
+                            </div>
 
                             <button type="button" class="save-btn" id="allocActionBtn" data-locked="{{ $isAllocLocked ? '1' : '0' }}"
                                     style="width:100%;justify-content:center;" onclick="allocActionClick()">
@@ -412,13 +415,25 @@
         document.getElementById('previewTotal').textContent = '₱' + TOTAL_OVERHEAD.toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2});
     }
 
+    // Whether this month has at least one logged expense item (the allocation splits their total)
+    var HAS_EXPENSES = {{ $expenses->count() > 0 ? 'true' : 'false' }};
+
     function allocActionClick() {
         var btn = document.getElementById('allocActionBtn');
         if (btn.dataset.locked === '1') {
             enableAllocationEdit();
-        } else {
-            document.getElementById('allocForm').submit();
+            return;
         }
+
+        var error = document.getElementById('allocError');
+        if (!HAS_EXPENSES) {
+            // nothing to split — refuse to save and say why
+            error.style.display = 'flex';
+            error.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return;
+        }
+        error.style.display = 'none';
+        document.getElementById('allocForm').submit();
     }
 
     function enableAllocationEdit() {
@@ -472,7 +487,7 @@
         var wrap   = document.getElementById('expenseCategoryCustomWrap');
         var custom = document.getElementById('expenseCategoryCustom');
         sel.style.display = '';
-        sel.value = 'Electricity';
+        sel.value = '';   // back to the "Select category..." prompt
         sel.name = 'category';
         wrap.style.display = 'none';
         custom.value = '';

@@ -74,6 +74,7 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::get('/project-materials/client/{client}', [ProjectMaterialController::class, 'adminClient'])->name('project_materials.client');
     Route::get('/project-materials/{projectId}', [ProjectMaterialController::class, 'adminDetail'])->name('project_materials.detail');
     Route::post('/project-materials/{projectId}/materials', [ProjectMaterialController::class, 'store'])->name('project_materials.store');
+    Route::post('/project-materials/{projectId}/save', [ProjectMaterialController::class, 'saveAll'])->name('project_materials.save');
     Route::post('/project-materials/{projectId}/purchases', [ProjectMaterialController::class, 'storePurchase'])->name('project_materials.store_purchase');
     Route::delete('/project-materials/{projectId}/purchases/{purchaseId}', [ProjectMaterialController::class, 'destroyPurchase'])->name('project_materials.destroy_purchase');
     Route::post('/project-materials/{projectId}/send-bom', [ProjectMaterialController::class, 'sendBOM'])->name('project_materials.send_bom');
@@ -145,6 +146,7 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::post('/quotation-requests/batch/{batchId}/labor/{laborId}/archive', [QuotationRequestController::class, 'archiveLabor'])->name('quotation_requests.batch_labor_archive');
     Route::post('/quotation-requests/batch/{batchId}/send-quotation', [QuotationRequestController::class, 'sendBatchQuotation'])->name('quotation_requests.batch_send_quotation');
     Route::post('/quotation-requests/batch/{batchId}/markup', [QuotationRequestController::class, 'updateMarkup'])->name('quotation_requests.batch_markup');
+    Route::post('/quotation-requests/batch/{batchId}/save', [QuotationRequestController::class, 'saveAll'])->name('quotation_requests.batch_save');
     Route::get('/quotation-requests/batch/{batchId}/prefill', [QuotationRequestController::class, 'prefillBatch'])->name('quotation_requests.batch_prefill');
 
     Route::get('/reports', [AdminController::class, 'reports'])->name('reports');

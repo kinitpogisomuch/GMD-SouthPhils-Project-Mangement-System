@@ -97,7 +97,7 @@
                     <i data-lucide="bar-chart-2"></i>
                     Project Financial Overview
                 </div>
-                <div class="fd-overview-grid">
+                <div class="fd-overview-grid fd-overview-grid-5">
                     <div class="fd-ov-item">
                         <span class="fd-ov-label">Contract Value</span>
                         <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Project Budget + Markup</span>
@@ -148,14 +148,14 @@
                             {{ $totalActualSpend > 0 ? '₱'.number_format($totalActualSpend,0) : '—' }}
                         </span>
                     </div>
-                    <div class="fd-ov-item fd-ov-highlight">
+                    <div class="fd-ov-item fd-ov-highlight fd-ov-wide">
                         <span class="fd-ov-label">Net Profit</span>
                         <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Contract value - actual costs</span>
                         @if($project->status !== 'completed')
                         <span class="fd-ov-val" style="color:rgba(255,255,255,0.35);font-size:13px;font-weight:600;">Available when completed</span>
                         @elseif($netProfit !== null)
-                        <span class="fd-ov-val" style="color:{{ $netProfit >= 0 ? '#4ade80' : '#f87171' }};font-size:17px;">
-                            {{ $netProfit >= 0 ? '+' : '' }}₱{{ number_format($netProfit, 0) }}
+                        <span class="fd-ov-val" style="color:{{ $netProfit >= 0 ? '#4ade80' : '#f87171' }};font-size:28px;">
+                            ₱{{ number_format($netProfit, 0) }}
                         </span>
                         @else
                         <span class="fd-ov-val" style="color:rgba(255,255,255,0.35);">—</span>
@@ -324,12 +324,11 @@
                         $subPhase       = $project->current_sub_phase ?? 'shop_drawing';
                         $paymentUrl     = $payment ? route('admin.payments.show', $payment->id) : route('admin.payments');
 
-                        // Payment settlement is a SOFT reminder, not a hard block — real
-                        // clients rarely pay the exact 50/30/20 split, and GMD sometimes
-                        // proceeds ahead of full settlement. Each payment-tied sub-phase/
-                        // phase always shows a confirm-step first: green when the tranche
-                        // is settled, amber with a "Proceed Anyway" option when it isn't —
-                        // no dollar amounts shown either way, just the reminder.
+                        // Payment is a HARD gate — but any amount is acceptable, since real
+                        // clients rarely pay the exact 50/30/20 split. Each payment-tied
+                        // sub-phase/phase shows a confirm-step first: green once any amount
+                        // is recorded toward the tranche, amber with no way forward until
+                        // then — no dollar amounts shown either way.
                         $planningPaymentGate = $project->current_phase === 'planning' && $subPhase === 'payment';
                         $fabricationGate     = $project->current_phase === 'fabrication' && $isBigProject;
                         $deliveryGate        = $project->current_phase === 'delivery';
@@ -338,7 +337,8 @@
                                           : ($fabricationGate ? 'progress_payment'
                                           : ($deliveryGate ? 'final_payment' : null));
 
-                        $gateSettled = !$paymentGateStage || !$payment || $project->isPaymentStageSettled($paymentGateStage);
+                        // Hard gate: any recorded amount toward the stage unlocks it.
+                        $gateSettled = $project->awaitingPaymentStage() === null;
 
                         // Procurement is a hard gate: "Materials Delivered" alone doesn't
                         // advance the phase — there must be real purchase records logged in
@@ -354,7 +354,8 @@
                         // If this render is a redirect-back from a failed submission, the real
                         // form fields must already be showing (that's what was submitted), so
                         // skip the confirm step and go straight to the fields + errors.
-                        $revealFormFields = $errors->any();
+                        $revealFormFields = $errors->any() && $gateSettled;
+                        $paymentBlocked   = $showConfirmGate && !$gateSettled;
                         $sparsePhase    = $planningPaymentGate
                                           || $project->current_phase === 'procurement'
                                           || $project->current_phase === 'matl_prep'
@@ -422,6 +423,7 @@
                             <div>
                                 <p style="font-size:16px;font-weight:800;color:var(--dark);margin-bottom:6px;">Materials Pending</p>
                                 <p style="font-size:13.5px;color:var(--muted);max-width:320px;line-height:1.6;">Materials must be purchased and logged in the Materials module before procurement can be marked complete.</p>
+                                <p style="font-size:13px;font-weight:700;color:var(--dark);margin-top:10px;">{{ $project->purchasedMaterialsCount() }} of {{ \App\Models\Project::MIN_PURCHASED_MATERIALS }} different materials logged</p>
                             </div>
                             <a href="{{ route('admin.material_usage.detail', $project->id) }}" class="save-btn" style="display:inline-flex;align-items:center;gap:8px;font-size:13.5px;padding:11px 22px;text-decoration:none;">
                                 <i data-lucide="shopping-cart"></i>
@@ -510,7 +512,7 @@
                                         <i data-lucide="alert-triangle" style="width:26px;height:26px;color:#b45309;"></i>
                                     </div>
                                     <p class="pv-payment-gate-title">Payment Reminder</p>
-                                    <p class="pv-payment-gate-text">The down payment for this phase must be ensured/settled before continuing. Please confirm with the Payment Module, or proceed anyway if GMD has agreed to continue regardless.</p>
+                                    <p class="pv-payment-gate-text">The down payment for this phase must be ensured/settled before continuing. Please confirm with the Payment Module.</p>
                                     <a href="{{ $paymentUrl }}" class="pv-payment-gate-link">
                                         <i data-lucide="credit-card" style="width:13px;height:13px;"></i>
                                         View Payment Status
@@ -519,7 +521,7 @@
                             @endif
                             </div>
 
-                            @php $submitLabel = $gateSettled ? 'Advance to Procurement' : 'Proceed Anyway'; @endphp
+                            @php $submitLabel = 'Advance to Procurement'; @endphp
 
                         @elseif($project->current_phase === 'procurement')
 
@@ -590,7 +592,7 @@
                                         <i data-lucide="alert-triangle" style="width:26px;height:26px;color:#b45309;"></i>
                                     </div>
                                     <p class="pv-payment-gate-title">Payment Reminder</p>
-                                    <p class="pv-payment-gate-text">The progress payment for this phase must be ensured/settled before continuing. Please confirm with the Payment Module, or proceed anyway if GMD has agreed to continue regardless.</p>
+                                    <p class="pv-payment-gate-text">The progress payment for this phase must be ensured/settled before continuing. Please confirm with the Payment Module.</p>
                                     <a href="{{ $paymentUrl }}" class="pv-payment-gate-link">
                                         <i data-lucide="credit-card" style="width:13px;height:13px;"></i>
                                         View Payment Status
@@ -639,35 +641,32 @@
                         @elseif($project->current_phase === 'inspection')
 
                             @php
-                                $inspectionData = $project->phaseData('inspection', []);
-                                $inspectionTestKeys = ['pressure_test_passed', 'soap_testing_passed', 'pneumatic_test_passed', 'leak_test_passed'];
-                                $inspectionPassedCount = collect($inspectionTestKeys)->filter(fn($k) => !empty($inspectionData[$k]))->count();
+                                // Which tests apply differs per tank, so there's no required count:
+                                // the boxes start unticked after every save and the badge just
+                                // tallies how many times each test has been logged as passed.
+                                $inspectionCounts   = $project->inspectionPassCounts();
+                                $inspectionTests = [
+                                    'pressure_test_passed'  => ['gauge',    'Pressure Test Passed'],
+                                    'soap_testing_passed'   => ['droplets', 'Soap Testing Passed'],
+                                    'pneumatic_test_passed' => ['wind',     'Pneumatic Test Passed'],
+                                    'leak_test_passed'      => ['droplet',  'Leak Test Passed'],
+                                ];
+                                $inspectionTotal = array_sum($inspectionCounts);
                             @endphp
 
                             <div style="font-size:12.5px;font-weight:700;color:var(--muted);margin-bottom:10px;">
-                                {{ $inspectionPassedCount }} of {{ count($inspectionTestKeys) }} tests passed
+                                {{ $inspectionTotal }} {{ \Illuminate\Support\Str::plural('test', $inspectionTotal) }} passed so far
                             </div>
 
-                            <label class="pv-checklist-item pv-checklist-item-lg">
-                                <input type="checkbox" name="pressure_test_passed" value="1" {{ !empty($inspectionData['pressure_test_passed']) ? 'checked' : '' }}>
-                                <i data-lucide="gauge" class="pv-checklist-icon"></i>
-                                <span>Pressure Test Passed</span>
-                            </label>
-                            <label class="pv-checklist-item pv-checklist-item-lg">
-                                <input type="checkbox" name="soap_testing_passed" value="1" {{ !empty($inspectionData['soap_testing_passed']) ? 'checked' : '' }}>
-                                <i data-lucide="droplets" class="pv-checklist-icon"></i>
-                                <span>Soap Testing Passed</span>
-                            </label>
-                            <label class="pv-checklist-item pv-checklist-item-lg">
-                                <input type="checkbox" name="pneumatic_test_passed" value="1" {{ !empty($inspectionData['pneumatic_test_passed']) ? 'checked' : '' }}>
-                                <i data-lucide="wind" class="pv-checklist-icon"></i>
-                                <span>Pneumatic Test Passed</span>
-                            </label>
-                            <label class="pv-checklist-item pv-checklist-item-lg">
-                                <input type="checkbox" name="leak_test_passed" value="1" {{ !empty($inspectionData['leak_test_passed']) ? 'checked' : '' }}>
-                                <i data-lucide="droplet" class="pv-checklist-icon"></i>
-                                <span>Leak Test Passed</span>
-                            </label>
+                            @foreach($inspectionTests as $testKey => [$testIcon, $testLabel])
+                                @php $testCount = $inspectionCounts[$testKey]; @endphp
+                                <label class="pv-checklist-item pv-checklist-item-lg {{ $testCount > 0 ? 'is-done' : '' }}">
+                                    <input type="checkbox" name="{{ $testKey }}" value="1">
+                                    <i data-lucide="{{ $testIcon }}" class="pv-checklist-icon"></i>
+                                    <span>{{ $testLabel }}</span>
+                                    <span class="pv-checklist-count">Passed × {{ $testCount }}</span>
+                                </label>
+                            @endforeach
 
                             <div class="form-group" style="margin-top:14px;">
                                 <label class="log-label">ATTACH FILES <span style="font-weight:500;color:var(--muted);text-transform:none;letter-spacing:0;">(optional — test results, photos)</span></label>
@@ -751,7 +750,7 @@
                                         <i data-lucide="alert-triangle" style="width:26px;height:26px;color:#b45309;"></i>
                                     </div>
                                     <p class="pv-payment-gate-title">Payment Reminder</p>
-                                    <p class="pv-payment-gate-text">The final payment for this phase must be ensured/settled before continuing. Please confirm with the Payment Module, or proceed anyway if GMD has agreed to continue regardless.</p>
+                                    <p class="pv-payment-gate-text">The final payment for this phase must be ensured/settled before continuing. Please confirm with the Payment Module.</p>
                                     <a href="{{ $paymentUrl }}" class="pv-payment-gate-link">
                                         <i data-lucide="credit-card" style="width:13px;height:13px;"></i>
                                         View Payment Status
@@ -823,17 +822,17 @@
                                 Mark as Already Completed
                             </button>
                             @endif
-                            @if($needsConfirmStep)
-                            <button type="button" class="{{ $gateSettled ? 'save-btn' : 'cancel-btn' }}" id="paymentConfirmBtn"
+                            @if($needsConfirmStep && $gateSettled)
+                            <button type="button" class="save-btn" id="paymentConfirmBtn"
                                     onclick="proceedAfterPaymentConfirm('{{ $project->current_phase }}')"
                                     style="font-size:13.5px;padding:11px 24px;{{ $revealFormFields ? 'display:none;' : '' }}">
-                                <i data-lucide="{{ $gateSettled ? 'check' : 'arrow-right' }}"></i>
-                                {{ $gateSettled ? 'Confirm Payment' : 'Proceed Anyway' }}
+                                <i data-lucide="check"></i>
+                                Confirm Payment
                             </button>
                             @endif
-                            @if(empty($hideSubmitButton))
-                            <button type="submit" class="{{ ($planningPaymentGate && !$gateSettled) || $project->current_phase === 'inspection' ? 'cancel-btn' : 'save-btn' }}" id="progressSubmitBtn" style="font-size:13.5px;padding:11px 24px;{{ ($needsConfirmStep && !$revealFormFields) ? 'display:none;' : '' }}">
-                                <i data-lucide="{{ $planningPaymentGate && !$gateSettled ? 'arrow-right' : 'save' }}"></i>
+                            @if(empty($hideSubmitButton) && !$paymentBlocked)
+                            <button type="submit" class="{{ $project->current_phase === 'inspection' ? 'cancel-btn' : 'save-btn' }}" id="progressSubmitBtn" style="font-size:13.5px;padding:11px 24px;{{ ($needsConfirmStep && !$revealFormFields) ? 'display:none;' : '' }}">
+                                <i data-lucide="save"></i>
                                 {{ $submitLabel ?? 'Save Progress Update' }}
                             </button>
                             @endif
@@ -863,7 +862,7 @@
                         </span>
                     </div>
 
-                    <div style="flex:1;overflow-y:auto;min-height:0;display:flex;flex-direction:column;padding-right:4px;">
+                    <div class="pv-history-scroll" style="overflow-y:auto;display:flex;flex-direction:column;">
 
                         @php
                             $imageExtRegex = '/\.(jpe?g|png|gif|webp|bmp)(\?.*)?$/i';
@@ -1367,7 +1366,12 @@
     <script src="{{ asset('js/admin.js') }}"></script>
     <script>
         /* ── Payment-confirm gate (fabrication / delivery) ───────────────── */
+        // The confirm click only reveals the checklist client-side, so remember it
+        // per project+phase — otherwise a refresh drops back to the confirm step.
+        function paymentConfirmKey(phase) { return 'paymentConfirmed:' + PROJECT_ID + ':' + phase; }
+
         function proceedAfterPaymentConfirm(phase) {
+            try { sessionStorage.setItem(paymentConfirmKey(phase), '1'); } catch (e) {}
             const confirmStep = document.getElementById(phase + 'ConfirmStep');
             const formFields  = document.getElementById(phase + 'FormFields');
             const confirmBtn  = document.getElementById('paymentConfirmBtn');
@@ -1379,6 +1383,21 @@
             if (submitBtn)   submitBtn.style.display = '';
             if (requestWrap) requestWrap.style.display = 'flex';
         }
+
+        (function restorePaymentConfirm() {
+            // The confirm button only exists while the payment gate is settled.
+            if (!document.getElementById('paymentConfirmBtn')) return;
+            const phase = PROJECT_CURRENT_PHASE;
+            let confirmed = false;
+            try { confirmed = sessionStorage.getItem(paymentConfirmKey(phase)) === '1'; } catch (e) {}
+            if (confirmed) proceedAfterPaymentConfirm(phase);
+
+            // Once the update is actually submitted, the confirmation has done its job.
+            const form = document.getElementById('addUpdateForm');
+            if (form) form.addEventListener('submit', () => {
+                try { sessionStorage.removeItem(paymentConfirmKey(phase)); } catch (e) {}
+            });
+        })();
 
         const adminFileMaps = new Map();
 
@@ -1514,31 +1533,49 @@
         }
 
         // Required file inputs on this form are visually hidden (a styled dropzone label
-        // sits on top of them), so the browser's native "please select a file" validation
-        // bubble can't be shown for them — it just silently blocks the submit instead.
-        // Check them ourselves and show a real error message when something's missing.
+        // sits on top of them), so the browser can't show its native "please select a
+        // file" bubble for them — it blocks the save silently, and because native
+        // validation runs first the form's `submit` event never even fires. So we also
+        // listen for the browser's `invalid` event on those inputs and show a real
+        // error message ourselves.
         const addUpdateForm = document.getElementById('addUpdateForm');
         if (addUpdateForm) {
+            const fileLabel = (input) => {
+                const raw = input.closest('.form-group')?.querySelector('.log-label')?.firstChild?.textContent || '';
+                const clean = raw.replace('*', '').trim().toLowerCase();
+                return clean || 'the required file';
+            };
+
+            const showMissingFiles = (inputs) => {
+                const errorBox = document.getElementById('addUpdateClientError');
+                inputs.forEach((input) => {
+                    const dropzone = document.getElementById(input.dataset.dropzoneId);
+                    if (dropzone) dropzone.style.borderColor = '#dc2626';
+                });
+                if (!errorBox) return;
+                errorBox.innerHTML = inputs.map((i) => '<div>• Please upload ' + fileLabel(i) + ' before saving.</div>').join('');
+                errorBox.style.display = 'block';
+                errorBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            };
+
+            // Fires (captured — `invalid` doesn't bubble) when native validation rejects a
+            // hidden required file input; suppress the silent failure and explain instead.
+            addUpdateForm.addEventListener('invalid', function (e) {
+                const input = e.target;
+                if (input.matches && input.matches('input[type="file"][required]')) {
+                    e.preventDefault();
+                    showMissingFiles([input]);
+                }
+            }, true);
+
             addUpdateForm.addEventListener('submit', function (e) {
                 const errorBox = document.getElementById('addUpdateClientError');
-                const missing = [];
-
-                this.querySelectorAll('input[type="file"][required]').forEach((input) => {
-                    if (!input.files || input.files.length === 0) {
-                        const dropzone = document.getElementById(input.dataset.dropzoneId);
-                        if (dropzone) dropzone.style.borderColor = '#dc2626';
-                        const labelEl = input.closest('.form-group')?.querySelector('.log-label');
-                        missing.push(labelEl ? labelEl.textContent.trim() : 'a required file');
-                    }
-                });
+                const missing = Array.from(this.querySelectorAll('input[type="file"][required]'))
+                    .filter((input) => !input.files || input.files.length === 0);
 
                 if (missing.length > 0) {
                     e.preventDefault();
-                    if (errorBox) {
-                        errorBox.innerHTML = missing.map((m) => '<div>• Please attach: ' + m + '</div>').join('');
-                        errorBox.style.display = 'block';
-                        errorBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }
+                    showMissingFiles(missing);
                 } else if (errorBox) {
                     errorBox.style.display = 'none';
                 }

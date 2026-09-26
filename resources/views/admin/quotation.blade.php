@@ -7,6 +7,17 @@
     <title>Quotation | GMD South Phils</title>
     <link href="{{ asset('css/admin.css') }}" rel="stylesheet">
     <style>
+        /* Quotation Requests table — roomier cells, stacked details instead of nine cramped columns */
+        #quotationRequestsTable th { padding: 12px 16px; }
+        #quotationRequestsTable td { padding: 14px 16px; vertical-align: middle; }
+        #quotationRequestsTable .qr-cell-title { font-size: 13px; font-weight: 800; color: var(--dark); line-height: 1.35; }
+        #quotationRequestsTable .qr-cell-sub { display: flex; align-items: center; gap: 5px; margin-top: 3px; font-size: 11.5px; color: var(--muted); }
+        #quotationRequestsTable .qr-cell-sub svg, #quotationRequestsTable .qr-cell-sub i { flex-shrink: 0; }
+        #quotationRequestsTable .qr-stack { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+        #quotationRequestsTable .qr-cell-loc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 12px; line-height: 1.45; color: var(--dark); }
+        #quotationRequestsTable .qr-actions { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; }
+        #quotationRequestsTable .action-cell { padding-right: 12px; }
+        #quotationRequestsTable .status-badge { white-space: nowrap; }
         .pf-client-name { font-size: 14.5px; font-weight: 800; color: var(--dark); }
         .quotation-view-tab {
             border: none; background: transparent; color: var(--muted);
@@ -95,24 +106,18 @@
                 <div style="max-height:570px;overflow-y:auto;">
                     <table class="data-table" id="quotationRequestsTable" style="margin:0;">
                         <colgroup>
-                            <col style="width:10%;">
-                            <col style="width:14%;">
-                            <col style="width:15%;">
-                            <col style="width:8%;">
+                            <col style="width:20%;">
+                            <col style="width:22%;">
+                            <col style="width:26%;">
                             <col style="width:9%;">
-                            <col style="width:18%;">
-                            <col style="width:9%;">
-                            <col style="width:9%;">
-                            <col style="width:8%;">
+                            <col style="width:11%;">
+                            <col style="width:132px;">
                         </colgroup>
                         <thead style="position:sticky;top:0;z-index:2;">
                             <tr>
                                 <th>Client</th>
-                                <th>Contact</th>
-                                <th>Tank Type</th>
-                                <th>Capacity</th>
-                                <th>Target Delivery</th>
-                                <th>Location</th>
+                                <th>Tank</th>
+                                <th>Delivery / Pick-up</th>
                                 <th>Submitted</th>
                                 <th>Status</th>
                                 <th>Actions</th>
@@ -137,7 +142,7 @@
                                         'quantity'        => $qr->quantity,
                                         'target_timeline' => $qr->target_timeline_display,
                                     ]],
-                                    'location'          => $qr->location,
+                                    'location'          => (($qr->fulfillment ?? 'delivery') === 'pickup') ? 'For pick-up (no delivery address)' : $qr->location,
                                     'notes'             => $qr->notes,
                                     'reference_files'   => $qr->reference_files ?? [],
                                     'quotation_files'   => !empty($qr->quotation_files) ? [$qr->quotation_files] : [],
@@ -147,50 +152,51 @@
                                     'convert_url'         => route('admin.projects', ['prefill_quotation_batch' => $qr->batch_id]),
                                 ]) }}"
                                 >
-                                <td>{{ $qr->client->name ?? '—' }}</td>
                                 <td>
-                                    <div>{{ $qr->client->contact ?? '—' }}</div>
+                                    <div class="qr-cell-title">{{ $qr->client->name ?? '—' }}</div>
+                                    <div class="qr-cell-sub">{{ $qr->client->contact ?? '—' }}</div>
                                 </td>
                                 <td>
-                                    @if($qr->tank_type)
-                                    <span class="qr-spec-chip qr-chip-type">
-                                        <i data-lucide="package" style="width:11px;height:11px;"></i>
-                                        {{ $qr->tank_type }}{{ $qr->quantity > 1 ? ' ×' . $qr->quantity : '' }}
-                                    </span>
+                                    <div class="qr-stack">
+                                        @if($qr->tank_type)
+                                        <span class="qr-spec-chip qr-chip-type">
+                                            <i data-lucide="package" style="width:11px;height:11px;"></i>
+                                            {{ $qr->tank_type }}{{ $qr->quantity > 1 ? ' ×' . $qr->quantity : '' }}
+                                        </span>
+                                        @else
+                                        <span class="qr-spec-chip qr-chip-type" title="No tank spec — see attached reference photos">
+                                            <i data-lucide="image" style="width:11px;height:11px;"></i>
+                                            Client's Own Tank
+                                        </span>
+                                        @endif
+                                        <span style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;">
+                                            @if(!empty($qr->capacity))
+                                            <span class="qr-spec-chip qr-chip-capacity">
+                                                <i data-lucide="droplet" style="width:11px;height:11px;"></i>
+                                                {{ $qr->capacity }}
+                                            </span>
+                                            @endif
+                                        </span>
+                                    </div>
+                                </td>
+                                <td>
+                                    @if(($qr->fulfillment ?? 'delivery') === 'pickup')
+                                    <div class="qr-cell-title" style="display:flex;align-items:center;gap:6px;">
+                                        <i data-lucide="package-check" style="width:14px;height:14px;color:var(--muted);flex-shrink:0;"></i> For pick-up
+                                    </div>
                                     @else
-                                    <span class="qr-spec-chip qr-chip-type" title="No tank spec — see attached reference photos">
-                                        <i data-lucide="image" style="width:11px;height:11px;"></i>
-                                        Client's Own Tank
-                                    </span>
+                                    <div class="qr-cell-loc" title="{{ $qr->location }}">
+                                        <i data-lucide="truck" style="width:13px;height:13px;color:var(--muted);vertical-align:-2px;"></i>
+                                        {{ $qr->location ?: '—' }}
+                                    </div>
                                     @endif
-                                    @if(count($qr->reference_files ?? []) > 1)
-                                    <span title="{{ count($qr->reference_files) }} files attached by the client" style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;font-size:10.5px;font-weight:800;color:#6d28d9;background:#ede9fe;border-radius:999px;padding:3px 8px;box-shadow:0 0 0 1px rgba(109,40,217,.18);">
-                                        {{ count($qr->reference_files) }}
-                                    </span>
-                                    @endif
-                                </td>
-                                <td>
-                                    @if(!empty($qr->capacity))
-                                    <span class="qr-spec-chip qr-chip-capacity">
-                                        <i data-lucide="droplet" style="width:11px;height:11px;"></i>
-                                        {{ $qr->capacity }}
-                                    </span>
-                                    @else
-                                    <span style="color:var(--muted);">—</span>
-                                    @endif
-                                </td>
-                                <td>
                                     @if(!empty($qr->target_timeline))
-                                    <span class="qr-spec-chip qr-chip-timeline">
-                                        <i data-lucide="clock" style="width:11px;height:11px;"></i>
-                                        {{ $qr->target_timeline_display }}
-                                    </span>
-                                    @else
-                                    <span style="color:var(--muted);">—</span>
+                                    <div class="qr-cell-sub"><i data-lucide="clock" style="width:11px;height:11px;"></i> Target {{ $qr->target_timeline_display }}</div>
                                     @endif
                                 </td>
-                                <td style="white-space:normal;word-break:break-word;">{{ $qr->location }}</td>
-                                <td>{{ $qr->created_at->format('M d, Y') }}</td>
+                                <td>
+                                    <div class="qr-cell-title" style="font-weight:700;">{{ $qr->created_at->format('M d, Y') }}</div>
+                                </td>
                                 <td>
                                     @if($qr->status === 'pending' && $qr->decline_reason)
                                     <span class="status-badge revision" title="{{ $qr->decline_reason }}">Revision Requested</span>
@@ -207,10 +213,13 @@
                                     @endif
                                 </td>
                                 <td class="action-cell">
+                                    <div class="qr-actions">
                                     <button class="action-btn view view-request-btn" type="button" title="View Request">
                                         <i data-lucide="eye"></i>
                                     </button>
-                                    @if(in_array($qr->status, ['pending', 'quotation_sent', 'approved']) && $qr->batch_id)
+                                    {{-- Pending requests already have a "Build Quotation" button inside the View Request
+                                         modal, so the row icon is only kept for sent / approved quotations (no other way in). --}}
+                                    @if(in_array($qr->status, ['quotation_sent', 'approved']) && $qr->batch_id)
                                     <a class="action-btn view" type="button" title="Build Quotation"
                                        href="{{ route('admin.quotation_requests.batch_detail', $qr->batch_id) }}">
                                         <i data-lucide="calculator"></i>
@@ -230,17 +239,18 @@
                                         <i data-lucide="x"></i>
                                     </button>
                                     @endif
+                                    </div>
                                 </td>
                             </tr>
                             @empty
                             <tr id="quotationBladeEmpty">
-                                <td colspan="9" style="text-align:center;padding:40px;color:var(--muted);">
+                                <td colspan="6" style="text-align:center;padding:40px;color:var(--muted);">
                                     No quotation requests yet.
                                 </td>
                             </tr>
                             @endforelse
                             <tr id="quotationEmptyState" style="display:none;">
-                                <td colspan="9" style="text-align:center;padding:48px 20px;">
+                                <td colspan="6" style="text-align:center;padding:48px 20px;">
                                     <div style="display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--muted);">
                                         <i data-lucide="inbox" style="width:36px;height:36px;opacity:0.4;"></i>
                                         <span id="quotationEmptyMsg">No requests match your search.</span>
@@ -336,10 +346,10 @@
             <div style="padding:0 28px 4px;">
                 <div id="viewRequestStatusBadge" style="margin-bottom:16px;"></div>
 
-                <div id="viewRequestReferenceFilesWrap" style="display:none;margin-bottom:20px;background:#f5f3ff;border:1.5px solid #ddd6fe;border-radius:14px;padding:14px 16px;">
-                    <div style="display:flex;align-items:center;gap:7px;font-size:12px;font-weight:800;color:#6d28d9;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;">
-                        <i data-lucide="paperclip" style="width:14px;height:14px;"></i>
-                        Client Attached Their Own Tank Files
+                <div id="viewRequestReferenceFilesWrap" style="display:none;margin-bottom:20px;background:var(--cream-soft);border:1px solid var(--border);border-radius:14px;padding:14px 16px;">
+                    <div style="display:flex;align-items:center;gap:7px;font-size:12px;font-weight:800;color:var(--dark);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;">
+                        <i data-lucide="paperclip" style="width:14px;height:14px;color:var(--muted);"></i>
+                        Client Attached Design Files
                     </div>
                     <div id="viewRequestReferenceFiles" style="display:flex;flex-wrap:wrap;gap:10px;"></div>
                 </div>
@@ -537,9 +547,9 @@
                             var isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].indexOf(ext) !== -1;
                             var thumb   = isImage
                                 ? '<img src="' + url + '" alt="" style="width:64px;height:64px;border-radius:8px;object-fit:cover;flex-shrink:0;">'
-                                : '<span style="width:64px;height:64px;border-radius:8px;background:#fff;border:1px solid #e0e3f5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;flex-shrink:0;">'
-                                    + '<i data-lucide="file-text" style="width:20px;height:20px;color:#6d28d9;"></i>'
-                                    + '<span style="font-size:9.5px;font-weight:800;color:#6d28d9;text-transform:uppercase;">' + (ext || 'file') + '</span>'
+                                : '<span style="width:64px;height:64px;border-radius:8px;background:#fff;border:1px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;flex-shrink:0;">'
+                                    + '<i data-lucide="file-text" style="width:20px;height:20px;color:var(--muted);"></i>'
+                                    + '<span style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;">' + (ext || 'file') + '</span>'
                                 + '</span>';
                             return '<a href="' + url + '" target="_blank" title="Open Reference File ' + (i + 1) + '" '
                                 + 'style="display:flex;flex-direction:column;align-items:center;gap:5px;text-decoration:none;width:64px;">'

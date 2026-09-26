@@ -241,9 +241,9 @@
                                     <td>{{ \Carbon\Carbon::parse($r['date_issued'])->format('M d, Y') }}</td>
                                     <td>
                                         @if(!empty($r['receipt_urls']))
-                                        <div style="display:inline-flex;gap:4px;">
+                                        <div style="display:inline-flex;gap:4px;" data-receipt-set>
                                             @foreach($r['receipt_urls'] as $i => $url)
-                                            <a href="{{ $url }}" target="_blank" class="action-btn view" title="View Receipt {{ count($r['receipt_urls']) > 1 ? $i + 1 : '' }}">
+                                            <a href="{{ $url }}" target="_blank" data-receipt class="action-btn view" title="View Receipt {{ count($r['receipt_urls']) > 1 ? $i + 1 : '' }}">
                                                 <i data-lucide="eye"></i>
                                             </a>
                                             @endforeach
@@ -354,5 +354,7 @@
     }
 
     </script>
+    @include('partials.receipt_viewer')
+
 </body>
 </html>

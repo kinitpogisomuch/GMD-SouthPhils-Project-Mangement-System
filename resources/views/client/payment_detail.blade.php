@@ -272,9 +272,9 @@
                                         <td>
                                             @php $receiptUrls = !empty($tx->receipt_urls) ? $tx->receipt_urls : array_filter([$tx->receipt_url]); @endphp
                                             @if(!empty($receiptUrls))
-                                            <div style="display:flex;flex-direction:column;gap:3px;">
+                                            <div style="display:flex;flex-direction:column;gap:3px;" data-receipt-set>
                                                 @foreach($receiptUrls as $i => $url)
-                                                <a href="{{ $url }}" target="_blank" style="display:inline-flex;align-items:center;gap:5px;color:var(--accent);font-weight:700;text-decoration:none;">
+                                                <a href="{{ $url }}" target="_blank" data-receipt style="display:inline-flex;align-items:center;gap:5px;color:var(--accent);font-weight:700;text-decoration:none;">
                                                     <i data-lucide="receipt" style="width:14px;height:14px;"></i> View{{ count($receiptUrls) > 1 ? ' ' . ($i + 1) : '' }}
                                                 </a>
                                                 @endforeach
@@ -392,5 +392,7 @@
             });
         });
     </script>
+    @include('partials.receipt_viewer')
+
 </body>
 </html>

@@ -494,6 +494,19 @@ class ProjectController extends Controller
                 $project->update(['estimated_working_days' => $batch->estimated_working_days]);
             }
 
+            // The client already approved this quotation — that approval settled the shop drawing /
+            // tank design and the project quotation — so both Planning sub-phases start out completed
+            // and the project begins at Payment instead of making the admin click through them.
+            if ($batch) {
+                $completedAt = now()->toDateTimeString();
+                $project->setPhaseData('planning.shop_drawing', ['status' => 'completed', 'completed_at' => $completedAt, 'from_quotation' => true]);
+                $project->setPhaseData('planning.quotation',    ['status' => 'completed', 'completed_at' => $completedAt, 'from_quotation' => true]);
+                $project->update([
+                    'current_sub_phase' => 'payment',
+                    'progress'          => Project::SUBPHASE_PROGRESS['quotation'],
+                ]);
+            }
+
             // Payment Terms + Markup were already locked in on the Build Quotation
             // page before conversion, so the Payment record is created immediately
             // here instead of leaving it to a separate manual Payment Setup step.
@@ -713,6 +726,13 @@ class ProjectController extends Controller
     {
         $project = Project::findOrFail($id);
 
+        // Hard gate: payment-tied phases can't advance until at least some
+        // amount has been recorded toward the relevant stage (any amount counts).
+        if ($project->awaitingPaymentStage() !== null) {
+            return redirect()->route('admin.project_view', $id)
+                ->with('error', 'A payment must be recorded in the Payment Module before this project can proceed to the next phase.');
+        }
+
         if ($project->current_phase === 'planning') {
             return match ($project->current_sub_phase) {
                 'quotation' => $this->handlePlanningQuotation($request, $project),
@@ -913,9 +933,7 @@ class ProjectController extends Controller
     */
     private function handlePlanningPayment(Request $request, Project $project)
     {
-        // Payment settlement is a soft reminder (shown + confirmed client-side
-        // before this submits), not a hard block — see the confirm-step panel
-        // in project_view.blade.php.
+        // The payment gate is enforced in addUpdate() before this runs.
         $newProgress = Project::PHASE_PROGRESS['planning'];
 
         $project->update([
@@ -1035,8 +1053,7 @@ class ProjectController extends Controller
     */
     private function handleFabrication(Request $request, Project $project)
     {
-        // Payment settlement is a soft reminder, not a hard block — see
-        // handlePlanningPayment() above.
+        // The payment gate is enforced in addUpdate() before this runs.
         $request->validate([
             'cutting_completed'  => 'required|accepted',
             'assembly_completed' => 'required|accepted',
@@ -1103,16 +1120,24 @@ class ProjectController extends Controller
             $photoUrls = $this->storage->uploadMultiple($request->file('progress_photos'), 'projects/' . $project->id . '/inspection');
         }
 
-        // Inspection supports multiple test submissions — once a test is marked
-        // passed it stays passed across saves, so partial progress from an earlier
-        // visit is never lost by a later save that doesn't re-check every box.
+        // A test can be logged as passed any number of times (once per tank that
+        // needs it), so every save adds one pass for each ticked test and the
+        // boxes start unticked again. Which tests apply varies per tank.
         $existing = $project->phaseData('inspection', []);
-        $tests = [
-            'pressure_test_passed'  => ($existing['pressure_test_passed']  ?? false) || $request->boolean('pressure_test_passed'),
-            'soap_testing_passed'   => ($existing['soap_testing_passed']   ?? false) || $request->boolean('soap_testing_passed'),
-            'pneumatic_test_passed' => ($existing['pneumatic_test_passed'] ?? false) || $request->boolean('pneumatic_test_passed'),
-            'leak_test_passed'      => ($existing['leak_test_passed']      ?? false) || $request->boolean('leak_test_passed'),
+        $tests    = $project->inspectionPassCounts();
+        $testLabels = [
+            'pressure_test_passed'  => 'Pressure Test',
+            'soap_testing_passed'   => 'Soap Testing',
+            'pneumatic_test_passed' => 'Pneumatic Test',
+            'leak_test_passed'      => 'Leak Test',
         ];
+        $passedThisSave = [];
+        foreach ($tests as $key => $count) {
+            if ($request->boolean($key)) {
+                $tests[$key]      = $count + 1;
+                $passedThisSave[] = '• ' . $testLabels[$key];
+            }
+        }
         $project->setPhaseData('inspection', array_merge($tests, [
             'completed' => $existing['completed'] ?? false,
         ]));
@@ -1126,7 +1151,8 @@ class ProjectController extends Controller
             'submitted_by' => session('user_id') ?? \App\Models\User::where('role', 'admin')->value('id') ?? 1,
             'type'         => 'admin_direct',
             'phase'        => 'inspection',
-            'work_done'    => $markCompleted ? 'Inspection completed successfully.' : 'Inspection test results logged.',
+            'work_done'    => ($markCompleted ? 'Inspection completed successfully.' : 'Inspection test results logged.')
+                . ($passedThisSave ? "\n\nTests passed:\n" . implode("\n", $passedThisSave) : ''),
             'percentage'   => $project->progress,
             'date_of_work' => $request->filled('date_of_work') ? $request->date_of_work : now()->toDateString(),
             'photos'       => $photoUrls,
@@ -1138,9 +1164,9 @@ class ProjectController extends Controller
                 ->with('success', 'Inspection progress saved. Add more tests, then click "Mark as Completed" once the inspection is finished.');
         }
 
-        if (!($tests['pressure_test_passed'] && $tests['soap_testing_passed'] && $tests['pneumatic_test_passed'] && $tests['leak_test_passed'])) {
+        if (array_sum($tests) === 0) {
             return redirect()->route('admin.project_view', $project->id)
-                ->with('error', 'All inspection tests must be marked passed before the phase can be completed.');
+                ->with('error', 'Log at least one passed inspection test before the phase can be completed.');
         }
 
         $project->setPhaseData('inspection', array_merge($tests, [
@@ -1275,8 +1301,7 @@ class ProjectController extends Controller
     */
     private function handleDelivery(Request $request, Project $project)
     {
-        // Payment settlement is a soft reminder, not a hard block — see
-        // handlePlanningPayment() above.
+        // The payment gate is enforced in addUpdate() before this runs.
         $request->validate([
             'photos'         => 'required|array|min:1',
             'photos.*'       => 'required|image|max:5120',

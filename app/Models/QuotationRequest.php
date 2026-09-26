@@ -13,6 +13,7 @@ class QuotationRequest extends Model
         'capacity',
         'quantity',
         'target_timeline',
+        'fulfillment',
         'location',
         'notes',
         'reference_files',

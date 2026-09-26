@@ -64,14 +64,8 @@ class ClientController extends Controller
             $client = Client::find(session('user_id'));
 
             if ($client) {
-                $unresolvedRequest = QuotationRequest::where('client_id', $client->id)
-                    ->unresolved()
-                    ->latest()
-                    ->first();
-
-                return $unresolvedRequest
-                    ? redirect()->route('client.quotation.status')
-                    : redirect()->route('client.quotation.create');
+                // One Quotation module: it opens on the Pending tab by itself when something is under review.
+                return redirect()->route('client.quotation.create');
             }
         }
 

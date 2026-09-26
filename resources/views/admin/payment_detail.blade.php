@@ -155,9 +155,9 @@
                                 <td style="text-align:center;">
                                     @php $receiptUrls = !empty($tx->receipt_urls) ? $tx->receipt_urls : array_filter([$tx->receipt_url]); @endphp
                                     @if(!empty($receiptUrls))
-                                    <div style="display:inline-flex;gap:4px;">
+                                    <div style="display:inline-flex;gap:4px;" data-receipt-set>
                                         @foreach($receiptUrls as $i => $url)
-                                        <a href="{{ $url }}" target="_blank" class="action-btn view" title="View Receipt {{ count($receiptUrls) > 1 ? $i + 1 : '' }}">
+                                        <a href="{{ $url }}" target="_blank" data-receipt class="action-btn view" title="View Receipt {{ count($receiptUrls) > 1 ? $i + 1 : '' }}">
                                             <i data-lucide="receipt"></i>
                                         </a>
                                         @endforeach
@@ -695,5 +695,7 @@
             box-shadow: 0 4px 12px rgba(14,20,40,.25);
         }
     </style>
+    @include('partials.receipt_viewer')
+
 </body>
 </html>

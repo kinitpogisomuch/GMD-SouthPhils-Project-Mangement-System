@@ -17,7 +17,11 @@
       "Bash(grep -v \"/\\\\*\")",
       "Bash(php -r 'require '\\\\''vendor/autoload.php'\\\\''; $app = require '\\\\''bootstrap/app.php'\\\\''; $kernel = $app->make\\(Illuminate\\\\Contracts\\\\Http\\\\Kernel::class\\); echo '\\\\''OK'\\\\'';')",
       "Bash(php -l database/migrations/2026_06_06_105935_add_first_last_name_to_employees_table.php)",
-      "Bash(php --ini)"
+      "Bash(php --ini)",
+      "Bash(f=app/Http/Controllers/QuotationRequestController.php && sed -i \\\\ *)"
+    ],
+    "additionalDirectories": [
+      "C:\\xampp\\htdocs\\GMD-SouthPhils-Project-Management-Laravel\\app\\Http\\Controllers"
     ]
   }
 }
