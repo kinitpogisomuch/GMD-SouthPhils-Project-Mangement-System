@@ -154,15 +154,6 @@
                     $plannedNames    = $plannedMaterials->pluck('material_name');
                     $extraNames      = $purchasesByName->keys()->diff($plannedNames);
                     $allMaterialRows = $plannedNames->concat($extraNames)->unique()->values();
-                    // BOM materials that don't have a single unit purchased yet —
-                    // powers the "Add All Un-Purchased" shortcut on the log form.
-                    $unpurchasedMats = $plannedMaterials->filter(function ($m) use ($purchasesByName) {
-                        $group = $purchasesByName->get($m->material_name);
-                        return !$group || $group->sum('qty_bought') <= 0;
-                    })->values();
-                    $unpurchasedMatsJs = $unpurchasedMats->map(function ($m) {
-                        return ['id' => $m->id, 'name' => $m->material_name, 'unit' => $m->unit, 'cost' => $m->price_per_unit];
-                    })->values();
                 @endphp
 
                 {{-- Summary table (full width — the purchase form now lives in a modal) --}}
@@ -291,14 +282,9 @@
                     <form method="POST" action="{{ route('admin.material_usage.store_purchase', $project->id) }}" id="logPurchaseForm" style="padding:10px 20px 20px;flex:1;overflow-y:auto;" class="dark-form">
                         @csrf
                         <div style="display:flex;gap:8px;margin-bottom:12px;">
-                            <button type="button" class="cancel-btn" style="justify-content:center;font-size:12.5px;padding:9px 16px;" onclick="addPurchaseRow()">
+                            <button type="button" class="cancel-btn" style="justify-content:center;font-size:12.5px;padding:9px 16px;" onclick="openPurchasePicker()">
                                 <i data-lucide="plus" style="width:14px;height:14px;"></i> Add Material
                             </button>
-                            @if($unpurchasedMats->isNotEmpty())
-                            <button type="button" class="cancel-btn" style="justify-content:center;font-size:12.5px;padding:9px 16px;" onclick="addAllUnpurchasedRows()">
-                                <i data-lucide="list-plus" style="width:14px;height:14px;"></i> Add All Un-Purchased ({{ $unpurchasedMats->count() }})
-                            </button>
-                            @endif
                         </div>
 
                         <div id="purchaseRowsHeader" style="display:none;grid-template-columns:2.2fr 0.9fr 0.8fr 1fr 1fr 26px;gap:8px;padding:0 4px 6px;margin-bottom:2px;">
@@ -706,7 +692,7 @@
                     <form method="POST" action="{{ route('admin.material_usage.store', $project->id) }}" id="logUsageForm" style="padding:10px 20px 20px;flex:1;overflow-y:auto;" class="dark-form">
                         @csrf
                         <div style="display:flex;gap:8px;margin-bottom:12px;">
-                            <button type="button" class="cancel-btn" style="justify-content:center;font-size:12.5px;padding:9px 16px;" onclick="addUsageRow()">
+                            <button type="button" class="cancel-btn" style="justify-content:center;font-size:12.5px;padding:9px 16px;" onclick="openUsagePicker()">
                                 <i data-lucide="plus" style="width:14px;height:14px;"></i> Add Material
                             </button>
                             @if($matsInStock->isNotEmpty())
@@ -830,6 +816,104 @@
         </main>
     </div>
 
+    @php
+        // BOM materials offered by the "Add Material" picker, flagged when something was already bought for them
+        $purchasePickMats = $activeMats->map(function ($m) use ($purchasesByName) {
+            $g = $purchasesByName->get($m->material_name);
+            return [
+                'id'        => $m->id,
+                'name'      => $m->material_name,
+                'unit'      => $m->unit,
+                'cost'      => $m->price_per_unit,
+                'planned'   => $m->quantity,
+                'purchased' => $g && $g->sum('qty_bought') > 0,
+            ];
+        })->values();
+    @endphp
+    {{-- ===================== PICK PURCHASED MATERIALS (checkbox list, like Build Quotation) ===================== --}}
+    <div class="modal-overlay" id="pickPurchaseModal" style="z-index:600;">
+        <div class="modal-card pm-card" style="max-width:640px;width:95%;max-height:88vh;margin-bottom:0;background:linear-gradient(180deg,#333333 0%,#2a2a2a 100%);border-color:transparent;display:flex;flex-direction:column;overflow:hidden;">
+            <div class="pm-card-header" style="padding-bottom:12px;border-bottom-color:rgba(255,255,255,.1);flex-shrink:0;">
+                <div>
+                    <div class="pm-card-title" style="font-size:14px;color:#fff;">Add Materials</div>
+                    <div class="pm-card-sub" style="color:rgba(255,255,255,.45);">Tick every material you bought — you can set quantities and costs afterwards.</div>
+                </div>
+                <button type="button" class="modal-close" id="closePickPurchase" style="background-color:rgba(255,255,255,.08);border-color:rgba(255,255,255,.14);color:rgba(255,255,255,.75);">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+
+            <div style="padding:14px 20px 0;flex-shrink:0;">
+                <div class="pp-toolbar">
+                    <div class="pp-search">
+                        <i data-lucide="search"></i>
+                        <input type="search" id="pickPurchaseSearch" placeholder="Search materials..." autocomplete="off">
+                    </div>
+                    <span class="pp-count" id="pickPurchaseCount">0 selected</span>
+                </div>
+            </div>
+
+            <div class="pp-list" id="pickPurchaseList"></div>
+
+            <div class="pp-foot">
+                <button type="button" class="pp-custom" id="pickPurchaseCustom">
+                    <i data-lucide="plus"></i>
+                    Not in the list? Add a custom row
+                </button>
+                <div style="display:flex;gap:10px;">
+                    <button type="button" class="cancel-btn" id="cancelPickPurchase">Cancel</button>
+                    <button type="button" class="save-btn" id="confirmPickPurchase" disabled>
+                        <i data-lucide="check"></i>
+                        Add Selected
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    @php
+        // BOM materials offered by the usage picker — only those with purchased stock left can actually be used
+        $usagePickMats = $activeMats->map(function ($m) use ($stockMap) {
+            return ['id' => $m->id, 'name' => $m->material_name, 'unit' => $m->unit, 'stock' => (float) ($stockMap[$m->id] ?? 0)];
+        })->values();
+    @endphp
+
+    {{-- ===================== PICK MATERIALS USED (checkbox list, like Build Quotation) ===================== --}}
+    <div class="modal-overlay" id="pickUsageModal" style="z-index:600;">
+        <div class="modal-card pm-card" style="max-width:640px;width:95%;max-height:88vh;margin-bottom:0;background:linear-gradient(180deg,#333333 0%,#2a2a2a 100%);border-color:transparent;display:flex;flex-direction:column;overflow:hidden;">
+            <div class="pm-card-header" style="padding-bottom:12px;border-bottom-color:rgba(255,255,255,.1);flex-shrink:0;">
+                <div>
+                    <div class="pm-card-title" style="font-size:14px;color:#fff;">Add Materials</div>
+                    <div class="pm-card-sub" style="color:rgba(255,255,255,.45);">Tick every material you used — you can set the quantities afterwards.</div>
+                </div>
+                <button type="button" class="modal-close" id="closePickUsage" style="background-color:rgba(255,255,255,.08);border-color:rgba(255,255,255,.14);color:rgba(255,255,255,.75);">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+
+            <div style="padding:14px 20px 0;flex-shrink:0;">
+                <div class="pp-toolbar">
+                    <div class="pp-search">
+                        <i data-lucide="search"></i>
+                        <input type="search" id="pickUsageSearch" placeholder="Search materials..." autocomplete="off">
+                    </div>
+                    <span class="pp-count" id="pickUsageCount">0 selected</span>
+                </div>
+            </div>
+
+            <div class="pp-list" id="pickUsageList"></div>
+
+            <div class="pp-foot">
+                <span style="font-size:12px;font-weight:600;color:rgba(255,255,255,.5);">Only materials with purchased stock left can be used.</span>
+                <div style="display:flex;gap:10px;">
+                    <button type="button" class="cancel-btn" id="cancelPickUsage">Cancel</button>
+                    <button type="button" class="save-btn" id="confirmPickUsage" disabled>
+                        <i data-lucide="check"></i>
+                        Add Selected
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="{{ asset('js/admin.js') }}"></script>
     <script>
@@ -871,7 +955,104 @@
         });
 
         // ---- Multi-row material purchase log ----
-        var UNPURCHASED_MATS = @json($unpurchasedMatsJs);
+
+        // ---- Add Material: pick several BOM materials with checkboxes (like Build Quotation) ----
+        var PURCHASE_PICK_MATS = @json($purchasePickMats);
+        var ppSelected = {};
+
+        function ppEsc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+        // BOM materials already sitting in the purchase list (each can only be added once per list)
+        function ppUsedIds() {
+            return Array.prototype.map.call(document.querySelectorAll('#purchaseRowsContainer .purchase-row-bom-select'), function (s) { return String(s.value); })
+                .filter(function (v) { return v && v !== '__other__'; });
+        }
+
+        function ppSelectedIds() { return Object.keys(ppSelected).filter(function (id) { return ppSelected[id]; }); }
+
+        function ppUpdateCount() {
+            var used = ppUsedIds();
+            var n = ppSelectedIds().filter(function (id) { return used.indexOf(id) === -1; }).length;   // rows already in the list never count
+            document.getElementById('pickPurchaseCount').textContent = n + ' selected';
+            var btn = document.getElementById('confirmPickPurchase');
+            btn.disabled = n === 0;
+            btn.lastChild.textContent = n > 0 ? ' Add ' + n + ' Selected' : ' Add Selected';
+        }
+
+        function renderPurchasePicker() {
+            var list   = document.getElementById('pickPurchaseList');
+            var scroll = list.scrollTop;
+            var q      = document.getElementById('pickPurchaseSearch').value.toLowerCase().trim();
+            var used   = ppUsedIds();
+            var html   = '';
+
+            [['Not purchased yet', false], ['Already purchased — buy more', true]].forEach(function (grp) {
+                var items = PURCHASE_PICK_MATS.filter(function (m) { return !!m.purchased === grp[1] && (!q || m.name.toLowerCase().indexOf(q) !== -1); });
+                if (!items.length) return;
+                var available = items.filter(function (m) { return used.indexOf(String(m.id)) === -1; });
+                var checked   = available.filter(function (m) { return ppSelected[m.id]; }).length;
+
+                html += '<div class="pp-group">' +
+                    '<label class="pp-cat">' +
+                        '<input type="checkbox" class="pp-cat-check"' + (available.length && checked === available.length ? ' checked' : '') + (available.length ? '' : ' disabled') + '>' +
+                        '<span>' + ppEsc(grp[0]) + '</span>' +
+                        '<em>' + (checked ? checked + ' of ' : '') + available.length + ' available</em>' +
+                    '</label>';
+                items.forEach(function (m) {
+                    var isUsed = used.indexOf(String(m.id)) !== -1;
+                    html += '<label class="pp-item' + (isUsed ? ' is-used' : '') + '">' +
+                        '<input type="checkbox" class="pp-check" value="' + m.id + '"' + (isUsed ? ' disabled' : (ppSelected[m.id] ? ' checked' : '')) + '>' +
+                        '<span class="pp-name">' + ppEsc(m.name) + '</span>' +
+                        (isUsed
+                            ? '<span class="pp-badge">Already added</span>'
+                            : '<span class="pp-meta">' + ppEsc(m.unit || '') + (m.planned != null ? ' · plan ' + Math.round(m.planned) : '') + '</span>') +
+                    '</label>';
+                });
+                html += '</div>';
+            });
+
+            list.innerHTML = html || '<div class="pp-empty">No materials match. Use “Add a custom row” below to type one.</div>';
+            list.scrollTop = scroll;
+            ppUpdateCount();
+        }
+
+        function openPurchasePicker() {
+            ppSelected = {};
+            document.getElementById('pickPurchaseSearch').value = '';
+            renderPurchasePicker();
+            openModal('pickPurchaseModal');
+            document.getElementById('pickPurchaseSearch').focus();
+        }
+
+        // closing the picker must not unlock the page: the Log New Purchase dialog is still open underneath
+        function closePurchasePicker() {
+            closeModal('pickPurchaseModal');
+            document.body.style.overflow = 'hidden';
+        }
+
+        document.getElementById('pickPurchaseList').addEventListener('change', function (e) {
+            var t = e.target;
+            if (t.classList.contains('pp-check')) {
+                ppSelected[t.value] = t.checked;
+            } else if (t.classList.contains('pp-cat-check')) {
+                t.closest('.pp-group').querySelectorAll('.pp-check:not(:disabled)').forEach(function (box) { ppSelected[box.value] = t.checked; });
+            } else { return; }
+            renderPurchasePicker();
+        });
+        document.getElementById('pickPurchaseSearch').addEventListener('input', renderPurchasePicker);
+        document.getElementById('closePickPurchase').addEventListener('click', closePurchasePicker);
+        document.getElementById('cancelPickPurchase').addEventListener('click', closePurchasePicker);
+        document.getElementById('pickPurchaseModal').addEventListener('click', function (e) { if (e.target === this) closePurchasePicker(); });
+        document.getElementById('pickPurchaseCustom').addEventListener('click', function () {
+            closePurchasePicker();
+            addPurchaseRow();
+        });
+        document.getElementById('confirmPickPurchase').addEventListener('click', function () {
+            var used = ppUsedIds();
+            var chosen = PURCHASE_PICK_MATS.filter(function (m) { return ppSelected[m.id] && used.indexOf(String(m.id)) === -1; });
+            closePurchasePicker();
+            chosen.forEach(function (m) { addPurchaseRow({ id: m.id, cost: m.cost }); });
+        });
         var PURCHASE_EMPTY_HTML = document.getElementById('purchaseRowsEmpty').innerHTML;
 
         function addPurchaseRow(prefill) {
@@ -914,10 +1095,6 @@
             empty.innerHTML = PURCHASE_EMPTY_HTML;
             empty.style.borderColor = 'rgba(255,255,255,.16)';
             empty.style.color = 'rgba(255,255,255,.5)';
-        }
-
-        function addAllUnpurchasedRows() {
-            UNPURCHASED_MATS.forEach(function (m) { addPurchaseRow(m); });
         }
 
         function prefillPurchaseRow(sel) {
@@ -1022,6 +1199,96 @@
 
         // ---- Multi-row material usage log ----
         var IN_STOCK_MATS = @json($inStockMatsJs);
+
+        // ---- Log Usage → Add Material: pick several BOM materials with checkboxes (same picker as purchases) ----
+        var USAGE_PICK_MATS = @json($usagePickMats);
+        var puSelected = {};
+
+        function puUsedIds() {
+            return Array.prototype.map.call(document.querySelectorAll('#usageRowsContainer .usage-row-bom-select'), function (s) { return String(s.value); })
+                .filter(function (v) { return v; });
+        }
+        function puSelectableIds() {   // ticked, has stock, and not already a row
+            var used = puUsedIds();
+            return USAGE_PICK_MATS.filter(function (m) { return puSelected[m.id] && m.stock > 0 && used.indexOf(String(m.id)) === -1; });
+        }
+        function puUpdateCount() {
+            var n = puSelectableIds().length;
+            document.getElementById('pickUsageCount').textContent = n + ' selected';
+            var btn = document.getElementById('confirmPickUsage');
+            btn.disabled = n === 0;
+            btn.lastChild.textContent = n > 0 ? ' Add ' + n + ' Selected' : ' Add Selected';
+        }
+
+        function renderUsagePicker() {
+            var list   = document.getElementById('pickUsageList');
+            var scroll = list.scrollTop;
+            var q      = document.getElementById('pickUsageSearch').value.toLowerCase().trim();
+            var used   = puUsedIds();
+            var html   = '';
+
+            [['In stock', true], ['No stock yet — purchase first', false]].forEach(function (grp) {
+                var items = USAGE_PICK_MATS.filter(function (m) { return (m.stock > 0) === grp[1] && (!q || m.name.toLowerCase().indexOf(q) !== -1); });
+                if (!items.length) return;
+                var available = grp[1] ? items.filter(function (m) { return used.indexOf(String(m.id)) === -1; }) : [];
+                var checked   = available.filter(function (m) { return puSelected[m.id]; }).length;
+
+                html += '<div class="pp-group">' +
+                    '<label class="pp-cat">' +
+                        '<input type="checkbox" class="pp-cat-check"' + (available.length && checked === available.length ? ' checked' : '') + (available.length ? '' : ' disabled') + '>' +
+                        '<span>' + ppEsc(grp[0]) + '</span>' +
+                        '<em>' + (grp[1] ? (checked ? checked + ' of ' : '') + available.length + ' available' : items.length + ' material' + (items.length === 1 ? '' : 's')) + '</em>' +
+                    '</label>';
+                items.forEach(function (m) {
+                    var isUsed = used.indexOf(String(m.id)) !== -1;
+                    var locked = isUsed || m.stock <= 0;
+                    html += '<label class="pp-item' + (locked ? ' is-used' : '') + '">' +
+                        '<input type="checkbox" class="pp-check" value="' + m.id + '"' + (locked ? ' disabled' : (puSelected[m.id] ? ' checked' : '')) + '>' +
+                        '<span class="pp-name">' + ppEsc(m.name) + '</span>' +
+                        (isUsed
+                            ? '<span class="pp-badge">Already added</span>'
+                            : '<span class="pp-meta">' + (m.stock > 0 ? Number(m.stock).toLocaleString('en-PH', { maximumFractionDigits: 2 }) + ' ' + ppEsc(m.unit || '') + ' in stock' : 'No stock') + '</span>') +
+                    '</label>';
+                });
+                html += '</div>';
+            });
+
+            list.innerHTML = html || '<div class="pp-empty">No materials match your search.</div>';
+            list.scrollTop = scroll;
+            puUpdateCount();
+        }
+
+        function openUsagePicker() {
+            puSelected = {};
+            document.getElementById('pickUsageSearch').value = '';
+            renderUsagePicker();
+            openModal('pickUsageModal');
+            document.getElementById('pickUsageSearch').focus();
+        }
+        // the Log Material Usage dialog is still open underneath, so the page stays locked
+        function closeUsagePicker() {
+            closeModal('pickUsageModal');
+            document.body.style.overflow = 'hidden';
+        }
+
+        document.getElementById('pickUsageList').addEventListener('change', function (e) {
+            var t = e.target;
+            if (t.classList.contains('pp-check')) {
+                puSelected[t.value] = t.checked;
+            } else if (t.classList.contains('pp-cat-check')) {
+                t.closest('.pp-group').querySelectorAll('.pp-check:not(:disabled)').forEach(function (box) { puSelected[box.value] = t.checked; });
+            } else { return; }
+            renderUsagePicker();
+        });
+        document.getElementById('pickUsageSearch').addEventListener('input', renderUsagePicker);
+        document.getElementById('closePickUsage').addEventListener('click', closeUsagePicker);
+        document.getElementById('cancelPickUsage').addEventListener('click', closeUsagePicker);
+        document.getElementById('pickUsageModal').addEventListener('click', function (e) { if (e.target === this) closeUsagePicker(); });
+        document.getElementById('confirmPickUsage').addEventListener('click', function () {
+            var chosen = puSelectableIds();
+            closeUsagePicker();
+            chosen.forEach(function (m) { addUsageRow({ id: m.id }); });
+        });
 
         function addUsageRow(prefill) {
             var tpl       = document.getElementById('usageRowTemplate');
@@ -1146,6 +1413,43 @@
         .dark-form .pm-add-field select:focus { border-color:rgba(255,255,255,.35);outline:none; }
         .dark-form .pm-add-field input::placeholder { color:rgba(255,255,255,.3); }
         .dark-form select option { background:#2a2a2a;color:#fff; }
+        /* Add Material picker inside the Log New Purchase dialog */
+        .pp-toolbar { display:flex; align-items:center; gap:12px; padding-bottom:12px; }
+        .pp-search { flex:1; display:flex; align-items:center; gap:8px; padding:0 12px; height:42px; border-radius:12px; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.14); }
+        .pp-search i, .pp-search svg { width:16px; height:16px; color:rgba(255,255,255,.5); flex-shrink:0; }
+        .pp-search input { flex:1; border:none; background:transparent; outline:none; font-size:13.5px; color:#fff; }
+        .pp-search input::placeholder { color:rgba(255,255,255,.4); }
+        .pp-count { font-size:12px; font-weight:800; color:#fff; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.16); border-radius:999px; padding:7px 12px; white-space:nowrap; }
+        .pp-list { flex:1; min-height:160px; max-height:46vh; overflow-y:auto; margin:0 20px; border:1px solid rgba(255,255,255,.12); border-radius:14px; }
+        .pp-group + .pp-group { border-top:1px solid rgba(255,255,255,.12); }
+        .pp-cat { display:flex; align-items:center; gap:10px; padding:11px 14px; background:#3f3f3f; border-bottom:1px solid rgba(255,255,255,.12); position:sticky; top:0; z-index:2; cursor:pointer; font-size:11.5px; font-weight:900; text-transform:uppercase; letter-spacing:.06em; color:#fff; }
+        .pp-cat em { margin-left:auto; font-style:normal; font-weight:700; text-transform:none; letter-spacing:0; color:rgba(255,255,255,.5); }
+        .pp-item { display:flex; align-items:center; gap:12px; padding:10px 14px 10px 16px; font-size:13.5px; color:rgba(255,255,255,.9); cursor:pointer; border-top:1px solid rgba(255,255,255,.08); background:transparent; position:relative; z-index:0; }
+        .pp-group > .pp-cat + .pp-item { border-top:none; }
+        .pp-item:hover { background:rgba(255,255,255,.06); }
+        .pp-item.is-used { color:rgba(255,255,255,.4); cursor:not-allowed; background:transparent; }
+        .pp-item input[type=checkbox], .pp-cat input[type=checkbox] {
+            -webkit-appearance:none; appearance:none; flex-shrink:0; position:relative; cursor:pointer;
+            width:18px; height:18px; min-width:18px; padding:0; margin:0; box-sizing:border-box;
+            border:1.5px solid rgba(255,255,255,.45); border-radius:5px; background:transparent;
+            transition:background .12s ease, border-color .12s ease;
+        }
+        .pp-item input[type=checkbox]:hover, .pp-cat input[type=checkbox]:hover { border-color:#fff; }
+        .pp-item input[type=checkbox]:checked, .pp-cat input[type=checkbox]:checked { background:#4ade80; border-color:#4ade80; }
+        .pp-item input[type=checkbox]:checked::after, .pp-cat input[type=checkbox]:checked::after {
+            content:''; position:absolute; left:5px; top:1px; width:5px; height:10px;
+            border:solid #1a1a1a; border-width:0 2px 2px 0; transform:rotate(45deg);
+        }
+        .pp-item input[type=checkbox]:disabled, .pp-cat input[type=checkbox]:disabled { opacity:.35; cursor:not-allowed; }
+        .pp-name { flex:1; min-width:0; }
+        .pp-meta { margin-left:auto; font-size:12px; font-weight:700; color:rgba(255,255,255,.5); white-space:nowrap; }
+        .pp-badge { margin-left:auto; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:#fca5a5; }
+        .pp-empty { padding:34px 20px; text-align:center; font-size:13px; color:rgba(255,255,255,.5); }
+        .pp-foot { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:16px 20px 18px; flex-shrink:0; }
+        .pp-custom { display:inline-flex; align-items:center; gap:6px; background:none; border:1.5px dashed rgba(255,255,255,.25); border-radius:10px; padding:8px 14px; font-size:12.5px; font-weight:700; color:rgba(255,255,255,.7); cursor:pointer; }
+        .pp-custom:hover { border-color:#fff; color:#fff; }
+        .pp-custom i, .pp-custom svg { width:14px; height:14px; }
+        #confirmPickPurchase:disabled { opacity:.5; cursor:not-allowed; }
     </style>
 </body>
 </html>

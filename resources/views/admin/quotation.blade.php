@@ -383,9 +383,9 @@
                 </div>
 
                 <div id="viewRequestDeclineReasonWrap" class="alert-banner"
-                     style="display:none;margin-bottom:16px;background:#fee2e2;border:1px solid #fca5a5;color:#dc2626;">
+                     style="display:none;align-items:flex-start;margin-bottom:16px;background:#fee2e2;border:1px solid #fca5a5;color:#dc2626;">
                     <i data-lucide="circle-alert"></i>
-                    <span id="viewRequestDeclineReason"></span>
+                    <span id="viewRequestDeclineReason" style="flex:1;min-width:0;overflow-wrap:anywhere;word-break:break-word;"></span>
                 </div>
 
                 <div id="viewRequestFilesWrap" style="display:none;margin-bottom:16px;">
@@ -456,8 +456,9 @@
                     <label style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:8px;">
                         Reason <span style="font-weight:400;text-transform:none;">(optional)</span>
                     </label>
-                    <textarea name="reason" class="log-textarea" rows="3"
+                    <textarea name="reason" id="declineReasonInput" class="log-textarea" rows="3" maxlength="500"
                               placeholder="Let the client know why this request was declined..."></textarea>
+                    <div id="declineReasonCount" style="margin-top:6px;text-align:right;font-size:11.5px;font-weight:700;color:var(--muted);">0 / 500</div>
                 </div>
                 <div class="modal-actions">
                     <button type="button" class="cancel-btn" id="cancelDeclineRequest">Cancel</button>
@@ -649,9 +650,20 @@
                     document.getElementById('declineRequestMsg').textContent =
                         'Are you sure you want to decline the request from "' + this.dataset.name + '"?';
                     document.getElementById('declineRequestForm').action = '/admin/quotation-requests/batch/' + this.dataset.id + '/decline';
+                    document.getElementById('declineReasonInput').value = '';      // a fresh box every time
+                    updateDeclineCount();
                     openModal('declineRequestModal');
                 });
             });
+            // the reason is capped at 500 characters: the counter turns red as it nears the limit
+            function updateDeclineCount() {
+                var len = document.getElementById('declineReasonInput').value.length;
+                var el  = document.getElementById('declineReasonCount');
+                el.textContent = len + ' / 500';
+                el.style.color = len >= 500 ? '#dc2626' : (len >= 450 ? '#b45309' : 'var(--muted)');
+            }
+            document.getElementById('declineReasonInput').addEventListener('input', updateDeclineCount);
+
             document.getElementById('closeDeclineRequestModal')
                 .addEventListener('click', function () { closeModal('declineRequestModal'); });
             document.getElementById('cancelDeclineRequest')

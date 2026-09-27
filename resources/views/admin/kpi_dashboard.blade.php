@@ -12,6 +12,14 @@
            buttons reuse .add-btn/.cancel-btn/.save-btn; modal reuses .modal-overlay/.modal-card/.form-group —
            only the pieces with no existing equivalent (cards, insight box, chips, progress bar) are custom here. */
 
+        .kd-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; margin-top: 8px; }
+        .kd-meta-company { font-size: 13px; font-weight: 700; color: var(--muted); margin-right: 4px; }
+        .kd-meta-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; line-height: 1.4; border-radius: 999px; padding: 5px 12px; background: var(--white); border: 1px solid var(--border); color: var(--dark); }
+        .kd-meta-chip i, .kd-meta-chip svg { width: 13px; height: 13px; flex-shrink: 0; }
+        .kd-meta-chip strong { font-weight: 900; }
+        .kd-meta-period { background: var(--dark); border-color: var(--dark); color: #fff; }
+        .kd-meta-ok { background: #E7F6EC; border-color: #86efac; color: #14532d; }
+        .kd-meta-empty { background: var(--cream-soft); color: var(--muted); }
         .kd-header-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; flex-wrap: wrap; }
         .kd-header-actions .cancel-btn,
         .kd-header-actions .add-btn { height: 44px; padding-top: 0; padding-bottom: 0; }
@@ -308,7 +316,7 @@
             <div class="page-header">
                 <div>
                     <h1 class="page-title">KPI dashboard</h1>
-                    <p class="page-subtitle kd-subtitle">GMD South Phils Metal Fabrication Works</p>
+                    <div class="kd-subtitle kd-meta"><span class="kd-meta-company">GMD South Phils Metal Fabrication Works</span></div>
                 </div>
                 <div class="kd-header-actions">
                     <div class="kd-period-picker" id="kdPeriodPicker">
@@ -1263,10 +1271,15 @@
 
         function renderEverything() {
             var sc = STATE.payload.scorecard;
+            var projectWord = sc.project_count === 1 ? 'completed project' : 'completed projects';
             document.querySelector('.kd-subtitle').innerHTML =
-                'GMD South Phils Metal Fabrication Works · ' +
-                '<strong style="color:var(--info);font-weight:800;">' + sc.label + '</strong> · ' +
-                '<strong style="color:var(--dark);font-weight:800;">' + sc.project_count + ' completed project' + (sc.project_count === 1 ? '' : 's') + '</strong>';
+                '<span class="kd-meta-company">GMD South Phils Metal Fabrication Works</span>' +
+                '<span class="kd-meta-chip kd-meta-period"><i data-lucide="calendar"></i>' + sc.label + '</span>' +
+                '<span class="kd-meta-chip' + (sc.project_count > 0 ? ' kd-meta-ok' : ' kd-meta-empty') + '">' +
+                    '<i data-lucide="' + (sc.project_count > 0 ? 'check-circle-2' : 'circle-dashed') + '"></i>' +
+                    '<strong>' + sc.project_count + '</strong> ' + projectWord +
+                '</span>';
+            if (typeof lucide !== 'undefined') lucide.createIcons();
 
             // Text/HTML content renders first and independently of the charts below, so a
             // Chart.js failure (e.g. an unsupported browser) can never blank out the rest of the page.

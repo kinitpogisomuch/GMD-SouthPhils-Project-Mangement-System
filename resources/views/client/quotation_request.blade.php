@@ -58,20 +58,35 @@
         }
         .qr-tank-design { padding:0 40px 14px 18px; }
         .qr-design-btn {
-            display:inline-flex; align-items:center; gap:7px; cursor:pointer;
-            background:var(--cream-soft); border:1.5px dashed var(--border); border-radius:10px;
-            padding:7px 13px; font-size:12px; font-weight:800; color:var(--dark);
-            transition:background .15s ease, border-color .15s ease;
+            display:flex; align-items:center; gap:14px; width:100%; text-align:left; cursor:pointer;
+            background:var(--white); border:1.5px dashed #b9b9b9; border-radius:14px;
+            padding:12px 16px; font-family:inherit;
+            transition:background .15s ease, border-color .15s ease, box-shadow .15s ease;
         }
-        .qr-design-btn:hover { background:var(--accent-soft); border-color:var(--dark); }
-        .qr-design-btn i, .qr-design-btn svg { width:13px; height:13px; }
-        .qr-design-btn span { font-weight:600; color:var(--muted); }
+        .qr-design-btn:hover { background:var(--cream-soft); border-color:var(--dark); box-shadow:0 2px 10px rgba(0,0,0,.06); }
+        .qr-design-icon {
+            flex-shrink:0; width:40px; height:40px; border-radius:50%;
+            background:var(--dark); color:#fff; display:flex; align-items:center; justify-content:center;
+        }
+        .qr-design-icon i, .qr-design-icon svg { width:20px; height:20px; }
+        .qr-design-text { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+        .qr-design-text strong { font-size:13.5px; font-weight:900; color:var(--dark); }
+        .qr-design-text em { font-style:normal; font-size:11.5px; font-weight:600; color:var(--muted); line-height:1.4; }
+        .qr-design-cta {
+            flex-shrink:0; font-size:12px; font-weight:800; color:var(--dark);
+            border:1.5px solid var(--dark); border-radius:999px; padding:6px 14px; background:var(--white);
+            transition:background .15s ease, color .15s ease;
+        }
+        .qr-design-btn:hover .qr-design-cta { background:var(--dark); color:#fff; }
+        @media (max-width:520px) { .qr-design-cta { display:none; } }
         .qr-design-list { margin-top:10px; }
         .qr-design-error { margin-top:8px; font-size:12px; font-weight:700; color:#b91c1c; }
 
         .qr-loc-hint { font-size:12.5px; color:var(--muted); line-height:1.6; margin:0 0 14px; }
         .qr-loc-hint strong { color:var(--dark); }
         .qr-tank-fulfill { padding:0 40px 10px 18px; display:flex; flex-direction:column; gap:10px; }
+        .qr-fulfill-label { font-size:12.5px; font-weight:700; color:var(--dark); }
+        .qr-fulfill-error { font-size:12px; font-weight:700; color:#b91c1c; }
         .qr-fulfill-opts { display:inline-flex; gap:8px; flex-wrap:wrap; }
         .qr-fulfill-opt {
             display:inline-flex; align-items:center; gap:7px; cursor:pointer; user-select:none;
@@ -377,7 +392,6 @@
 
         const TANK_TYPES      = @json($tankTypes);
         const OLD_TANK_ITEMS  = @json(old('tank_items', []));
-        const DEFAULT_ADDRESS = @json($client->address ?? '');
         const MAX_DESIGN_FILES = 5;
         const MAX_DESIGN_BYTES = 10 * 1024 * 1024;
 
@@ -393,6 +407,33 @@
             return html;
         }
 
+        // Thousands separators for the number at the start of Capacity / Size while typing (10000 → 10,000,
+        // 10000 liters → 10,000 liters). Anything after the number is left exactly as typed, and the caret
+        // stays where it was relative to the digits.
+        function formatCapacity(input) {
+            var v = input.value;
+            var m = v.match(/^(\d[\d,]*)(\.\d*)?/);
+            if (!m) return;
+            var caret  = input.selectionStart;
+            var digits = m[1].replace(/,/g, '').replace(/^0+(?=\d)/, '');
+            var next   = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (m[2] || '') + v.slice(m[0].length);
+            if (next === v) return;
+
+            var digitsBeforeCaret = v.slice(0, caret).replace(/,/g, '').length;
+            input.value = next;
+            var pos = 0, seen = 0;
+            while (pos < next.length && seen < digitsBeforeCaret) { if (next[pos] !== ',') seen++; pos++; }
+            if (input.setSelectionRange && document.activeElement === input) input.setSelectionRange(pos, pos);
+        }
+        // Choosing "Others" reveals a required box for the client's own tank type; any other choice hides and clears it.
+        function onTankTypeChange(select) {
+            var other  = select.closest('.form-group').querySelector('.qr-type-other');
+            var isOther = select.value === 'Others';
+            other.style.display = isOther ? '' : 'none';
+            other.disabled = !isOther;
+            other.required = isOther;
+            if (isOther) { if (document.activeElement === select) other.focus(); } else other.value = '';
+        }
         function asList(v) { return Array.isArray(v) ? v : (v && typeof v === 'object' ? Object.values(v) : []); }
 
         // ── Tanks: each one is either for delivery (with its own address) or for pick-up ──
@@ -403,7 +444,8 @@
             item = item || {};
             var T = tankSeq++;
             var prefix = 'tank_items[' + T + ']';
-            var pickup = item.fulfillment === 'pickup';
+            var choice = item.fulfillment === 'delivery' || item.fulfillment === 'pickup' ? item.fulfillment : '';   // nothing pre-selected
+            var delivery = choice === 'delivery';
 
             var row = document.createElement('div');
             row.className = 'qr-tank-row';
@@ -416,11 +458,14 @@
                     '<div class="qr-tank-row-grid">' +
                         '<div class="form-group" style="margin-bottom:0;">' +
                             '<label>Tank Type <span style="color:#dc2626;">*</span></label>' +
-                            '<select name="' + prefix + '[tank_type]" required>' + tankTypeOptions(item.tank_type) + '</select>' +
+                            '<select name="' + prefix + '[tank_type]" class="qr-type-select" required onchange="onTankTypeChange(this)">' + tankTypeOptions(item.tank_type) + '</select>' +
+                            // "Others" means the client names their own tank type
+                            '<input type="text" class="qr-type-other" name="' + prefix + '[tank_type_other]" maxlength="100" autocomplete="off" placeholder="Specify your tank type"' +
+                                ' value="' + esc(item.tank_type_other || '') + '" style="display:none;margin-top:8px;" disabled>' +
                         '</div>' +
                         '<div class="form-group" style="margin-bottom:0;">' +
                             '<label>Capacity / Size <span style="color:#dc2626;">*</span></label>' +
-                            '<input type="text" name="' + prefix + '[capacity]" required placeholder="e.g. 10,000 liters" value="' + esc(item.capacity || '') + '">' +
+                            '<input type="text" name="' + prefix + '[capacity]" class="qr-capacity" required placeholder="e.g. 10,000 liters" autocomplete="off" oninput="formatCapacity(this)" value="' + esc(item.capacity || '') + '">' +
                         '</div>' +
                         '<div class="form-group" style="margin-bottom:0;">' +
                             '<label>Qty <span style="color:#dc2626;">*</span></label>' +
@@ -433,19 +478,26 @@
                     '</div>' +
                     // delivery or pick-up — the address only exists for delivery
                     '<div class="qr-tank-fulfill">' +
+                        '<div class="qr-fulfill-label">Delivery or pick-up <span style="color:#dc2626;">*</span></div>' +
                         '<div class="qr-fulfill-opts" role="radiogroup" aria-label="Delivery or pick-up">' +
-                            '<label class="qr-fulfill-opt' + (pickup ? '' : ' is-active') + '"><input type="radio" name="' + prefix + '[fulfillment]" value="delivery"' + (pickup ? '' : ' checked') + '><i data-lucide="truck"></i> For Delivery</label>' +
-                            '<label class="qr-fulfill-opt' + (pickup ? ' is-active' : '') + '"><input type="radio" name="' + prefix + '[fulfillment]" value="pickup"' + (pickup ? ' checked' : '') + '><i data-lucide="package-check"></i> For Pick-up</label>' +
+                            '<label class="qr-fulfill-opt' + (delivery ? ' is-active' : '') + '"><input type="radio" name="' + prefix + '[fulfillment]" value="delivery"' + (delivery ? ' checked' : '') + '><i data-lucide="truck"></i> For Delivery</label>' +
+                            '<label class="qr-fulfill-opt' + (choice === 'pickup' ? ' is-active' : '') + '"><input type="radio" name="' + prefix + '[fulfillment]" value="pickup"' + (choice === 'pickup' ? ' checked' : '') + '><i data-lucide="package-check"></i> For Pick-up</label>' +
                         '</div>' +
-                        '<div class="form-group qr-tank-address" style="margin-bottom:0;' + (pickup ? 'display:none;' : '') + '">' +
+                        '<div class="qr-fulfill-error" style="display:none;">Choose delivery or pick-up for this tank.</div>' +
+                        // the address only appears — and is only required — once "For Delivery" is chosen
+                        '<div class="form-group qr-tank-address" style="margin-bottom:0;' + (delivery ? '' : 'display:none;') + '">' +
                             '<label>Delivery Address <span style="color:#dc2626;">*</span></label>' +
-                            '<textarea name="' + prefix + '[address]" rows="2"' + (pickup ? ' disabled' : ' required') +
-                                ' placeholder="Where should this tank be delivered / installed?">' + esc(item.address != null ? item.address : DEFAULT_ADDRESS) + '</textarea>' +
+                            '<textarea name="' + prefix + '[address]" rows="2"' + (delivery ? ' required' : ' disabled') +
+                                ' placeholder="Where should this tank be delivered / installed?">' + esc(item.address || '') + '</textarea>' +
                         '</div>' +
                     '</div>' +
                     // this tank's own (optional) design — belongs to this tank only
                     '<div class="qr-tank-design">' +
-                        '<button type="button" class="qr-design-btn"><i data-lucide="paperclip"></i> Attach this tank\'s design <span>(optional — PDF, image or .dwg)</span></button>' +
+                        '<button type="button" class="qr-design-btn">' +
+                            '<span class="qr-design-icon"><i data-lucide="upload-cloud"></i></span>' +
+                            '<span class="qr-design-text"><strong>Attach tank\'s design</strong><em>Optional — PDF, image or AutoCAD (.dwg) · up to 5 files, 10MB each</em></span>' +
+                            '<span class="qr-design-cta">Choose file</span>' +
+                        '</button>' +
                         '<input type="file" class="qr-design-input" name="' + prefix + '[design_files][]" accept=".pdf,image/*,.dwg" multiple style="display:none;">' +
                         '<div class="qr-file-list qr-design-list" style="display:none;"></div>' +
                         '<div class="qr-design-error" style="display:none;"></div>' +
@@ -454,6 +506,9 @@
                 '<button type="button" class="qr-tank-remove" onclick="removeTank(this)" title="Remove tank"><i data-lucide="x"></i></button>';
             tankBox.appendChild(row);
 
+            formatCapacity(row.querySelector('.qr-capacity'));
+            onTankTypeChange(row.querySelector('.qr-type-select'));
+            if (item.tank_type === 'Others') row.querySelector('.qr-type-other').value = item.tank_type_other || '';
             wireFulfillment(row);
             wireDesignPicker(row);
             refreshChrome();
@@ -470,6 +525,7 @@
                     wrap.style.display = delivery ? '' : 'none';
                     area.disabled = !delivery;
                     area.required = delivery;
+                    row.querySelector('.qr-fulfill-error').style.display = 'none';
                     row.querySelectorAll('.qr-fulfill-opt').forEach(function (opt) {
                         opt.classList.toggle('is-active', opt.querySelector('input').checked);
                     });
@@ -563,6 +619,19 @@
         }
 
         document.getElementById('addTankItemBtn').addEventListener('click', function () { addTank({}); });
+
+        document.getElementById('quotationRequestForm').addEventListener('submit', function (e) {
+            var firstMissing = null;
+            tankBox.querySelectorAll('.qr-tank-row').forEach(function (row) {
+                var chosen = row.querySelector('.qr-fulfill-opt input:checked');
+                row.querySelector('.qr-fulfill-error').style.display = chosen ? 'none' : 'block';
+                if (!chosen && !firstMissing) firstMissing = row;
+            });
+            if (firstMissing) {
+                e.preventDefault();
+                firstMissing.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        });
 
         // start with one tank (or restore what was typed before a validation error)
         var oldTanks = asList(OLD_TANK_ITEMS);

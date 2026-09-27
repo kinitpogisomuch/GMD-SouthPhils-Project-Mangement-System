@@ -70,6 +70,8 @@ class QuotationRequestController extends Controller
             // (which needs an address) or for pick-up (which doesn't); its own design upload is optional.
             'tank_items'                        => 'required|array|min:1',
             'tank_items.*.tank_type'            => 'required|string|in:' . implode(',', ProjectTankItem::TANK_TYPES),
+            // "Others" = the client names their own tank type
+            'tank_items.*.tank_type_other'      => 'required_if:tank_items.*.tank_type,Others|nullable|string|max:100',
             'tank_items.*.capacity'             => 'required|string|max:255',
             'tank_items.*.quantity'             => 'required|integer|min:1',
             'tank_items.*.target_timeline'      => 'nullable|date',
@@ -87,6 +89,7 @@ class QuotationRequestController extends Controller
             'tank_items.required'                     => 'Please add at least one tank requirement.',
             'tank_items.min'                          => 'Please add at least one tank requirement.',
             'tank_items.*.tank_type.required'         => 'Choose a tank type for every tank.',
+            'tank_items.*.tank_type_other.required_if' => 'Type your tank type for every tank set to "Others".',
             'tank_items.*.capacity.required'          => 'Enter the capacity / size for every tank.',
             'tank_items.*.quantity.required'          => 'Enter a quantity for every tank.',
             'tank_items.*.fulfillment.required'       => 'Choose delivery or pick-up for every tank.',
@@ -111,7 +114,8 @@ class QuotationRequestController extends Controller
             $quotationRequest = new QuotationRequest([
                 'client_id'       => $client->id,
                 'batch_id'        => $batchId,
-                'tank_type'       => $item['tank_type'],
+                // "Others" is stored as the client's own wording, so every screen shows what they actually asked for
+                'tank_type'       => $item['tank_type'] === 'Others' ? trim($item['tank_type_other']) : $item['tank_type'],
                 'capacity'        => $item['capacity'],
                 'quantity'        => $item['quantity'],
                 'target_timeline' => $item['target_timeline'] ?? null,
@@ -270,9 +274,15 @@ class QuotationRequestController extends Controller
     {
         $quotationRequest = QuotationRequest::where('batch_id', $batchId)->firstOrFail();
 
+        $validated = $request->validate([
+            'reason' => 'nullable|string|max:500',
+        ], [
+            'reason.max' => 'The decline reason can be at most 500 characters.',
+        ]);
+
         QuotationRequest::where('batch_id', $batchId)->update([
             'status'         => 'declined',
-            'decline_reason' => $request->input('reason'),
+            'decline_reason' => $validated['reason'] ?? null,
         ]);
 
         NotificationService::quotationRequestDeclined($quotationRequest);
@@ -326,14 +336,19 @@ class QuotationRequestController extends Controller
                 'address' => $client->address,
             ],
             'tank_items' => $requests->map(fn ($qr) => [
-                'tank_type'       => $qr->tank_type,
+                'tank_type'        => in_array($qr->tank_type, ProjectTankItem::TANK_TYPES, true) ? $qr->tank_type : ($qr->tank_type ? 'Others' : null),
+                'tank_type_custom' => in_array($qr->tank_type, ProjectTankItem::TANK_TYPES, true) ? null : $qr->tank_type,
                 'quantity'        => $qr->quantity,
                 'capacity'        => $qr->capacity,
                 'target_timeline' => $qr->target_timeline_display,
             ])->values(),
             'reference_files' => $referenceFiles,
             'summary' => [
-                'notes' => $requests->first()->notes,
+                'notes' => trim(implode("\n", array_filter([
+                    $requests->first()->notes,
+                    $requests->filter(fn ($qr) => $qr->tank_type && !in_array($qr->tank_type, ProjectTankItem::TANK_TYPES, true))
+                        ->map(fn ($qr) => 'Tank type (Others): ' . $qr->tank_type)->unique()->implode('; '),
+                ]))),
             ],
         ]);
     }

@@ -292,9 +292,9 @@
             @endif
 
             @if($batchStatus === 'pending' && optional($tankItems->first())->decline_reason)
-            <div class="alert-banner" style="margin-bottom:20px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;">
+            <div class="alert-banner" style="align-items:flex-start;margin-bottom:20px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;">
                 <i data-lucide="rotate-ccw"></i>
-                <strong>Client requested a revision:</strong> {{ $tankItems->first()->decline_reason }}
+                <span style="flex:1;min-width:0;overflow-wrap:anywhere;word-break:break-word;"><strong>Client requested a revision:</strong> {{ $tankItems->first()->decline_reason }}</span>
             </div>
             @endif
 

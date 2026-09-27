@@ -865,7 +865,7 @@
 
             var html = tankItems.length
                 ? tankItems.map(function (item, i) {
-                    var typeLabel = qrEscapeHtml(item.tank_type || 'Tank');
+                    var typeLabel = qrEscapeHtml(item.tank_type_custom || item.tank_type || 'Tank');
                     if ((item.quantity || 1) > 1) typeLabel += ' ×' + parseInt(item.quantity, 10);
                     var chips = '<span class="qr-spec-chip qr-chip-type"><i data-lucide="package" style="width:11px;height:11px;"></i>' + typeLabel + '</span>';
                     if (item.capacity) {
