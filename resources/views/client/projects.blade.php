@@ -213,11 +213,18 @@
                 </button>
             </div>
 
-            <form method="POST" id="reviewForm" action="">
+            <form method="POST" id="reviewForm" action="" novalidate>
                 @csrf
+                @if($errors->review->any())
+                <div class="review-error" style="margin:0 20px 12px;padding:10px 14px;background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;">
+                    @foreach($errors->review->all() as $message)
+                    <div>{{ $message }}</div>
+                    @endforeach
+                </div>
+                @endif
                 <div class="form-grid">
                     <div class="form-group form-group-full">
-                        <label>Your Rating </label>
+                        <label>Your Rating <span style="color:#dc2626;">*</span></label>
                         <div class="star-rating" id="reviewStarRating">
                             @for($i=1;$i<=5;$i++)
                             <button type="button" data-value="{{ $i }}" onclick="setReviewRating({{ $i }})">
@@ -225,11 +232,16 @@
                             </button>
                             @endfor
                         </div>
-                        <input type="hidden" name="rating" id="reviewRatingInput" required>
+                        <input type="hidden" name="rating" id="reviewRatingInput">
+                        <div class="review-error" id="reviewRatingError" hidden>Please choose a star rating.</div>
                     </div>
                     <div class="form-group form-group-full">
-                        <label>Your Review </label>
-                        <textarea name="comment" id="reviewCommentInput" rows="3" maxlength="1000" placeholder="Tell us about your experience with this project..." required style="min-height:auto;resize:none;"></textarea>
+                        <label>Your Review <span style="color:#dc2626;">*</span></label>
+                        <textarea name="comment" id="reviewCommentInput" rows="3" maxlength="1000" placeholder="Tell us about your experience with this project..." style="min-height:auto;resize:none;"></textarea>
+                        <div style="display:flex;justify-content:space-between;gap:10px;margin-top:6px;">
+                            <div class="review-error" id="reviewCommentError" hidden>Please write a short review.</div>
+                            <span id="reviewCommentCount" style="margin-left:auto;font-size:11.5px;font-weight:700;color:var(--muted);">0 / 1000</span>
+                        </div>
                     </div>
                     <div class="form-group form-group-full">
                         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;">
@@ -256,6 +268,10 @@
         </div>
     </div>
 
+    <style>
+        .review-error { font-size: 12.5px; font-weight: 700; color: #b91c1c; }
+        .review-error[hidden] { display: none; }
+    </style>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>
         lucide.createIcons();
@@ -276,7 +292,8 @@
         });
 
         function setReviewRating(value) {
-            document.getElementById('reviewRatingInput').value = value;
+            document.getElementById('reviewRatingInput').value = value > 0 ? value : '';   // empty means "not chosen yet"
+            document.getElementById('reviewRatingError').hidden = true;
             document.querySelectorAll('#reviewStarRating button').forEach(function (btn) {
                 btn.classList.toggle('filled', parseInt(btn.dataset.value, 10) <= value);
             });
@@ -288,8 +305,42 @@
             document.getElementById('reviewCommentInput').value = comment || '';
             document.getElementById('reviewHideNameInput').checked = !!isAnonymous;
             setReviewRating(rating || 0);
+            document.getElementById('reviewCommentError').hidden = true;
+            updateReviewCount();
             openModal('reviewModal');
         }
+
+        function updateReviewCount() {
+            var box   = document.getElementById('reviewCommentInput');
+            var count = document.getElementById('reviewCommentCount');
+            count.textContent = box.value.length + ' / 1000';
+            count.style.color = box.value.length >= 1000 ? '#dc2626' : 'var(--muted)';
+        }
+        document.getElementById('reviewCommentInput').addEventListener('input', function () {
+            updateReviewCount();
+            if (this.value.trim()) document.getElementById('reviewCommentError').hidden = true;
+        });
+
+        // The rating is a hidden field and can't show the browser's own "required" message, so both fields
+        // are checked here and explained under the field itself.
+        document.getElementById('reviewForm').addEventListener('submit', function (e) {
+            var noRating  = !document.getElementById('reviewRatingInput').value;
+            var noComment = !document.getElementById('reviewCommentInput').value.trim();
+            document.getElementById('reviewRatingError').hidden  = !noRating;
+            document.getElementById('reviewCommentError').hidden = !noComment;
+            if (noRating || noComment) {
+                e.preventDefault();
+                (noRating ? document.getElementById('reviewStarRating') : document.getElementById('reviewCommentInput')).scrollIntoView({ block: 'center' });
+            }
+        });
+
+        @if($errors->review->any() && session('review_project_id'))
+        // the server sent the review back with a problem: reopen the pop-up with what was typed and the message
+        (function () {
+            var project = {{ \Illuminate\Support\Js::from(optional($projects->firstWhere('id', session('review_project_id')))->name ?? 'this project') }};
+            openReviewModal({{ (int) session('review_project_id') }}, project, {{ (int) old('rating', 0) }}, {{ \Illuminate\Support\Js::from(old('comment', '')) }}, {{ old('hide_name') ? 'true' : 'false' }});
+        })();
+        @endif
 
         function filterProjects(filter, btn) {
             document.querySelectorAll('.filter-tab[data-filter]').forEach(function (tab) {
