@@ -220,6 +220,7 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::post('/employees', [EmployeeAccountController::class, 'store'])->name('employee-account.store');
     Route::put('/employees/{id}', [EmployeeAccountController::class, 'update'])->name('employee-account.update');
     Route::patch('/employees/{id}/archive', [EmployeeAccountController::class, 'archive'])->name('employee-account.archive');
+    Route::patch('/employees/{id}/toggle-focal-person', [EmployeeAccountController::class, 'toggleFocalPerson'])->name('employee-account.toggle_focal_person');
 
     // Employee List API
     Route::get('/employees/list', [EmployeeAccountController::class, 'list'])->name('employee.list');
@@ -309,6 +310,7 @@ Route::prefix('employee')->name('employee.')->middleware(['role:employee', 'prof
     Route::post('/messages/send', [MessageController::class, 'send'])->name('messages.send');
     Route::get('/messages/unread-count', [MessageController::class, 'unreadCount'])->name('messages.unread_count');
     Route::get('/projects', [EmployeeController::class, 'projects'])->name('projects');
+    Route::get('/projects/pending-requests-count', [ProjectController::class, 'employeePendingRequestsCount'])->name('projects.pending_requests_count');
     Route::get('/project-view/{id}', [ProjectController::class, 'employeeView'])->name('project_view');
 
     // Submit initial update (tied to a ProgressRequest)

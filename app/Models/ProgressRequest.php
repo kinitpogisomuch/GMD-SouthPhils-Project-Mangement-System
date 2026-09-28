@@ -15,6 +15,7 @@ class ProgressRequest extends Model
         'status',
         'fulfilled_by',
         'fulfilled_at',
+        'target_employee_id',
     ];
 
     protected $casts = [
@@ -34,5 +35,10 @@ class ProgressRequest extends Model
     public function fulfilledBy()
     {
         return $this->belongsTo(Employee::class, 'fulfilled_by');
+    }
+
+    public function targetEmployee()
+    {
+        return $this->belongsTo(Employee::class, 'target_employee_id');
     }
 }

@@ -91,13 +91,18 @@ class EmployeeAccountController extends Controller
                 ->with(['account_error' => 'Account creation failed: ' . $e->getMessage(), 'active_tab' => 'employees']);
         }
 
-        return redirect()->route('admin.employees')
-            ->with([
-                'active_tab'       => 'employees',
-                'new_emp_username' => $username,
-                'new_emp_pin'      => $pin,
-                'new_emp_name'     => $request->last_name . ', ' . $request->first_name,
-            ]);
+        // A plain session write (not ->with()/flash()) — the admin header polls
+        // notifications/messages every 15-30s in the background, and any of those
+        // unrelated requests sharing this session would otherwise "age out" (silently
+        // delete) flash data before the redirect's own page load gets to read it.
+        // AdminController::employees() reads this once and forgets it explicitly.
+        session()->put([
+            'new_emp_username' => $username,
+            'new_emp_pin'      => $pin,
+            'new_emp_name'     => $request->last_name . ', ' . $request->first_name,
+        ]);
+
+        return redirect()->route('admin.employees')->with('active_tab', 'employees');
     }
 
     public function update(Request $request, $id)
@@ -191,5 +196,20 @@ class EmployeeAccountController extends Controller
             });
 
         return response()->json($employees);
+    }
+
+    /**
+     * Toggle whether this employee is designated a Focal Person. This is a
+     * simple flag on the employee themselves — not tied to any project or phase.
+     */
+    public function toggleFocalPerson($id)
+    {
+        $employee = \App\Models\Employee::findOrFail($id);
+        $employee->update(['is_focal_person' => !$employee->is_focal_person]);
+
+        return redirect()->route('admin.employees')
+            ->with('success', $employee->is_focal_person
+                ? "{$employee->full_name} is now marked as a Focal Person."
+                : "{$employee->full_name} is no longer marked as a Focal Person.");
     }
 }

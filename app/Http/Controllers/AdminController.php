@@ -516,7 +516,20 @@ class AdminController extends Controller
             ->unique()
             ->values();
 
-        return view('admin.employees', compact('employees', 'nextEmployeeUsername', 'employeeRoles'));
+        // Read the just-created employee's credentials (a plain session write, not flash —
+        // see EmployeeAccountController::store()) and clear it immediately so a refresh
+        // of this page doesn't keep re-showing the modal.
+        $newEmployeeCreds = null;
+        if (session('new_emp_username')) {
+            $newEmployeeCreds = [
+                'username' => session('new_emp_username'),
+                'pin'      => session('new_emp_pin'),
+                'name'     => session('new_emp_name'),
+            ];
+            session()->forget(['new_emp_username', 'new_emp_pin', 'new_emp_name']);
+        }
+
+        return view('admin.employees', compact('employees', 'nextEmployeeUsername', 'employeeRoles', 'newEmployeeCreds'));
     }
 
     public function projectMaterials()
@@ -1104,7 +1117,26 @@ class AdminController extends Controller
         // fall back into normal created_at-desc order (PHP's sort is stable).
         $clients = $clients->sortBy(fn ($client) => $client->status === 'Pending' ? 0 : 1)->values();
 
-        return view('admin.clients', compact('clients'));
+        // Read the just-created client's credentials (a plain session write, not flash —
+        // see ClientSettingsController::store()) and clear it immediately so a refresh
+        // of this page doesn't keep re-showing the modal.
+        $newClientCreds = null;
+        if (session('new_client_username')) {
+            $newClientCreds = [
+                'username'    => session('new_client_username'),
+                'pin'         => session('new_client_pin'),
+                'name'        => session('new_client_name'),
+                'email'       => session('new_client_email'),
+                'email_sent'  => session('email_sent'),
+                'email_error' => session('email_error'),
+            ];
+            session()->forget([
+                'new_client_username', 'new_client_pin', 'new_client_name',
+                'new_client_email', 'email_sent', 'email_error',
+            ]);
+        }
+
+        return view('admin.clients', compact('clients', 'newClientCreds'));
     }
 
     public function weeklyRevenue(Request $request)

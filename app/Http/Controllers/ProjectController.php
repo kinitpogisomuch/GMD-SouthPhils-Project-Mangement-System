@@ -87,9 +87,17 @@ class ProjectController extends Controller
                     ->orderBy('created_at', 'desc')
                     ->get();
 
-        $openRequest = ProgressRequest::where('project_id', $id)
-                        ->where('status', 'open')
-                        ->first();
+        // Requests are now tracked per targeted employee, so several can be active
+        // at once (e.g. Focal Person + a couple of others). This is just the set of
+        // employee ids who currently already have one, so the "Request Update"
+        // modal can grey their checkbox out instead of blocking the whole thing.
+        $activeRequestEmployeeIds = ProgressRequest::where('project_id', $id)
+                        ->whereIn('status', ['open', 'revision_requested'])
+                        ->pluck('target_employee_id')
+                        ->filter()
+                        ->unique()
+                        ->values()
+                        ->all();
 
         $pendingUpdates = ProjectUpdate::where('project_id', $id)
                             ->where('type', 'employee_submission')
@@ -189,7 +197,7 @@ class ProjectController extends Controller
             ->orderByDesc('date')->orderByDesc('id')->get();
 
         return view('admin.project_view', compact(
-            'project', 'updates', 'openRequest', 'pendingUpdates', 'nextPhase',
+            'project', 'updates', 'activeRequestEmployeeIds', 'pendingUpdates', 'nextPhase',
             'clientName', 'clientAddress', 'clientContact', 'clientEmail',
             // financial
             'payment', 'contractAmount', 'projectBudget', 'markup', 'budgetAdherence',
@@ -337,8 +345,11 @@ class ProjectController extends Controller
             abort(403);
         }
 
-        // The latest request is the single source of truth for form visibility
+        // The latest request is the single source of truth for form visibility —
+        // scoped to this employee's own Focal Person assignment so a request never
+        // shows up for anyone else assigned to the project.
         $latestRequest = ProgressRequest::where('project_id', $id)
+                            ->where('target_employee_id', session('user_id'))
                             ->latest()
                             ->first();
 
@@ -375,6 +386,19 @@ class ProjectController extends Controller
             'project', 'openRequest', 'revisionUpdate',
             'showProgressForm', 'showRevisionForm', 'updates'
         ));
+    }
+
+    /**
+     * How many progress-update requests (across all this employee's projects) are
+     * currently waiting on them — feeds the badge on the "Projects" nav link.
+     */
+    public function employeePendingRequestsCount()
+    {
+        $count = ProgressRequest::where('target_employee_id', session('user_id'))
+            ->whereIn('status', ['open', 'revision_requested'])
+            ->count();
+
+        return response()->json(['count' => $count]);
     }
 
     /*
@@ -1351,31 +1375,69 @@ class ProjectController extends Controller
     */
     public function requestUpdate(Request $request, $id)
     {
-        $request->validate(['message' => 'nullable|string']);
+        $request->validate([
+            'message'               => 'nullable|string',
+            'target_employee_id'    => 'required|array|min:1',
+            'target_employee_id.*'  => 'integer|exists:employees,id',
+        ]);
 
         $project = Project::findOrFail($id);
 
-        $existing = ProgressRequest::where('project_id', $id)
-                        ->whereIn('status', ['open', 'revision_requested'])
-                        ->first();
+        // The chosen employees normally default to the phase's Focal Person in the
+        // UI, but the admin may check any other employees already assigned to the
+        // project too (e.g. the Focal Person is absent, or several people should work
+        // on it). Anyone not actually assigned to the project is rejected outright.
+        $targetIds = array_values(array_unique(array_map('intval', $request->target_employee_id)));
 
-        if ($existing) {
+        $assignedIds = $project->assignedEmployees()->pluck('employees.id')->all();
+        $invalidIds  = array_diff($targetIds, $assignedIds);
+
+        if (!empty($invalidIds)) {
             return redirect()->route('admin.project_view', $id)
-                ->with('error', 'There is already an active request for this project.');
+                ->with('error', 'One or more selected employees are not assigned to this project.');
         }
 
-        ProgressRequest::create([
-            'project_id'   => $id,
-            'requested_by' => session('user_id') ?? 1,
-            'message'      => $request->message,
-            'phase'        => $project->current_phase,
-            'status'       => 'open',
-        ]);
+        // Requests are tracked per employee, so several can be active on the same
+        // project at once — only skip employees who individually already have one.
+        $alreadyActiveIds = ProgressRequest::where('project_id', $id)
+            ->whereIn('status', ['open', 'revision_requested'])
+            ->whereIn('target_employee_id', $targetIds)
+            ->pluck('target_employee_id')
+            ->all();
 
-        NotificationService::progressRequested($project, $request->message);
+        $toRequestIds = array_diff($targetIds, $alreadyActiveIds);
 
-        return redirect()->route('admin.project_view', $id)
-            ->with('success', 'Progress update request sent to employees!');
+        if (empty($toRequestIds)) {
+            return redirect()->route('admin.project_view', $id)
+                ->with('error', 'The selected employee(s) already have an active request.');
+        }
+
+        $requestedNames = [];
+        foreach ($toRequestIds as $empId) {
+            $targetEmployee = Employee::find($empId);
+            if (!$targetEmployee) {
+                continue;
+            }
+
+            ProgressRequest::create([
+                'project_id'          => $id,
+                'requested_by'        => session('user_id') ?? 1,
+                'message'             => $request->message,
+                'phase'               => $project->current_phase,
+                'status'              => 'open',
+                'target_employee_id'  => $targetEmployee->id,
+            ]);
+
+            NotificationService::progressRequested($project, $targetEmployee, $request->message);
+            $requestedNames[] = $targetEmployee->first_name;
+        }
+
+        $message = 'Progress update request sent to ' . implode(', ', $requestedNames) . '!';
+        if (!empty($alreadyActiveIds)) {
+            $message .= ' (' . count($alreadyActiveIds) . ' already had an active request and were skipped.)';
+        }
+
+        return redirect()->route('admin.project_view', $id)->with('success', $message);
     }
 
     /*
@@ -1390,6 +1452,11 @@ class ProjectController extends Controller
         $project         = Project::findOrFail($progressRequest->project_id);
 
         if (!$project->assignedEmployees()->where('employees.id', session('user_id'))->exists()) {
+            abort(403);
+        }
+
+        // Only the phase's Focal Person may fulfill this specific request.
+        if ((int) $progressRequest->target_employee_id !== (int) session('user_id')) {
             abort(403);
         }
 
@@ -1515,6 +1582,11 @@ class ProjectController extends Controller
         if (!$activeRequest) {
             return redirect()->route('employee.project_view', $id)
                 ->with('error', 'No active revision request found.');
+        }
+
+        // Only the phase's Focal Person may submit this revision.
+        if ((int) $activeRequest->target_employee_id !== (int) session('user_id')) {
+            abort(403);
         }
 
         // Enforce the maximum number of revision resubmissions for this submission lineage

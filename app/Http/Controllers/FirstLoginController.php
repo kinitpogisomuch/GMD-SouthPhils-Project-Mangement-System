@@ -20,6 +20,16 @@ class FirstLoginController extends Controller
         };
     }
 
+    /** Fixed prefix for each role's system-generated username (mirrors Employee/Client ::next...Username()). */
+    private function usernamePrefix(string $role): string
+    {
+        return match ($role) {
+            'employee' => 'EGMD-',
+            'client'   => 'CGMD-',
+            default    => '',
+        };
+    }
+
     public function show()
     {
         if (!session('user_id')) {
@@ -34,7 +44,13 @@ class FirstLoginController extends Controller
         $user = $this->findAuthRecord(session('role'), session('user_id'));
         if (!$user) return redirect()->route('login');
 
-        return view('auth.first_login_setup', compact('user'));
+        // Only the numeric suffix is edited in the UI — the prefix stays fixed to the role.
+        $usernamePrefix = $this->usernamePrefix(session('role'));
+        $usernameSuffix = ($usernamePrefix && str_starts_with((string) $user->username, $usernamePrefix))
+            ? substr($user->username, strlen($usernamePrefix))
+            : $user->username;
+
+        return view('auth.first_login_setup', compact('user', 'usernamePrefix', 'usernameSuffix'));
     }
 
     public function handle(Request $request)
@@ -55,13 +71,19 @@ class FirstLoginController extends Controller
             default    => 'users',
         };
 
+        $usernamePrefix = $this->usernamePrefix($role);
+        $usernameRule    = $usernamePrefix
+            ? 'regex:/^' . preg_quote($usernamePrefix, '/') . '\d{1,4}$/'
+            : 'alpha_dash';
+
         $validator = Validator::make($request->all(), [
+            'username'                 => ['required', 'string', 'max:50', $usernameRule, "unique:{$table},username,{$userId}"],
             'email'                    => "required|email|unique:{$table},email,{$userId}",
             'region'                   => 'required|string|max:255',
             'province'                 => 'required|string|max:255',
             'city'                     => 'required|string|max:255',
             'barangay'                 => 'required|string|max:255',
-            'street_address'           => 'required|string|max:500',
+            'street_address'           => 'nullable|string|max:500',
             'current_pin'              => 'required|string',
             'new_password'             => ['required', 'string', 'min:6', 'confirmed',
                 function ($_, $value, $fail) {
@@ -79,6 +101,8 @@ class FirstLoginController extends Controller
             'new_password_confirmation' => 'required|string',
         ], [
             'new_password.confirmed' => 'Password confirmation does not match.',
+            'username.regex'         => 'Username must be in the format ' . $usernamePrefix . '0000.',
+            'username.unique'        => 'That username is already taken.',
         ]);
 
         if ($validator->fails()) {
@@ -108,6 +132,7 @@ class FirstLoginController extends Controller
         ]));
 
         $user->update([
+            'username'            => $request->username,
             'email'               => $request->email,
             'region'              => $request->region,
             'province'            => $request->province,

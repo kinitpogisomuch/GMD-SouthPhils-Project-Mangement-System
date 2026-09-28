@@ -174,10 +174,12 @@
             {{-- ============================================================ --}}
             {{-- PROGRESS FORM: shown when admin created a new progress request --}}
             {{-- ============================================================ --}}
-            <div class="emp-pv-card" style="margin-top:20px;background:#fefce8;border:2px solid #fbbf24;">
-                <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
-                    <div style="width:38px;height:38px;border-radius:50%;background:#fde68a;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                        <i data-lucide="bell" style="width:18px;height:18px;color:#92400e;"></i>
+            <div class="emp-pv-card" style="margin-top:20px;background:#fffdf5;border:1px solid #fde68a;position:relative;overflow:hidden;">
+                <div style="position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#fbbf24,#f59e0b);"></div>
+
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+                    <div style="width:42px;height:42px;border-radius:50%;background:#fde68a;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 10px rgba(251,191,36,0.35);">
+                        <i data-lucide="bell" style="width:19px;height:19px;color:#92400e;"></i>
                     </div>
                     <div>
                         <h3 class="emp-pv-card-title" style="margin:0;color:#78350f;">Progress Update Requested</h3>
@@ -186,9 +188,12 @@
                 </div>
 
                 @if($openRequest->message)
-                <div style="background:#fff;border:1px solid #fde68a;border-radius:8px;padding:14px 16px;margin-bottom:20px;">
-                    <div style="font-size:11px;font-weight:800;color:#92400e;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">Admin's Note</div>
-                    <div style="font-size:13.5px;color:#78350f;white-space:pre-wrap;line-height:1.6;">{{ $openRequest->message }}</div>
+                <div style="background:#fff;border:1px solid #fde68a;border-radius:12px;padding:14px 16px;margin-bottom:22px;display:flex;gap:10px;">
+                    <i data-lucide="message-square-quote" style="width:16px;height:16px;color:#d97706;flex-shrink:0;margin-top:2px;"></i>
+                    <div>
+                        <div style="font-size:11px;font-weight:800;color:#92400e;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Admin's Note</div>
+                        <div style="font-size:13.5px;color:#78350f;white-space:pre-wrap;line-height:1.6;">{{ $openRequest->message }}</div>
+                    </div>
                 </div>
                 @endif
 
@@ -197,44 +202,54 @@
                       enctype="multipart/form-data">
                     @csrf
 
-                    <div class="form-group">
-                        <label class="log-label">DATE OF WORK </label>
-                        <input type="date" name="date_of_work" class="log-input"
-                               value="{{ old('date_of_work') }}" required>
-                    </div>
+                    <div style="background:#fff;border:1px solid #fef3c7;border-radius:14px;padding:18px;">
+                        <div class="form-group">
+                            <label class="log-label">Date of Work</label>
+                            <input type="date" name="date_of_work" class="log-input"
+                                   value="{{ old('date_of_work') }}" required>
+                        </div>
 
-                    <div class="form-group" style="margin-top:14px;">
-                        <label class="log-label">WORK DONE
-                            <span style="font-weight:400;color:var(--text-muted);text-transform:none;">(optional)</span>
-                        </label>
-                        <textarea name="work_done" class="log-textarea" rows="4"
-                                  placeholder="Describe what was accomplished...">{{ old('work_done') }}</textarea>
-                    </div>
+                        <div style="height:1px;background:#fef3c7;margin:16px 0;"></div>
 
-                    <div class="form-group" style="margin-top:14px;">
-                        <label class="log-label">ISSUES / OBSERVATIONS
-                            <span style="font-weight:400;color:var(--text-muted);text-transform:none;">(optional)</span>
-                        </label>
-                        <textarea name="issues" class="log-textarea" rows="3"
-                                  placeholder="Any problems, delays, or observations...">{{ old('issues') }}</textarea>
-                    </div>
+                        <div class="form-group">
+                            <label class="log-label">Work Done
+                                <span style="font-weight:400;color:var(--text-muted);text-transform:none;">(optional)</span>
+                            </label>
+                            <textarea name="work_done" class="log-textarea" rows="4"
+                                      placeholder="Describe what was accomplished...">{{ old('work_done') }}</textarea>
+                        </div>
 
-                    <div class="form-group" style="margin-top:14px;">
-                        <label class="log-label">SITE PHOTOS
-                            <span style="font-weight:400;color:#dc2626;text-transform:none;">(required)</span>
-                        </label>
-                        <label style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:22px;border:2px dashed #fbbf24;border-radius:10px;cursor:pointer;background:#fffbeb;transition:.2s;">
-                            <i data-lucide="upload-cloud" style="width:24px;height:24px;color:#d97706;"></i>
-                            <span style="font-size:13px;font-weight:700;color:#78350f;">Click to upload photos</span>
-                            <span style="font-size:11.5px;color:#b45309;">Required — up to 5 photos, JPG/PNG, max 5MB each</span>
-                            <input type="file" name="photos[]" multiple accept="image/*"
-                                   style="display:none;" onchange="previewPhotos(this)" required>
-                        </label>
-                        <div id="photoPreview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;"></div>
+                        <div style="height:1px;background:#fef3c7;margin:16px 0;"></div>
+
+                        <div class="form-group">
+                            <label class="log-label">Issues / Observations
+                                <span style="font-weight:400;color:var(--text-muted);text-transform:none;">(optional)</span>
+                            </label>
+                            <textarea name="issues" class="log-textarea" rows="3"
+                                      placeholder="Any problems, delays, or observations...">{{ old('issues') }}</textarea>
+                        </div>
+
+                        <div style="height:1px;background:#fef3c7;margin:16px 0;"></div>
+
+                        <div class="form-group">
+                            <label class="log-label">Site Photos
+                                <span style="font-weight:400;color:#dc2626;text-transform:none;">(required)</span>
+                            </label>
+                            <label style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:26px 20px;border:2px dashed #fbbf24;border-radius:12px;cursor:pointer;background:#fffbeb;transition:.2s;">
+                                <div style="width:40px;height:40px;border-radius:50%;background:#fde68a;display:flex;align-items:center;justify-content:center;">
+                                    <i data-lucide="upload-cloud" style="width:19px;height:19px;color:#92400e;"></i>
+                                </div>
+                                <span style="font-size:13px;font-weight:700;color:#78350f;">Click to upload photos</span>
+                                <span style="font-size:11.5px;color:#b45309;">Up to 5 photos &middot; JPG/PNG &middot; max 5MB each</span>
+                                <input type="file" name="photos[]" multiple accept="image/*"
+                                       style="display:none;" onchange="previewPhotos(this)" required>
+                            </label>
+                            <div id="photoPreview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;"></div>
+                        </div>
                     </div>
 
                     @if($errors->any())
-                    <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:12px;margin-top:14px;color:#dc2626;font-size:13px;">
+                    <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:12px 14px;margin-top:16px;color:#dc2626;font-size:13px;">
                         @foreach($errors->all() as $error)<div>• {{ $error }}</div>@endforeach
                     </div>
                     @endif

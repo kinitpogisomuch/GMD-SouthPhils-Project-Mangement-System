@@ -107,7 +107,10 @@ class FundController extends Controller
     public function setupInitial(Request $request)
     {
         $validated = $request->validate([
-            'initial_balance' => 'required|numeric|min:0',
+            'initial_balance' => 'required|numeric|min:0.01',
+        ], [
+            'initial_balance.required' => 'Please enter the starting balance.',
+            'initial_balance.min'      => 'The starting balance must be more than zero.',
         ]);
 
         $result = FundSetting::setInitialBalance((float) $validated['initial_balance']);

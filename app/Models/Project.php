@@ -247,6 +247,14 @@ class Project extends Model
         return $this->hasMany(ProgressRequest::class);
     }
 
+    // Helper: whichever assigned employee is designated Focal Person, if any.
+    // Focal Person is a designation on the employee themselves (Employee List),
+    // not tied to a specific project or phase.
+    public function focalPerson(): ?Employee
+    {
+        return $this->assignedEmployees()->whereRaw('"is_focal_person" = true')->first();
+    }
+
     // Relationship: Project has many payments
     public function payments()
     {

@@ -342,157 +342,121 @@
                             Add Portfolio Item
                         </button>
                     </div>
-                    <div class="table-wrapper">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Preview</th>
-                                    <th>Capacity</th>
-                                    <th>Tag</th>
-                                    <th>Title</th>
-                                    <th>Description</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse($portfolioItems as $item)
-                                @php
-                                    $itemSrc = $item->image_url && !str_starts_with($item->image_url, 'http')
-                                        ? asset($item->image_url)
-                                        : $item->image_url;
-                                @endphp
-                                <tr>
-                                    <td>
-                                        @if($itemSrc)
-                                            <img src="{{ $itemSrc }}" alt="" style="width:60px;height:40px;object-fit:cover;border-radius:8px;">
-                                        @else
-                                            <div style="width:60px;height:40px;border-radius:8px;background:var(--cream-soft);display:flex;align-items:center;justify-content:center;">
-                                                <i data-lucide="{{ $item->icon ?: 'image' }}" style="width:18px;height:18px;"></i>
-                                            </div>
-                                        @endif
-                                    </td>
-                                    <td>{{ $item->spec }}</td>
-                                    <td>{{ $item->tag }}</td>
-                                    <td><strong>{{ $item->title }}</strong></td>
-                                    <td style="max-width:200px;white-space:normal;font-size:12px;color:var(--muted);">{{ Str::limit($item->description, 60) }}</td>
-                                    <td>
-                                        <span class="status-badge {{ $item->status === 'active' ? 'active' : 'archived' }}">
-                                            {{ $item->status === 'active' ? 'Visible' : 'Hidden' }}
-                                        </span>
-                                    </td>
-                                    <td class="action-cell">
-                                        <button class="action-btn view edit-portfolio-btn" type="button"
-                                                data-id="{{ $item->id }}"
-                                                data-image="{{ $itemSrc }}"
-                                                data-icon="{{ $item->icon }}"
-                                                data-spec="{{ $item->spec }}"
-                                                data-tag="{{ $item->tag }}"
-                                                data-title="{{ $item->title }}"
-                                                data-description="{{ $item->description }}"
-                                                title="Edit">
-                                            <i data-lucide="pencil"></i>
-                                        </button>
-                                        <button class="action-btn view toggle-visibility-btn" type="button"
-                                                data-archive-url="{{ route('admin.portfolio.archive', $item->id) }}"
-                                                data-hidden="{{ $item->status === 'archived' ? '1' : '0' }}"
-                                                data-name="{{ $item->title }}"
-                                                title="{{ $item->status === 'archived' ? 'Show on landing page' : 'Hide from landing page' }}">
-                                            <i data-lucide="{{ $item->status === 'archived' ? 'eye' : 'eye-off' }}"></i>
-                                        </button>
-                                        <button class="action-btn view delete-item-btn" type="button"
-                                                data-delete-url="{{ route('admin.portfolio.destroy', $item->id) }}"
-                                                data-name="{{ $item->title }}"
-                                                title="Delete">
-                                            <i data-lucide="trash-2"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                                @empty
-                                <tr>
-                                    <td colspan="6" style="text-align:center;padding:40px;color:var(--muted);">
-                                        No portfolio items yet. Click "Add Portfolio Item" to create one.
-                                    </td>
-                                </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
+                    @if($portfolioItems->isEmpty())
+                    <div style="text-align:center;padding:40px;color:var(--muted);">
+                        No portfolio items yet. Click "Add Portfolio Item" to create one.
                     </div>
+                    @else
+                    <div class="portfolio-grid" id="portfolioTableBody">
+                        @foreach($portfolioItems as $item)
+                        @php
+                            $itemSrc = $item->image_url && !str_starts_with($item->image_url, 'http')
+                                ? asset($item->image_url)
+                                : $item->image_url;
+                        @endphp
+                        <div class="portfolio-card" title="Click to edit">
+                            <div class="portfolio-card-image">
+                                @if($itemSrc)
+                                    <img src="{{ $itemSrc }}" alt="">
+                                @else
+                                    <i data-lucide="{{ $item->icon ?: 'image' }}"></i>
+                                @endif
+                                <span class="status-badge {{ $item->status === 'active' ? 'active' : 'archived' }} portfolio-card-status">
+                                    {{ $item->status === 'active' ? 'Visible' : 'Hidden' }}
+                                </span>
+                            </div>
+                            <div class="portfolio-card-body">
+                                <div class="portfolio-card-title">{{ $item->title }}</div>
+                                <div class="portfolio-card-chips">
+                                    <span class="portfolio-chip"><i data-lucide="tag"></i>{{ $item->tag }}</span>
+                                    <span class="portfolio-chip"><i data-lucide="ruler"></i>{{ $item->spec }}</span>
+                                </div>
+                                <p class="portfolio-card-desc">{{ Str::limit($item->description, 90) }}</p>
+                            </div>
+                            <div class="portfolio-card-actions">
+                                <button class="action-btn view edit-portfolio-btn" type="button"
+                                        data-id="{{ $item->id }}"
+                                        data-image="{{ $itemSrc }}"
+                                        data-icon="{{ $item->icon }}"
+                                        data-spec="{{ $item->spec }}"
+                                        data-tag="{{ $item->tag }}"
+                                        data-title="{{ $item->title }}"
+                                        data-description="{{ $item->description }}"
+                                        title="Edit">
+                                    <i data-lucide="pencil"></i>
+                                </button>
+                                <button class="action-btn view toggle-visibility-btn" type="button"
+                                        data-archive-url="{{ route('admin.portfolio.archive', $item->id) }}"
+                                        data-hidden="{{ $item->status === 'archived' ? '1' : '0' }}"
+                                        data-name="{{ $item->title }}"
+                                        title="{{ $item->status === 'archived' ? 'Show on landing page' : 'Hide from landing page' }}">
+                                    <i data-lucide="{{ $item->status === 'archived' ? 'eye' : 'eye-off' }}"></i>
+                                </button>
+                                <button class="action-btn view delete-item-btn" type="button"
+                                        data-delete-url="{{ route('admin.portfolio.destroy', $item->id) }}"
+                                        data-name="{{ $item->title }}"
+                                        title="Delete">
+                                    <i data-lucide="trash-2"></i>
+                                </button>
+                            </div>
+                        </div>
+                        @endforeach
+                    </div>
+                    @endif
                 </div>
 
                 <div class="table-card" style="margin-top:24px;">
                     <div class="table-toolbar">
                         <span style="font-weight:700;font-size:15px;">Client Reviews</span>
+                        <span style="font-size:12px;font-weight:700;color:var(--muted);">{{ $reviews->count() }} review{{ $reviews->count() !== 1 ? 's' : '' }}</span>
                     </div>
-                    <div class="table-wrapper">
-                        <table class="data-table" style="table-layout:fixed;width:100%;">
-                            <colgroup>
-                                <col style="width:22%;">
-                                <col style="width:13%;">
-                                <col style="width:10%;">
-                                <col style="width:33%;">
-                                <col style="width:10%;">
-                                <col style="width:12%;">
-                            </colgroup>
-                            <thead>
-                                <tr>
-                                    <th>Project</th>
-                                    <th>Client</th>
-                                    <th>Rating</th>
-                                    <th>Review</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse($reviews as $review)
-                                <tr>
-                                    <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><strong>{{ $review->project->name ?? 'N/A' }}</strong></td>
-                                    <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                    @if($reviews->isEmpty())
+                    <div style="text-align:center;padding:40px;color:var(--muted);">
+                        No client reviews yet.
+                    </div>
+                    @else
+                    <div class="review-grid">
+                        @foreach($reviews as $review)
+                        <div class="review-card">
+                            <div class="review-card-top">
+                                <div style="min-width:0;">
+                                    <div class="review-card-project">{{ $review->project->name ?? 'N/A' }}</div>
+                                    <div class="review-card-client">
                                         {{ $review->client_name }}
                                         @if($review->is_anonymous)
-                                        <span title="This client chose to hide their name publicly — shown as &quot;{{ $review->masked_client_name }}&quot; on the site" style="font-size:10px;font-weight:800;color:#6d28d9;background:#ede9fe;border-radius:999px;padding:2px 7px;margin-left:4px;">HIDDEN</span>
+                                        <span title="This client chose to stay anonymous publicly — shown as &quot;{{ $review->masked_client_name }}&quot; on the site" class="review-hidden-badge">ANONYMOUS</span>
                                         @endif
-                                    </td>
-                                    <td>
-                                        <div style="display:flex;gap:2px;">
-                                            @for($i=1;$i<=5;$i++)
-                                                <i data-lucide="star" style="width:13px;height:13px;color:{{ $i <= $review->rating ? 'var(--accent)' : 'var(--border)' }};{{ $i <= $review->rating ? 'fill:var(--accent);' : '' }}"></i>
-                                            @endfor
-                                        </div>
-                                    </td>
-                                    <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ $review->comment }}">{{ \Illuminate\Support\Str::limit($review->comment, 80) }}</td>
-                                    <td>
-                                        <span class="status-badge {{ $review->status === 'active' ? 'active' : 'archived' }}">
-                                            {{ $review->status === 'active' ? 'Visible' : 'Hidden' }}
-                                        </span>
-                                    </td>
-                                    <td class="action-cell">
-                                        <button class="action-btn view toggle-visibility-btn" type="button"
-                                                data-archive-url="{{ route('admin.reviews.archive', $review->id) }}"
-                                                data-hidden="{{ $review->status === 'archived' ? '1' : '0' }}"
-                                                data-name="{{ $review->client_name }}'s review"
-                                                title="{{ $review->status === 'archived' ? 'Show on landing page' : 'Hide from landing page' }}">
-                                            <i data-lucide="{{ $review->status === 'archived' ? 'eye' : 'eye-off' }}"></i>
-                                        </button>
-                                        <button class="action-btn view delete-item-btn" type="button"
-                                                data-delete-url="{{ route('admin.reviews.destroy', $review->id) }}"
-                                                data-name="{{ $review->client_name }}'s review"
-                                                title="Delete">
-                                            <i data-lucide="trash-2"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                                @empty
-                                <tr>
-                                    <td colspan="6" style="text-align:center;padding:40px;color:var(--muted);">
-                                        No client reviews yet.
-                                    </td>
-                                </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
+                                    </div>
+                                </div>
+                                <span class="status-badge {{ $review->status === 'active' ? 'active' : 'archived' }}">
+                                    {{ $review->status === 'active' ? 'Visible' : 'Hidden' }}
+                                </span>
+                            </div>
+                            <div class="review-card-stars">
+                                @for($i=1;$i<=5;$i++)
+                                    <i data-lucide="star" style="color:{{ $i <= $review->rating ? 'var(--accent)' : 'var(--border)' }};{{ $i <= $review->rating ? 'fill:var(--accent);' : '' }}"></i>
+                                @endfor
+                            </div>
+                            <p class="review-card-comment">"{{ $review->comment }}"</p>
+                            <div class="review-card-actions">
+                                <button class="action-btn view toggle-visibility-btn" type="button"
+                                        data-archive-url="{{ route('admin.reviews.archive', $review->id) }}"
+                                        data-hidden="{{ $review->status === 'archived' ? '1' : '0' }}"
+                                        data-name="{{ $review->client_name }}'s review"
+                                        title="{{ $review->status === 'archived' ? 'Show on landing page' : 'Hide from landing page' }}">
+                                    <i data-lucide="{{ $review->status === 'archived' ? 'eye' : 'eye-off' }}"></i>
+                                </button>
+                                <button class="action-btn view delete-item-btn" type="button"
+                                        data-delete-url="{{ route('admin.reviews.destroy', $review->id) }}"
+                                        data-name="{{ $review->client_name }}'s review"
+                                        title="Delete">
+                                    <i data-lucide="trash-2"></i>
+                                </button>
+                            </div>
+                        </div>
+                        @endforeach
                     </div>
+                    @endif
                 </div>
             </div>
 
@@ -862,6 +826,16 @@
             .addEventListener('click', function () { closeModal('editPortfolioModal'); });
         document.getElementById('cancelEditPortfolio')
             .addEventListener('click', function () { closeModal('editPortfolioModal'); });
+
+        // ---- Portfolio cards open Edit when clicked anywhere — action buttons opt out ----
+        document.querySelectorAll('#portfolioTableBody .portfolio-card').forEach(function (card) {
+            var editBtn = card.querySelector('.edit-portfolio-btn');
+            if (!editBtn) return;
+            card.addEventListener('click', function (e) {
+                if (e.target.closest('.action-btn')) return;
+                editBtn.click();
+            });
+        });
 
         // ---- Toggle Visibility (Hide/Show) Modal — shared by Portfolio Items & Reviews ----
         document.querySelectorAll('.toggle-visibility-btn').forEach(function (btn) {
@@ -1268,6 +1242,191 @@
         #tab-landing .action-cell .action-btn:last-child,
         #tab-landing .action-cell form:last-child {
             margin-right: 0;
+        }
+
+        /* "Our Work" Portfolio Items — a card grid instead of a dense table, since this is
+           visual content (a photo per row) that a table format under-serves. */
+        .portfolio-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 18px;
+            padding: 20px 24px 24px;
+        }
+        @media (max-width: 1000px) {
+            .portfolio-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 620px) {
+            .portfolio-grid { grid-template-columns: 1fr; }
+        }
+        .portfolio-card {
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+            background: var(--white);
+            cursor: pointer;
+            transition: 0.18s ease;
+            display: flex;
+            flex-direction: column;
+        }
+        .portfolio-card:hover {
+            border-color: var(--dark);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+            transform: translateY(-2px);
+        }
+        .portfolio-card-image {
+            position: relative;
+            height: 150px;
+            background: var(--cream-soft);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .portfolio-card-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .portfolio-card-image i,
+        .portfolio-card-image svg {
+            width: 30px;
+            height: 30px;
+            color: var(--muted);
+            opacity: 0.5;
+        }
+        .portfolio-card-status {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+        }
+        .portfolio-card-body {
+            padding: 14px 16px 4px;
+            flex: 1;
+        }
+        .portfolio-card-title {
+            font-size: 14.5px;
+            font-weight: 800;
+            color: var(--dark);
+            margin-bottom: 8px;
+        }
+        .portfolio-card-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+        .portfolio-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--muted);
+            background: var(--cream-soft);
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            padding: 3px 9px;
+        }
+        .portfolio-chip i,
+        .portfolio-chip svg {
+            width: 11px;
+            height: 11px;
+        }
+        .portfolio-card-desc {
+            font-size: 12px;
+            color: var(--muted);
+            line-height: 1.5;
+            margin: 0;
+        }
+        .portfolio-card-actions {
+            display: flex;
+            gap: 6px;
+            padding: 12px 16px;
+            border-top: 1px solid var(--border);
+            margin-top: 12px;
+        }
+
+        /* Client Reviews — a card grid instead of a dense table; a testimonial reads
+           more naturally as a quote card than as six squeezed table columns. */
+        .review-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 18px;
+            padding: 20px 24px 24px;
+        }
+        @media (max-width: 1000px) {
+            .review-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 620px) {
+            .review-grid { grid-template-columns: 1fr; }
+        }
+        .review-card {
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+        }
+        .review-card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .review-card-project {
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--dark);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .review-card-client {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+        .review-hidden-badge {
+            font-size: 10px;
+            font-weight: 800;
+            color: #6d28d9;
+            background: #ede9fe;
+            border-radius: 999px;
+            padding: 2px 7px;
+            flex-shrink: 0;
+        }
+        .review-card-stars {
+            display: flex;
+            gap: 2px;
+            margin-bottom: 10px;
+        }
+        .review-card-stars i,
+        .review-card-stars svg {
+            width: 14px;
+            height: 14px;
+        }
+        .review-card-comment {
+            font-size: 13px;
+            color: var(--dark);
+            line-height: 1.55;
+            font-style: italic;
+            margin: 0 0 14px;
+            flex: 1;
+            display: -webkit-box;
+            -webkit-line-clamp: 4;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .review-card-actions {
+            display: flex;
+            gap: 6px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
         }
     </style>
 </body>

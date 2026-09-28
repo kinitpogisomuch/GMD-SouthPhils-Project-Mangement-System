@@ -376,15 +376,16 @@ class NotificationService
         );
     }
 
-    /** Admin requested a progress update → notify all employees */
-    public static function progressRequested(Project $project, ?string $adminMessage = null): void
+    /** Admin requested a progress update → notify only the chosen employee (normally the phase's Focal Person) */
+    public static function progressRequested(Project $project, Employee $targetEmployee, ?string $adminMessage = null): void
     {
         $body = "Admin has requested a progress update for Project: {$project->name}.";
         if ($adminMessage) {
             $body .= "\nMessage: {$adminMessage}";
         }
 
-        self::notifyAllEmployees(
+        self::notifyEmployee(
+            $targetEmployee->id,
             'Progress Update Requested',
             $body,
             self::TYPE_PROGRESS_REQUESTED,

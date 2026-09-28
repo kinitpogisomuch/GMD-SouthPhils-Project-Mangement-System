@@ -7,6 +7,7 @@ use App\Models\Project;
 use App\Models\Employee;
 use App\Models\SalaryRecord;
 use App\Models\MaterialUsage;
+use App\Models\ProgressRequest;
 use Carbon\Carbon;
 
 class EmployeeController extends Controller
@@ -52,7 +53,15 @@ class EmployeeController extends Controller
             ->orderByDesc('projects.created_at')
             ->get();
 
-        return view('employee.projects', compact('projects'));
+        // Which of these projects currently have a progress-update request
+        // waiting on this employee — highlighted on the card below.
+        $pendingRequestProjectIds = ProgressRequest::where('target_employee_id', $employee->id)
+            ->whereIn('status', ['open', 'revision_requested'])
+            ->pluck('project_id')
+            ->unique()
+            ->all();
+
+        return view('employee.projects', compact('projects', 'pendingRequestProjectIds'));
     }
 
     public function projectView()

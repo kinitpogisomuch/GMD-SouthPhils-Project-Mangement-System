@@ -92,17 +92,6 @@
         .setup-section-head i { color: var(--accent-dark); }
         .setup-body-pad { padding: 24px; }
 
-        .username-display {
-            background: var(--cream);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 16px 20px;
-            display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;
-        }
-        .username-display .label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
-        .username-display .value { font-size: 22px; font-weight: 900; color: var(--dark); letter-spacing: 2px; font-family: var(--mono); }
-        .username-lock-note { margin-top: 10px; font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
-
         .pw-req-list { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; }
         .pw-req {
             font-size: 11.5px; padding: 4px 10px; border-radius: 999px;
@@ -147,6 +136,33 @@
         .field-error { font-size: 12px; color: var(--danger); margin-top: 6px; display: block; font-weight: 600; }
         .form-row { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; }
         @media (max-width: 560px) { .form-row { grid-template-columns: 1fr; } }
+
+        .username-group {
+            display: flex; align-items: stretch;
+            border: 1px solid var(--border); border-radius: 14px;
+            background: var(--cream); overflow: hidden;
+            transition: 0.22s ease;
+        }
+        .username-group:focus-within {
+            background: var(--white); border-color: var(--dark);
+            box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.08);
+        }
+        .username-group.input-error { border-color: #fca5a5; }
+        .username-prefix {
+            display: flex; align-items: center;
+            padding: 0 4px 0 14px;
+            font-size: 13.5px; font-weight: 800; color: var(--muted);
+            background: var(--cream-deep);
+            border-right: 1px solid var(--border);
+            letter-spacing: 0.5px;
+            user-select: none;
+        }
+        .username-group input {
+            flex: 1; min-width: 0; height: 48px; padding: 0 14px;
+            border: none; outline: none; background: transparent;
+            font-size: 13.5px; font-weight: 700; color: var(--dark);
+            letter-spacing: 1px;
+        }
 
         .pw-wrap { position: relative; }
         .pw-wrap input { padding-right: 46px; }
@@ -244,44 +260,46 @@
                     </div>
 
                     <div class="form-group">
-                        <label>Street / House No. / Building </label>
+                        <label>Street / House No. / Building <span style="font-size:11px;color:var(--muted);font-weight:400;">(optional)</span></label>
                         <input type="text" name="street_address"
                                value="{{ old('street_address', $user->street_address) }}"
                                placeholder="e.g. 123 East Service Road"
-                               class="{{ $errors->has('street_address') ? 'input-error' : '' }}" required>
+                               class="{{ $errors->has('street_address') ? 'input-error' : '' }}">
                         @error('street_address')<span class="field-error">{{ $message }}</span>@enderror
                     </div>
 
                 </div>
             </div>
 
-            {{-- ── Account Information ── --}}
-            <div class="setup-card">
-                <div class="setup-section-head">
-                    <i data-lucide="id-card" style="width:14px;height:14px;"></i>
-                    Account Information
-                </div>
-                <div class="setup-body-pad">
-                    <div class="username-display">
-                        <div class="label">Username (permanent — cannot be changed)</div>
-                        <div class="value">{{ $user->username }}</div>
-                    </div>
-                    <div class="username-lock-note">
-                        <i data-lucide="lock" style="width:12px;height:12px;"></i>
-                        Your system-generated username is your permanent login identifier.
-                    </div>
-                </div>
-            </div>
-
-            {{-- ── Security Credentials ── --}}
+            {{-- ── Account Credentials ── --}}
             <div class="setup-card">
                 <div class="setup-section-head">
                     <i data-lucide="lock" style="width:14px;height:14px;"></i>
-                    Security Credentials
+                    Account Credentials
                 </div>
                 <div class="setup-body-pad">
 
-                    <div class="form-group" style="margin-bottom:20px;">
+                    <div class="form-group">
+                        <label>Username</label>
+                        @if($usernamePrefix)
+                        <div class="username-group {{ $errors->has('username') ? 'input-error' : '' }}">
+                            <span class="username-prefix">{{ $usernamePrefix }}</span>
+                            <input type="text" id="usernameSuffix" required
+                                   inputmode="numeric" placeholder="0000" maxlength="4"
+                                   value="{{ $usernameSuffix }}">
+                        </div>
+                        <input type="hidden" name="username" id="usernameInput" value="{{ old('username', $user->username) }}">
+                        @else
+                        <input type="text" name="username" value="{{ old('username', $user->username) }}"
+                               class="{{ $errors->has('username') ? 'input-error' : '' }}">
+                        @endif
+                        <span style="font-size:12px;color:var(--muted);display:block;margin-top:6px;">
+                            This is your login identifier — feel free to change it.
+                        </span>
+                        @error('username')<span class="field-error">{{ $message }}</span>@enderror
+                    </div>
+
+                    <div class="form-group" style="margin-top:20px;margin-bottom:20px;">
                         <label>Current PIN <span style="font-size:12px;font-weight:400;color:var(--muted);">(the temporary PIN you received)</span></label>
                         <div class="pw-wrap">
                             <input type="password" name="current_pin" id="currentPin"
@@ -546,6 +564,29 @@
             resetSelect('barangaySelect', 'Select city first');
         }
     });
+
+    // ── Username: fixed role prefix, only the number is editable ──
+    (function setupUsername() {
+        var prefix      = @json($usernamePrefix);
+        var suffixInput = document.getElementById('usernameSuffix');
+        var hiddenInput = document.getElementById('usernameInput');
+        if (!prefix || !suffixInput || !hiddenInput) return;
+
+        function syncHidden() {
+            var digits = suffixInput.value.replace(/[^0-9]/g, '');
+            hiddenInput.value = digits ? (prefix + digits) : '';
+        }
+
+        suffixInput.addEventListener('input', function () {
+            suffixInput.value = suffixInput.value.replace(/[^0-9]/g, '').slice(0, 4);
+            syncHidden();
+        });
+
+        var form = document.getElementById('setupForm');
+        if (form) form.addEventListener('submit', syncHidden);
+
+        syncHidden();
+    })();
 
     // ── Password helpers ──
     function togglePw(id, btn) {

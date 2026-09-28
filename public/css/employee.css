@@ -2923,6 +2923,13 @@ body {
     flex-shrink: 0;
 }
 
+/* Admin has requested a progress update on this project — flag it on the card,
+   matching the amber "Progress Update Requested" form banner's palette */
+.project-card.has-pending-request {
+    border-color: #fbbf24;
+    box-shadow: 0 14px 30px rgba(251, 191, 36, 0.16);
+}
+
 .project-card-header {
     display: flex;
     justify-content: space-between;

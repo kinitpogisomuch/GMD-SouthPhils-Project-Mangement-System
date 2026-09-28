@@ -178,6 +178,14 @@
                                             data-archived="{{ $employee->status === 'Inactive' ? '1' : '0' }}">
                                             <i data-lucide="{{ $employee->status === 'Inactive' ? 'archive-restore' : 'archive' }}"></i>
                                         </button>
+                                        <button class="action-btn view assign-focal-btn" type="button"
+                                            title="{{ $employee->is_focal_person ? 'Remove Focal Person status' : 'Mark as Focal Person' }}"
+                                            style="{{ $employee->is_focal_person ? 'color:var(--accent);' : '' }}"
+                                            data-id="{{ $employee->id }}"
+                                            data-name="{{ $employee->full_name }}"
+                                            data-focal="{{ $employee->is_focal_person ? '1' : '0' }}">
+                                            <i data-lucide="{{ $employee->is_focal_person ? 'user-minus' : 'user-check' }}"></i>
+                                        </button>
                                     </td>
                                 </tr>
                                 @empty
@@ -412,13 +420,13 @@
     </div>
 
     <!-- ===== EMPLOYEE CREDENTIALS SUCCESS MODAL ===== -->
-    @if(session('new_emp_username'))
+    @if($newEmployeeCreds)
     <div class="modal-overlay show" id="empCredentialsModal">
         <div class="modal-card" style="max-width:480px;">
             <div class="modal-header">
                 <div>
                     <h2>Employee Account Created</h2>
-                    <p>{{ session('new_emp_name') }}</p>
+                    <p>{{ $newEmployeeCreds['name'] }}</p>
                 </div>
                 <button class="modal-close" type="button" onclick="closeEmpModal('empCredentialsModal')">
                     <i data-lucide="x"></i>
@@ -438,13 +446,13 @@
                 <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #eee;">
                     <span style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;">Username</span>
                     <span style="font-size:20px;font-weight:900;color:var(--text-primary);letter-spacing:2px;" id="empCredUsername">
-                        {{ session('new_emp_username') }}
+                        {{ $newEmployeeCreds['username'] }}
                     </span>
                 </div>
                 <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;">
                     <span style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;">PIN / Password</span>
                     <span style="font-size:20px;font-weight:900;color:var(--text-primary);letter-spacing:4px;" id="empCredPin">
-                        {{ session('new_emp_pin') }}
+                        {{ $newEmployeeCreds['pin'] }}
                     </span>
                 </div>
             </div>
@@ -667,6 +675,36 @@
                     <button type="button" class="cancel-btn" id="cancelArchiveEmp">Cancel</button>
                     <button type="submit" class="save-btn" id="archiveEmpConfirmBtn">
                         <i data-lucide="archive"></i> Confirm
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ===== ASSIGN FOCAL PERSON MODAL ===== -->
+    <div class="modal-overlay" id="assignFocalModal">
+        <div class="modal-card" style="max-width:420px;">
+            <div class="modal-header">
+                <div>
+                    <h2 id="assignFocalTitle">Mark as Focal Person</h2>
+                    <p>Focal Persons are the default target when an admin requests a progress update on any project they're assigned to.</p>
+                </div>
+                <button class="modal-close" type="button" id="closeAssignFocalModal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="delete-confirm-body">
+                <div class="delete-confirm-icon"><i data-lucide="user-check" id="assignFocalIcon"></i></div>
+                <p id="assignFocalMsg">Mark this employee as a Focal Person?</p>
+            </div>
+            <form method="POST" id="assignFocalForm">
+                @csrf
+                @method('PATCH')
+                <div class="modal-actions">
+                    <button type="button" class="cancel-btn" id="cancelAssignFocal">Cancel</button>
+                    <button type="submit" class="save-btn" id="assignFocalSubmitBtn">
+                        <i data-lucide="user-check"></i>
+                        Confirm
                     </button>
                 </div>
             </form>
@@ -1043,6 +1081,28 @@
             });
             document.getElementById('closeArchiveEmpModal').addEventListener('click', function () { closeEmpModal('archiveEmpModal'); });
             document.getElementById('cancelArchiveEmp').addEventListener('click', function () { closeEmpModal('archiveEmpModal'); });
+
+            // ---- Assign Focal Person Modal ----
+            document.querySelectorAll('.assign-focal-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var isFocal = this.dataset.focal === '1';
+                    var name    = this.dataset.name;
+                    document.getElementById('assignFocalTitle').textContent = isFocal ? 'Remove Focal Person Status' : 'Mark as Focal Person';
+                    document.getElementById('assignFocalMsg').textContent   = isFocal
+                        ? 'Remove Focal Person status from "' + name + '"?'
+                        : 'Mark "' + name + '" as a Focal Person?';
+                    document.getElementById('assignFocalIcon').setAttribute('data-lucide', isFocal ? 'user-minus' : 'user-check');
+                    var submitBtn = document.getElementById('assignFocalSubmitBtn');
+                    submitBtn.innerHTML = isFocal
+                        ? '<i data-lucide="user-minus"></i> Remove'
+                        : '<i data-lucide="user-check"></i> Confirm';
+                    document.getElementById('assignFocalForm').action = '/admin/employees/' + this.dataset.id + '/toggle-focal-person';
+                    openEmpModal('assignFocalModal');
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                });
+            });
+            document.getElementById('closeAssignFocalModal').addEventListener('click', function () { closeEmpModal('assignFocalModal'); });
+            document.getElementById('cancelAssignFocal').addEventListener('click', function () { closeEmpModal('assignFocalModal'); });
 
             // ---- Overlay click to close ----
             document.querySelectorAll('.modal-overlay').forEach(function (modal) {

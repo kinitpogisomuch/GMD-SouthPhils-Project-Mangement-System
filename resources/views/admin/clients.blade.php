@@ -175,13 +175,13 @@
     </div>
 
     <!-- ===== CREDENTIALS SUCCESS MODAL ===== -->
-    @if(session('new_client_username'))
+    @if($newClientCreds)
     <div class="modal-overlay show" id="credentialsSuccessModal">
         <div class="modal-card" style="max-width:500px;">
             <div class="modal-header">
                 <div>
                     <h2>Account Created Successfully</h2>
-                    <p>{{ session('new_client_name') }} · {{ session('new_client_email') }}</p>
+                    <p>{{ $newClientCreds['name'] }}{{ $newClientCreds['email'] ? ' · '.$newClientCreds['email'] : '' }}</p>
                 </div>
                 <button class="modal-close" type="button" onclick="closeModal('credentialsSuccessModal')">
                     <i data-lucide="x"></i>
@@ -193,13 +193,16 @@
                     <i data-lucide="check-circle-2" style="width:28px;height:28px;color:#16a34a;"></i>
                 </div>
                 <p style="font-size:13.5px;color:var(--text-secondary);margin-bottom:20px;">
-                    The client account has been created and credentials have been
-                    @if(session('email_sent'))
-                        <strong style="color:#16a34a;">successfully emailed</strong> to {{ session('new_client_email') }}.
+                    @if(!$newClientCreds['email'])
+                        The client account has been created. Share these credentials directly with the client.
+                    @elseif($newClientCreds['email_sent'])
+                        The client account has been created and credentials have been
+                        <strong style="color:#16a34a;">successfully emailed</strong> to {{ $newClientCreds['email'] }}.
                     @else
-                        generated. <strong style="color:#dc2626;">Email delivery failed</strong> — please share credentials manually.
-                        @if(session('email_error'))
-                        <br><span style="font-size:11px;color:#6b7280;display:block;margin-top:6px;">Error: {{ session('email_error') }}</span>
+                        The client account has been created and credentials have been generated.
+                        <strong style="color:#dc2626;">Email delivery failed</strong> — please share credentials manually.
+                        @if($newClientCreds['email_error'])
+                        <br><span style="font-size:11px;color:#6b7280;display:block;margin-top:6px;">Error: {{ $newClientCreds['email_error'] }}</span>
                         @endif
                     @endif
                 </p>
@@ -209,13 +212,13 @@
                 <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #eee;">
                     <span style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;">Username</span>
                     <span style="font-size:20px;font-weight:900;color:var(--text-primary);letter-spacing:2px;" id="credUsername">
-                        {{ session('new_client_username') }}
+                        {{ $newClientCreds['username'] }}
                     </span>
                 </div>
                 <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;">
                     <span style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;">PIN / Password</span>
                     <span style="font-size:20px;font-weight:900;color:var(--text-primary);letter-spacing:4px;" id="credPin">
-                        {{ session('new_client_pin') }}
+                        {{ $newClientCreds['pin'] }}
                     </span>
                 </div>
             </div>
@@ -239,7 +242,7 @@
             <div class="modal-header">
                 <div>
                     <h2>Add Client</h2>
-                    <p>Enter the client's contact information. If an email is provided, login credentials will be auto-generated and emailed.</p>
+                    <p>Enter the client's contact information. A portal login will be auto-generated — if an email is provided, the credentials are also emailed to them.</p>
                 </div>
                 <button class="modal-close" type="button" id="closeAddClientModal">
                     <i data-lucide="x"></i>

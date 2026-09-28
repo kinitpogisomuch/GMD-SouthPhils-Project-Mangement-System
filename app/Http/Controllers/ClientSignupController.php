@@ -38,7 +38,7 @@ class ClientSignupController extends Controller
             'province'       => 'required|string|max:255',
             'city'           => 'required|string|max:255',
             'barangay'       => 'required|string|max:255',
-            'street_address' => 'required|string|max:500',
+            'street_address' => 'nullable|string|max:500',
             'username'       => 'required|string|max:50|alpha_dash|unique:clients,username',
             'signup_date'    => 'nullable|date',
             'signup_time'    => 'nullable|date_format:H:i',

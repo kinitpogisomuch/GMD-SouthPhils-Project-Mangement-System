@@ -262,8 +262,8 @@
                     </div>
 
                     <div class="su-form-group" style="margin-top:16px;">
-                        <label>Street / House No. / Building</label>
-                        <input type="text" name="street_address" required
+                        <label>Street / House No. / Building <span style="font-size:11px;color:var(--muted);font-weight:400;">(optional)</span></label>
+                        <input type="text" name="street_address"
                                value="{{ old('street_address') }}"
                                placeholder="e.g. 123 East Service Road"
                                class="{{ $errors->has('street_address') ? 'input-error' : '' }}">

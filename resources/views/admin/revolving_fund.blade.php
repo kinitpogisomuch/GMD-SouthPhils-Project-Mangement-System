@@ -323,7 +323,7 @@
                 @csrf
                 <div class="form-group">
                     <label>Initial Balance (₱) </label>
-                    <input type="number" name="initial_balance" required min="0" step="0.01" value="{{ $initialBalance }}" placeholder="e.g. 100000">
+                    <input type="number" name="initial_balance" required min="0.01" step="0.01" value="{{ $initialBalance ?: '' }}" placeholder="e.g. 100000">
                 </div>
                 <div class="modal-actions">
                     <button type="button" class="cancel-btn" id="cancelInitialFund">Cancel</button>

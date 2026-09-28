@@ -205,6 +205,20 @@
                         <span class="tracker-progress-badge" id="progressBadge">{{ $project->progress }}%</span>
                     </div>
                 </div>
+
+                @php
+                    $currentFocalPerson = $project->focalPerson();
+                @endphp
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0 2px;padding:10px 14px;border-radius:10px;background:var(--light,#f8f9fb);border:1px solid var(--border);font-size:13px;">
+                    <i data-lucide="user-check" style="width:16px;height:16px;color:var(--accent);"></i>
+                    <span style="font-weight:700;color:var(--dark);">Focal Person:</span>
+                    @if($currentFocalPerson)
+                        <span style="font-weight:700;color:var(--accent);">{{ $currentFocalPerson->first_name }} {{ $currentFocalPerson->last_name }}</span>
+                    @else
+                        <span style="font-weight:700;color:#b45309;">Not assigned — assign one from the Employees page</span>
+                    @endif
+                </div>
+
                 <div class="phase-steps-scroll">
                     <div class="phase-steps" id="phaseSteps"></div>
                 </div>
@@ -387,7 +401,7 @@
                     <div id="requestFromEmployeeWrap" style="display:flex;justify-content:flex-end;margin-bottom:14px;{{ $hideRequestBtn ? 'display:none;' : '' }}">
                         <button type="button" class="cancel-btn" id="openRequestModal" style="font-size:12.5px;padding:8px 14px;">
                             <i data-lucide="send"></i>
-                            Request from Employee
+                            Request Update
                         </button>
                     </div>
 
@@ -1072,7 +1086,7 @@
             <div class="modal-header">
                 <div>
                     <h2>Request Progress Update</h2>
-                    <p>Send a request to employees for a field update.</p>
+                    <p>Send a request for a field update on the {{ ucfirst(str_replace('_', ' ', $project->current_phase)) }} phase.</p>
                 </div>
                 <button class="modal-close" type="button" id="closeRequestModal">
                     <i data-lucide="x"></i>
@@ -1080,21 +1094,75 @@
             </div>
             <form method="POST" action="{{ route('admin.project.request_update', $project->id) }}">
                 @csrf
+                @php
+                    $otherAssignedEmployees = $project->assignedEmployees->reject(
+                        fn($emp) => $currentFocalPerson && $emp->id === $currentFocalPerson->id
+                    );
+                    $allSelectableCount = ($currentFocalPerson ? 1 : 0) + $otherAssignedEmployees->count();
+                    $alreadyActiveCount = collect($activeRequestEmployeeIds ?? [])
+                        ->filter(fn($empId) => ($currentFocalPerson && $empId == $currentFocalPerson->id) || $otherAssignedEmployees->contains('id', $empId))
+                        ->count();
+                    $everyoneAlreadyActive = $allSelectableCount > 0 && $alreadyActiveCount === $allSelectableCount;
+                @endphp
                 <div class="form-group">
-                    <label>Message to Employees
+                    <div style="display:flex;align-items:center;justify-content:space-between;">
+                        <label style="margin-bottom:0;">Send To</label>
+                        <label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--accent);cursor:pointer;">
+                            <input type="checkbox" id="targetSelectAll" style="width:14px;height:14px;accent-color:var(--accent);">
+                            Select All
+                        </label>
+                    </div>
+
+                    @if($currentFocalPerson)
+                    <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:8px 0 6px;">Focal Person</div>
+                    @php $focalAlreadyActive = in_array($currentFocalPerson->id, $activeRequestEmployeeIds ?? []); @endphp
+                    <label class="target-emp-option" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:10px;cursor:{{ $focalAlreadyActive ? 'default' : 'pointer' }};{{ $focalAlreadyActive ? 'opacity:.55;' : '' }}">
+                        <input type="checkbox" class="target-employee-check" name="target_employee_id[]" value="{{ $currentFocalPerson->id }}"
+                            {{ $focalAlreadyActive ? 'disabled' : 'checked' }} style="width:16px;height:16px;accent-color:var(--accent);">
+                        <span style="font-size:13.5px;font-weight:700;color:var(--dark);">{{ $currentFocalPerson->first_name }} {{ $currentFocalPerson->last_name }}</span>
+                        @if($focalAlreadyActive)
+                            <span style="font-size:11px;font-weight:700;color:var(--muted);">(already requested)</span>
+                        @endif
+                    </label>
+                    @endif
+
+                    @if($otherAssignedEmployees->isNotEmpty())
+                    <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:6px;">Employees</div>
+                    @foreach($otherAssignedEmployees as $emp)
+                    @php $empAlreadyActive = in_array($emp->id, $activeRequestEmployeeIds ?? []); @endphp
+                    <label class="target-emp-option" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:{{ $empAlreadyActive ? 'default' : 'pointer' }};{{ $empAlreadyActive ? 'opacity:.55;' : '' }}">
+                        <input type="checkbox" class="target-employee-check" name="target_employee_id[]" value="{{ $emp->id }}"
+                            {{ $empAlreadyActive ? 'disabled' : '' }}
+                            {{ !$currentFocalPerson && !$empAlreadyActive && $loop->first ? 'checked' : '' }}
+                            style="width:16px;height:16px;accent-color:var(--accent);">
+                        <span style="font-size:13.5px;font-weight:600;color:var(--dark);">{{ $emp->first_name }} {{ $emp->last_name }}{{ $emp->role ? ' — '.$emp->role : '' }}</span>
+                        @if($empAlreadyActive)
+                            <span style="font-size:11px;font-weight:700;color:var(--muted);">(already requested)</span>
+                        @endif
+                    </label>
+                    @endforeach
+                    @endif
+
+                    <p style="font-size:12px;color:var(--muted);margin-top:2px;">
+                        @if($everyoneAlreadyActive)
+                            Everyone assigned already has an active request.
+                        @elseif($currentFocalPerson)
+                            Defaults to the Focal Person — check others too if you'd like to notify more than one.
+                        @else
+                            No Focal Person is assigned for this phase yet — pick who this request should go to.
+                        @endif
+                    </p>
+                </div>
+                <div class="form-group">
+                    <label>Message
                         <span style="font-weight:400;color:var(--muted);">(optional)</span>
                     </label>
-                    <textarea name="message" class="log-textarea" rows="4"
+                    <textarea name="message" class="log-textarea" rows="4" style="resize:none;"
                               placeholder="e.g. Please submit photos of the current welding progress..."></textarea>
                 </div>
-                @if($openRequest)
-                <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:12px;margin-top:14px;color:#dc2626;font-size:13px;">
-                    ⚠ There is already an open request for this project.
-                </div>
-                @endif
                 <div class="modal-actions">
                     <button type="button" class="cancel-btn" id="cancelRequestModal">Cancel</button>
-                    @if(!$openRequest)
+                    @if(!$everyoneAlreadyActive)
                     <button type="submit" class="save-btn">
                         <i data-lucide="send"></i>
                         Send Request
@@ -1627,6 +1695,40 @@
         document.getElementById('requestUpdateModal').addEventListener('click', function(e) {
             if (e.target === this) { this.classList.remove('show'); document.body.style.overflow = ''; }
         });
+
+        // "Send To" checkboxes — multi-select, with a "Select All" that checks/unchecks
+        // every selectable (non-disabled) box and stays in sync when boxes are toggled by hand.
+        (function () {
+            var targetChecks   = document.querySelectorAll('.target-employee-check');
+            var selectableBoxes = Array.prototype.filter.call(targetChecks, function (box) { return !box.disabled; });
+            var selectAll       = document.getElementById('targetSelectAll');
+
+            function syncSelectAll() {
+                if (!selectAll || !selectableBoxes.length) return;
+                selectAll.checked = selectableBoxes.every(function (box) { return box.checked; });
+            }
+
+            if (selectAll) {
+                selectAll.addEventListener('change', function () {
+                    selectableBoxes.forEach(function (box) { box.checked = selectAll.checked; });
+                });
+            }
+            targetChecks.forEach(function (box) {
+                box.addEventListener('change', syncSelectAll);
+            });
+            syncSelectAll();
+
+            var requestForm = document.querySelector('#requestUpdateModal form');
+            if (requestForm && targetChecks.length) {
+                requestForm.addEventListener('submit', function (e) {
+                    var anyChecked = Array.prototype.some.call(targetChecks, function (box) { return box.checked; });
+                    if (!anyChecked) {
+                        e.preventDefault();
+                        if (selectableBoxes.length) selectableBoxes[0].checked = true;
+                    }
+                });
+            }
+        })();
 
         // ── Generate Performance Test Report modal ──────────────────────────
         (function () {

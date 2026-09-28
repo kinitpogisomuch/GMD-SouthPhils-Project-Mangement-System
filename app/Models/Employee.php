@@ -18,6 +18,7 @@ class Employee extends Model
         'email',
         'address',
         'role',
+        'is_focal_person',
         'employee_type',
         'daily_rate',
         'pay_type',
@@ -50,6 +51,7 @@ class Employee extends Model
         'date_hired'       => 'date',
         'password'         => 'hashed',
         'first_login'      => PostgresBoolean::class,
+        'is_focal_person'  => PostgresBoolean::class,
     ];
 
     /** "Nadera, Kenneth" — for table display */

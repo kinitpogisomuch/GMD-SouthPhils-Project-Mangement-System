@@ -17,6 +17,7 @@
            class="{{ request()->routeIs(['employee.projects']) ? 'active' : '' }}">
             <i data-lucide="folder-kanban"></i>
             <span>Projects</span>
+            <span class="notification-count-badge" id="projectsRequestBadge" style="display:none;"></span>
         </a>
         <a href="{{ route('employee.project_materials') }}"
            class="{{ request()->routeIs(['employee.project_materials', 'employee.project_materials.detail', 'employee.material_usage.detail']) ? 'active' : '' }}">
@@ -385,6 +386,29 @@
     setInterval(loadUnreadMessages, 15000);
     window.__setMsgBadgeRefresh = function(fn) { window.__employeeLoadUnreadMessages = fn; };
     window.__refreshUnreadBadge = loadUnreadMessages;
+})();
+
+(function () {
+    const PENDING_REQUESTS_URL = '{{ route("employee.projects.pending_requests_count") }}';
+
+    function loadPendingProjectRequests() {
+        fetch(PENDING_REQUESTS_URL, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(r => r.json())
+            .then(data => {
+                const badge = document.getElementById('projectsRequestBadge');
+                if (!badge) return;
+                if (data.count > 0) {
+                    badge.style.display = 'flex';
+                    badge.textContent = data.count > 99 ? '99+' : data.count;
+                } else {
+                    badge.style.display = 'none';
+                }
+            })
+            .catch(() => {});
+    }
+
+    loadPendingProjectRequests();
+    setInterval(loadPendingProjectRequests, 15000);
 })();
 
 // ─── Chat Popup ────────────────────────────────────────────────────────────

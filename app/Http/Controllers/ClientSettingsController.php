@@ -44,36 +44,40 @@ class ClientSettingsController extends Controller
 
         $fullName = trim($request->full_name);
 
+        // A portal login (username + PIN) is always generated, same as Employees —
+        // email is only used to also send the credentials, it doesn't gate whether
+        // the account itself gets created.
+        $existing = $hasEmail ? Client::where('email', $request->email)->first() : null;
+        $username = $existing?->username ?? $this->generateUsername();
+        $pin      = $this->generatePin();
+
+        try {
+            $attributes = [
+                'name'        => $fullName,
+                'first_name'  => null,
+                'last_name'   => null,
+                'contact'     => $request->contact,
+                'email'       => $hasEmail ? $request->email : null,
+                'username'    => $username,
+                'password'    => bcrypt($pin),
+                'first_login' => true,
+                'status'      => 'Active',
+            ];
+
+            $client = $hasEmail
+                ? Client::updateOrCreate(['email' => $request->email], $attributes)
+                : Client::create($attributes);
+        } catch (\Exception $e) {
+            Log::error('ClientSettings: client creation failed', ['error' => $e->getMessage()]);
+            return redirect()->route('admin.clients')
+                ->withErrors(['email' => 'Failed to save client: ' . $e->getMessage()], 'client')
+                ->withInput();
+        }
+
+        $emailSent  = false;
+        $emailError = null;
+
         if ($hasEmail) {
-            // Preserve username if client already exists, otherwise generate a new one
-            $existing = Client::where('email', $request->email)->first();
-            $username = $existing?->username ?? $this->generateUsername();
-            $pin      = $this->generatePin();
-
-            try {
-                $client = Client::updateOrCreate(
-                    ['email' => $request->email],
-                    [
-                        'name'        => $fullName,
-                        'first_name'  => null,
-                        'last_name'   => null,
-                        'contact'     => $request->contact,
-                        'email'       => $request->email,
-                        'username'    => $username,
-                        'password'    => bcrypt($pin),
-                        'first_login' => true,
-                        'status'      => 'Active',
-                    ]
-                );
-            } catch (\Exception $e) {
-                Log::error('ClientSettings: client creation failed', ['error' => $e->getMessage()]);
-                return redirect()->route('admin.clients')
-                    ->withErrors(['email' => 'Failed to save client: ' . $e->getMessage()], 'client')
-                    ->withInput();
-            }
-
-            $emailSent = false;
-            $emailError = null;
             try {
                 Mail::html(
                     $this->buildEmailHtml($fullName, $username, $pin),
@@ -94,28 +98,23 @@ class ClientSettingsController extends Controller
             if ($emailSent) {
                 $client->update(['credentials_sent_at' => now()]);
             }
-
-            return redirect()->route('admin.clients')
-                ->with([
-                    'new_client_username' => $username,
-                    'new_client_pin'      => $pin,
-                    'new_client_name'     => $fullName,
-                    'new_client_email'    => $request->email,
-                    'email_sent'          => $emailSent,
-                    'email_error'         => $emailError,
-                ]);
         }
 
-        // No email — create a contact-only record (no login)
-        Client::create([
-            'name'       => $fullName,
-            'first_name' => null,
-            'last_name'  => null,
-            'contact'    => $request->contact,
+        // A plain session write (not ->with()/flash()) — the admin header polls
+        // notifications/messages every 15-30s in the background, and any of those
+        // unrelated requests sharing this session would otherwise "age out" (silently
+        // delete) flash data before the redirect's own page load gets to read it.
+        // AdminController::clients() reads this once and forgets it explicitly.
+        session()->put([
+            'new_client_username' => $username,
+            'new_client_pin'      => $pin,
+            'new_client_name'     => $fullName,
+            'new_client_email'    => $hasEmail ? $request->email : null,
+            'email_sent'          => $emailSent,
+            'email_error'         => $emailError,
         ]);
 
-        return redirect()->route('admin.clients')
-            ->with('success', 'Client added successfully!');
+        return redirect()->route('admin.clients');
     }
 
     public function destroy($id)
