@@ -91,6 +91,19 @@ class Payment extends Model
         return ['down_payment', 'final_payment'];
     }
 
+    /** Stages the client already has an admin-confirmed proof for — no need to submit again,
+     *  even if that confirmed payment was only a partial and the stage isn't fully settled yet. */
+    public function confirmedProofStages(): array
+    {
+        return $this->proofs->where('status', 'confirmed')->pluck('payment_stage')->unique()->values()->all();
+    }
+
+    /** Stages still open for a new proof-of-payment submission on the client Payments page. */
+    public function stagesOpenForProof(): array
+    {
+        return array_values(array_diff($this->stages(), $this->paidStages(), $this->confirmedProofStages()));
+    }
+
     /** Amount already paid toward a given stage (partial payments accumulate) */
     public function stagePaidAmount(string $stage): float
     {

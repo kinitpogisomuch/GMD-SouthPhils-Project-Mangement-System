@@ -427,7 +427,7 @@
             </div>
 
             {{-- Quotation Builder — pricing, materials and labor in one card with a single Save --}}
-            <form method="POST" action="{{ route('admin.quotation_requests.batch_save', $batch->id) }}" id="quotationForm" class="qb-card" novalidate>
+            <form method="POST" action="{{ route('admin.quotation_requests.batch_save', $batch->id) }}" id="quotationForm" class="qb-card">
                 @csrf
                 <input type="hidden" name="open_send_modal" id="openSendModalFlag" value="0">
 
@@ -469,12 +469,12 @@
                         <div class="qb-field">
                             <label for="markupInput">Markup / Profit (%) <span class="qb-req">*</span></label>
                             <input type="number" name="markup_percent" id="markupInput" class="qb-input" min="0" max="100" step="0.01"
-                                   value="{{ $batch->markup_percent ?? '' }}" placeholder="e.g. 10">
+                                   value="{{ $batch->markup_percent ?? '' }}" placeholder="e.g. 10" required>
                             <small class="qb-value-note">Markup value: <strong id="markupValueNote">₱0</strong> <span id="markupBudgetNote">of ₱0 Project Budget</span></small>
                         </div>
                         <div class="qb-field">
                             <label for="paymentTermsInput">Payment Terms <span class="qb-req">*</span></label>
-                            <select name="payment_term_type" id="paymentTermsInput" class="qb-input">
+                            <select name="payment_term_type" id="paymentTermsInput" class="qb-input" required>
                                 <option value="" disabled hidden {{ !$batch->payment_term_type ? 'selected' : '' }}>Select payment terms</option>
                                 <option value="big_project" {{ $batch->payment_term_type === 'big_project' ? 'selected' : '' }}>Big Project — 3 Phases (50% / 30% / 20%)</option>
                                 <option value="small_project" {{ $batch->payment_term_type === 'small_project' ? 'selected' : '' }}>Small Project — 2 Phases (50% / 50%)</option>
@@ -496,7 +496,7 @@
                         <div class="qb-section-tools">
                             <label class="qb-chip" for="materialFactorInput">
                                 Material Factor <span class="qb-req">*</span>
-                                <input type="number" name="factor" id="materialFactorInput" min="0" max="100" step="0.1" value="{{ $materials->isNotEmpty() ? $materialFactor : '' }}" placeholder="0">
+                                <input type="number" name="factor" id="materialFactorInput" min="0" max="100" step="0.1" value="{{ $materials->isNotEmpty() ? $materialFactor : '' }}" placeholder="0" required>
                                 <span>%</span>
                             </label>
                             <button type="button" class="add-btn" id="addMaterialRowBtn">
@@ -552,7 +552,7 @@
                         <div class="qb-section-tools">
                             <label class="qb-chip" for="estDaysInput">
                                 Estimated Working Days <span class="qb-req">*</span>
-                                <input type="number" name="estimated_working_days" id="estDaysInput" min="0" step="0.01" value="{{ $batch->estimated_working_days ?? '' }}" placeholder="0">
+                                <input type="number" name="estimated_working_days" id="estDaysInput" min="0" step="0.01" value="{{ $batch->estimated_working_days ?? '' }}" placeholder="0" required>
                             </label>
                             <button type="button" class="add-btn" id="addLaborRowBtn">
                                 <i data-lucide="plus"></i>

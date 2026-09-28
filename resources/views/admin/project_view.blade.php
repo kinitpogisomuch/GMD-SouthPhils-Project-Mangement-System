@@ -978,7 +978,7 @@
                 <div class="project-detail-grid" style="margin-top:10px;margin-bottom:20px;">
                     <div class="project-detail-box"><span>Client</span><strong>{{ $clientName }}</strong></div>
                     <div class="project-detail-box"><span>Contact Number</span><strong>{{ $clientContact ?? '—' }}</strong></div>
-                    <div class="project-detail-box"><span>Email</span><strong>{{ $clientEmail ?? '—' }}</strong></div>
+                    <div class="project-detail-box pv-email-box"><span>Email</span><strong>{{ $clientEmail ?? '—' }}</strong></div>
                     <div class="project-detail-box" style="grid-column:span 3;"><span>Address</span><strong>{{ $clientAddress ?? '—' }}</strong></div>
                 </div>
 

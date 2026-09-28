@@ -103,7 +103,7 @@
                         </button>
                     </div>
                 </div>
-                <div style="max-height:570px;overflow-y:auto;">
+                <div class="qr-table-scroll" style="max-height:570px;overflow-y:auto;">
                     <table class="data-table" id="quotationRequestsTable" style="margin:0;">
                         <colgroup>
                             <col style="width:20%;">

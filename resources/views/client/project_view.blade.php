@@ -6,6 +6,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $project->name }} | GMD South Phils</title>
     <link href="{{ asset('css/client.css') }}" rel="stylesheet">
+    <style>
+        /* Progress History: when empty, center the message in the space matched to
+           Project Information's height instead of it sitting at the top with a gap below. */
+        .pv-history-scroll-center {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .pv-history-scroll-center .empty-state {
+            padding: 20px;
+        }
+    </style>
 </head>
 <body class="page-enter">
 
@@ -133,6 +145,10 @@
                 $quotationData = $project->phaseData('planning.quotation', []);
             @endphp
 
+            {{-- Shop Drawing & Tank Design — only while it's the active sub-phase; once the
+                 project has moved on to Quotation/Payment, this completed-step history is
+                 no longer shown here (still visible in the Progress History log). --}}
+            @if($project->current_sub_phase === 'shop_drawing')
             <!-- Shop Drawing & Tank Design -->
             <div class="pv-card" style="margin-top:20px;">
                 <div class="pv-card-title">
@@ -214,6 +230,7 @@
                     @endif
                 @endif
             </div>
+            @endif
 
             <!-- Project Quotation -->
             @if(($quotationData['status'] ?? null) === 'sent')
@@ -369,7 +386,7 @@
                         </span>
                     </div>
 
-                    <div class="pv-history-scroll">
+                    <div class="pv-history-scroll{{ $updates->isEmpty() ? ' pv-history-scroll-center' : '' }}">
                         @forelse($updates as $update)
                         <div class="pv-history-item" data-update-id="{{ $update->id }}"
                              style="cursor:pointer;" onclick="openUpdateModal({{ $update->id }})">

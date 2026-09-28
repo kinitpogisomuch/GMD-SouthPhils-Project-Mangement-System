@@ -25,6 +25,27 @@
         .kd-header-actions .add-btn { height: 44px; padding-top: 0; padding-bottom: 0; }
         .kd-header-actions-divider { width: 1px; height: 24px; background: var(--border); flex-shrink: 0; }
 
+        /* On mobile, center the title block and keep the two chips together on their own row
+           (the long company name would otherwise leave only enough room for one chip to wrap
+           alongside it, pushing the second one down onto a line by itself). */
+        @media (max-width: 768px) {
+            .kd-header-title-block { width: 100%; text-align: center; }
+            .kd-meta { justify-content: center; }
+            .kd-meta-company { flex: 1 1 100%; text-align: center; margin-right: 0; }
+        }
+
+        /* On mobile the period picker + two buttons used to wrap onto a cramped shared row (each is
+           white-space:nowrap, so they can't shrink). Give the picker and "Generate report" an even
+           half of the row each, then force "Set targets" onto its own full-width row after them. */
+        @media (max-width: 768px) {
+            .kd-header-actions { width: 100%; }
+            .kd-header-actions-divider { display: none; }
+            .kd-period-picker { flex: 1 1 0; min-width: 0; }
+            .kd-period-trigger { width: 100%; justify-content: space-between; }
+            .kd-header-actions .cancel-btn { flex: 1 1 0; min-width: 0; justify-content: center; }
+            .kd-header-actions .add-btn { flex: 1 1 100%; justify-content: center; }
+        }
+
         /* Calendar-style quarter picker — same pill look as the Monthly Expenses
            month picker: icon badge + plain label, no bordered chip / chevron. */
         .kd-period-picker { position: relative; }
@@ -314,7 +335,7 @@
         <main class="admin-content">
 
             <div class="page-header">
-                <div>
+                <div class="kd-header-title-block">
                     <h1 class="page-title">KPI dashboard</h1>
                     <div class="kd-subtitle kd-meta"><span class="kd-meta-company">GMD South Phils Metal Fabrication Works</span></div>
                 </div>

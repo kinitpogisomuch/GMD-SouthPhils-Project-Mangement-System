@@ -6,6 +6,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Project View | GMD South Phils</title>
     <link href="{{ asset('css/employee.css') }}" rel="stylesheet">
+    <style>
+        /* Project Information / Progress History: same fixed height, a bit taller than
+           either card's natural content — the taller one no longer stretches the other,
+           and each scrolls internally instead of growing the card. */
+        .pv-grid-2-card {
+            height: 420px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .pv-grid-2-card-scroll {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+        }
+        .pv-grid-2-card-scroll-center {
+            justify-content: center;
+        }
+    </style>
 </head>
 <body class="page-enter">
 
@@ -231,8 +250,64 @@
             @endif
             {{-- No form shown when status is 'completed' or no request exists --}}
 
+            <!-- Project Information + Progress History side by side -->
+            <div class="pv-grid-2">
+
+            <!-- Project Info -->
+            <div class="emp-pv-card pv-grid-2-card">
+                <h3 class="emp-pv-card-title">
+                    <i data-lucide="clipboard-list"></i>
+                    Project Information
+                </h3>
+
+                <div class="progress-wrap" style="margin-top:0;margin-bottom:18px;">
+                    <div class="progress-label">
+                        <span style="font-weight:700;font-size:13px;">Overall Progress</span>
+                        <span style="font-weight:900;color:var(--dark);">{{ $project->progress }}%</span>
+                    </div>
+                    <div class="progress-bar" style="height:10px;border-radius:999px;">
+                        <div class="progress-fill"
+                             style="width:{{ $project->progress }}%;border-radius:999px;
+                             background:{{ $project->status === 'completed' ? '#207A3A' : '' }};"></div>
+                    </div>
+                </div>
+
+                <div class="pv-grid-2-card-scroll" style="display:grid;grid-template-columns:repeat(2,1fr);gap:18px;align-content:start;">
+                    <div style="background:#FDFBF8;border:1px solid var(--border);border-radius:12px;padding:20px;">
+                        <span style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">CLIENT</span>
+                        <strong style="font-size:14px;color:var(--dark);">{{ $project->live_client_name }}</strong>
+                    </div>
+                    <div style="background:#FDFBF8;border:1px solid var(--border);border-radius:12px;padding:20px;">
+                        <span style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">TANK TYPE</span>
+                        <strong style="font-size:14px;color:var(--dark);">{{ $project->tank_type }}</strong>
+                    </div>
+                    <div style="background:#FDFBF8;border:1px solid var(--border);border-radius:12px;padding:20px;">
+                        <span style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">CAPACITY</span>
+                        <strong style="font-size:14px;color:var(--dark);">{{ $project->capacity }}</strong>
+                    </div>
+                    <div style="background:#FDFBF8;border:1px solid var(--border);border-radius:12px;padding:20px;">
+                        <span style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">START DATE</span>
+                        <strong style="font-size:14px;color:var(--dark);">{{ $project->start_date->format('M d, Y') }}</strong>
+                    </div>
+                    <div style="background:#FDFBF8;border:1px solid var(--border);border-radius:12px;padding:20px;">
+                        <span style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">END DATE</span>
+                        <strong style="font-size:14px;color:var(--dark);">{{ $project->end_date->format('M d, Y') }}</strong>
+                    </div>
+                    <div style="background:#FDFBF8;border:1px solid var(--border);border-radius:12px;padding:20px;">
+                        <span style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">CURRENT PHASE</span>
+                        <strong style="font-size:14px;color:var(--accent);">{{ ucfirst(str_replace('_', ' ', $project->current_phase)) }}</strong>
+                    </div>
+                    @if($project->notes)
+                    <div style="background:#FDFBF8;border:1px solid var(--border);border-radius:12px;padding:20px;grid-column:span 2;">
+                        <span style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">NOTES</span>
+                        <strong style="font-size:14px;color:var(--dark);">{{ $project->notes }}</strong>
+                    </div>
+                    @endif
+                </div>
+            </div>
+
             <!-- Progress History -->
-            <div class="pv-card" style="margin-top:20px;">
+            <div class="pv-card pv-grid-2-card">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
                     <div style="display:flex;align-items:center;gap:10px;">
                         <i data-lucide="history" style="width:18px;height:18px;color:var(--accent);"></i>
@@ -243,7 +318,7 @@
                     </span>
                 </div>
 
-                <div style="display:flex;flex-direction:column;">
+                <div class="pv-grid-2-card-scroll{{ $updates->isEmpty() ? ' pv-grid-2-card-scroll-center' : '' }}" style="display:flex;flex-direction:column;">
 
                     @php
                         $phaseIcons = [
@@ -350,44 +425,6 @@
                 </div>
             </div>
 
-            <!-- Project Info -->
-            <div class="emp-pv-card" style="margin-top:20px;">
-                <h3 class="emp-pv-card-title">
-                    <i data-lucide="clipboard-list"></i>
-                    Project Information
-                </h3>
-                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">
-                    <div style="background:#FDFBF8;border:1px solid var(--border);border-radius:12px;padding:14px;">
-                        <span style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">CLIENT</span>
-                        <strong style="font-size:14px;color:var(--dark);">{{ $project->live_client_name }}</strong>
-                    </div>
-                    <div style="background:#FDFBF8;border:1px solid var(--border);border-radius:12px;padding:14px;">
-                        <span style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">TANK TYPE</span>
-                        <strong style="font-size:14px;color:var(--dark);">{{ $project->tank_type }}</strong>
-                    </div>
-                    <div style="background:#FDFBF8;border:1px solid var(--border);border-radius:12px;padding:14px;">
-                        <span style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">CAPACITY</span>
-                        <strong style="font-size:14px;color:var(--dark);">{{ $project->capacity }}</strong>
-                    </div>
-                    <div style="background:#FDFBF8;border:1px solid var(--border);border-radius:12px;padding:14px;">
-                        <span style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">START DATE</span>
-                        <strong style="font-size:14px;color:var(--dark);">{{ $project->start_date->format('M d, Y') }}</strong>
-                    </div>
-                    <div style="background:#FDFBF8;border:1px solid var(--border);border-radius:12px;padding:14px;">
-                        <span style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">END DATE</span>
-                        <strong style="font-size:14px;color:var(--dark);">{{ $project->end_date->format('M d, Y') }}</strong>
-                    </div>
-                    <div style="background:#FDFBF8;border:1px solid var(--border);border-radius:12px;padding:14px;">
-                        <span style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">CURRENT PHASE</span>
-                        <strong style="font-size:14px;color:var(--accent);">{{ ucfirst(str_replace('_', ' ', $project->current_phase)) }}</strong>
-                    </div>
-                    @if($project->notes)
-                    <div style="background:#FDFBF8;border:1px solid var(--border);border-radius:12px;padding:14px;grid-column:span 3;">
-                        <span style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">NOTES</span>
-                        <strong style="font-size:14px;color:var(--dark);">{{ $project->notes }}</strong>
-                    </div>
-                    @endif
-                </div>
             </div>
 
     </main>

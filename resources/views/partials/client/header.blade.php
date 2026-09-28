@@ -35,12 +35,12 @@
             <span>Dashboard</span>
         </a>
         <a href="{{ url('/client/projects') }}"
-           class="{{ request()->routeIs('client.projects') ? 'active' : '' }}">
+           class="{{ request()->routeIs('client.projects') || request()->routeIs('client.project_view') ? 'active' : '' }}">
             <i data-lucide="folder-kanban"></i>
             <span>My Projects</span>
         </a>
         <a href="{{ route('client.payments') }}"
-           class="{{ request()->routeIs('client.payments') ? 'active' : '' }}" style="position:relative;">
+           class="{{ request()->routeIs('client.payments*') ? 'active' : '' }}" style="position:relative;">
             <i data-lucide="credit-card"></i>
             <span>Payments</span>
             <span id="paymentsNavBadge" class="notification-count-badge" style="display:none;"></span>

@@ -86,6 +86,18 @@
                 @media (max-width: 768px) {
                     .db-hero { flex-direction: column; align-items: flex-start; padding: 4px 4px 20px; gap: 12px; }
                 }
+
+                /* Recent Projects / Recent Payments: show about 3 rows, scroll for the rest
+                   instead of the card growing tall once there's more than a few entries. */
+                .dash-recent-scroll {
+                    max-height: 260px;
+                    overflow-y: auto;
+                }
+                .dash-recent-scroll thead th {
+                    position: sticky;
+                    top: 0;
+                    z-index: 1;
+                }
             </style>
 
             <div class="stats-grid">
@@ -132,7 +144,7 @@
                             <i data-lucide="arrow-right"></i> View All
                         </a>
                     </div>
-                    <div class="table-wrap">
+                    <div class="table-wrap dash-recent-scroll">
                         <table style="table-layout:fixed;">
                             <colgroup>
                                 <col style="width:34%;">
@@ -196,7 +208,7 @@
                             <i data-lucide="arrow-right"></i> View All
                         </a>
                     </div>
-                    <div class="table-wrap">
+                    <div class="table-wrap dash-recent-scroll">
                         <table style="table-layout:fixed;">
                             <colgroup>
                                 <col style="width:34%;">

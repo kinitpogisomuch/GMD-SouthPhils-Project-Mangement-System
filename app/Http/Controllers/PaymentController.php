@@ -177,14 +177,16 @@ class PaymentController extends Controller
 
     public function show($id)
     {
-        $payment = Payment::with(['project', 'transactions'])->findOrFail($id);
+        $payment = Payment::with(['project', 'transactions', 'proofs'])->findOrFail($id);
         $payment->recalculate();
 
         $paidStages = $payment->paidStages();
+        $proofs     = $payment->proofs;
 
         return view('admin.payment_detail', compact(
             'payment',
-            'paidStages'
+            'paidStages',
+            'proofs'
         ));
     }
 
@@ -203,6 +205,7 @@ class PaymentController extends Controller
             'notes'            => 'nullable|string|max:1000',
             'receipt_files'    => 'required|array|min:1|max:5',
             'receipt_files.*'  => 'file|mimes:pdf,jpg,jpeg,png|max:10240',
+            'proof_id'         => 'nullable|integer',
         ]);
 
         $receiptUrls = $this->storage->uploadMultiple(
@@ -222,6 +225,12 @@ class PaymentController extends Controller
             'notes'            => $validated['notes'] ?? null,
             'recorded_by'      => auth()->user()->name ?? 'Admin',
         ]);
+
+        // The client's submission this was recorded from is now dealt with — mark it confirmed
+        // regardless of whether this payment alone fully settles the stage (it may be a partial).
+        if (!empty($validated['proof_id'])) {
+            $payment->proofs()->whereKey($validated['proof_id'])->update(['status' => 'confirmed']);
+        }
 
         $payment->recalculate();
 
@@ -364,34 +373,57 @@ class PaymentController extends Controller
             abort(403);
         }
 
-        $stageIn = implode(',', $payment->stages());
+        // Only stages that aren't already settled, and don't already have a confirmed
+        // proof, are offered in the stage picker.
+        $selectableStages = $payment->stagesOpenForProof();
+        $stageIn          = implode(',', $selectableStages);
+
+        // The amount box shows thousand separators.
+        if ($request->has('amount_paid')) {
+            $request->merge(['amount_paid' => str_replace(',', '', (string) $request->input('amount_paid'))]);
+        }
 
         $validated = $request->validate([
             'payment_stage'   => "required|string|in:{$stageIn}",
-            'proof_files'     => 'required|array|min:1|max:5',
-            'proof_files.*'   => 'file|mimes:pdf,jpg,jpeg,png|max:10240',
+            'amount_paid'     => 'required|numeric|min:0.01',
+            'mode_of_payment' => 'required|string|in:bank_transfer,cheque,cash',
+            // A screenshot is the proof for a bank/online transfer; cash and cheque often
+            // have none (a physical handover), so the file is optional for those two.
+            'proof_file'      => 'required_if:mode_of_payment,bank_transfer|nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
             'notes'           => 'nullable|string|max:1000',
             'submitted_date'  => 'nullable|date',
+        ], [
+            'payment_stage.required'    => 'Please select which payment stage this is for.',
+            'payment_stage.in'         => 'That payment stage is not available (it may already be fully paid).',
+            'amount_paid.required'     => 'Please enter the amount you paid.',
+            'amount_paid.numeric'      => 'Enter the amount as a number.',
+            'mode_of_payment.required' => 'Please select how you paid.',
+            'proof_file.required_if'   => 'Please attach an image or file as proof of payment.',
         ]);
 
-        $fileUrls = $this->storage->uploadMultiple(
-            $request->file('proof_files', []),
-            'payments/' . $payment->id . '/proofs'
-        );
+        $fileUrl = null;
+        if ($request->hasFile('proof_file')) {
+            $fileUrls = $this->storage->uploadMultiple(
+                [$request->file('proof_file')],
+                'payments/' . $payment->id . '/proofs'
+            );
 
-        if (empty($fileUrls)) {
-            return back()->with('error', 'Upload failed. Please check your connection and try again.');
+            if (empty($fileUrls)) {
+                return back()->withInput()->with('error', 'Upload failed. Please check your connection and try again.');
+            }
+
+            $fileUrl = $fileUrls[0];
         }
 
-        foreach ($fileUrls as $fileUrl) {
-            $proof = $payment->proofs()->make([
-                'payment_stage' => $validated['payment_stage'],
-                'file_url'      => $fileUrl,
-                'notes'         => $validated['notes'] ?? null,
-            ]);
-            $this->applyBackdate($proof, $validated['submitted_date'] ?? null);
-            $payment->proofs()->save($proof);
-        }
+        $proof = $payment->proofs()->make([
+            'payment_stage'   => $validated['payment_stage'],
+            'amount'          => $validated['amount_paid'],
+            'mode_of_payment' => $validated['mode_of_payment'],
+            'file_url'        => $fileUrl,
+            'notes'           => $validated['notes'] ?? null,
+        ]);
+        $this->applyBackdate($proof, $validated['submitted_date'] ?? null);
+        $payment->proofs()->save($proof);
 
         return redirect()->route('client.payments.show', $payment->id)
             ->with('success', 'Proof of payment submitted. Our team will verify it shortly.');

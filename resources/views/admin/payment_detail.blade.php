@@ -110,6 +110,82 @@
                 </div>
             </div>
 
+            <!-- Client Submissions: proof of payment the client uploaded on their side -->
+            <div class="table-card" style="margin-bottom:24px;">
+                <div class="table-toolbar" style="padding-bottom:14px;margin-bottom:0;border-bottom:1px solid var(--border);">
+                    <div>
+                        <div style="font-weight:800;font-size:15px;color:var(--dark);">Client Submissions</div>
+                        <div style="font-size:12px;color:var(--muted);margin-top:2px;">Proof of payment the client uploaded — verify, then record it below</div>
+                    </div>
+                    <span style="font-size:13px;font-weight:700;color:var(--muted);">{{ $proofs->count() }} submission{{ $proofs->count() !== 1 ? 's' : '' }}</span>
+                </div>
+                <div class="table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="text-align:left;">Date</th>
+                                <th style="text-align:left;">Stage</th>
+                                <th style="text-align:center;">Amount Paid</th>
+                                <th style="text-align:center;">Mode</th>
+                                <th style="text-align:center;">File</th>
+                                <th style="text-align:center;">Notes</th>
+                                <th style="text-align:center;">Status</th>
+                                <th style="text-align:right;"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($proofs as $proof)
+                            {{-- "Confirmed" once admin has recorded THIS submission (status), even if that
+                                 payment was only a partial and the stage as a whole isn't fully paid yet —
+                                 or if the stage happens to be fully settled some other way. --}}
+                            @php $proofSettled = $proof->status === 'confirmed' || in_array($proof->payment_stage, $paidStages); @endphp
+                            <tr>
+                                <td style="white-space:nowrap;color:var(--muted);">{{ $proof->created_at->format('M d, Y') }}</td>
+                                <td><strong>{{ \App\Models\PaymentTransaction::stageLabel($proof->payment_stage) }}</strong></td>
+                                <td style="text-align:center;"><strong>₱{{ number_format($proof->amount ?? 0, 2) }}</strong></td>
+                                <td style="text-align:center;">{{ $proof->modeOfPaymentLabel() }}</td>
+                                <td style="text-align:center;">
+                                    @if($proof->file_url)
+                                    <a href="{{ $proof->file_url }}" target="_blank" data-receipt class="action-btn view" title="View File">
+                                        <i data-lucide="file-text"></i>
+                                    </a>
+                                    @else
+                                    <span style="color:var(--muted);">—</span>
+                                    @endif
+                                </td>
+                                <td style="text-align:center;color:var(--muted);">{{ $proof->notes ?: '—' }}</td>
+                                <td style="text-align:center;">
+                                    @if($proofSettled)
+                                        <span class="status-badge completed">Confirmed</span>
+                                    @else
+                                        <span class="status-badge pending">Pending Review</span>
+                                    @endif
+                                </td>
+                                <td style="text-align:right;white-space:nowrap;">
+                                    @if(!$proofSettled && $status !== 'Fully Paid')
+                                    <button type="button" class="save-btn" style="padding:7px 12px;font-size:12px;"
+                                            data-record-proof
+                                            data-id="{{ $proof->id }}"
+                                            data-stage="{{ $proof->payment_stage }}" data-amount="{{ $proof->amount }}" data-mode="{{ $proof->mode_of_payment }}"
+                                            data-summary="{{ \App\Models\PaymentTransaction::stageLabel($proof->payment_stage) }} · ₱{{ number_format($proof->amount ?? 0, 2) }} ({{ $proof->modeOfPaymentLabel() }})">
+                                        <i data-lucide="check" style="width:13px;height:13px;"></i>
+                                        Record Payment
+                                    </button>
+                                    @endif
+                                </td>
+                            </tr>
+                            @empty
+                            <tr>
+                                <td colspan="8" style="text-align:center;padding:40px;color:var(--muted);">
+                                    <i data-lucide="upload-cloud" style="width:32px;height:32px;opacity:.3;display:block;margin:0 auto 10px;"></i>
+                                    No proof of payment submitted by the client yet.
+                                </td>
+                            </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
             <!-- Payment History -->
             <div class="table-card">
@@ -198,6 +274,8 @@
 
             <form method="POST" action="{{ route('admin.payments.record', $payment->id) }}" id="recordPaymentForm" enctype="multipart/form-data">
                 @csrf
+                <input type="hidden" name="proof_id" id="recordProofIdInput" value="">
+                <div id="recordProofLinkNote" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:12px;background:var(--cream-soft);border:1px solid var(--border);font-size:12.5px;font-weight:700;color:var(--dark);"></div>
                 <div class="form-grid">
                     <div class="form-group form-group-full">
                         <label>Payment Stage</label>
@@ -418,12 +496,38 @@
     // openBtn (and the whole Record Payment section) only renders when the
     // payment isn't fully paid yet — guard so a fully-paid payment doesn't
     // throw here and block the rest of this script (billing statement modal included).
+    const proofIdInput   = document.getElementById('recordProofIdInput');
+    const proofLinkNote  = document.getElementById('recordProofLinkNote');
+    function clearProofLink() { proofIdInput.value = ''; proofLinkNote.style.display = 'none'; }
+
     if (openBtn) {
-        openBtn.addEventListener('click', openModal);
+        openBtn.addEventListener('click', function () { clearProofLink(); openModal(); });
         closeBtn.addEventListener('click', closeModal);
         cancelBtn.addEventListener('click', closeModal);
         modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
     }
+
+    // ── "Record Payment" on a client submission — opens the same modal, pre-filled
+    // with that submission's stage and amount so admin just double-checks and saves. ──
+    document.querySelectorAll('[data-record-proof]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            openModal();
+            var opt = document.querySelector('.stage-select-option[data-value="' + btn.dataset.stage + '"]');
+            if (opt) selectStage(opt);
+            if (btn.dataset.amount) {
+                var amountInput = document.getElementById('amountPaidInput');
+                amountInput.value = btn.dataset.amount;
+                formatMoneyInput(amountInput);
+            }
+            if (btn.dataset.mode) {
+                var mopInput = document.getElementById({ bank_transfer: 'mop_bank', cheque: 'mop_cheque', cash: 'mop_cash' }[btn.dataset.mode]);
+                if (mopInput) { mopInput.checked = true; highlightMop(); }
+            }
+            proofIdInput.value = btn.dataset.id;
+            proofLinkNote.textContent = 'Recording the client\'s submission: ' + btn.dataset.summary;
+            proofLinkNote.style.display = 'block';
+        });
+    });
 
     // ── Generate Billing Statement modal ──────────────────────────────────
     const billingBtn      = document.getElementById('generateBillingBtn');

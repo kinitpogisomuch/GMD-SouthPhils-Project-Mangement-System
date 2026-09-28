@@ -20,6 +20,19 @@
             margin-left: auto;
             margin-right: auto;
         }
+        /* Make the current pay period easy to spot at a glance */
+        #salaryHistoryTable tbody tr.salary-row-current {
+            background: #EAF0FF;
+        }
+        #salaryHistoryTable tbody tr.salary-row-current:hover {
+            background: #DCE6FF;
+        }
+        #salaryHistoryTable tbody tr.salary-row-current td:first-child {
+            box-shadow: inset 3px 0 0 #2A4EAA;
+        }
+        #salaryHistoryTable td.salary-net-pay {
+            color: var(--success);
+        }
     </style>
 </head>
 <body class="page-enter">
@@ -67,10 +80,16 @@
 
             <div class="card">
                 <div class="card-header">
-                    <span class="card-title">Pay Period History</span>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <i data-lucide="history" style="width:16px;height:16px;color:var(--muted);"></i>
+                        <span class="card-title">Pay Period History</span>
+                    </div>
+                    <span style="font-size:12px;font-weight:700;color:var(--muted);">
+                        {{ $records->count() }} pay period{{ $records->count() !== 1 ? 's' : '' }}
+                    </span>
                 </div>
                 <div class="table-wrap" style="max-height:420px;overflow-y:auto;">
-                    <table class="data-table">
+                    <table class="data-table" id="salaryHistoryTable">
                         <thead style="position:sticky;top:0;z-index:1;">
                             <tr>
                                 <th>Pay Period</th>
@@ -92,7 +111,7 @@
                                     $halfDays   = ($record->days_worked - $fullDays) >= 0.5 ? 1 : 0;
                                     $periodText = $weekStart->format('M d') . ' – ' . $weekEnd->format('M d, Y');
                                 @endphp
-                                <tr>
+                                <tr class="{{ $record->pay_period === $payPeriod ? 'salary-row-current' : '' }}">
                                     <td>
                                         <strong>{{ $periodText }}</strong>
                                         @if($record->pay_period === $payPeriod)
@@ -104,7 +123,7 @@
                                     <td>{{ $halfDays }}</td>
                                     <td>{{ number_format($record->overtime_hours, 0) }}</td>
                                     <td>₱{{ number_format($record->gross_pay, 2) }}</td>
-                                    <td><strong>₱{{ number_format($record->net_pay, 2) }}</strong></td>
+                                    <td class="salary-net-pay"><strong>₱{{ number_format($record->net_pay, 2) }}</strong></td>
                                     <td class="action-cell">
                                         <button type="button" class="action-btn view"
                                                 title="View Salary Details"

@@ -69,8 +69,10 @@ class ClientController extends Controller
             }
         }
 
-        $projects = $this->ownProjectsQuery()->orderBy('created_at', 'desc')->take(3)->get();
-        $payments = $this->ownPaymentsQuery()->orderBy('created_at', 'desc')->take(3)->get();
+        // The dashboard card shows about 3 rows and scrolls for the rest, so fetch a bit
+        // more than 3 — "View All" still exists for the full list beyond that.
+        $projects = $this->ownProjectsQuery()->orderBy('created_at', 'desc')->take(10)->get();
+        $payments = $this->ownPaymentsQuery()->orderBy('created_at', 'desc')->take(10)->get();
 
         return view('client.dashboard', compact('projects', 'payments'));
     }

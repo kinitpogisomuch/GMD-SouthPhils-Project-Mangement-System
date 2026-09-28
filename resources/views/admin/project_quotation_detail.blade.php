@@ -358,7 +358,7 @@
                 $termsLocked  = $pay && $pay->transactions()->exists();   // terms freeze once a payment is recorded
                 $termsLabel   = ['big_project' => 'Big Project — 3 Phases (50% / 30% / 20%)', 'small_project' => 'Small Project — 2 Phases (50% / 50%)'][$pay->payment_term_type ?? ''] ?? null;
             @endphp
-            <form method="POST" action="{{ route('admin.project_materials.save', $project->id) }}" id="quotationForm" class="qb-card{{ $readOnly ? ' qb-readonly' : '' }}" novalidate>
+            <form method="POST" action="{{ route('admin.project_materials.save', $project->id) }}" id="quotationForm" class="qb-card{{ $readOnly ? ' qb-readonly' : '' }}">
                 @csrf
 
                 <div class="qb-head">
@@ -405,7 +405,7 @@
                         <div class="qb-field">
                             <label for="markupInput">Markup / Profit (%) @if($pay && !$readOnly)<span class="qb-req">*</span>@endif</label>
                             <input type="number" name="markup_percent" id="markupInput" min="0" max="100" step="0.01" placeholder="e.g. 10"
-                                   class="qb-input{{ ($pay && !$readOnly) ? '' : ' qb-locked' }}" {{ ($pay && !$readOnly) ? '' : 'disabled' }}
+                                   class="qb-input{{ ($pay && !$readOnly) ? '' : ' qb-locked' }}" {{ ($pay && !$readOnly) ? 'required' : 'disabled' }}
                                    value="{{ $markupPct !== null ? rtrim(rtrim(number_format($markupPct, 2, '.', ''), '0'), '.') : '' }}">
                             <small class="qb-value-note">Markup value: <strong id="markupValueNote">{{ $pay ? '₱' . number_format($payMarkup, 0) : '—' }}</strong>
                                 <span id="markupBudgetNote">@if($pay && $payBudget > 0) of ₱{{ number_format($payBudget, 0) }} Project Budget @endif</span>
@@ -414,7 +414,7 @@
                         <div class="qb-field">
                             <label for="paymentTermsInput">Payment Terms @if($pay && !$readOnly && !$termsLocked)<span class="qb-req">*</span>@endif</label>
                             <select name="payment_term_type" id="paymentTermsInput"
-                                    class="qb-input{{ ($pay && !$readOnly && !$termsLocked) ? '' : ' qb-locked' }}" {{ ($pay && !$readOnly && !$termsLocked) ? '' : 'disabled' }}>
+                                    class="qb-input{{ ($pay && !$readOnly && !$termsLocked) ? '' : ' qb-locked' }}" {{ ($pay && !$readOnly && !$termsLocked) ? 'required' : 'disabled' }}>
                                 <option value="" disabled hidden {{ $termsLabel ? '' : 'selected' }}>Select payment terms</option>
                                 <option value="big_project" {{ ($pay->payment_term_type ?? '') === 'big_project' ? 'selected' : '' }}>Big Project — 3 Phases (50% / 30% / 20%)</option>
                                 <option value="small_project" {{ ($pay->payment_term_type ?? '') === 'small_project' ? 'selected' : '' }}>Small Project — 2 Phases (50% / 50%)</option>
@@ -438,7 +438,7 @@
                         <div class="qb-section-tools">
                             <label class="qb-chip" for="materialFactorInput">
                                 Material Factor <span class="qb-req">*</span>
-                                <input type="number" name="factor" id="materialFactorInput" min="0" max="100" step="0.1" value="{{ $materials->isNotEmpty() ? $materialFactor : '' }}" placeholder="0">
+                                <input type="number" name="factor" id="materialFactorInput" min="0" max="100" step="0.1" value="{{ $materials->isNotEmpty() ? $materialFactor : '' }}" placeholder="0" required>
                                 <span>%</span>
                             </label>
                             <button type="button" class="cancel-btn" id="openMaterialsBOMModal">
@@ -498,7 +498,7 @@
                         <div class="qb-section-tools">
                             <label class="qb-chip" for="estDaysInput">
                                 Estimated Working Days <span class="qb-req">*</span>
-                                <input type="number" name="estimated_working_days" id="estDaysInput" min="0" step="0.01" value="{{ $project->estimated_working_days ?: '' }}" placeholder="0">
+                                <input type="number" name="estimated_working_days" id="estDaysInput" min="0" step="0.01" value="{{ $project->estimated_working_days ?: '' }}" placeholder="0" required>
                             </label>
                             <button type="button" class="add-btn" id="addLaborRowBtn">
                                 <i data-lucide="plus"></i>

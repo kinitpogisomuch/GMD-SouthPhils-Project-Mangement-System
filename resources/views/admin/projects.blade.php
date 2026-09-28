@@ -695,7 +695,7 @@
             row.innerHTML =
                 (removable ? '<button type="button" onclick="this.closest(\'.tank-item-row\').remove()" title="Remove tank" style="position:absolute;top:12px;right:12px;background:none;border:none;cursor:pointer;color:var(--muted);line-height:1;"><i data-lucide="x" style="width:15px;height:15px;"></i></button>' : '') +
 
-                '<div style="display:flex;gap:12px;align-items:flex-end;">' +
+                '<div class="ti-top-row" style="display:flex;gap:12px;align-items:flex-end;">' +
                     '<div class="form-group" style="flex:2;">' +
                         '<label>Project Type</label>' +
                         '<select name="' + prefix + '[tank_type]" required onchange="onTankTypeChange(this)">' + tankTypeOptions(type) + '</select>' +

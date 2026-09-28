@@ -75,22 +75,6 @@
                 <i data-lucide="chevron-down" class="dropdown-arrow"></i>
             </button>
             <div class="employee-dropdown-menu">
-                <div class="employee-dropdown-profile">
-                    <div class="employee-dropdown-profile-avatar">
-                        @if(session('profile_photo'))
-                            <img src="{{ session('profile_photo') }}" alt="Profile">
-                        @else
-                            <span>{{ strtoupper(substr(session('name', 'E'), 0, 1)) }}</span>
-                        @endif
-                    </div>
-                    <div>
-                        <div class="employee-dropdown-profile-name">{{ session('name', 'Employee') }}</div>
-                        <div class="employee-dropdown-profile-role">Employee</div>
-                    </div>
-                </div>
-
-                <div class="employee-dropdown-divider"></div>
-
                 <a href="{{ route('employee.settings') }}" class="employee-dropdown-item">
                     <span class="employee-dropdown-icon"><i data-lucide="settings"></i></span>
                     <span class="employee-dropdown-label">Settings</span>

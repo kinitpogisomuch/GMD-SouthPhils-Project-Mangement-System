@@ -3386,6 +3386,15 @@ input[type="number"] {
 }
 
 @media (max-width: 768px) {
+    /* Defensive: some page always has one plain flex/table row that doesn't wrap or scroll on
+       its own (a toolbar, a breadcrumb, a fixed-width table). Without this, that ONE element
+       drags the WHOLE page into horizontal scroll, shifting every other section off-screen
+       with it — the "title and everything above it is missing its left edge" bug. The specific
+       overflowing element should still get its own proper fix; this is just a backstop. */
+    body {
+        overflow-x: hidden;
+    }
+
     .admin-header {
         grid-template-columns: auto 1fr;
         height: auto;
@@ -3439,6 +3448,25 @@ input[type="number"] {
         border-radius: 0;
     }
 
+    /* Messages popup: same fixed full-width treatment as the notification dropdown above —
+       its inline styles (top:62px;right:-54px;width:360px) push it off-screen on narrow
+       viewports, cutting off the contact list on the left. Desktop is untouched. */
+    #chatPopupDropdown {
+        position: fixed !important;
+        top: var(--header-height) !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        max-height: calc(100vh - var(--header-height)) !important;
+        border-radius: 0 !important;
+    }
+
+    #chatContactList {
+        height: auto !important;
+        max-height: calc(100vh - var(--header-height) - 168px) !important;
+    }
+
     .admin-sidebar {
         width: 78vw;
         max-width: 280px;
@@ -3489,6 +3517,95 @@ input[type="number"] {
 
     .form-group-full {
         grid-column: span 1 !important;
+    }
+
+    /* Project Information card (Client Details / Project Specifications): a long unbroken value
+       like an email address has no space to wrap at, so as a grid item it keeps its full min-content
+       width and forces the row past the screen edge even once the grid itself is down to 1 column.
+       Force a single column here and let long values actually wrap. */
+    .project-detail-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    .project-detail-box {
+        min-width: 0 !important;
+    }
+
+    .project-detail-box strong {
+        overflow-wrap: anywhere !important;
+    }
+
+    /* Email shares the Client Details row with Client + Contact Number on desktop (unchanged there);
+       on mobile only, give it the same full-row width as Address, directly above it. */
+    .pv-email-box {
+        grid-column: 1 / -1 !important;
+    }
+
+    /* Filter tabs (e.g. All / Pending / Quotation Sent / Approved / Converted / Declined): a pill
+       bar with no wrap and no scroll, so once there are more than 3-4 tabs the row runs off the
+       right edge with no way to reach the rest. Let it scroll sideways like a segmented control,
+       left-aligned so the first tab is never hidden behind the "centered" starting scroll position. */
+    .filter-tabs {
+        max-width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+
+    .filter-tabs::-webkit-scrollbar {
+        display: none;
+    }
+
+    .filter-tabs .filter-tab {
+        flex-shrink: 0;
+    }
+
+    .table-toolbar .filter-tabs {
+        justify-content: flex-start !important;
+    }
+
+    /* Quotation Requests table: same "fits without scroll" desktop trick (table-layout:fixed +
+       colgroup percentages + min-width:unset) that crushed the projects table earlier — same fix,
+       but the percentage columns also need real pixel floors: 9%/11% of even a 640px table left
+       "Submitted" and "Status" only ~45-70px wide, so the date wrapped letter-by-letter and the
+       header text overflowed into its neighbor. Give every column a workable minimum instead. */
+    #quotationRequestsTable {
+        min-width: 800px !important;
+    }
+
+    #quotationRequestsTable colgroup col:nth-child(1) { width: 150px !important; }  /* Client */
+    #quotationRequestsTable colgroup col:nth-child(2) { width: 130px !important; }  /* Tank */
+    #quotationRequestsTable colgroup col:nth-child(3) { width: 178px !important; }  /* Delivery / Pick-up */
+    #quotationRequestsTable colgroup col:nth-child(4) { width: 100px !important; }  /* Submitted */
+    #quotationRequestsTable colgroup col:nth-child(5) { width: 110px !important; }  /* Status */
+    #quotationRequestsTable colgroup col:nth-child(6) { width: 132px !important; }  /* Actions */
+
+    #quotationRequestsTable th {
+        white-space: nowrap;
+    }
+
+    .qr-table-scroll {
+        overflow-x: auto !important;
+    }
+
+    /* Add Project modal — Project Type / Project Shape / Quantity row: a fixed flex row with
+       no wrap, so on a narrow phone the two selects get squeezed down to just their arrow.
+       Stack them full-width instead, same as the Dimensions fields below them. */
+    .ti-top-row {
+        flex-wrap: wrap !important;
+    }
+
+    .ti-top-row > .form-group {
+        flex: 1 1 100% !important;
+        width: auto !important;
+    }
+
+    /* This table forces itself to fit without scroll on desktop (table-layout:fixed + a
+       colgroup of percentage widths + min-width:unset), which on a phone crushes every
+       column below its content's readable width and the nowrap text visibly overlaps.
+       Give it back a scrollable floor width, like every other data table in the app. */
+    #projectsTable {
+        min-width: 760px !important;
     }
 
     .modal-card {

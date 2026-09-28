@@ -225,7 +225,7 @@
                                 <label>Current Password</label>
                                 <div class="password-input-wrap">
                                     <input type="password" name="current_password" id="currentPassword"
-                                           placeholder="Enter current password">
+                                           placeholder="Enter current password" required>
                                     <button type="button" class="toggle-pw" data-target="currentPassword">
                                         <span class="pw-icon-off">@include('partials.icons.eye-off')</span>
                                         <span class="pw-icon-on" style="display:none;">@include('partials.icons.eye')</span>
@@ -236,7 +236,7 @@
                                 <label>New Password</label>
                                 <div class="password-input-wrap">
                                     <input type="password" name="new_password" id="newPassword"
-                                           placeholder="Enter new password">
+                                           placeholder="Enter new password" required>
                                     <button type="button" class="toggle-pw" data-target="newPassword">
                                         <span class="pw-icon-off">@include('partials.icons.eye-off')</span>
                                         <span class="pw-icon-on" style="display:none;">@include('partials.icons.eye')</span>
@@ -253,7 +253,7 @@
                                 <label>Confirm New Password</label>
                                 <div class="password-input-wrap">
                                     <input type="password" name="new_password_confirmation" id="confirmPassword"
-                                           placeholder="Confirm new password">
+                                           placeholder="Confirm new password" required>
                                     <button type="button" class="toggle-pw" data-target="confirmPassword">
                                         <span class="pw-icon-off">@include('partials.icons.eye-off')</span>
                                         <span class="pw-icon-on" style="display:none;">@include('partials.icons.eye')</span>
@@ -1106,6 +1106,31 @@
         el.classList.toggle('fail', !met && (document.getElementById('newPassword').value.length > 0));
     }
 
+    // Password form — a red outline on whichever field is blank instead of letting the
+    // page reload just to show the server's "field is required" messages.
+    (function () {
+        var form = document.getElementById('passwordForm');
+        if (!form) return;
+        var fields = ['currentPassword', 'newPassword', 'confirmPassword'].map(function (id) {
+            return document.getElementById(id);
+        });
+        fields.forEach(function (input) {
+            input.addEventListener('input', function () { input.classList.remove('is-invalid'); });
+        });
+        form.addEventListener('submit', function (e) {
+            var invalid = false;
+            fields.forEach(function (input) {
+                var blank = !input.value.trim();
+                input.classList.toggle('is-invalid', blank);
+                if (blank) invalid = true;
+            });
+            if (invalid) {
+                e.preventDefault();
+                fields.find(function (input) { return input.classList.contains('is-invalid'); }).focus();
+            }
+        });
+    })();
+
     // --- Photo: open crop modal instead of uploading immediately ---
     document.getElementById('avatarInput').addEventListener('change', function () {
         var file = this.files[0];
@@ -1213,6 +1238,12 @@
         }
         .pw-req.met  { background: #dcfce7; border-color: #86efac; color: #15803d; }
         .pw-req.fail { background: #fee2e2; border-color: #fca5a5; color: #dc2626; }
+
+        /* A blank required password field gets a red outline instead of blocking on the
+           server-side message list. */
+        #passwordForm input.is-invalid {
+            border-color: #dc2626 !important;
+        }
 
         /* Landing Page tables: keep row divider lines flush across all columns
            (table-cell action columns with flex children can throw off row height/border alignment) */

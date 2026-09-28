@@ -6,6 +6,61 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Payment Detail | GMD South Phils</title>
     <link href="{{ asset('css/client.css') }}" rel="stylesheet">
+    <style>
+        /* Mode of Payment picker — mirrors the admin Record Payment modal's icon buttons */
+        .mop-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 14px;
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--muted);
+            background: var(--white);
+            transition: all .18s ease;
+            user-select: none;
+        }
+        .mop-option:hover {
+            border-color: var(--dark);
+            color: var(--dark);
+        }
+        .mop-option.mop-selected {
+            background: var(--dark);
+            border-color: var(--dark);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(14,20,40,.25);
+        }
+
+        /* A missing/invalid field on submit gets a red outline instead of a text message. */
+        #proofStageSelect.is-invalid,
+        #proofAmountInput.is-invalid,
+        #proofDropzone.is-invalid {
+            border-color: #dc2626 !important;
+        }
+        #proofMopGroup.is-invalid .mop-option {
+            border-color: #dc2626;
+        }
+
+        /* This table sits right above a footer strip of its own (submission count/total), so
+           the last row needs its bottom border back — otherwise it looks unclosed against the
+           footer's border-top, especially once the card is stretched taller than the table. */
+        .pf-proofs-table tbody tr:last-child td {
+            border-bottom: 1px solid var(--border);
+        }
+
+        /* Matches the system header's own dark gradient + white text */
+        .pf-header-dark {
+            background: linear-gradient(135deg, var(--dark) 0%, var(--dark-deep) 100%);
+            justify-content: center;
+            border-radius: 22px 22px 0 0;
+        }
+        .pf-header-dark .card-title {
+            color: var(--white);
+        }
+    </style>
 </head>
 <body class="page-enter">
 
@@ -81,129 +136,153 @@
                 </div>
             </div>
 
-            <!-- Stage Breakdown -->
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(380px, 1fr));gap:20px;align-items:stretch;margin-bottom:20px;">
+            <!-- Upload Proof of Payment -->
             <div class="card">
-                <div class="card-header">
-                    <div class="card-title">Payment Breakdown by Stage</div>
+                <div class="card-header pf-header-dark">
+                    <div class="card-title">Upload Proof of Payment</div>
                 </div>
-                <div class="card-body" style="display:flex;flex-direction:column;gap:14px;">
+                <div class="card-body" style="display:flex;flex-direction:column;gap:20px;">
                     @php
-                        $anyVisible = !empty($paidStages) || $currentStage !== null;
+                        $selectableStages = collect($payment->stagesOpenForProof());
                     @endphp
-                    @if(!$anyVisible)
-                    <div style="text-align:center;padding:32px 16px;color:var(--muted);">
-                        <i data-lucide="clock" style="width:28px;height:28px;opacity:.4;display:block;margin:0 auto 10px;"></i>
-                        <p style="font-size:13.5px;font-weight:700;color:var(--dark);margin-bottom:4px;">Waiting for your billing statement</p>
-                        <p style="font-size:12.5px;">GMD South Phils hasn't billed a payment stage yet — check back once you receive it.</p>
+
+                    @if($selectableStages->isEmpty())
+                    <div style="text-align:center;padding:24px 16px;color:var(--muted);">
+                        <i data-lucide="check-circle-2" style="width:28px;height:28px;opacity:.4;display:block;margin:0 auto 10px;"></i>
+                        <p style="font-size:13.5px;font-weight:700;color:var(--dark);margin-bottom:4px;">All payment stages are settled</p>
+                        <p style="font-size:12.5px;">There's nothing left to submit proof for on this project.</p>
+                    </div>
+                    @else
+                    @if($errors->any())
+                    <div class="alert-banner error" style="align-items:flex-start;">
+                        <i data-lucide="alert-circle" style="margin-top:2px;"></i>
+                        <div>@foreach($errors->all() as $message)<div>{{ $message }}</div>@endforeach</div>
                     </div>
                     @endif
-                    @foreach($payment->stages() as $stage)
-                        @php
-                            $isPaid = in_array($stage, $paidStages);
-                        @endphp
-                        {{-- Only the earliest unpaid stage shows once it's actually been billed —
-                             later stages stay hidden even if billed early, since terms are settled in order. --}}
-                        @continue(!$isPaid && $stage !== $currentStage)
-                        @php
-                            $expected   = $stageAmounts[$stage] ?? 0;
-                            $stagePaid  = isset($stageTransactions[$stage]) ? $stageTransactions[$stage]->sum('amount_paid') : 0;
-                            $stageLeft  = max(0, $expected - $stagePaid);
-                            $stageLabel = \App\Models\PaymentTransaction::stageLabel($stage);
-                            $stagePct   = $expected > 0 ? min(100, round(($stagePaid / $expected) * 100, 1)) : 0;
-                        @endphp
-                        @php $stageProofs = $payment->proofs->where('payment_stage', $stage); @endphp
-                        <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:stretch;">
-                            <div style="flex:2;min-width:280px;border:1px solid var(--border);border-radius:16px;padding:18px 20px;">
-                                <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
-                                    <div style="font-weight:900;font-size:15px;color:var(--dark);">{{ $stageLabel }}</div>
-                                    @if($isPaid)
-                                        <span class="status-badge completed">Paid</span>
-                                    @elseif($stagePaid > 0)
-                                        <span class="status-badge ongoing">Partial</span>
-                                    @else
-                                        <span class="status-badge pending">Unpaid</span>
-                                    @endif
-                                </div>
-                                <div class="progress-bar" style="height:8px;margin-bottom:14px;">
-                                    <div class="progress-fill"
-                                         style="width:{{ $stagePct }}%;
-                                         background:{{ $isPaid ? 'var(--success)' : 'var(--accent)' }};"></div>
-                                </div>
-                                <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:10px;">
-                                    <div class="info-mini">
-                                        <div class="info-mini-label">Expected</div>
-                                        <div class="info-mini-value">₱{{ number_format($expected, 2) }}</div>
-                                    </div>
-                                    <div class="info-mini">
-                                        <div class="info-mini-label">Paid</div>
-                                        <div class="info-mini-value" style="color:var(--success);">₱{{ number_format($stagePaid, 2) }}</div>
-                                    </div>
-                                    <div class="info-mini">
-                                        <div class="info-mini-label">Remaining</div>
-                                        <div class="info-mini-value" style="color:var(--danger);">₱{{ number_format($stageLeft, 2) }}</div>
-                                    </div>
+                    <form method="POST" action="{{ route('client.payments.proof.store', $payment->id) }}" enctype="multipart/form-data" id="proofUploadForm" novalidate>
+                        @csrf
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Payment Stage <span style="color:#dc2626;">*</span></label>
+                                <select name="payment_stage" id="proofStageSelect" required>
+                                    <option value="" disabled {{ old('payment_stage') ? '' : 'selected' }}>Select stage</option>
+                                    @foreach($selectableStages as $stage)
+                                    <option value="{{ $stage }}" {{ old('payment_stage') === $stage ? 'selected' : '' }}>{{ \App\Models\PaymentTransaction::stageLabel($stage) }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Amount Paid (₱) <span style="color:#dc2626;">*</span></label>
+                                <input type="text" inputmode="decimal" name="amount_paid" id="proofAmountInput"
+                                       placeholder="e.g. 50,000" value="{{ old('amount_paid') }}">
+                            </div>
+                            <div class="form-group form-group-full">
+                                <label>Mode of Payment <span style="color:#dc2626;">*</span></label>
+                                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;" id="proofMopGroup">
+                                    <label class="mop-option" for="proofMopBank">
+                                        <input type="radio" name="mode_of_payment" id="proofMopBank" value="bank_transfer" {{ old('mode_of_payment') === 'bank_transfer' ? 'checked' : '' }} required style="display:none;">
+                                        <i data-lucide="building-2" style="width:16px;height:16px;"></i>
+                                        Bank Transfer
+                                    </label>
+                                    <label class="mop-option" for="proofMopCheque">
+                                        <input type="radio" name="mode_of_payment" id="proofMopCheque" value="cheque" {{ old('mode_of_payment') === 'cheque' ? 'checked' : '' }} style="display:none;">
+                                        <i data-lucide="file-text" style="width:16px;height:16px;"></i>
+                                        Cheque
+                                    </label>
+                                    <label class="mop-option" for="proofMopCash">
+                                        <input type="radio" name="mode_of_payment" id="proofMopCash" value="cash" {{ old('mode_of_payment') === 'cash' ? 'checked' : '' }} style="display:none;">
+                                        <i data-lucide="banknote" style="width:16px;height:16px;"></i>
+                                        Cash
+                                    </label>
                                 </div>
                             </div>
-
-                            <div style="flex:1;min-width:250px;border:1px solid var(--border);border-radius:16px;padding:18px 20px;background:var(--surface-2);">
-                                <div style="font-weight:800;font-size:12.5px;color:var(--dark);text-transform:uppercase;letter-spacing:.03em;margin-bottom:12px;display:flex;align-items:center;gap:6px;">
-                                    <i data-lucide="upload-cloud" style="width:14px;height:14px;"></i>
-                                    Upload Proof of Payment
-                                </div>
-
-                                @if($isPaid)
-                                <div style="font-size:12px;color:var(--muted);">This stage has already been confirmed as paid.</div>
-                                @elseif($stageProofs->isNotEmpty())
-                                <div style="font-size:12px;color:var(--muted);">Proof submitted — waiting for GMD South Phils to confirm your payment.</div>
-                                @else
-                                <form method="POST" action="{{ route('client.payments.proof.store', $payment->id) }}" enctype="multipart/form-data" class="proof-upload-form" data-stage="{{ $stage }}">
-                                    @csrf
-                                    <input type="hidden" name="payment_stage" value="{{ $stage }}">
-                                    <label for="proofFilesInput{{ $stage }}" class="qr-upload-dropzone" id="proofDropzone{{ $stage }}" style="margin-bottom:8px;">
-                                        <i data-lucide="file-plus" style="width:18px;height:18px;color:var(--accent);"></i>
-                                        <span style="font-size:12px;font-weight:700;color:var(--dark);">Click to upload receipt/screenshot</span>
-                                        <span style="font-size:10.5px;color:var(--muted);">PDF or image, up to 5 files, max 10MB each</span>
-                                    </label>
-                                    <input type="file" name="proof_files[]" id="proofFilesInput{{ $stage }}" accept=".pdf,image/*" multiple required style="display:none;">
-                                    <div id="proofFilesList{{ $stage }}" class="qr-file-list" style="display:none;"></div>
-                                    <input type="date" name="submitted_date" title="Submitted date (optional — defaults to today)"
-                                           style="width:100%;border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-size:12px;font-family:inherit;box-sizing:border-box;margin-bottom:8px;">
-                                    <textarea name="notes" rows="2" placeholder="Optional note (e.g. reference number)"
-                                              style="width:100%;border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-size:12px;font-family:inherit;box-sizing:border-box;resize:vertical;margin-bottom:8px;"></textarea>
-                                    <button type="submit" class="save-btn" style="width:100%;justify-content:center;padding:9px;font-size:12.5px;">
-                                        <i data-lucide="send" style="width:13px;height:13px;"></i>
-                                        Submit Proof
-                                    </button>
-                                </form>
-                                @endif
-
-                                @if($stageProofs->isNotEmpty())
-                                <div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--border);display:flex;flex-direction:column;gap:8px;">
-                                    <div style="font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">Submitted</div>
-                                    @foreach($stageProofs as $proof)
-                                    <div>
-                                        <a href="{{ $proof->file_url }}" target="_blank" style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--accent);text-decoration:none;">
-                                            <i data-lucide="file-text" style="width:12px;height:12px;flex-shrink:0;"></i>
-                                            {{ $proof->created_at->format('M d, Y') }}
-                                        </a>
-                                        @if($proof->notes)
-                                        <div style="font-size:11.5px;color:var(--muted);margin-top:3px;">{{ $proof->notes }}</div>
-                                        @endif
-                                    </div>
-                                    @endforeach
-                                </div>
-                                @endif
+                            <div class="form-group form-group-full">
+                                <label>Attach Image / File <span id="proofFileReq" style="color:#dc2626;">*</span></label>
+                                <label for="proofFileInput" class="qr-upload-dropzone" id="proofDropzone" style="margin-bottom:0;">
+                                    <i data-lucide="file-plus" style="width:18px;height:18px;color:var(--accent);"></i>
+                                    <span style="font-size:12px;font-weight:700;color:var(--dark);" id="proofDropzoneText">Click to upload receipt/screenshot</span>
+                                    <span style="font-size:10.5px;color:var(--muted);">PDF or image, max 10MB</span>
+                                </label>
+                                <input type="file" name="proof_file" id="proofFileInput" accept=".pdf,image/*" style="display:none;">
+                                <div id="proofFilePreview" class="qr-file-list" style="display:none;"></div>
+                            </div>
+                            <div class="form-group form-group-full">
+                                <label>Note <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
+                                <textarea name="notes" rows="2" placeholder="e.g. reference number" style="resize:none;">{{ old('notes') }}</textarea>
                             </div>
                         </div>
-                    @endforeach
+                        <button type="submit" class="save-btn" style="margin-top:14px;">
+                            <i data-lucide="send" style="width:14px;height:14px;"></i>
+                            Submit Proof
+                        </button>
+                    </form>
+                    @endif
                 </div>
+            </div>
+
+            @if($payment->proofs->isNotEmpty())
+            <!-- Submitted Proofs -->
+            <div class="card" style="overflow:hidden;display:flex;flex-direction:column;">
+                <div class="card-header pf-header-dark">
+                    <div class="card-title">Submitted Proofs</div>
+                </div>
+                <div class="table-wrap">
+                    <table class="pf-proofs-table">
+                        <thead>
+                            <tr>
+                                <th>File</th>
+                                <th>Stage</th>
+                                <th>Amount Paid</th>
+                                <th>Mode</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($payment->proofs as $proof)
+                            @php $proofSettled = $proof->status === 'confirmed' || in_array($proof->payment_stage, $paidStages); @endphp
+                            <tr>
+                                <td>
+                                    @if($proof->file_url)
+                                    <a href="{{ $proof->file_url }}" target="_blank" data-receipt style="display:inline-flex;align-items:center;gap:6px;color:var(--accent);font-weight:700;text-decoration:none;">
+                                        <i data-lucide="file-text" style="width:14px;height:14px;"></i> View
+                                    </a>
+                                    @else
+                                    <span style="color:var(--muted);">—</span>
+                                    @endif
+                                </td>
+                                <td>{{ \App\Models\PaymentTransaction::stageLabel($proof->payment_stage) }}</td>
+                                <td><strong>₱{{ number_format($proof->amount ?? 0, 2) }}</strong></td>
+                                <td>{{ $proof->modeOfPaymentLabel() }}</td>
+                                <td>
+                                    @if($proofSettled)
+                                        <span class="status-badge completed">Confirmed</span>
+                                    @else
+                                        <span class="status-badge pending">Pending Review</span>
+                                    @endif
+                                </td>
+                                <td>{{ $proof->created_at->format('M d, Y') }}</td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                {{-- Pinned to the bottom of the card (via margin-top:auto below) so a short list
+                     doesn't just trail off into empty space under a table that stopped early. --}}
+                <div style="margin-top:auto;padding:12px 20px;border-top:1px solid var(--border);background:var(--surface-2);font-size:12px;font-weight:600;color:var(--muted);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+                    <span>{{ $payment->proofs->count() }} submission{{ $payment->proofs->count() !== 1 ? 's' : '' }}</span>
+                    <span>₱{{ number_format($payment->proofs->sum('amount'), 2) }} total submitted</span>
+                </div>
+            </div>
+            @endif
             </div>
 
             <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));gap:20px;align-items:start;">
             @if($payment->billingStatements->isNotEmpty())
             <!-- Billing Statements -->
             <div class="card" style="overflow:hidden;">
-                <div class="card-header">
+                <div class="card-header pf-header-dark">
                     <div class="card-title">Billing Statements</div>
                 </div>
                 <div class="table-wrap">
@@ -242,7 +321,7 @@
 
             <!-- Payment History -->
             <div class="card" style="overflow:hidden;">
-                <div class="card-header">
+                <div class="card-header pf-header-dark">
                     <div class="card-title">Payment History</div>
                 </div>
                 @if($payment->transactions->isEmpty())
@@ -299,18 +378,32 @@
     <script>
         lucide.createIcons();
 
-        // ── Proof-of-payment upload — chip UI (mirrors the "Request a
-        // Quotation" reference-files upload: dropzone until something's
-        // picked, then compact chips with a "+" tile to add more) ──
-        document.querySelectorAll('.proof-upload-form').forEach(function (form) {
-            var stage    = form.dataset.stage;
-            var input    = document.getElementById('proofFilesInput' + stage);
-            var dropzone = document.getElementById('proofDropzone' + stage);
-            var list     = document.getElementById('proofFilesList' + stage);
-            if (!input) return;
+        // ── Proof-of-payment upload — one form covering every open stage. The dropzone
+        // swaps for a single preview chip once a file is picked (mirrors the "Request a
+        // Quotation" reference-files upload, just capped at one file per submission). ──
+        (function () {
+            var form     = document.getElementById('proofUploadForm');
+            if (!form) return;
 
-            var MAX_FILES = 5;
-            var selected  = [];
+            var input    = document.getElementById('proofFileInput');
+            var dropzone = document.getElementById('proofDropzone');
+            var preview  = document.getElementById('proofFilePreview');
+            var amount   = document.getElementById('proofAmountInput');
+            var stage    = document.getElementById('proofStageSelect');
+            var mopGroup = document.getElementById('proofMopGroup');
+            var fileReq  = document.getElementById('proofFileReq');
+            var dropzoneText = document.getElementById('proofDropzoneText');
+            var selected = null;
+
+            function selectedMode() {
+                var checked = mopGroup && mopGroup.querySelector('input[type="radio"]:checked');
+                return checked ? checked.value : null;
+            }
+            function fileIsRequired() {
+                // A screenshot is the proof for a bank/online transfer; cash and cheque are
+                // often a physical handover with nothing to photograph, so it's optional there.
+                return selectedMode() !== 'cheque' && selectedMode() !== 'cash';
+            }
 
             function formatSize(bytes) {
                 if (bytes < 1024) return bytes + ' B';
@@ -318,79 +411,118 @@
                 return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
             }
             function syncInput() {
+                if (!selected) { input.value = ''; return; }
                 var dt = new DataTransfer();
-                selected.forEach(function (f) { dt.items.add(f); });
+                dt.items.add(selected);
                 input.files = dt.files;
             }
-            function viewFile(index) {
-                var f = selected[index];
-                if (!f) return;
-                window.open(URL.createObjectURL(f), '_blank');
-            }
-            function removeFile(index) {
-                selected.splice(index, 1);
+            function removeFile() {
+                selected = null;
                 syncInput();
                 render();
             }
             function render() {
-                dropzone.style.display = selected.length ? 'none' : '';
-                list.style.display     = selected.length ? 'flex' : 'none';
+                dropzone.style.display = selected ? 'none' : '';
+                preview.style.display  = selected ? 'flex' : 'none';
+                if (!selected) { preview.innerHTML = ''; return; }
 
-                list.innerHTML = selected.map(function (f, i) {
-                    var isImage = f.type.indexOf('image/') === 0;
-                    var thumb   = isImage
-                        ? '<img class="qr-file-thumb" src="' + URL.createObjectURL(f) + '" alt="">'
-                        : '<span class="qr-file-thumb"><i data-lucide="file-text"></i></span>';
-                    return '<div class="qr-file-chip" data-index="' + i + '" title="Click to view">'
-                        + thumb
-                        + '<div class="qr-file-meta">'
-                            + '<div class="qr-file-name" title="' + f.name.replace(/"/g, '&quot;') + '">' + f.name + '</div>'
-                            + '<div class="qr-file-size">' + formatSize(f.size) + '</div>'
-                        + '</div>'
-                        + '<button type="button" class="qr-file-remove" data-index="' + i + '" title="Remove"><i data-lucide="x"></i></button>'
-                    + '</div>';
-                }).join('');
+                var isImage = selected.type.indexOf('image/') === 0;
+                var thumb   = isImage
+                    ? '<img class="qr-file-thumb" src="' + URL.createObjectURL(selected) + '" alt="">'
+                    : '<span class="qr-file-thumb"><i data-lucide="file-text"></i></span>';
+                preview.innerHTML = '<div class="qr-file-chip" title="Click to view">'
+                    + thumb
+                    + '<div class="qr-file-meta">'
+                        + '<div class="qr-file-name" title="' + selected.name.replace(/"/g, '&quot;') + '">' + selected.name + '</div>'
+                        + '<div class="qr-file-size">' + formatSize(selected.size) + '</div>'
+                    + '</div>'
+                    + '<button type="button" class="qr-file-remove" title="Remove"><i data-lucide="x"></i></button>'
+                + '</div>';
 
-                if (selected.length && selected.length < MAX_FILES) {
-                    list.innerHTML += '<button type="button" class="qr-file-add" data-stage="' + stage + '" title="Add more"><i data-lucide="plus"></i></button>';
-                }
-
-                list.querySelectorAll('.qr-file-chip').forEach(function (chip) {
-                    chip.addEventListener('click', function (e) {
-                        if (e.target.closest('.qr-file-remove')) return;
-                        viewFile(Number(chip.dataset.index));
-                    });
+                preview.querySelector('.qr-file-chip').addEventListener('click', function (e) {
+                    if (e.target.closest('.qr-file-remove')) return;
+                    window.open(URL.createObjectURL(selected), '_blank');
                 });
-                list.querySelectorAll('.qr-file-remove').forEach(function (btn) {
-                    btn.addEventListener('click', function () { removeFile(Number(btn.dataset.index)); });
-                });
-                var addBtn = list.querySelector('.qr-file-add');
-                if (addBtn) addBtn.addEventListener('click', function () { input.value = ''; input.click(); });
+                preview.querySelector('.qr-file-remove').addEventListener('click', removeFile);
 
                 if (typeof lucide !== 'undefined') lucide.createIcons();
             }
 
             input.addEventListener('change', function () {
-                var rejected = [];
-                Array.from(input.files || []).forEach(function (f) {
-                    if (f.size > 10 * 1024 * 1024) { rejected.push(f.name); return; }
-                    var isDuplicate = selected.some(function (sf) {
-                        return sf.name === f.name && sf.size === f.size && sf.lastModified === f.lastModified;
-                    });
-                    if (!isDuplicate && selected.length < MAX_FILES) selected.push(f);
-                });
-                syncInput();
+                var file = input.files && input.files[0];
+                if (!file) return;
+                if (file.size > 10 * 1024 * 1024) {
+                    input.value = '';
+                    if (typeof showFileTooLargeModal === 'function') showFileTooLargeModal(file.name, 10);
+                    return;
+                }
+                selected = file;
                 render();
-                if (rejected.length && typeof showFileTooLargeModal === 'function') showFileTooLargeModal(rejected.join(', '), 10);
+                dropzone.classList.remove('is-invalid');
             });
 
-            form.addEventListener('submit', function (e) {
-                if (!selected.length) {
-                    e.preventDefault();
-                    alert('Please attach at least one receipt/screenshot.');
-                }
+            amount.addEventListener('input', function () {
+                var raw   = amount.value.replace(/[^0-9.]/g, '');
+                var parts = raw.split('.');
+                var whole = parts[0].replace(/^0+(?=\d)/, '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                amount.value = whole + (parts.length > 1 ? '.' + parts.slice(1).join('').slice(0, 2) : '');
+                amount.classList.remove('is-invalid');
             });
-        });
+            stage.addEventListener('change', function () { stage.classList.remove('is-invalid'); });
+
+            function syncFileRequirement() {
+                var required = fileIsRequired();
+                fileReq.style.display = required ? '' : 'none';
+                dropzoneText.textContent = required
+                    ? 'Click to upload receipt/screenshot'
+                    : 'Click to upload receipt/screenshot (optional for cash/cheque)';
+                if (!required) dropzone.classList.remove('is-invalid');
+            }
+
+            if (mopGroup) {
+                var syncMopHighlight = function () {
+                    mopGroup.querySelectorAll('.mop-option').forEach(function (lbl) {
+                        lbl.classList.toggle('mop-selected', lbl.querySelector('input').checked);
+                    });
+                };
+                mopGroup.querySelectorAll('input[type="radio"]').forEach(function (radio) {
+                    radio.addEventListener('change', function () {
+                        syncMopHighlight();
+                        syncFileRequirement();
+                        mopGroup.classList.remove('is-invalid');
+                    });
+                });
+                syncMopHighlight(); // reflects a pre-checked option after a failed resubmit
+                syncFileRequirement();
+            }
+
+            form.addEventListener('submit', function (e) {
+                var invalid = false;
+
+                stage.classList.toggle('is-invalid', !stage.value);
+                if (!stage.value) invalid = true;
+
+                var validAmount = parseFloat(amount.value.replace(/,/g, '')) > 0;
+                amount.classList.toggle('is-invalid', !validAmount);
+                if (!validAmount) invalid = true;
+
+                if (mopGroup) {
+                    var hasMode = !!mopGroup.querySelector('input[type="radio"]:checked');
+                    mopGroup.classList.toggle('is-invalid', !hasMode);
+                    if (!hasMode) invalid = true;
+                }
+
+                var needsFile = fileIsRequired();
+                dropzone.classList.toggle('is-invalid', needsFile && !selected);
+                if (needsFile && !selected) invalid = true;
+
+                if (invalid) {
+                    e.preventDefault();
+                    return;
+                }
+                amount.value = amount.value.replace(/,/g, '');
+            });
+        })();
     </script>
     @include('partials.receipt_viewer')
 

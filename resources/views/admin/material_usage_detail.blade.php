@@ -16,7 +16,7 @@
 
         <main class="admin-content">
 
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;font-size:13px;color:var(--muted);">
+            <div class="mu-breadcrumb" style="display:flex;align-items:center;gap:8px;margin-bottom:20px;font-size:13px;color:var(--muted);">
                 <a href="{{ route('admin.material_usage') }}" style="color:var(--muted);text-decoration:none;font-weight:600;">Materials</a>
                 <i data-lucide="chevron-right" style="width:14px;height:14px;"></i>
                 <a href="{{ route('admin.material_usage.client', urlencode($project->client)) }}" style="color:var(--muted);text-decoration:none;font-weight:600;">{{ $project->live_client_name }}</a>
@@ -158,12 +158,12 @@
 
                 {{-- Summary table (full width — the purchase form now lives in a modal) --}}
                 <div class="pm-card" style="margin-bottom:16px;display:flex;flex-direction:column;min-width:0;height:500px;overflow:hidden;">
-                    <div class="pm-card-header">
+                    <div class="pm-card-header pm-purchased-header">
                         <div>
                             <div class="pm-card-title">Purchased materials &mdash; summary</div>
                             <div class="pm-card-sub">Aggregated totals per material &middot; updates KPI automatically</div>
                         </div>
-                        <div style="display:flex;align-items:center;gap:14px;">
+                        <div class="pm-purchased-header-right" style="display:flex;align-items:center;gap:14px;">
                             @if($allMaterialRows->isNotEmpty())
                             <span style="font-size:12px;font-weight:700;color:var(--muted);">{{ $allMaterialRows->count() }} material{{ $allMaterialRows->count() !== 1 ? 's' : '' }} &nbsp;·&nbsp; Total: <strong style="color:#16a34a;">&#x20B1;{{ number_format($totalPurchased,2) }}</strong></span>
                             @endif
@@ -175,8 +175,8 @@
                     </div>
 
                     @php $pcols = 'table-layout:fixed;border-collapse:collapse;width:100%;'; @endphp
-                    <div style="flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;">
-                        <table style="{{ $pcols }}">
+                    <div class="pm-purchased-scroll" style="flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;">
+                        <table class="pm-purchased-table" style="{{ $pcols }}">
                             <colgroup>
                                 <col style="width:28%;">
                                 <col style="width:11%;">
@@ -196,8 +196,8 @@
                                 </tr>
                             </thead>
                         </table>
-                        <div style="flex:1;overflow-y:scroll;min-height:0;">
-                        <table style="{{ $pcols }}">
+                        <div class="pm-purchased-body-wrap" style="flex:1;overflow-y:scroll;min-height:0;">
+                        <table class="pm-purchased-table" style="{{ $pcols }}">
                             <colgroup>
                                 <col style="width:28%;">
                                 <col style="width:11%;">
@@ -1400,6 +1400,58 @@
         .pm-add-field input,.pm-add-field select { height:40px;border:1px solid var(--border);border-radius:8px;padding:0 10px;font-size:13px;font-weight:600;background:var(--white);color:var(--dark);font-family:inherit;width:100%; }
         .pm-add-field input:focus,.pm-add-field select:focus { outline:none;border-color:var(--dark); }
         .pm-log-header { padding:10px 20px 0;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--muted-light); }
+
+        /* Mobile only — none of this changes the desktop/laptop layout above.
+           The breadcrumb, tabs and "Log New Purchase" header row are all plain
+           non-wrapping flex rows; on a narrow phone one of them ends up wider
+           than the screen, and since nothing here clips horizontal overflow,
+           the WHOLE page shifts sideways with it — cutting the left edge off
+           of the breadcrumb, title and tabs, not just that one row. */
+        @media (max-width: 768px) {
+            .mu-breadcrumb {
+                flex-wrap: wrap;
+                row-gap: 4px;
+            }
+
+            .pm-tabs {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+            }
+            .pm-tabs::-webkit-scrollbar { display: none; }
+            .pm-tab { flex-shrink: 0; }
+
+            .pm-purchased-header {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 10px;
+            }
+            .pm-purchased-header-right {
+                flex-wrap: wrap;
+                justify-content: space-between;
+                width: 100%;
+            }
+            .pm-purchased-header-right .add-btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            /* The summary table itself: percentage columns with no floor crush down to
+               nothing and the header text overlaps ("MATERIAL"/"UNIT"/etc. running into
+               each other). Give it a real width and let the card scroll to reach it,
+               keeping the two split head/body tables in sync as one scrolling unit. */
+            .pm-purchased-scroll {
+                overflow-x: auto !important;
+                overflow-y: hidden !important;
+            }
+            .pm-purchased-table {
+                min-width: 650px !important;
+                width: auto !important;
+            }
+            .pm-purchased-body-wrap {
+                min-width: 650px !important;
+            }
+        }
 
         /* Dark sidebar form inputs */
         .dark-form .pm-add-field label { color:rgba(255,255,255,.45); }
