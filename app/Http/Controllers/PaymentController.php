@@ -208,6 +208,25 @@ class PaymentController extends Controller
             'proof_id'         => 'nullable|integer',
         ]);
 
+        // Down Payment / Final Payment are fixed splits of the contract (50/30/20 or 50/50) —
+        // always settle them in full. Only Progress Payment (the 30% stage on big projects)
+        // accepts partial payments, and even then never beyond what's left on that stage.
+        $stage          = $validated['payment_stage'];
+        $isPartialStage = $payment->payment_term_type === 'big_project' && $stage === 'progress_payment';
+        $stageRemaining = $payment->stageRemaining($stage);
+
+        if ($stageRemaining <= 0) {
+            return back()->withInput()->with('error', 'That payment stage is already fully paid.');
+        }
+
+        if ($isPartialStage) {
+            if ((float) $validated['amount_paid'] > $stageRemaining + 0.01) {
+                return back()->withInput()->with('error', 'Amount exceeds the ₱' . number_format($stageRemaining, 2) . ' remaining for this stage.');
+            }
+        } else {
+            $validated['amount_paid'] = $stageRemaining;
+        }
+
         $receiptUrls = $this->storage->uploadMultiple(
             $request->file('receipt_files', []),
             'payments/' . $payment->id . '/receipts'

@@ -143,13 +143,21 @@
 
                         <div class="form-group" style="margin-top:12px;">
                             <label class="log-label">SITE PHOTOS </label>
-                            <label style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:18px;border:2px dashed #fed7aa;border-radius:8px;cursor:pointer;background:#fff7ed;">
-                                <i data-lucide="upload-cloud" style="width:24px;height:24px;color:#ea580c;"></i>
-                                <span style="font-size:13px;font-weight:600;color:#9a3412;">Click to upload photos</span>
-                                <span style="font-size:11.5px;color:#c2410c;">Required — JPG, PNG up to 5MB each</span>
-                                <input type="file" name="photos[]" multiple accept="image/*"
-                                       style="display:none;" onchange="previewRevisionPhotos(this)" required>
-                            </label>
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                                <label for="revisionPhotoFileInput" style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px;border:2px dashed #fed7aa;border-radius:8px;cursor:pointer;background:#fff7ed;">
+                                    <i data-lucide="upload-cloud" style="width:20px;height:20px;color:#ea580c;"></i>
+                                    <span style="font-size:12px;font-weight:600;color:#9a3412;">Upload Photos</span>
+                                </label>
+                                <label for="revisionPhotoCameraInput" style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px;border:2px dashed #fed7aa;border-radius:8px;cursor:pointer;background:#fff7ed;">
+                                    <i data-lucide="camera" style="width:20px;height:20px;color:#ea580c;"></i>
+                                    <span style="font-size:12px;font-weight:600;color:#9a3412;">Take Photo</span>
+                                </label>
+                            </div>
+                            <span style="display:block;font-size:11.5px;color:#c2410c;margin-top:6px;">Required — JPG, PNG up to 5MB each</span>
+                            <input type="file" name="photos[]" id="revisionPhotoFileInput" multiple accept="image/*"
+                                   style="display:none;" onchange="previewRevisionPhotos(this)" required>
+                            <input type="file" id="revisionPhotoCameraInput" accept="image/*" capture="environment"
+                                   style="display:none;" onchange="previewRevisionPhotos(this)">
                             <div id="revisionPhotoPreview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;"></div>
                         </div>
 
@@ -235,15 +243,27 @@
                             <label class="log-label">Site Photos
                                 <span style="font-weight:400;color:#dc2626;text-transform:none;">(required)</span>
                             </label>
-                            <label style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:26px 20px;border:2px dashed #fbbf24;border-radius:12px;cursor:pointer;background:#fffbeb;transition:.2s;">
-                                <div style="width:40px;height:40px;border-radius:50%;background:#fde68a;display:flex;align-items:center;justify-content:center;">
-                                    <i data-lucide="upload-cloud" style="width:19px;height:19px;color:#92400e;"></i>
-                                </div>
-                                <span style="font-size:13px;font-weight:700;color:#78350f;">Click to upload photos</span>
-                                <span style="font-size:11.5px;color:#b45309;">Up to 5 photos &middot; JPG/PNG &middot; max 5MB each</span>
-                                <input type="file" name="photos[]" multiple accept="image/*"
-                                       style="display:none;" onchange="previewPhotos(this)" required>
-                            </label>
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                                <label for="photoFileInput" style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:20px 14px;border:2px dashed #fbbf24;border-radius:12px;cursor:pointer;background:#fffbeb;transition:.2s;">
+                                    <div style="width:36px;height:36px;border-radius:50%;background:#fde68a;display:flex;align-items:center;justify-content:center;">
+                                        <i data-lucide="upload-cloud" style="width:16px;height:16px;color:#92400e;"></i>
+                                    </div>
+                                    <span style="font-size:12.5px;font-weight:700;color:#78350f;text-align:center;">Upload Photos</span>
+                                    <span style="font-size:10.5px;color:#b45309;text-align:center;">From gallery</span>
+                                </label>
+                                <label for="photoCameraInput" style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:20px 14px;border:2px dashed #fbbf24;border-radius:12px;cursor:pointer;background:#fffbeb;transition:.2s;">
+                                    <div style="width:36px;height:36px;border-radius:50%;background:#fde68a;display:flex;align-items:center;justify-content:center;">
+                                        <i data-lucide="camera" style="width:16px;height:16px;color:#92400e;"></i>
+                                    </div>
+                                    <span style="font-size:12.5px;font-weight:700;color:#78350f;text-align:center;">Take Photo</span>
+                                    <span style="font-size:10.5px;color:#b45309;text-align:center;">Use camera</span>
+                                </label>
+                            </div>
+                            <span style="display:block;font-size:11.5px;color:#b45309;margin-top:8px;">Up to 5 photos &middot; JPG/PNG &middot; max 5MB each</span>
+                            <input type="file" name="photos[]" id="photoFileInput" multiple accept="image/*"
+                                   style="display:none;" onchange="previewPhotos(this)" required>
+                            <input type="file" id="photoCameraInput" accept="image/*" capture="environment"
+                                   style="display:none;" onchange="previewPhotos(this)">
                             <div id="photoPreview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;"></div>
                         </div>
                     </div>
@@ -586,6 +606,10 @@
             input.files = dt.files;
         }
 
+        // Both the "Upload Photos" (gallery) and "Take Photo" (camera) inputs feed the
+        // same tracked file list, which is always synced back onto the one *named* input
+        // (photoFileInput / revisionPhotoFileInput) so the form actually submits every
+        // photo regardless of which control the employee used to add it.
         function previewPhotos(input) {
             const rejected = [];
             for (const f of Array.from(input.files)) {
@@ -593,15 +617,15 @@
                 if (f.size > 5 * 1024 * 1024) { rejected.push(f.name); continue; }
                 empPhotoFiles.push(f);
             }
-            syncInput(input, empPhotoFiles);
+            syncInput(document.getElementById('photoFileInput'), empPhotoFiles);
             buildPhotoPreview(empPhotoFiles, 'photoPreview', 'removeEmpPhoto');
             if (rejected.length) showFileTooLargeModal(rejected.join(', '), 5);
+            input.value = '';
         }
 
         function removeEmpPhoto(index) {
             empPhotoFiles.splice(index, 1);
-            const input = document.querySelector('#photoPreview').closest('.form-group').querySelector('input[type=file]');
-            syncInput(input, empPhotoFiles);
+            syncInput(document.getElementById('photoFileInput'), empPhotoFiles);
             buildPhotoPreview(empPhotoFiles, 'photoPreview', 'removeEmpPhoto');
         }
 
@@ -612,15 +636,15 @@
                 if (f.size > 5 * 1024 * 1024) { rejected.push(f.name); continue; }
                 empRevisionFiles.push(f);
             }
-            syncInput(input, empRevisionFiles);
+            syncInput(document.getElementById('revisionPhotoFileInput'), empRevisionFiles);
             buildPhotoPreview(empRevisionFiles, 'revisionPhotoPreview', 'removeRevisionPhoto');
             if (rejected.length) showFileTooLargeModal(rejected.join(', '), 5);
+            input.value = '';
         }
 
         function removeRevisionPhoto(index) {
             empRevisionFiles.splice(index, 1);
-            const input = document.querySelector('#revisionPhotoPreview').closest('.form-group').querySelector('input[type=file]');
-            syncInput(input, empRevisionFiles);
+            syncInput(document.getElementById('revisionPhotoFileInput'), empRevisionFiles);
             buildPhotoPreview(empRevisionFiles, 'revisionPhotoPreview', 'removeRevisionPhoto');
         }
 

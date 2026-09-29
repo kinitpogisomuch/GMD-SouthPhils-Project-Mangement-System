@@ -20,6 +20,27 @@
                 $status    = $payment->computeStatus();
                 $totalPaid = $payment->totalPaid();
                 $balance   = $payment->currentBalance();
+
+                // Down Payment / Final Payment are fixed splits of the contract (50/30/20 or 50/50) —
+                // only Progress Payment (the 30% stage on big projects) accepts partial payments.
+                $stageMeta = [];
+                // Stages must be settled in order — only the earliest unpaid stage is
+                // selectable; later stages stay locked until the ones before them are paid.
+                $currentStage = collect($payment->stages())->first(fn ($s) => !in_array($s, $paidStages));
+                foreach ($payment->stages() as $st) {
+                    $stageMeta[$st] = [
+                        'remaining' => $payment->stageRemaining($st),
+                        'partial'   => $payment->payment_term_type === 'big_project' && $st === 'progress_payment',
+                        'percent'   => match(true) {
+                            $st === 'down_payment'     => 50,
+                            $st === 'progress_payment' => 30,
+                            $st === 'final_payment'    => $payment->payment_term_type === 'big_project' ? 20 : 50,
+                            default                    => null,
+                        },
+                        'isPaid'      => in_array($st, $paidStages),
+                        'isSelectable' => $st === $currentStage,
+                    ];
+                }
             @endphp
 
             <!-- Breadcrumb -->
@@ -287,16 +308,25 @@
                             <div class="stage-select-menu" id="stageSelectMenu">
                                 @foreach($payment->stages() as $i => $stage)
                                 @php
-                                    $isPaid      = in_array($stage, $paidStages);
-                                    $stageLabel  = \App\Models\PaymentTransaction::stageLabel($stage);
+                                    $isPaid       = $stageMeta[$stage]['isPaid'];
+                                    $isSelectable = $stageMeta[$stage]['isSelectable'];
+                                    $stageLabel   = \App\Models\PaymentTransaction::stageLabel($stage);
                                 @endphp
-                                <div class="stage-select-option"
+                                <div class="stage-select-option{{ $isSelectable ? '' : ' disabled' }}"
                                      data-value="{{ $stage }}"
                                      data-label="{{ $stageLabel }}"
-                                     onclick="selectStage(this)">
+                                     data-remaining="{{ $stageMeta[$stage]['remaining'] }}"
+                                     data-partial="{{ $stageMeta[$stage]['partial'] ? '1' : '0' }}"
+                                     data-percent="{{ $stageMeta[$stage]['percent'] }}"
+                                     @if($isSelectable) onclick="selectStage(this)" @endif>
                                     <span>{{ $stageLabel }}</span>
                                     @if($isPaid)
                                         <span class="stage-select-status" style="color:#16a34a;">✓ Paid</span>
+                                    @elseif(!$isSelectable)
+                                        <span class="stage-select-status" style="color:var(--muted);">
+                                            <i data-lucide="lock" style="width:11px;height:11px;vertical-align:-1px;"></i>
+                                            Complete previous stage first
+                                        </span>
                                     @endif
                                 </div>
                                 @endforeach
@@ -315,6 +345,7 @@
                         <input type="text" inputmode="decimal" name="amount_paid" id="amountPaidInput"
                                required placeholder="e.g. 425,000"
                                oninput="formatMoneyInput(this)">
+                        <span id="amountHint" style="display:block;font-size:11px;color:var(--muted);margin-top:6px;font-weight:600;"></span>
                     </div>
                     <div class="form-group">
                         <label>Payment Date</label>
@@ -501,7 +532,7 @@
     function clearProofLink() { proofIdInput.value = ''; proofLinkNote.style.display = 'none'; }
 
     if (openBtn) {
-        openBtn.addEventListener('click', function () { clearProofLink(); openModal(); });
+        openBtn.addEventListener('click', function () { clearProofLink(); resetStageAndAmount(); openModal(); });
         closeBtn.addEventListener('click', closeModal);
         cancelBtn.addEventListener('click', closeModal);
         modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
@@ -514,7 +545,10 @@
             openModal();
             var opt = document.querySelector('.stage-select-option[data-value="' + btn.dataset.stage + '"]');
             if (opt) selectStage(opt);
-            if (btn.dataset.amount) {
+            // Fixed stages (Down Payment / Final Payment) already got their locked, correct
+            // amount from selectStage() above — only a partial-allowed stage (Progress Payment)
+            // should take the amount the client actually typed in their submission.
+            if (opt && opt.dataset.partial === '1' && btn.dataset.amount) {
                 var amountInput = document.getElementById('amountPaidInput');
                 amountInput.value = btn.dataset.amount;
                 formatMoneyInput(amountInput);
@@ -661,6 +695,44 @@
         stageTrigger.classList.remove('placeholder');
         stageWrap.classList.remove('open');
         stageErr.style.display = 'none';
+        applyStageAmountRule(el);
+    }
+
+    // ── Down Payment / Final Payment are fixed splits of the contract (e.g. 50/30/20
+    // or 50/50) — lock the amount to what's left on that stage. Progress Payment (the
+    // 30% stage on big projects) is the only stage that accepts partial payments. ──
+    function applyStageAmountRule(el) {
+        var amountInput = document.getElementById('amountPaidInput');
+        var hint         = document.getElementById('amountHint');
+        var remaining    = parseFloat(el.dataset.remaining || '0');
+        var isPartial    = el.dataset.partial === '1';
+        var percent      = el.dataset.percent;
+        var remainingFmt = remaining.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        if (isPartial) {
+            amountInput.readOnly = false;
+            amountInput.classList.remove('amount-locked');
+            amountInput.value = remaining > 0 ? remaining.toFixed(2) : '';
+            formatMoneyInput(amountInput);
+            hint.textContent = 'Partial payments allowed — up to ₱' + remainingFmt + ' remaining for this stage.';
+        } else {
+            amountInput.readOnly = true;
+            amountInput.classList.add('amount-locked');
+            amountInput.value = remaining.toFixed(2);
+            formatMoneyInput(amountInput);
+            hint.textContent = 'Fixed amount' + (percent ? ' — ' + percent + '% of the contract' : '') + '. This stage must be paid in full.';
+        }
+    }
+
+    function resetStageAndAmount() {
+        stageSelect.value = '';
+        stageLabelEl.textContent = 'Select stage';
+        stageTrigger.classList.add('placeholder');
+        var amountInput = document.getElementById('amountPaidInput');
+        amountInput.readOnly = false;
+        amountInput.classList.remove('amount-locked');
+        amountInput.value = '';
+        document.getElementById('amountHint').textContent = '';
     }
 
     // Live thousand-separator formatting for money/quantity text inputs —
@@ -772,6 +844,12 @@
         .stage-select-option.disabled { cursor: not-allowed; opacity: .75; }
         .stage-select-option.disabled:hover { background: none; }
         .stage-select-option .stage-select-status { font-size: 11.5px; font-weight: 800; white-space: nowrap; flex-shrink: 0; }
+
+        #amountPaidInput.amount-locked {
+            background: var(--cream-soft);
+            color: var(--dark);
+            cursor: not-allowed;
+        }
 
         .mop-option {
             display: flex;
