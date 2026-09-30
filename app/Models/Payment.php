@@ -98,10 +98,53 @@ class Payment extends Model
         return $this->proofs->where('status', 'confirmed')->pluck('payment_stage')->unique()->values()->all();
     }
 
-    /** Stages still open for a new proof-of-payment submission on the client Payments page. */
+    /**
+     * The progress payment can be paid in as many instalments as the client likes, but only
+     * until the project reaches its final-payment phase (delivery). From then on it is closed
+     * and whatever is still unpaid on it is collected with the final payment instead.
+     */
+    public function progressPaymentClosed(): bool
+    {
+        $project = $this->project;
+
+        return $project && ($project->current_phase === 'delivery' || $project->status === 'completed');
+    }
+
+    /**
+     * Where each stage stands for the client's proof-of-payment form:
+     *   paid    — settled, nothing more to submit
+     *   carried — progress payment closed unpaid; its balance moved to the final payment
+     *   open    — the one stage the client can submit proof for right now
+     *   locked  — waits for the stage before it
+     */
+    public function proofStageStates(): array
+    {
+        $paid       = $this->paidStages();
+        $downProven = in_array('down_payment', $this->confirmedProofStages());
+        $closed     = $this->progressPaymentClosed();
+        $states     = [];
+        $opened     = false;
+
+        foreach ($this->stages() as $stage) {
+            if (in_array($stage, $paid) || ($stage === 'down_payment' && $downProven)) {
+                $states[$stage] = 'paid';
+            } elseif ($stage === 'progress_payment' && $closed) {
+                $states[$stage] = 'carried';
+            } elseif (!$opened) {
+                $states[$stage] = 'open';
+                $opened = true;
+            } else {
+                $states[$stage] = 'locked';
+            }
+        }
+
+        return $states;
+    }
+
+    /** Stages still open for a new proof-of-payment submission on the client Payments page — stages are paid in order, so at most one. */
     public function stagesOpenForProof(): array
     {
-        return array_values(array_diff($this->stages(), $this->paidStages(), $this->confirmedProofStages()));
+        return array_keys($this->proofStageStates(), 'open');
     }
 
     /** Amount already paid toward a given stage (partial payments accumulate) */
@@ -187,7 +230,11 @@ class Payment extends Model
     public function currentBilledStage(): ?string
     {
         $paidStages   = $this->paidStages();
-        $currentStage = collect($this->stages())->first(fn ($s) => !in_array($s, $paidStages));
+        // A progress payment that closed unpaid is no longer billed on its own — it rides on the final payment.
+        $skipProgress = $this->progressPaymentClosed();
+        $currentStage = collect($this->stages())->first(
+            fn ($s) => !in_array($s, $paidStages) && !($s === 'progress_payment' && $skipProgress)
+        );
 
         if (!$currentStage) {
             return null;

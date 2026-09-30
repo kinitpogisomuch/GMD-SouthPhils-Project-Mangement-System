@@ -150,8 +150,14 @@
                 <div class="card-body" style="display:flex;flex-direction:column;gap:20px;">
                     @php
                         $selectableStages = collect($payment->stagesOpenForProof());
-                        // Stages are paid in order — only the earliest open one can be chosen, the rest stay locked
-                        $unlockedStage    = $selectableStages->first();
+                        // Every stage stays listed; only the one currently open can be chosen
+                        $stageStates      = $payment->proofStageStates();
+                        $stageStateLabels = [
+                            'paid'    => ' — paid',
+                            'carried' => ' — closed, balance added to Final Payment',
+                            'locked'  => ' — locked',
+                            'open'    => '',
+                        ];
                         $amountsDue       = $payment->stageAmountsDue();
                         // Unpaid progress payment that has rolled into the final payment
                         $finalCarryOver   = max(0, round(($amountsDue['final_payment'] ?? 0) - ($stageAmounts['final_payment'] ?? 0), 2));
@@ -176,8 +182,8 @@
                             <div class="form-group">
                                 <label>Payment Stage <span style="color:#dc2626;">*</span></label>
                                 <select name="payment_stage" id="proofStageSelect" required>
-                                    @foreach($selectableStages as $stage)
-                                    <option value="{{ $stage }}" data-due="{{ $amountsDue[$stage] ?? 0 }}" data-carry="{{ $stage === 'final_payment' ? $finalCarryOver : 0 }}" {{ $stage === $unlockedStage ? 'selected' : 'disabled' }}>{{ \App\Models\PaymentTransaction::stageLabel($stage) }}{{ $stage === $unlockedStage ? '' : ' — locked' }}</option>
+                                    @foreach($stageStates as $stage => $state)
+                                    <option value="{{ $stage }}" data-due="{{ $amountsDue[$stage] ?? 0 }}" data-carry="{{ $stage === 'final_payment' ? $finalCarryOver : 0 }}" {{ $state === 'open' ? 'selected' : 'disabled' }}>{{ \App\Models\PaymentTransaction::stageLabel($stage) }}{{ $stageStateLabels[$state] }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -185,7 +191,7 @@
                                 <label>Amount Paid (₱) <span style="color:#dc2626;">*</span></label>
                                 <input type="text" inputmode="decimal" name="amount_paid" id="proofAmountInput"
                                        placeholder="e.g. 50,000" value="{{ old('amount_paid') }}">
-                                <small id="proofAmountHint" style="display:none;margin-top:6px;font-size:12px;color:var(--muted);"></small>
+                                <small id="proofAmountHint" style="display:none;margin-top:6px;font-size:10.5px;line-height:1.45;color:var(--muted);"></small>
                             </div>
                             <div class="form-group form-group-full">
                                 <label>Mode of Payment <span style="color:#dc2626;">*</span></label>
@@ -501,7 +507,7 @@
                     hint = 'The down payment is a fixed amount.';
                 } else if (stage.value === 'progress_payment' && due > 0) {
                     if (!keepTyped) amount.value = '';
-                    hint = 'Up to ₱' + money(due) + '. Any part left unpaid is added to your final payment.';
+                    hint = 'Up to ₱' + money(due) + ' remaining. You can pay this in several payments — anything still unpaid when the project reaches final payment is added to your final payment.';
                 } else if (stage.value === 'final_payment' && due > 0) {
                     if (!keepTyped || !amount.value) amount.value = money(due);
                     hint = carry > 0
