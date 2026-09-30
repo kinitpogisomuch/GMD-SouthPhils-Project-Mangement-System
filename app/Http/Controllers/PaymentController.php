@@ -421,8 +421,9 @@ class PaymentController extends Controller
             // have none (a physical handover), so the file is optional for those two.
             'proof_file'      => 'required_if:mode_of_payment,bank_transfer|nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
             'notes'           => 'nullable|string|max:1000',
-            'submitted_date'  => 'nullable|date',
+            'submitted_date'  => 'nullable|date|before_or_equal:today',
         ], [
+            'submitted_date.before_or_equal' => 'The date paid cannot be in the future.',
             'payment_stage.required'    => 'Please select which payment stage this is for.',
             'payment_stage.in'         => 'That payment stage is not available yet — it is locked until the earlier stage is paid, or it is already fully paid.',
             'amount_paid.required'     => 'Please enter the amount you paid.',

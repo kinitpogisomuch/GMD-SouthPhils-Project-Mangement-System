@@ -65,19 +65,19 @@
                 <div class="info-card teal">
                     <div class="info-card-icon teal"><i data-lucide="receipt"></i></div>
                     <h3>Total Contract Value</h3>
-                    <div class="value">₱{{ number_format($totalContractValue, 2) }}</div>
+                    <div class="value">₱{{ number_format($totalContractValue, 0) }}</div>
                     <div class="info-card-sub">Across all projects</div>
                 </div>
                 <div class="info-card green">
                     <div class="info-card-icon green"><i data-lucide="trending-up"></i></div>
                     <h3>Total Received</h3>
-                    <div class="value">₱{{ number_format($totalReceived, 2) }}</div>
+                    <div class="value">₱{{ number_format($totalReceived, 0) }}</div>
                     <div class="info-card-sub">All recorded payments</div>
                 </div>
                 <div class="info-card red">
                     <div class="info-card-icon red"><i data-lucide="alert-circle"></i></div>
                     <h3>Outstanding Balance</h3>
-                    <div class="value">₱{{ number_format($outstanding, 2) }}</div>
+                    <div class="value">₱{{ number_format($outstanding, 0) }}</div>
                     <div class="info-card-sub">Remaining unpaid</div>
                 </div>
                 <div class="info-card purple">
@@ -161,9 +161,9 @@
                                     @endif
                                 </td>
                                 <td style="text-align:center;">{{ $group['project_count'] }}</td>
-                                <td>₱{{ number_format($group['contract_total'], 2) }}</td>
-                                <td>₱{{ number_format($group['received_total'], 2) }}</td>
-                                <td>₱{{ number_format($group['balance_total'], 2) }}</td>
+                                <td>₱{{ number_format($group['contract_total'], 0) }}</td>
+                                <td>₱{{ number_format($group['received_total'], 0) }}</td>
+                                <td>₱{{ number_format($group['balance_total'], 0) }}</td>
                                 <td>
                                     @if(!$group['has_payments'])
                                     <span class="status-badge archived">No Setup</span>
@@ -237,7 +237,7 @@
                                     <td><span class="client-pill">{{ $r['client'] }}</span></td>
                                     <td>{{ $r['project'] }}</td>
                                     <td>{{ $r['stage'] }}</td>
-                                    <td>₱{{ number_format($r['amount'], 2) }}</td>
+                                    <td>₱{{ number_format($r['amount'], 0) }}</td>
                                     <td>{{ \Carbon\Carbon::parse($r['date_issued'])->format('M d, Y') }}</td>
                                     <td>
                                         @if(!empty($r['receipt_urls']))

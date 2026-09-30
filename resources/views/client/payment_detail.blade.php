@@ -194,6 +194,13 @@
                                 <small id="proofAmountHint" style="display:none;margin-top:6px;font-size:10.5px;line-height:1.45;color:var(--muted);"></small>
                             </div>
                             <div class="form-group form-group-full">
+                                <label>Date Paid <span style="color:#dc2626;">*</span>
+                                    <span style="font-weight:400;color:var(--muted);">(set an earlier date for a past payment)</span>
+                                </label>
+                                <input type="date" name="submitted_date" required max="{{ now()->format('Y-m-d') }}"
+                                       value="{{ old('submitted_date', now()->format('Y-m-d')) }}">
+                            </div>
+                            <div class="form-group form-group-full">
                                 <label>Mode of Payment <span style="color:#dc2626;">*</span></label>
                                 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;" id="proofMopGroup">
                                     <label class="mop-option" for="proofMopBank">

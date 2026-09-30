@@ -43,19 +43,19 @@
                 <div class="info-card teal">
                     <div class="info-card-icon teal"><i data-lucide="receipt"></i></div>
                     <h3>Contract Value</h3>
-                    <div class="value">₱{{ number_format($contractTotal, 2) }}</div>
+                    <div class="value">₱{{ number_format($contractTotal, 0) }}</div>
                     <div class="info-card-sub">Across {{ $payments->count() }} {{ Str::plural('project', $payments->count()) }}</div>
                 </div>
                 <div class="info-card green">
                     <div class="info-card-icon green"><i data-lucide="trending-up"></i></div>
                     <h3>Received</h3>
-                    <div class="value">₱{{ number_format($receivedTotal, 2) }}</div>
+                    <div class="value">₱{{ number_format($receivedTotal, 0) }}</div>
                     <div class="info-card-sub">All recorded payments</div>
                 </div>
                 <div class="info-card red">
                     <div class="info-card-icon red"><i data-lucide="alert-circle"></i></div>
                     <h3>Outstanding Balance</h3>
-                    <div class="value">₱{{ number_format($balanceTotal, 2) }}</div>
+                    <div class="value">₱{{ number_format($balanceTotal, 0) }}</div>
                     <div class="info-card-sub">Remaining unpaid</div>
                 </div>
             </div>
@@ -116,8 +116,8 @@
                                         @endif
                                     </span>
                                 </td>
-                                <td>₱{{ number_format($payment->contract_amount, 2) }}</td>
-                                <td>₱{{ number_format($balance, 2) }}</td>
+                                <td>₱{{ number_format($payment->contract_amount, 0) }}</td>
+                                <td>₱{{ number_format($balance, 0) }}</td>
                                 <td>{{ $phases }}</td>
                                 <td>
                                     <span class="status-badge {{ \App\Models\Payment::statusBadgeClass($status) }}">

@@ -191,7 +191,7 @@
                                     <button type="button" class="save-btn" style="padding:7px 12px;font-size:12px;"
                                             data-record-proof
                                             data-id="{{ $proof->id }}"
-                                            data-stage="{{ $proof->payment_stage }}" data-amount="{{ $proof->amount }}" data-mode="{{ $proof->mode_of_payment }}"
+                                            data-stage="{{ $proof->payment_stage }}" data-amount="{{ $proof->amount }}" data-mode="{{ $proof->mode_of_payment }}" data-date="{{ $proof->created_at->format('Y-m-d') }}"
                                             data-summary="{{ \App\Models\PaymentTransaction::stageLabel($proof->payment_stage) }} · ₱{{ number_format($proof->amount ?? 0, 2) }} ({{ $proof->modeOfPaymentLabel() }})">
                                         <i data-lucide="check" style="width:13px;height:13px;"></i>
                                         Record Payment
@@ -570,6 +570,9 @@
                 var mopInput = document.getElementById({ bank_transfer: 'mop_bank', cheque: 'mop_cheque', cash: 'mop_cash' }[btn.dataset.mode]);
                 if (mopInput) { mopInput.checked = true; highlightMop(); }
             }
+            // Record it on the date the client said they paid (may be a past date)
+            var dateInput = document.querySelector('input[name="payment_date"]');
+            if (dateInput && btn.dataset.date) dateInput.value = btn.dataset.date;
             proofIdInput.value = btn.dataset.id;
             proofLinkNote.textContent = 'Recording the client\'s submission: ' + btn.dataset.summary;
             proofLinkNote.style.display = 'block';
