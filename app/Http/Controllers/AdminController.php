@@ -297,7 +297,8 @@ class AdminController extends Controller
                         'data'     => [
                             $yPaymentStatusCounts->get('Fully Paid', 0),
                             $yPaymentStatusCounts->get('Progress Payment Paid', 0),
-                            $yPaymentStatusCounts->get('Down Payment Paid', 0),
+                            // a partly paid progress payment still sits at the down-payment stage
+                            $yPaymentStatusCounts->get('Down Payment Paid', 0) + $yPaymentStatusCounts->get('Progress Payment Partially Paid', 0),
                             $yPaymentStatusCounts->get('Pending Down Payment', 0),
                         ],
                         'colors'   => ['#15803d', '#6d28d9', '#1d4ed8', '#b45309'],

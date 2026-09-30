@@ -276,7 +276,11 @@ class Payment extends Model
                 && in_array('final_payment', $paid);
             if ($allPaid)                                   return 'Fully Paid';
             if (in_array('progress_payment', $paid))        return 'Progress Payment Paid';
-            if (in_array('down_payment', $paid))            return 'Down Payment Paid';
+            if (in_array('down_payment', $paid)) {
+                // Something has been paid beyond the down payment, but not the whole progress payment yet
+                $paidBeyondDown = $this->totalPaid() > (float) $this->stageAmounts()['down_payment'] + 0.01;
+                return $paidBeyondDown ? 'Progress Payment Partially Paid' : 'Down Payment Paid';
+            }
             return 'Pending Down Payment';
         }
 
@@ -301,6 +305,7 @@ class Payment extends Model
         return match($status) {
             'Fully Paid'             => 'completed',
             'Progress Payment Paid'  => 'ongoing',
+            'Progress Payment Partially Paid' => 'ongoing',
             'Down Payment Paid'      => 'ongoing',
             'Pending Down Payment'   => 'pending',
             default                  => 'pending',

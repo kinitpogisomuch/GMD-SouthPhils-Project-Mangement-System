@@ -64,7 +64,7 @@ class PaymentController extends Controller
 
         $fullyPaid  = $payments->filter(fn($p) => $p->computeStatus() === 'Fully Paid')->count();
         $inProgress = $payments->filter(fn($p) => in_array($p->computeStatus(), [
-            'Down Payment Paid', 'Progress Payment Paid',
+            'Down Payment Paid', 'Progress Payment Partially Paid', 'Progress Payment Paid',
         ]))->count();
         $pendingDown = $payments->filter(fn($p) => $p->computeStatus() === 'Pending Down Payment')->count();
 
@@ -113,7 +113,7 @@ class PaymentController extends Controller
                 'balance_total'    => max(0, $contractTotal - $receivedTotal),
                 'has_payments'     => $paymentGroup->isNotEmpty(),
                 'has_pending'      => $statuses->contains('Pending Down Payment'),
-                'has_in_progress'  => $statuses->contains(fn($s) => in_array($s, ['Down Payment Paid', 'Progress Payment Paid'])),
+                'has_in_progress'  => $statuses->contains(fn($s) => in_array($s, ['Down Payment Paid', 'Progress Payment Partially Paid', 'Progress Payment Paid'])),
                 'all_fully_paid'   => $statuses->isNotEmpty() && $statuses->every(fn($s) => $s === 'Fully Paid'),
                 'needs_settlement' => $needsSettlement,
             ];
