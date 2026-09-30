@@ -394,8 +394,9 @@ class PaymentController extends Controller
 
         // Only stages that aren't already settled, and don't already have a confirmed
         // proof, are offered in the stage picker.
+        // Stages are paid in order, so only the earliest open one is unlocked.
         $selectableStages = $payment->stagesOpenForProof();
-        $stageIn          = implode(',', $selectableStages);
+        $stageIn          = $selectableStages[0] ?? '';
 
         // The amount box shows thousand separators.
         if ($request->has('amount_paid')) {
@@ -413,7 +414,7 @@ class PaymentController extends Controller
             'submitted_date'  => 'nullable|date',
         ], [
             'payment_stage.required'    => 'Please select which payment stage this is for.',
-            'payment_stage.in'         => 'That payment stage is not available (it may already be fully paid).',
+            'payment_stage.in'         => 'That payment stage is not available yet — it is locked until the earlier stage is paid, or it is already fully paid.',
             'amount_paid.required'     => 'Please enter the amount you paid.',
             'amount_paid.numeric'      => 'Enter the amount as a number.',
             'mode_of_payment.required' => 'Please select how you paid.',

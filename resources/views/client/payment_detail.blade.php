@@ -150,6 +150,8 @@
                 <div class="card-body" style="display:flex;flex-direction:column;gap:20px;">
                     @php
                         $selectableStages = collect($payment->stagesOpenForProof());
+                        // Stages are paid in order — only the earliest open one can be chosen, the rest stay locked
+                        $unlockedStage    = $selectableStages->first();
                         $amountsDue       = $payment->stageAmountsDue();
                         // Unpaid progress payment that has rolled into the final payment
                         $finalCarryOver   = max(0, round(($amountsDue['final_payment'] ?? 0) - ($stageAmounts['final_payment'] ?? 0), 2));
@@ -174,9 +176,8 @@
                             <div class="form-group">
                                 <label>Payment Stage <span style="color:#dc2626;">*</span></label>
                                 <select name="payment_stage" id="proofStageSelect" required>
-                                    <option value="" disabled {{ old('payment_stage') ? '' : 'selected' }}>Select stage</option>
                                     @foreach($selectableStages as $stage)
-                                    <option value="{{ $stage }}" data-due="{{ $amountsDue[$stage] ?? 0 }}" data-carry="{{ $stage === 'final_payment' ? $finalCarryOver : 0 }}" {{ old('payment_stage') === $stage ? 'selected' : '' }}>{{ \App\Models\PaymentTransaction::stageLabel($stage) }}</option>
+                                    <option value="{{ $stage }}" data-due="{{ $amountsDue[$stage] ?? 0 }}" data-carry="{{ $stage === 'final_payment' ? $finalCarryOver : 0 }}" {{ $stage === $unlockedStage ? 'selected' : 'disabled' }}>{{ \App\Models\PaymentTransaction::stageLabel($stage) }}{{ $stage === $unlockedStage ? '' : ' — locked' }}</option>
                                     @endforeach
                                 </select>
                             </div>
