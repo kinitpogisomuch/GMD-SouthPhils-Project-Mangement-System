@@ -91,7 +91,11 @@ class ProjectController extends Controller
         // at once (e.g. Focal Person + a couple of others). This is just the set of
         // employee ids who currently already have one, so the "Request Update"
         // modal can grey their checkbox out instead of blocking the whole thing.
+        // Scoped to the CURRENT phase only — an employee "already requested" back
+        // in an earlier phase must be selectable again once the project has moved
+        // on to a new phase, not permanently greyed out for the rest of the project.
         $activeRequestEmployeeIds = ProgressRequest::where('project_id', $id)
+                        ->where('phase', $project->current_phase)
                         ->whereIn('status', ['open', 'revision_requested'])
                         ->pluck('target_employee_id')
                         ->filter()
@@ -104,6 +108,14 @@ class ProjectController extends Controller
                             ->where('status', 'pending_review')
                             ->with('submittedBy')
                             ->orderBy('created_at', 'desc')
+                            ->get();
+
+        // Full log of every "Request Update" the admin has sent for this project —
+        // who it went to, what was asked, and whether it's still open, was fulfilled,
+        // or came back around as a revision request.
+        $progressRequests = ProgressRequest::where('project_id', $id)
+                            ->with('targetEmployee', 'fulfilledBy', 'projectUpdate')
+                            ->orderByDesc('created_at')
                             ->get();
 
         $currentIndex = array_search($project->current_phase, $this->phases);
@@ -197,7 +209,7 @@ class ProjectController extends Controller
             ->orderByDesc('date')->orderByDesc('id')->get();
 
         return view('admin.project_view', compact(
-            'project', 'updates', 'activeRequestEmployeeIds', 'pendingUpdates', 'nextPhase',
+            'project', 'updates', 'activeRequestEmployeeIds', 'pendingUpdates', 'progressRequests', 'nextPhase',
             'clientName', 'clientAddress', 'clientContact', 'clientEmail',
             // financial
             'payment', 'contractAmount', 'projectBudget', 'markup', 'budgetAdherence',
@@ -329,7 +341,9 @@ class ProjectController extends Controller
     | ProgressRequest.status:
     |   'open'               → show Progress Update Form
     |   'revision_requested' → show Revision Form  (links to $revisionUpdate)
-    |   'completed'          → show nothing
+    |   'completed'          → show "Waiting for Admin Approval" while the submission
+    |                          itself is still pending_review (links to $pendingSubmission);
+    |                          once approved, nothing shows
     |   (none)               → show nothing
     |--------------------------------------------------------------------------
     */
@@ -357,6 +371,7 @@ class ProjectController extends Controller
         $showRevisionForm  = false;
         $openRequest       = null;
         $revisionUpdate    = null;
+        $pendingSubmission = null;
 
         if ($latestRequest) {
             if ($latestRequest->status === 'open') {
@@ -370,8 +385,19 @@ class ProjectController extends Controller
                                     ->where('type', 'employee_submission')
                                     ->latest()
                                     ->first();
+            } elseif ($latestRequest->status === 'completed') {
+                // The request is fulfilled, but that only means the employee submitted —
+                // it doesn't mean the admin has approved it yet. Keep a persistent status
+                // card showing until the submission is actually approved (its status flips
+                // to 'approved' via ProjectUpdateController@approve, which naturally drops
+                // it out of this query and the card stops showing).
+                $pendingSubmission = ProjectUpdate::where('project_id', $id)
+                                        ->where('type', 'employee_submission')
+                                        ->where('status', 'pending_review')
+                                        ->where('phase', $project->current_phase)
+                                        ->latest()
+                                        ->first();
             }
-            // 'completed' → both false, no form shown
         }
 
         // Employee only sees the main-phase completion timeline, same as the client —
@@ -382,9 +408,17 @@ class ProjectController extends Controller
                     ->orderBy('created_at', 'desc')
                     ->get();
 
+        // Every "Request Update" the admin has sent this employee for this project —
+        // so they can look back at what was asked and when, not just the current one.
+        $progressRequests = ProgressRequest::where('project_id', $id)
+                            ->where('target_employee_id', session('user_id'))
+                            ->with('projectUpdate')
+                            ->orderByDesc('created_at')
+                            ->get();
+
         return view('employee.project_view', compact(
             'project', 'openRequest', 'revisionUpdate',
-            'showProgressForm', 'showRevisionForm', 'updates'
+            'showProgressForm', 'showRevisionForm', 'updates', 'pendingSubmission', 'progressRequests'
         ));
     }
 
@@ -1398,8 +1432,11 @@ class ProjectController extends Controller
         }
 
         // Requests are tracked per employee, so several can be active on the same
-        // project at once — only skip employees who individually already have one.
+        // project at once — only skip employees who individually already have one
+        // for the CURRENT phase (an old request from an earlier, already-advanced
+        // phase must not block requesting them again now).
         $alreadyActiveIds = ProgressRequest::where('project_id', $id)
+            ->where('phase', $project->current_phase)
             ->whereIn('status', ['open', 'revision_requested'])
             ->whereIn('target_employee_id', $targetIds)
             ->pluck('target_employee_id')
@@ -1505,11 +1542,23 @@ class ProjectController extends Controller
             'status'            => 'pending_review',
         ]);
 
-        $progressRequest->update([
-            'status'       => 'completed',
-            'fulfilled_by' => session('user_id'),
-            'fulfilled_at' => now(),
-        ]);
+        // The admin may have sent this same request to several employees at once
+        // (e.g. Focal Person + a couple of others). Whoever submits first becomes
+        // the shared, official update for everyone who was asked — every sibling
+        // request for this phase (not just this employee's own row) resolves
+        // together here, crediting whoever actually submitted it. This is also
+        // what makes the other employees' forms disappear in favor of a view-only
+        // copy, and what stops them from submitting a conflicting update afterward
+        // (their own row's status won't be 'open' anymore).
+        ProgressRequest::where('project_id', $project->id)
+            ->where('phase', $project->current_phase)
+            ->whereIn('status', ['open', 'revision_requested'])
+            ->update([
+                'status'            => 'completed',
+                'fulfilled_by'      => session('user_id'),
+                'fulfilled_at'      => now(),
+                'project_update_id' => $projectUpdate->id,
+            ]);
 
         $employee = Employee::find(session('user_id'));
         if ($employee) {
@@ -1633,12 +1682,19 @@ class ProjectController extends Controller
             'status'            => 'pending_review',
         ]);
 
-        // Mark request as completed → revision form disappears
-        $activeRequest->update([
-            'status'       => 'completed',
-            'fulfilled_by' => session('user_id') ?? 1,
-            'fulfilled_at' => now(),
-        ]);
+        // Mark request as completed → revision form disappears. As with the
+        // initial submission, this resolves every sibling request for the same
+        // phase too (other employees the admin also asked), so they all pick up
+        // this resubmission as their shared, view-only update.
+        ProgressRequest::where('project_id', $project->id)
+            ->where('phase', $project->current_phase)
+            ->whereIn('status', ['open', 'revision_requested'])
+            ->update([
+                'status'            => 'completed',
+                'fulfilled_by'      => session('user_id') ?? 1,
+                'fulfilled_at'      => now(),
+                'project_update_id' => $revisionUpdate->id,
+            ]);
 
         $employee = Employee::find(session('user_id'));
         if ($employee) {
@@ -1673,28 +1729,36 @@ class ProjectController extends Controller
             'revision_feedback' => $request->revision_comment,
         ]);
 
-        // Set the latest request to 'revision_requested'
-        // This is what drives the employee form visibility
-        $latestRequest = ProgressRequest::where('project_id', $update->project_id)
+        $project = Project::findOrFail($update->project_id);
+
+        // Route the revision specifically to whoever actually submitted this update —
+        // not just "the latest request project-wide". That matters once the admin can
+        // target several employees for the same phase: only the original submitter
+        // should get an editable form back; the others (still resolved/view-only,
+        // pointing at this same now-needs_revision update) are left alone.
+        $submitterRequest = ProgressRequest::where('project_id', $update->project_id)
+                            ->where('phase', $update->phase)
+                            ->where('target_employee_id', $update->submitted_by)
                             ->latest()
                             ->first();
 
-        $project = Project::findOrFail($update->project_id);
-
-        if ($latestRequest) {
-            $latestRequest->update([
-                'status'       => 'revision_requested',
-                'fulfilled_by' => null,
-                'fulfilled_at' => null,
+        if ($submitterRequest) {
+            $submitterRequest->update([
+                'status'            => 'revision_requested',
+                'fulfilled_by'      => null,
+                'fulfilled_at'      => null,
+                'project_update_id' => $update->id,
             ]);
         } else {
             // Edge case: no request exists yet, create one
             ProgressRequest::create([
-                'project_id'   => $update->project_id,
-                'requested_by' => session('user_id') ?? 1,
-                'message'      => $request->revision_comment,
-                'phase'        => $project->current_phase,
-                'status'       => 'revision_requested',
+                'project_id'         => $update->project_id,
+                'requested_by'       => session('user_id') ?? 1,
+                'target_employee_id' => $update->submitted_by,
+                'message'            => $request->revision_comment,
+                'phase'              => $project->current_phase,
+                'status'             => 'revision_requested',
+                'project_update_id'  => $update->id,
             ]);
         }
 

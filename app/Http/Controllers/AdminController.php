@@ -452,7 +452,15 @@ class AdminController extends Controller
 
         $client = $projects->first()->live_client_name;
 
-        return view('admin.projects_client', compact('client', 'projects'));
+        // Projects with an employee-submitted update still waiting on admin review —
+        // highlighted the same way as the client list on the Projects page.
+        $pendingUpdateProjectIds = \App\Models\ProjectUpdate::where('status', 'pending_review')
+            ->whereIn('project_id', $projects->pluck('id'))
+            ->pluck('project_id')
+            ->unique()
+            ->all();
+
+        return view('admin.projects_client', compact('client', 'projects', 'pendingUpdateProjectIds'));
     }
 
     /** GET /admin/projects/client-groups — polled to keep the client list live-sorted */
@@ -475,12 +483,19 @@ class AdminController extends Controller
      */
     private function buildClientGroups($projects)
     {
+        // Projects with an employee-submitted progress update still waiting on
+        // admin review — surfaced as a "Needs Review" highlight on the client row.
+        $pendingUpdateProjectIds = \App\Models\ProjectUpdate::where('status', 'pending_review')
+            ->pluck('project_id')
+            ->unique();
+
         // Group by client_id when a project is linked (so a client rename or
         // relink is reflected immediately); fall back to the raw name string
         // for the rare project that predates the client_id link.
         return $projects->groupBy(fn ($p) => $p->client_id ? 'id:' . $p->client_id : 'name:' . $p->client)
-            ->map(function ($group) {
+            ->map(function ($group) use ($pendingUpdateProjectIds) {
             $first = $group->first();
+            $pendingUpdateProjects = $group->filter(fn ($p) => $pendingUpdateProjectIds->contains($p->id));
             return [
                 'client'        => $first->live_client_name,
                 'client_key'    => $first->client_id ?: $first->client,
@@ -489,6 +504,8 @@ class AdminController extends Controller
                 'completed'     => $group->where('status', 'completed')->count(),
                 'archived'      => $group->where('status', 'archived')->count(),
                 'last_activity' => $group->max('updated_at'),
+                'pending_update_count'    => $pendingUpdateProjects->count(),
+                'pending_update_projects' => $pendingUpdateProjects->pluck('name')->values(),
             ];
         })
         ->sort(function ($a, $b) {

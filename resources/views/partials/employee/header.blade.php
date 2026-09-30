@@ -1,5 +1,9 @@
 <header class="employee-header">
     <div class="employee-header-left">
+        {{-- Hamburger toggle — hidden on desktop, shown only in the mobile @media block below --}}
+        <button type="button" class="employee-nav-toggle" id="employeeNavToggle" aria-label="Toggle navigation" aria-expanded="false" aria-controls="employeeHeaderNav">
+            <i data-lucide="menu"></i>
+        </button>
         <img src="{{ asset('images/gmdlogo-circle.svg') }}" alt="GMD South Phils" style="width:34px;height:34px;flex-shrink:0;border-radius:50%;border:1.5px solid rgba(255,255,255,0.25);">
         <div>
             <div class="system-title">GMD South Phils</div>
@@ -7,7 +11,7 @@
         </div>
     </div>
 
-    <nav class="employee-header-nav">
+    <nav class="employee-header-nav" id="employeeHeaderNav">
         <a href="{{ route('employee.dashboard') }}"
            class="{{ request()->routeIs('employee.dashboard') ? 'active' : '' }}">
             <i data-lucide="layout-dashboard"></i>
@@ -97,6 +101,31 @@
 
     </div>
 </header>
+
+<script>
+(function () {
+    var toggle = document.getElementById('employeeNavToggle');
+    var nav    = document.getElementById('employeeHeaderNav');
+    if (!toggle || !nav) return;
+
+    function closeNav() {
+        nav.classList.remove('open');
+        toggle.setAttribute('aria-expanded', 'false');
+    }
+
+    toggle.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var isOpen = nav.classList.toggle('open');
+        toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    });
+
+    // Close after picking a link, or when tapping anywhere outside the menu.
+    nav.querySelectorAll('a').forEach(function (a) { a.addEventListener('click', closeNav); });
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest('#employeeHeaderNav') && !e.target.closest('#employeeNavToggle')) closeNav();
+    });
+})();
+</script>
 
 {{-- Floating chat launcher --}}
 <div style="position:fixed;bottom:24px;right:24px;z-index:9997;" id="chatPopupWrap">

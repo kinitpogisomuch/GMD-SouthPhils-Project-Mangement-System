@@ -39,6 +39,9 @@
     var urls = [], index = 0;
 
     function kind(url) {
+        // blob: URLs (local, not-yet-uploaded file previews) carry no extension — in every
+        // place that hands this viewer a blob: URL it's an image picked via accept="image/*".
+        if (/^blob:/i.test(String(url))) return 'image';
         var path = String(url).split('?')[0].split('#')[0].toLowerCase();
         if (/\.(png|jpe?g|gif|webp|bmp|svg)$/.test(path)) return 'image';
         if (/\.pdf$/.test(path)) return 'pdf';

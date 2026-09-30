@@ -11,7 +11,7 @@
            either card's natural content — the taller one no longer stretches the other,
            and each scrolls internally instead of growing the card. */
         .pv-grid-2-card {
-            height: 420px;
+            height: 560px;
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -102,9 +102,7 @@
                     <div style="font-size:11px;font-weight:800;color:#9a3412;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">
                         Admin Feedback
                     </div>
-                    <div style="font-size:13.5px;color:#7c2d12;white-space:pre-wrap;line-height:1.7;font-weight:600;">
-                        {{ $revisionUpdate->revision_feedback ?? 'Please review and resubmit your update.' }}
-                    </div>
+                    <div style="font-size:13.5px;color:#7c2d12;white-space:pre-wrap;line-height:1.7;font-weight:600;">{{ $revisionUpdate->revision_feedback ?? 'Please review and resubmit your update.' }}</div>
                 </div>
 
                 <div style="display:flex;align-items:flex-start;gap:8px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px;margin-bottom:20px;">
@@ -116,6 +114,7 @@
                     <div style="font-size:13.5px;font-weight:800;color:#9a3412;margin-bottom:14px;">Submit Revision</div>
 
                     <form method="POST"
+                          id="revisionUpdateForm"
                           action="{{ route('employee.project.submit_revision', $project->id) }}"
                           enctype="multipart/form-data">
                         @csrf
@@ -154,11 +153,14 @@
                                 </label>
                             </div>
                             <span style="display:block;font-size:11.5px;color:#c2410c;margin-top:6px;">Required — JPG, PNG up to 5MB each</span>
+                            {{-- Validated in JS on submit instead of native `required` — see note on the
+                                 progress-update form's photo input above. --}}
                             <input type="file" name="photos[]" id="revisionPhotoFileInput" multiple accept="image/*"
-                                   style="display:none;" onchange="previewRevisionPhotos(this)" required>
+                                   style="display:none;" onchange="previewRevisionPhotos(this)">
                             <input type="file" id="revisionPhotoCameraInput" accept="image/*" capture="environment"
                                    style="display:none;" onchange="previewRevisionPhotos(this)">
-                            <div id="revisionPhotoPreview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;"></div>
+                            <span id="revisionPhotoRequiredErr" style="display:none;color:#dc2626;font-size:11.5px;font-weight:700;margin-top:6px;">Please add at least one site photo.</span>
+                            <div id="revisionPhotoPreview" data-receipt-set style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;"></div>
                         </div>
 
                         @if($errors->any())
@@ -183,8 +185,6 @@
             {{-- PROGRESS FORM: shown when admin created a new progress request --}}
             {{-- ============================================================ --}}
             <div class="emp-pv-card" style="margin-top:20px;background:#fffdf5;border:1px solid #fde68a;position:relative;overflow:hidden;">
-                <div style="position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#fbbf24,#f59e0b);"></div>
-
                 <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
                     <div style="width:42px;height:42px;border-radius:50%;background:#fde68a;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 10px rgba(251,191,36,0.35);">
                         <i data-lucide="bell" style="width:19px;height:19px;color:#92400e;"></i>
@@ -206,6 +206,7 @@
                 @endif
 
                 <form method="POST"
+                      id="progressUpdateForm"
                       action="{{ route('employee.project.submit_update', $openRequest->id) }}"
                       enctype="multipart/form-data">
                     @csrf
@@ -260,11 +261,15 @@
                                 </label>
                             </div>
                             <span style="display:block;font-size:11.5px;color:#b45309;margin-top:8px;">Up to 5 photos &middot; JPG/PNG &middot; max 5MB each</span>
+                            {{-- No native `required` here — a display:none file input can't be focused to
+                                 show the browser's validation bubble, which silently blocks submission
+                                 with no visible feedback. Validated in JS on submit instead (below). --}}
                             <input type="file" name="photos[]" id="photoFileInput" multiple accept="image/*"
-                                   style="display:none;" onchange="previewPhotos(this)" required>
+                                   style="display:none;" onchange="previewPhotos(this)">
                             <input type="file" id="photoCameraInput" accept="image/*" capture="environment"
                                    style="display:none;" onchange="previewPhotos(this)">
-                            <div id="photoPreview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;"></div>
+                            <span id="photoRequiredErr" style="display:none;color:#dc2626;font-size:11.5px;font-weight:700;margin-top:8px;">Please add at least one site photo.</span>
+                            <div id="photoPreview" data-receipt-set style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;"></div>
                         </div>
                     </div>
 
@@ -282,14 +287,325 @@
                     </div>
                 </form>
             </div>
-            @endif
-            {{-- No form shown when status is 'completed' or no request exists --}}
 
-            <!-- Project Information + Progress History side by side -->
+            @elseif($pendingSubmission)
+            {{-- ============================================================ --}}
+            {{-- AWAITING APPROVAL: employee already submitted this phase's update.
+                 Same two-level structure as admin's "Awaiting Your Approval" panel —
+                 an outer amber section (icon + title + subtitle) wrapping an inner
+                 white card (phase title + submitter chip + status badge header, plain
+                 labeled sections below) — read-only, showing exactly what was sent.
+                 Stays up until the admin actually approves it. --}}
+            {{-- ============================================================ --}}
+            @php
+                $psRole    = $pendingSubmission->submitter_role_label; // 'Focal Person' | 'Employee' | 'Admin'
+                $psIsFocal = $psRole === 'Focal Person';
+                $psName    = $pendingSubmission->submitted_by_name;
+                $psInitials = strtoupper(collect(preg_split('/\s+/', trim($psName)))
+                                ->filter()->map(fn($p) => mb_substr($p, 0, 1))->take(2)->join('')) ?: '?';
+            @endphp
+            <div class="emp-pv-card" style="margin-top:20px;border:1px solid #fde68a;background:#fffdf5;">
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+                    <div style="width:42px;height:42px;border-radius:50%;background:#fde68a;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 10px rgba(251,191,36,0.35);">
+                        <i data-lucide="clock" style="width:19px;height:19px;color:#92400e;"></i>
+                    </div>
+                    <div>
+                        <h3 class="emp-pv-card-title" style="margin:0;color:#78350f;">Update Submitted</h3>
+                        <p style="margin:2px 0 0;font-size:12.5px;color:#92400e;">Awaiting admin approval — you'll be notified once it's reviewed.</p>
+                    </div>
+                </div>
+
+                <div class="pv-history-item" style="margin:0;">
+                    <div class="pv-history-card" style="background:#fff;cursor:default;">
+                        <div class="pv-history-header">
+                            <div class="pv-history-title-col">
+                                <div class="pv-history-phase-title">
+                                    {{ ucfirst(str_replace('_', ' ', $pendingSubmission->phase)) }} Phase
+                                </div>
+                                <div class="pv-submitter-row">
+                                    <span class="pv-submitter-avatar{{ $psIsFocal ? ' is-focal' : '' }}">{{ $psInitials }}</span>
+                                    <span class="pv-submitter-info">
+                                        <span class="pv-submitter-role{{ $psIsFocal ? ' is-focal' : '' }}">{{ $psRole }}</span>
+                                        <span class="pv-submitter-name">{{ $psName }}</span>
+                                    </span>
+                                </div>
+                            </div>
+                            <span class="pv-history-status-badge status-pending">
+                                <i data-lucide="clock"></i>
+                                Pending Review
+                            </span>
+                        </div>
+
+                        <div class="form-group" style="margin-top:14px;">
+                            <label class="log-label">Date of Work</label>
+                            <div style="background:var(--surface-2);border-radius:10px;padding:10px 14px;font-size:13px;font-weight:700;color:var(--dark);">
+                                {{ $pendingSubmission->date_of_work->format('M d, Y') }}
+                            </div>
+                        </div>
+
+                        <div style="height:1px;background:var(--border);margin:14px 0;"></div>
+
+                        <div class="form-group">
+                            <label class="log-label">Work Done</label>
+                            <div style="background:var(--surface-2);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--dark);white-space:pre-wrap;">{{ $pendingSubmission->work_done ?: 'No additional notes provided.' }}</div>
+                        </div>
+
+                        <div style="height:1px;background:var(--border);margin:14px 0;"></div>
+
+                        <div class="form-group">
+                            <label class="log-label">Issues / Observations</label>
+                            <div style="background:var(--surface-2);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--dark);white-space:pre-wrap;">{{ $pendingSubmission->issues ?: 'No issues reported.' }}</div>
+                        </div>
+
+                        @if($pendingSubmission->photos && count($pendingSubmission->photos) > 0)
+                        <div style="height:1px;background:var(--border);margin:14px 0;"></div>
+
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label class="log-label">Site Photos</label>
+                            <div class="pv-history-attachments" data-receipt-set>
+                                @foreach($pendingSubmission->photos as $photo)
+                                    @if(preg_match('/\.(jpe?g|png|gif|webp|bmp)(\?.*)?$/i', $photo))
+                                    <a href="{{ $photo }}" data-receipt title="Click to preview">
+                                        <img src="{{ $photo }}" class="pv-history-thumb pv-history-thumb-lg">
+                                    </a>
+                                    @else
+                                    <div class="pv-history-thumb-doc pv-history-thumb-lg"><i data-lucide="file-text"></i></div>
+                                    @endif
+                                @endforeach
+                            </div>
+                        </div>
+                        @endif
+                    </div>
+                </div>
+            </div>
+            @endif
+            {{-- No form shown once the submission is approved, or when there's no request at all --}}
+
+            <!-- Progress History + Request Update History side by side -->
             <div class="pv-grid-2">
 
-            <!-- Project Info -->
-            <div class="emp-pv-card pv-grid-2-card">
+            <!-- Progress History -->
+            <div class="pv-card pv-grid-2-card">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <i data-lucide="history" style="width:18px;height:18px;color:var(--accent);"></i>
+                        <h3 class="pv-card-title" style="margin-bottom:0;">Progress History</h3>
+                    </div>
+                    <span style="font-size:12px;color:var(--muted);font-weight:600;">
+                        {{ $updates->count() }} {{ Str::plural('entry', $updates->count()) }}
+                    </span>
+                </div>
+
+                <div class="pv-grid-2-card-scroll{{ $updates->isEmpty() ? ' pv-grid-2-card-scroll-center' : '' }}" style="display:flex;flex-direction:column;">
+
+                    @php
+                        $imageExtRegex = '/\.(jpe?g|png|gif|webp|bmp)(\?.*)?$/i';
+                    @endphp
+
+                    @forelse($updates as $update)
+                    @php
+                        $isEmployee        = $update->type === 'employee_submission';
+                        $isPending         = $update->status === 'pending_review';
+                        $isPendingApproval = $update->status === 'pending_approval';
+                        $isRevision        = $update->status === 'needs_revision';
+                        $isSuperseded      = $update->status === 'superseded';
+
+                        if ($isPending) {
+                            $statusKey = 'pending'; $statusIcon = 'clock'; $statusLabel = 'Pending Review';
+                        } elseif ($isRevision) {
+                            $statusKey = 'revision'; $statusIcon = 'rotate-ccw'; $statusLabel = 'Needs Revision';
+                        } elseif ($isSuperseded) {
+                            $statusKey = 'superseded'; $statusIcon = 'copy'; $statusLabel = 'Superseded';
+                        } elseif ($isPendingApproval) {
+                            $statusKey = 'pending-client'; $statusIcon = 'clock'; $statusLabel = 'Pending Client Approval';
+                        } else {
+                            $statusKey = 'approved'; $statusIcon = 'check'; $statusLabel = 'Approved';
+                        }
+                    @endphp
+
+                    <div class="pv-history-item" data-update-id="{{ $update->id }}">
+                        <div class="pv-history-card" onclick="openUpdateModal({{ $update->id }})">
+                            <div class="pv-history-header">
+                                <div class="pv-history-title-col">
+                                    <div class="pv-history-phase-title">
+                                        {{ ucfirst(str_replace('_', ' ', $update->phase)) }} Phase
+                                        @if($update->update_label === 'revision')
+                                        <span class="pv-history-revision-badge">Revision</span>
+                                        @endif
+                                        <span class="pv-new-badge">New</span>
+                                    </div>
+                                    <div class="pv-history-meta-row">
+                                        <i data-lucide="{{ $isEmployee ? 'user' : 'shield-check' }}"></i>
+                                        @if($isEmployee)
+                                            <span style="font-weight:800;{{ $update->submitter_role_label === 'Focal Person' ? 'color:#b45309;' : '' }}">{{ $update->submitter_role_label }}:</span>
+                                            {{ $update->submitted_by_name }}
+                                        @else
+                                            Admin
+                                        @endif
+                                        <span class="pv-history-meta-dot"></span>
+                                        <i data-lucide="calendar"></i>
+                                        {{ $update->date_of_work->format('M d, Y') }}
+                                        @if($update->percentage)
+                                        <span class="pv-history-meta-dot"></span>
+                                        <span class="pv-history-percentage">
+                                            <i data-lucide="trending-up"></i>
+                                            {{ $update->percentage }}%
+                                        </span>
+                                        @endif
+                                    </div>
+                                </div>
+                                <span class="pv-history-status-badge status-{{ $statusKey }}">
+                                    <i data-lucide="{{ $statusIcon }}"></i>
+                                    {{ $statusLabel }}
+                                </span>
+                            </div>
+
+                            <div class="pv-history-body">
+                                <div>
+                                    <div class="pv-history-section-label">Work Done</div>
+                                    <div class="pv-work-text">{{ Str::limit($update->work_done, 150) ?: 'No additional notes provided.' }}</div>
+                                </div>
+
+                                @if($update->photos && count($update->photos) > 0)
+                                <div>
+                                    <div class="pv-history-section-label">Site Photos</div>
+                                    <div class="pv-history-attachments">
+                                        @foreach(array_slice($update->photos, 0, 4) as $photo)
+                                            @if(preg_match($imageExtRegex, $photo))
+                                            <img src="{{ $photo }}" class="pv-history-thumb">
+                                            @else
+                                            <div class="pv-history-thumb-doc">
+                                                <i data-lucide="file-text"></i>
+                                            </div>
+                                            @endif
+                                        @endforeach
+                                        @if(count($update->photos) > 4)
+                                        <div class="pv-history-thumb-more">+{{ count($update->photos) - 4 }}</div>
+                                        @endif
+                                    </div>
+                                </div>
+                                @endif
+                            </div>
+
+                            <div style="display:flex;align-items:center;gap:4px;margin-top:10px;font-size:11.5px;font-weight:700;color:var(--accent);">
+                                View Details <i data-lucide="arrow-right" style="width:12px;height:12px;"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    @empty
+                    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:16px;padding:30px 20px;">
+                        <div style="width:64px;height:64px;border-radius:50%;background:var(--surface-2);display:flex;align-items:center;justify-content:center;">
+                            <i data-lucide="history" style="width:32px;height:32px;color:var(--muted);"></i>
+                        </div>
+                        <div>
+                            <p style="font-size:15px;font-weight:800;color:var(--dark);margin-bottom:6px;">No Updates Yet</p>
+                            <p style="font-size:13px;color:var(--muted);max-width:280px;line-height:1.6;">Approved progress updates for this project will appear here.</p>
+                        </div>
+                    </div>
+                    @endforelse
+                </div>
+            </div>
+
+            <!-- Request Update History: every update request the admin has sent you for
+                 this project, so you can look back at what was asked and when — not just
+                 the one currently open above. -->
+            <div class="pv-card pv-grid-2-card">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <i data-lucide="send" style="width:18px;height:18px;color:var(--accent);"></i>
+                        <h3 class="pv-card-title" style="margin-bottom:0;">Request Update History</h3>
+                    </div>
+                    <span style="font-size:12px;color:var(--muted);font-weight:600;">
+                        {{ $progressRequests->count() }} {{ Str::plural('request', $progressRequests->count()) }}
+                    </span>
+                </div>
+
+                @php
+                    $requestStatusMap = [
+                        'open'               => ['key' => 'pending',  'icon' => 'clock',      'label' => 'Awaiting Your Submission'],
+                        'revision_requested' => ['key' => 'revision',  'icon' => 'rotate-ccw', 'label' => 'Revision Requested'],
+                        'completed'          => ['key' => 'approved',  'icon' => 'check',      'label' => 'Fulfilled'],
+                    ];
+                @endphp
+
+                <div class="pv-grid-2-card-scroll{{ $progressRequests->isEmpty() ? ' pv-grid-2-card-scroll-center' : '' }}" style="display:flex;flex-direction:column;gap:10px;">
+                    @forelse($progressRequests as $req)
+                    @php $rs = $requestStatusMap[$req->status] ?? ['key' => 'superseded', 'icon' => 'help-circle', 'label' => ucfirst($req->status)]; @endphp
+                    <div class="pv-history-item" style="margin:0;">
+                        <div class="pv-history-card" style="cursor:default;">
+                            <div class="pv-history-header">
+                                <div class="pv-history-title-col">
+                                    <div class="pv-history-phase-title">
+                                        {{ ucfirst(str_replace('_', ' ', $req->phase)) }} Phase
+                                    </div>
+                                    <div class="pv-history-meta-row">
+                                        <i data-lucide="calendar"></i>
+                                        Requested {{ $req->created_at->format('M d, Y') }}
+                                        @if($req->status === 'completed' && $req->fulfilled_at)
+                                        <span class="pv-history-meta-dot"></span>
+                                        <i data-lucide="check"></i>
+                                        Submitted {{ $req->fulfilled_at->format('M d, Y') }}
+                                        @endif
+                                    </div>
+                                </div>
+                                <span class="pv-history-status-badge status-{{ $rs['key'] }}">
+                                    <i data-lucide="{{ $rs['icon'] }}"></i>
+                                    {{ $rs['label'] }}
+                                </span>
+                            </div>
+
+                            @php $reqPhotos = $req->projectUpdate->photos ?? []; @endphp
+                            @if($req->message || count($reqPhotos) > 0)
+                            <div class="pv-history-body">
+                                @if($req->message)
+                                <div>
+                                    <div class="pv-history-section-label">Admin's Note</div>
+                                    <div class="pv-work-text">{{ $req->message }}</div>
+                                </div>
+                                @endif
+                                @if(count($reqPhotos) > 0)
+                                <div>
+                                    <div class="pv-history-section-label">Site Photos</div>
+                                    <div class="pv-history-attachments" data-receipt-set>
+                                        @foreach(array_slice($reqPhotos, 0, 4) as $photo)
+                                            @if(preg_match('/\.(jpe?g|png|gif|webp|bmp)(\?.*)?$/i', $photo))
+                                            <a href="{{ $photo }}" data-receipt title="Click to preview">
+                                                <img src="{{ $photo }}" class="pv-history-thumb">
+                                            </a>
+                                            @else
+                                            <div class="pv-history-thumb-doc"><i data-lucide="file-text"></i></div>
+                                            @endif
+                                        @endforeach
+                                        @if(count($reqPhotos) > 4)
+                                        <div class="pv-history-thumb-more">+{{ count($reqPhotos) - 4 }}</div>
+                                        @endif
+                                    </div>
+                                </div>
+                                @endif
+                            </div>
+                            @endif
+                        </div>
+                    </div>
+                    @empty
+                    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:16px;padding:30px 20px;">
+                        <div style="width:64px;height:64px;border-radius:50%;background:var(--surface-2);display:flex;align-items:center;justify-content:center;">
+                            <i data-lucide="send" style="width:32px;height:32px;color:var(--muted);"></i>
+                        </div>
+                        <div>
+                            <p style="font-size:15px;font-weight:800;color:var(--dark);margin-bottom:6px;">No Requests Yet</p>
+                            <p style="font-size:13px;color:var(--muted);max-width:280px;line-height:1.6;">Update requests the admin sends you for this project will appear here.</p>
+                        </div>
+                    </div>
+                    @endforelse
+                </div>
+            </div>
+
+            </div>
+            <!-- end Progress History / Request Update History grid -->
+
+            <!-- Project Information -->
+            <div class="emp-pv-card" style="margin-top:20px;">
                 <h3 class="emp-pv-card-title">
                     <i data-lucide="clipboard-list"></i>
                     Project Information
@@ -307,7 +623,7 @@
                     </div>
                 </div>
 
-                <div class="pv-grid-2-card-scroll" style="display:grid;grid-template-columns:repeat(2,1fr);gap:18px;align-content:start;">
+                <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:18px;align-content:start;">
                     <div style="background:#FDFBF8;border:1px solid var(--border);border-radius:12px;padding:20px;">
                         <span style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">CLIENT</span>
                         <strong style="font-size:14px;color:var(--dark);">{{ $project->live_client_name }}</strong>
@@ -339,127 +655,6 @@
                     </div>
                     @endif
                 </div>
-            </div>
-
-            <!-- Progress History -->
-            <div class="pv-card pv-grid-2-card">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-                    <div style="display:flex;align-items:center;gap:10px;">
-                        <i data-lucide="history" style="width:18px;height:18px;color:var(--accent);"></i>
-                        <h3 class="pv-card-title" style="margin-bottom:0;">Progress History</h3>
-                    </div>
-                    <span style="font-size:12px;color:var(--muted);font-weight:600;">
-                        {{ $updates->count() }} {{ Str::plural('entry', $updates->count()) }}
-                    </span>
-                </div>
-
-                <div class="pv-grid-2-card-scroll{{ $updates->isEmpty() ? ' pv-grid-2-card-scroll-center' : '' }}" style="display:flex;flex-direction:column;">
-
-                    @php
-                        $phaseIcons = [
-                            'planning'    => 'clipboard-list',
-                            'procurement' => 'package-check',
-                            'matl_prep'   => 'ruler',
-                            'fabrication' => 'hammer',
-                            'inspection'  => 'gauge',
-                            'painting'    => 'paint-bucket',
-                            'completion'  => 'check-circle-2',
-                            'delivery'    => 'truck',
-                        ];
-                        $imageExtRegex = '/\.(jpe?g|png|gif|webp|bmp)(\?.*)?$/i';
-                    @endphp
-
-                    @forelse($updates as $update)
-                    @php
-                        $isEmployee = $update->type === 'employee_submission';
-                        $phaseIcon  = $phaseIcons[$update->phase] ?? 'file-text';
-                    @endphp
-
-                    <div class="pv-history-item" data-update-id="{{ $update->id }}">
-                        <div class="pv-history-rail">
-                            <div class="pv-history-icon" style="background:#dcfce7;">
-                                <i data-lucide="{{ $phaseIcon }}" style="color:#16a34a;"></i>
-                            </div>
-                            <div class="pv-history-line"></div>
-                        </div>
-
-                        <div class="pv-history-card" style="background:var(--surface-2);border:1px solid var(--border);" onclick="openUpdateModal({{ $update->id }})">
-
-                            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px;">
-                                <span style="font-size:13.5px;font-weight:700;color:var(--text-primary);">
-                                    {{ ucfirst(str_replace('_', ' ', $update->phase)) }} Phase
-                                    @if($update->update_label === 'revision')
-                                    <span style="font-size:10.5px;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:20px;margin-left:4px;font-weight:700;">
-                                        Revision Submission
-                                    </span>
-                                    @endif
-                                    <span class="pv-new-badge">New</span>
-                                </span>
-                                <span style="font-size:11.5px;color:var(--muted);font-weight:600;white-space:nowrap;">
-                                    {{ $update->date_of_work->format('M d, Y') }}
-                                </span>
-                            </div>
-
-                            <div class="pv-history-meta">
-                                <i data-lucide="{{ $isEmployee ? 'user' : 'shield-check' }}" style="width:12px;height:12px;"></i>
-                                <span>{{ $isEmployee ? $update->submitted_by_name : 'Admin' }}</span>
-
-                                @if($update->percentage)
-                                <span class="dot"></span>
-                                <span class="pv-history-percentage">
-                                    <i data-lucide="trending-up" style="width:10px;height:10px;"></i>
-                                    {{ $update->percentage }}%
-                                </span>
-                                @endif
-
-                                <span class="dot"></span>
-                                <span style="display:inline-flex;align-items:center;gap:4px;color:#16a34a;">
-                                    <i data-lucide="check" style="width:11px;height:11px;"></i> Approved
-                                </span>
-                            </div>
-
-                            <div style="font-size:13px;color:var(--text-secondary);line-height:1.5;">
-                                {{ Str::limit($update->work_done, 100) }}
-                            </div>
-
-                            @if($update->photos && count($update->photos) > 0)
-                            <div class="pv-history-attachments">
-                                @foreach(array_slice($update->photos, 0, 4) as $photo)
-                                    @if(preg_match($imageExtRegex, $photo))
-                                    <img src="{{ $photo }}" class="pv-history-thumb">
-                                    @else
-                                    <div class="pv-history-thumb-doc">
-                                        <i data-lucide="file-text"></i>
-                                    </div>
-                                    @endif
-                                @endforeach
-                                @if(count($update->photos) > 4)
-                                <div class="pv-history-thumb-more">+{{ count($update->photos) - 4 }}</div>
-                                @endif
-                            </div>
-                            @endif
-
-                            <div style="display:flex;align-items:center;gap:4px;margin-top:10px;font-size:11.5px;font-weight:700;color:var(--accent);">
-                                View Details <i data-lucide="arrow-right" style="width:12px;height:12px;"></i>
-                            </div>
-
-                        </div>
-                    </div>
-
-                    @empty
-                    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:16px;padding:30px 20px;">
-                        <div style="width:64px;height:64px;border-radius:50%;background:var(--surface-2);display:flex;align-items:center;justify-content:center;">
-                            <i data-lucide="history" style="width:32px;height:32px;color:var(--muted);"></i>
-                        </div>
-                        <div>
-                            <p style="font-size:15px;font-weight:800;color:var(--dark);margin-bottom:6px;">No Updates Yet</p>
-                            <p style="font-size:13px;color:var(--muted);max-width:280px;line-height:1.6;">Approved progress updates for this project will appear here.</p>
-                        </div>
-                    </div>
-                    @endforelse
-                </div>
-            </div>
-
             </div>
 
     </main>
@@ -544,7 +739,12 @@
         $startDate    = $project->start_date->format('Y-m-d');
         $currentPhase = $project->current_phase;
 
-        $updatesData = $updates->map(function($u) {
+        // Include the employee's own pending submission too (if any) so its "View
+        // Details" click above finds a matching entry — it isn't part of $updates
+        // itself (that's the official approved history), just looked up here.
+        $updatesForModal = $pendingSubmission ? $updates->concat([$pendingSubmission]) : $updates;
+
+        $updatesData = $updatesForModal->map(function($u) {
             return [
                 'id'                => $u->id,
                 'phase'             => $u->phase,
@@ -557,7 +757,8 @@
                 'photos'            => $u->photos ?? [],
                 'date_of_work'      => $u->date_of_work->format('M d, Y'),
                 'submitted_at'      => $u->created_at->format('M d, Y h:i A'),
-                'submitted_by'      => $u->submittedBy ? $u->submittedBy->full_name : 'Admin',
+                'submitted_by'      => $u->submitted_by_name,
+                'submitter_role'    => $u->submitter_role_label, // 'Focal Person' | 'Employee' | 'Admin'
                 'percentage'        => $u->percentage,
             ];
         })->keyBy('id')->toArray();
@@ -585,10 +786,15 @@
                 const url = URL.createObjectURL(file);
                 const div = document.createElement('div');
                 div.style.cssText = 'position:relative;width:80px;height:60px;border-radius:6px;overflow:hidden;border:1px solid var(--border);flex-shrink:0;';
+                // The thumb is a data-receipt link (opens the shared lightbox to preview it full-size,
+                // reusing the same viewer as payment receipts elsewhere) — the remove button sits
+                // OUTSIDE that link, as a sibling, so tapping it doesn't also trigger the preview.
                 div.innerHTML = `
-                    <img src="${url}" style="width:100%;height:100%;object-fit:cover;">
+                    <a href="${url}" data-receipt title="Click to preview" style="display:block;width:100%;height:100%;">
+                        <img src="${url}" style="width:100%;height:100%;object-fit:cover;display:block;">
+                    </a>
                     <button type="button" onclick="${removeCallback}(${i})"
-                        style="position:absolute;top:2px;right:2px;width:16px;height:16px;border-radius:50%;background:rgba(0,0,0,0.6);color:#fff;border:none;font-size:10px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;">✕</button>`;
+                        style="position:absolute;top:2px;right:2px;width:16px;height:16px;border-radius:50%;background:rgba(0,0,0,0.6);color:#fff;border:none;font-size:10px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;z-index:2;">✕</button>`;
                 preview.appendChild(div);
             });
             const remaining = 5 - files.length;
@@ -617,10 +823,14 @@
                 if (f.size > 5 * 1024 * 1024) { rejected.push(f.name); continue; }
                 empPhotoFiles.push(f);
             }
+            // Reset the input that just fired BEFORE re-syncing — when that's the
+            // named gallery input itself, resetting after the sync would wipe out
+            // the very files we just wrote onto it (and the required file input,
+            // being display:none, then blocks submit with no visible error at all).
+            input.value = '';
             syncInput(document.getElementById('photoFileInput'), empPhotoFiles);
             buildPhotoPreview(empPhotoFiles, 'photoPreview', 'removeEmpPhoto');
             if (rejected.length) showFileTooLargeModal(rejected.join(', '), 5);
-            input.value = '';
         }
 
         function removeEmpPhoto(index) {
@@ -636,16 +846,52 @@
                 if (f.size > 5 * 1024 * 1024) { rejected.push(f.name); continue; }
                 empRevisionFiles.push(f);
             }
+            // Same ordering fix as previewPhotos() — reset before re-sync, never after.
+            input.value = '';
             syncInput(document.getElementById('revisionPhotoFileInput'), empRevisionFiles);
             buildPhotoPreview(empRevisionFiles, 'revisionPhotoPreview', 'removeRevisionPhoto');
             if (rejected.length) showFileTooLargeModal(rejected.join(', '), 5);
-            input.value = '';
         }
 
         function removeRevisionPhoto(index) {
             empRevisionFiles.splice(index, 1);
             syncInput(document.getElementById('revisionPhotoFileInput'), empRevisionFiles);
             buildPhotoPreview(empRevisionFiles, 'revisionPhotoPreview', 'removeRevisionPhoto');
+        }
+
+        // Site Photos is required, but the file input backing it is display:none (needed for
+        // the custom Upload/Camera buttons), so the browser can't show its own validation
+        // bubble for it — check it here instead, with a visible error message.
+        var progressUpdateForm = document.getElementById('progressUpdateForm');
+        if (progressUpdateForm) {
+            progressUpdateForm.addEventListener('submit', function (e) {
+                var err = document.getElementById('photoRequiredErr');
+                if (empPhotoFiles.length === 0) {
+                    e.preventDefault();
+                    if (err) {
+                        err.style.display = 'block';
+                        err.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                    }
+                } else if (err) {
+                    err.style.display = 'none';
+                }
+            });
+        }
+
+        var revisionUpdateForm = document.getElementById('revisionUpdateForm');
+        if (revisionUpdateForm) {
+            revisionUpdateForm.addEventListener('submit', function (e) {
+                var err = document.getElementById('revisionPhotoRequiredErr');
+                if (empRevisionFiles.length === 0) {
+                    e.preventDefault();
+                    if (err) {
+                        err.style.display = 'block';
+                        err.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                    }
+                } else if (err) {
+                    err.style.display = 'none';
+                }
+            });
         }
 
         function getFileIconName(filename) {
@@ -681,16 +927,35 @@
 
             document.getElementById('modalUpdateTitle').textContent    = ucPhase(u.phase) + ' Phase Update';
             document.getElementById('modalUpdateSubtitle').textContent = u.submitted_at;
-            document.getElementById('modalSubmittedBy').textContent    = u.submitted_by;
+            document.getElementById('modalSubmittedBy').textContent    = (u.submitter_role ? u.submitter_role + ' — ' : '') + u.submitted_by;
             document.getElementById('modalDateOfWork').textContent     = u.date_of_work;
             document.getElementById('modalPhase').textContent          = ucPhase(u.phase);
             document.getElementById('modalType').textContent           = isEmployee ? 'Employee Submission' : 'Admin Update';
 
-            document.getElementById('modalStatusBadge').innerHTML = `
-                <span style="display:inline-flex;align-items:center;gap:6px;background:#dcfce7;border:1.5px solid #86efac;color:#14532d;font-size:12px;font-weight:700;padding:5px 14px;border-radius:20px;">
+            // Status badge — dynamic now that this modal can also open a submission
+            // that's still pending review (not just already-approved history entries).
+            let badgeHtml = '';
+            if (u.status === 'pending_review') {
+                badgeHtml = `<span style="display:inline-flex;align-items:center;gap:6px;background:#fffbeb;border:1.5px solid #f59e0b;color:#92400e;font-size:12px;font-weight:700;padding:5px 14px;border-radius:20px;">
+                    <span style="width:8px;height:8px;background:#f59e0b;border-radius:50%;display:inline-block;"></span>
+                    Pending Review — Awaiting Admin Approval
+                </span>`;
+            } else if (u.status === 'needs_revision') {
+                badgeHtml = `<span style="display:inline-flex;align-items:center;gap:6px;background:#fff7ed;border:1.5px solid #fb923c;color:#9a3412;font-size:12px;font-weight:700;padding:5px 14px;border-radius:20px;">
+                    <span style="width:8px;height:8px;background:#ea580c;border-radius:50%;display:inline-block;"></span>
+                    Needs Revision
+                </span>`;
+            } else if (u.status === 'superseded') {
+                badgeHtml = `<span style="display:inline-flex;align-items:center;gap:6px;background:#f1f5f9;border:1.5px solid #cbd5e1;color:#64748b;font-size:12px;font-weight:700;padding:5px 14px;border-radius:20px;">
+                    Superseded — Replaced by newer revision
+                </span>`;
+            } else {
+                badgeHtml = `<span style="display:inline-flex;align-items:center;gap:6px;background:#dcfce7;border:1.5px solid #86efac;color:#14532d;font-size:12px;font-weight:700;padding:5px 14px;border-radius:20px;">
                     <span style="width:8px;height:8px;background:#16a34a;border-radius:50%;display:inline-block;"></span>
                     Approved
                 </span>`;
+            }
+            document.getElementById('modalStatusBadge').innerHTML = badgeHtml;
 
             const workDoneSec = document.getElementById('modalWorkDoneSection');
             if (u.work_done && u.work_done.trim() !== '') {
@@ -792,5 +1057,6 @@
         });
 
     </script>
+    @include('partials.receipt_viewer')
 </body>
 </html>

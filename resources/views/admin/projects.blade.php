@@ -108,8 +108,21 @@
                         </thead>
                         <tbody>
                             @forelse($clientGroups as $g)
-                            <tr data-search="{{ strtolower($g['client']) }}" onclick="window.location='{{ route('admin.projects.client', $g['client_key']) }}'" style="cursor:pointer;">
-                                <td class="td-wrap" style="min-width:180px;"><span class="pf-client-name">{{ $g['client'] }}</span></td>
+                            <tr data-search="{{ strtolower($g['client']) }}" onclick="window.location='{{ route('admin.projects.client', $g['client_key']) }}'" style="cursor:pointer;" class="{{ $g['pending_update_count'] > 0 ? 'row-needs-action' : '' }}">
+                                <td class="td-wrap" style="min-width:180px;">
+                                    <span class="pf-client-name">{{ $g['client'] }}</span>
+                                    @if($g['pending_update_count'] > 0)
+                                    <span title="{{ $g['pending_update_projects']->implode(', ') }} — waiting on your review"
+                                          style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;font-size:10px;font-weight:800;color:#b45309;background:#fff3cd;border-radius:999px;padding:2px 8px;white-space:nowrap;">
+                                        <i data-lucide="bell" style="width:10px;height:10px;"></i>
+                                        @if($g['pending_update_count'] === 1)
+                                            {{ Str::limit($g['pending_update_projects']->first(), 28) }} — Pending Review
+                                        @else
+                                            {{ $g['pending_update_count'] }} Updates Pending Review
+                                        @endif
+                                    </span>
+                                    @endif
+                                </td>
                                 <td style="text-align:center;"><span class="client-pill" style="background-color:#F3F4F6;color:#1F2937;border-color:#D1D5DB;">{{ $g['total'] }}</span></td>
                                 <td style="text-align:center;"><span class="client-pill" style="background-color:#EAF0FF;color:#2563EB;border-color:#BFDBFE;">{{ $g['active'] }}</span></td>
                                 <td style="text-align:center;"><span class="client-pill" style="background-color:#E7F6EC;color:#207A3A;border-color:#A7E3B8;">{{ $g['completed'] }}</span></td>
@@ -1016,10 +1029,16 @@
             var tr = document.createElement('tr');
             tr.dataset.search = g.client.toLowerCase();
             tr.style.cursor = 'pointer';
+            if (g.pending_update_count > 0) tr.classList.add('row-needs-action');
             var url = PROJECT_CLIENT_URL_TEMPLATE.replace('__CLIENT__', encodeURIComponent(g.client_key));
             tr.setAttribute('onclick', "window.location='" + url.replace(/'/g, "\\'") + "'");
+            var pendingBadge = g.pending_update_count > 0
+                ? '<span title="' + escapeHtml((g.pending_update_projects || []).join(', ')) + ' — waiting on your review" ' +
+                  'style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;font-size:10px;font-weight:800;color:#b45309;background:#fff3cd;border-radius:999px;padding:2px 8px;white-space:nowrap;">' +
+                  '<i data-lucide="bell" style="width:10px;height:10px;"></i>' + g.pending_update_count + ' Update' + (g.pending_update_count > 1 ? 's' : '') + ' Pending Review</span>'
+                : '';
             tr.innerHTML =
-                '<td class="td-wrap" style="min-width:180px;"><span class="pf-client-name"></span></td>' +
+                '<td class="td-wrap" style="min-width:180px;"><span class="pf-client-name"></span>' + pendingBadge + '</td>' +
                 '<td style="text-align:center;"><span class="client-pill" style="background-color:#F3F4F6;color:#1F2937;border-color:#D1D5DB;">' + g.total + '</span></td>' +
                 '<td style="text-align:center;"><span class="client-pill" style="background-color:#EAF0FF;color:#2563EB;border-color:#BFDBFE;">' + g.active + '</span></td>' +
                 '<td style="text-align:center;"><span class="client-pill" style="background-color:#E7F6EC;color:#207A3A;border-color:#A7E3B8;">' + g.completed + '</span></td>' +

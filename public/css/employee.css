@@ -95,6 +95,29 @@ body {
     gap: 16px;
 }
 
+/* Hamburger toggle — hidden on desktop; only shown/used inside the
+   @media (max-width: 768px) block further down. */
+.employee-nav-toggle {
+    display: none;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background-color: rgba(255, 255, 255, 0.10);
+    color: var(--white);
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.employee-nav-toggle:hover {
+    background-color: rgba(255, 255, 255, 0.16);
+}
+.employee-nav-toggle svg {
+    width: 20px;
+    height: 20px;
+}
+
 .system-title {
     font-size: 17px;
     font-weight: 900;
@@ -1861,16 +1884,34 @@ body {
         order: 2;
     }
 
-    .employee-header-nav {
-        order: 3;
-        width: 100%;
-        justify-content: flex-start;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
+    .employee-nav-toggle {
+        display: flex;
     }
 
-    .employee-header-nav::-webkit-scrollbar {
+    /* Nav collapses into a hamburger-triggered dropdown instead of a cramped
+       horizontally-scrolling row — hidden by default, shown as a full-width
+       vertical panel below the header when .open is toggled by the button's JS. */
+    .employee-header-nav {
+        order: 3;
         display: none;
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 4px;
+        background: rgba(0, 0, 0, 0.18);
+        border-radius: 12px;
+        padding: 8px;
+    }
+
+    .employee-header-nav.open {
+        display: flex;
+    }
+
+    .employee-header-nav a {
+        justify-content: flex-start;
+        width: 100%;
+        padding: 11px 14px;
+        border-radius: 10px;
     }
 
     .system-subtitle {
@@ -3351,7 +3392,7 @@ body {
     background: var(--surface);
     color: var(--text-primary);
     transition: border-color 0.18s;
-    resize: vertical;
+    resize: none;
     line-height: 1.55;
 }
 
@@ -3935,6 +3976,8 @@ body {
 .pv-history-card {
     flex: 1;
     min-width: 0;
+    border: 1px solid var(--border);
+    background: var(--white);
     border-radius: 12px;
     padding: 14px 16px;
     cursor: pointer;
@@ -3948,8 +3991,181 @@ body {
 }
 
 .pv-history-card.is-new {
-    box-shadow: inset 0 0 0 2px #fbbf24;
+    border-color: #fbbf24;
+    background: linear-gradient(180deg, #fffbeb 0%, #fffdf6 100%);
+    box-shadow: 0 0 0 1px #fde68a, 0 2px 8px rgba(251,191,36,.14);
 }
+
+/* Header row: phase title + meta on the left, status badge on the right —
+   same layout as the admin Progress History card, for a consistent look. */
+.pv-history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 13px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+}
+.pv-history-title-col { min-width: 0; }
+
+.pv-history-phase-title {
+    font-size: 15px;
+    font-weight: 900;
+    color: var(--dark);
+    letter-spacing: -.1px;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.pv-history-revision-badge {
+    font-size: 10px;
+    font-weight: 800;
+    background: #dbeafe;
+    color: #1e40af;
+    padding: 2px 9px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+}
+
+.pv-history-meta-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 5px;
+    font-size: 11.5px;
+    color: var(--muted);
+    font-weight: 600;
+}
+.pv-history-meta-row i { width: 11px; height: 11px; flex-shrink: 0; }
+
+.pv-history-meta-dot {
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: var(--border);
+    flex-shrink: 0;
+}
+
+.pv-history-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10.5px;
+    font-weight: 800;
+    padding: 4px 11px;
+    border-radius: 999px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.pv-history-status-badge i { width: 10px; height: 10px; }
+
+.pv-history-status-badge.status-approved       { background:#dcfce7; border:1px solid #86efac; color:#15803d; }
+.pv-history-status-badge.status-pending        { background:#fef3c7; border:1px solid #fcd34d; color:#92400e; }
+.pv-history-status-badge.status-pending-client { background:#fff3cd; border:1px solid rgba(180,83,9,.3); color:#b45309; }
+.pv-history-status-badge.status-revision       { background:#ffedd5; border:1px solid #fdba74; color:#c2410c; }
+.pv-history-status-badge.status-superseded     { background:var(--surface-2); border:1px solid var(--border); color:var(--muted); }
+
+/* Section labels shared by Work Done / Site Photos */
+.pv-history-section-label {
+    font-size: 10px;
+    font-weight: 800;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    margin-bottom: 5px;
+}
+
+.pv-history-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.pv-work-text {
+    font-size: 13px;
+    color: var(--dark);
+    line-height: 1.6;
+}
+
+/* Submitter identity chip — avatar initials + role label ("Focal Person" vs
+   "Employee") + name, used on the "Update Submitted" read-only card so it's
+   immediately clear who exactly sent the update. Mirrors admin.css. */
+.pv-submitter-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 2px;
+}
+
+.pv-submitter-avatar {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--surface-2);
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9.5px;
+    font-weight: 800;
+    flex-shrink: 0;
+    border: 1.5px solid var(--border);
+}
+.pv-submitter-avatar.is-focal {
+    background: #fef3c7;
+    color: #92400e;
+    border-color: #fcd34d;
+}
+
+.pv-submitter-info {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+
+.pv-submitter-role {
+    font-size: 9.5px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--muted);
+}
+.pv-submitter-role.is-focal { color: #b45309; }
+
+.pv-submitter-name {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--dark);
+}
+
+/* The "Update Submitted" read-only card's field labels (Date of Work, Work
+   Done, Issues / Observations, Site Photos) match admin's own .log-label
+   exactly — scoped to .pv-history-card so the editable form's labels
+   elsewhere on this page (font-size 12px, .text-secondary) are untouched. */
+.pv-history-card .log-label {
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--muted-light);
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+/* Larger Site Photos thumbnail on the "Update Submitted" read-only card —
+   mirrors admin's .pv-history-thumb-lg so the photo is actually readable. */
+.pv-history-thumb-lg.pv-history-thumb,
+.pv-history-thumb-lg.pv-history-thumb-doc {
+    width: 96px;
+    height: 96px;
+    border-radius: 10px;
+}
+.pv-history-thumb-lg.pv-history-thumb-doc i { width: 26px; height: 26px; }
 
 .pv-new-badge {
     display: none;

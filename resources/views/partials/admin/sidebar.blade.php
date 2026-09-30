@@ -27,10 +27,14 @@
         </a>
 
         <div class="sidebar-section-label">Project Management</div>
+        @php $pendingProjectUpdatesCount = \App\Models\ProjectUpdate::where('status', 'pending_review')->count(); @endphp
         <a href="{{ route('admin.projects') }}"
            class="{{ request()->routeIs(['admin.projects', 'admin.project_view']) ? 'active' : '' }}"
            title="Projects">
-            <div class="sidebar-icon"><i data-lucide="folder-kanban"></i></div>
+            <div class="sidebar-icon">
+                <i data-lucide="folder-kanban"></i>
+                <span class="sidebar-badge" id="projectUpdatesBadge" style="{{ $pendingProjectUpdatesCount > 0 ? '' : 'display:none;' }}">{{ $pendingProjectUpdatesCount > 99 ? '99+' : $pendingProjectUpdatesCount }}</span>
+            </div>
             <span>Projects</span>
         </a>
 
@@ -111,6 +115,7 @@
         var QUOTATION_PENDING_COUNT_URL = '{{ route('admin.quotation_requests.pending_count') }}';
         var CLIENTS_PENDING_COUNT_URL   = '{{ route('admin.client.pending_count') }}';
         var PAYMENTS_PENDING_COUNT_URL  = '{{ route('admin.payments.pending_count') }}';
+        var PROJECT_UPDATES_PENDING_COUNT_URL = '{{ route('admin.pending-updates.count') }}';
 
         function refreshQuotationRequestsBadge() {
             fetch(QUOTATION_PENDING_COUNT_URL, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
@@ -163,8 +168,26 @@
                 .catch(function () {});
         }
 
+        function refreshProjectUpdatesBadge() {
+            fetch(PROJECT_UPDATES_PENDING_COUNT_URL, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    var badge = document.getElementById('projectUpdatesBadge');
+                    if (!badge) return;
+                    var count = data.pending_count || 0;
+                    if (count > 0) {
+                        badge.textContent = count > 99 ? '99+' : count;
+                        badge.style.display = 'flex';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                })
+                .catch(function () {});
+        }
+
         setInterval(refreshQuotationRequestsBadge, 30000);
         setInterval(refreshClientsPendingBadge, 30000);
         setInterval(refreshPaymentsPendingBadge, 30000);
+        setInterval(refreshProjectUpdatesBadge, 30000);
     })();
 </script>

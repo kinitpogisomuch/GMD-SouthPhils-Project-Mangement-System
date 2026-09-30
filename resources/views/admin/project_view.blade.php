@@ -207,17 +207,10 @@
                 </div>
 
                 @php
+                    // Still resolved here (not just display) — used further down to default
+                    // the "Request Update" modal's employee selection to the Focal Person.
                     $currentFocalPerson = $project->focalPerson();
                 @endphp
-                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0 2px;padding:10px 14px;border-radius:10px;background:var(--light,#f8f9fb);border:1px solid var(--border);font-size:13px;">
-                    <i data-lucide="user-check" style="width:16px;height:16px;color:var(--accent);"></i>
-                    <span style="font-weight:700;color:var(--dark);">Focal Person:</span>
-                    @if($currentFocalPerson)
-                        <span style="font-weight:700;color:var(--accent);">{{ $currentFocalPerson->first_name }} {{ $currentFocalPerson->last_name }}</span>
-                    @else
-                        <span style="font-weight:700;color:#b45309;">Not assigned — assign one from the Employees page</span>
-                    @endif
-                </div>
 
                 <div class="phase-steps-scroll">
                     <div class="phase-steps" id="phaseSteps"></div>
@@ -265,12 +258,18 @@
             </div>
 
             @if($pendingUpdates->isNotEmpty())
-            <!-- Pending Employee Reviews (separate from Progress History) -->
-            <div class="pv-card" style="margin-top:20px;border:1.5px solid #fbbf24;background:#fffbeb;">
+            <!-- Pending Employee Reviews (separate from Progress History) — same amber
+                 palette as the employee's own "Update Submitted" card, for consistency. -->
+            <div class="pv-card" style="margin-top:20px;border:1px solid #fde68a;background:#fffdf5;">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-                    <div style="display:flex;align-items:center;gap:10px;">
-                        <i data-lucide="inbox" style="width:18px;height:18px;color:#b45309;"></i>
-                        <h3 class="pv-card-title" style="margin-bottom:0;color:#92400e;">Pending Employee Reviews</h3>
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <div style="width:42px;height:42px;border-radius:50%;background:#fde68a;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 10px rgba(251,191,36,0.35);">
+                            <i data-lucide="inbox" style="width:19px;height:19px;color:#92400e;"></i>
+                        </div>
+                        <div>
+                            <h3 class="pv-card-title" style="margin-bottom:0;color:#78350f;">Awaiting Your Approval</h3>
+                            <p style="margin:2px 0 0;font-size:12.5px;color:#92400e;">Review these submissions — approve them or request a revision.</p>
+                        </div>
                     </div>
                     <span style="font-size:12px;color:#92400e;font-weight:800;background:#fef3c7;padding:3px 10px;border-radius:999px;">
                         {{ $pendingUpdates->count() }} {{ Str::plural('submission', $pendingUpdates->count()) }}
@@ -279,8 +278,15 @@
 
                 <div style="display:flex;flex-direction:column;gap:10px;">
                     @foreach($pendingUpdates as $update)
+                    @php
+                        $submitterName = $update->submitted_by_name;
+                        $submitterRole = $update->submitter_role_label; // 'Focal Person' | 'Employee' | 'Admin'
+                        $isFocal       = $submitterRole === 'Focal Person';
+                        $initials      = strtoupper(collect(preg_split('/\s+/', trim($submitterName)))
+                                            ->filter()->map(fn($p) => mb_substr($p, 0, 1))->take(2)->join('')) ?: '?';
+                    @endphp
                     <div class="pv-history-item" data-update-id="{{ $update->id }}" style="margin:0;">
-                        <div class="pv-history-card" style="background:#fff;" onclick="openUpdateModal({{ $update->id }})">
+                        <div class="pv-history-card pv-pending-review-card" style="background:#ffffff;">
                             <div class="pv-history-header">
                                 <div class="pv-history-title-col">
                                     <div class="pv-history-phase-title">
@@ -289,12 +295,12 @@
                                         <span class="pv-history-revision-badge">Revision</span>
                                         @endif
                                     </div>
-                                    <div class="pv-history-meta-row">
-                                        <i data-lucide="user"></i>
-                                        {{ $update->submittedBy->full_name ?? 'Employee' }}
-                                        <span class="pv-history-meta-dot"></span>
-                                        <i data-lucide="calendar"></i>
-                                        {{ $update->date_of_work->format('M d, Y') }}
+                                    <div class="pv-submitter-row">
+                                        <span class="pv-submitter-avatar{{ $isFocal ? ' is-focal' : '' }}">{{ $initials }}</span>
+                                        <span class="pv-submitter-info">
+                                            <span class="pv-submitter-role{{ $isFocal ? ' is-focal' : '' }}">{{ $submitterRole }}</span>
+                                            <span class="pv-submitter-name">{{ $submitterName }}</span>
+                                        </span>
                                     </div>
                                 </div>
                                 <span class="pv-history-status-badge status-pending">
@@ -302,11 +308,60 @@
                                     Pending Review
                                 </span>
                             </div>
-                            <div class="pv-history-body">
-                                <div>
-                                    <div class="pv-history-section-label">Work Done</div>
-                                    <div class="pv-work-text">{{ Str::limit($update->work_done, 100) }}</div>
+
+                            {{-- Same read-only, labeled-section layout as the employee's own
+                                 "Update Submitted" card — full detail up front, no click-through
+                                 needed to see what was sent. Sits directly on the card (no extra
+                                 bordered wrapper) — just thin dividers between sections. --}}
+                            <div class="form-group" style="margin-top:14px;">
+                                <label class="log-label">Date of Work</label>
+                                <div style="background:var(--surface-2);border-radius:10px;padding:10px 14px;font-size:13px;font-weight:700;color:var(--dark);">
+                                    {{ $update->date_of_work->format('M d, Y') }}
                                 </div>
+                            </div>
+
+                            <div style="height:1px;background:var(--border);margin:14px 0;"></div>
+
+                            <div class="form-group">
+                                <label class="log-label">Work Done</label>
+                                <div style="background:var(--surface-2);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--dark);white-space:pre-wrap;">{{ $update->work_done ?: 'No additional notes provided.' }}</div>
+                            </div>
+
+                            <div style="height:1px;background:var(--border);margin:14px 0;"></div>
+                            <div class="form-group">
+                                <label class="log-label">Issues / Observations</label>
+                                <div style="background:var(--surface-2);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--dark);white-space:pre-wrap;">{{ $update->issues ?: 'No issues reported.' }}</div>
+                            </div>
+
+                            @if($update->photos && count($update->photos) > 0)
+                            <div style="height:1px;background:var(--border);margin:14px 0;"></div>
+                            <div class="form-group" style="margin-bottom:0;">
+                                <label class="log-label">Site Photos</label>
+                                <div class="pv-history-attachments">
+                                    @foreach($update->photos as $photo)
+                                        @if(preg_match('/\.(jpe?g|png|gif|webp|bmp)(\?.*)?$/i', $photo))
+                                        <img src="{{ $photo }}" class="pv-history-thumb pv-history-thumb-lg" style="cursor:zoom-in;" onclick="openFileLightbox('{{ $photo }}')">
+                                        @else
+                                        <a href="{{ $photo }}" target="_blank" class="pv-history-thumb-doc pv-history-thumb-lg" title="Open file"><i data-lucide="file-text"></i></a>
+                                        @endif
+                                    @endforeach
+                                </div>
+                            </div>
+                            @endif
+
+                            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;">
+                                <button type="button" onclick="openRevisionModal({{ $update->id }})"
+                                        style="display:flex;align-items:center;gap:8px;padding:9px 18px;border-radius:8px;border:1.5px solid #f59e0b;background:#fff;color:#92400e;font-size:13px;font-weight:700;cursor:pointer;">
+                                    <i data-lucide="rotate-ccw" style="width:14px;height:14px;"></i>
+                                    Request Revision
+                                </button>
+                                <form method="POST" action="{{ url('/admin/project-updates') }}/{{ $update->id }}/approve" style="margin:0;">
+                                    @csrf
+                                    <button type="submit" class="save-btn" style="display:flex;align-items:center;gap:8px;">
+                                        <i data-lucide="check-circle" style="width:14px;height:14px;"></i>
+                                        Approve
+                                    </button>
+                                </form>
                             </div>
                         </div>
                     </div>
@@ -917,7 +972,12 @@
                                         </div>
                                         <div class="pv-history-meta-row">
                                             <i data-lucide="{{ $isEmployee ? 'user' : 'shield-check' }}"></i>
-                                            {{ $isEmployee ? $update->submitted_by_name : 'Admin' }}
+                                            @if($isEmployee)
+                                                <span style="font-weight:800;{{ $update->submitter_role_label === 'Focal Person' ? 'color:#b45309;' : '' }}">{{ $update->submitter_role_label }}:</span>
+                                                {{ $update->submitted_by_name }}
+                                            @else
+                                                Admin
+                                            @endif
                                             <span class="pv-history-meta-dot"></span>
                                             <i data-lucide="calendar"></i>
                                             {{ $update->date_of_work->format('M d, Y') }}
@@ -984,8 +1044,11 @@
             </div>
             @endif
 
+            <!-- Project Information (left) + Request Update History (right) -->
+            <div class="pv-update-grid">
+
             <!-- Project Info Card -->
-            <div class="pv-card" style="margin-top:20px;">
+            <div class="pv-card" style="margin-top:0;">
                 <h3 class="pv-card-title">Project Information</h3>
 
                 <div class="pi-section-label"><i data-lucide="user" style="width:13px;height:13px;"></i> Client Details</div>
@@ -996,33 +1059,150 @@
                     <div class="project-detail-box" style="grid-column:span 3;"><span>Address</span><strong>{{ $clientAddress ?? '—' }}</strong></div>
                 </div>
 
+                {{-- Schedule — genuinely useful info this card was missing (already shown on
+                     the employee's own Project Information card), rather than a CSS trick to
+                     paper over the gap left when this card stretches to match a taller sibling. --}}
+                <div class="pi-section-label"><i data-lucide="calendar" style="width:13px;height:13px;"></i> Schedule</div>
+                <div class="project-detail-grid" style="margin-top:10px;margin-bottom:20px;">
+                    <div class="project-detail-box"><span>Start Date</span><strong>{{ $project->start_date->format('M d, Y') }}</strong></div>
+                    <div class="project-detail-box"><span>End Date</span><strong>{{ $project->end_date->format('M d, Y') }}</strong></div>
+                    <div class="project-detail-box"><span>Current Phase</span><strong>{{ ucfirst(str_replace('_', ' ', $project->current_phase)) }}</strong></div>
+                    @if($project->notes)
+                    <div class="project-detail-box" style="grid-column:span 3;"><span>Notes</span><strong>{{ $project->notes }}</strong></div>
+                    @endif
+                </div>
+
                 <div class="pi-section-label">
                     <i data-lucide="package" style="width:13px;height:13px;"></i> Project Specifications
                     <span style="font-size:11px;font-weight:600;color:var(--muted-light);">({{ $project->tankItems->isNotEmpty() ? $project->tankItems->count() : 1 }} tank{{ $project->tankItems->count() !== 1 ? 's' : '' }})</span>
                 </div>
                 @if($project->tankItems->isNotEmpty())
-                <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px;margin-bottom:20px;">
+                <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px;">
                     @foreach($project->tankItems as $i => $ti)
                     <div class="pi-tank-row">
-                        <div class="pi-tank-grid">
-                            <div class="project-detail-box"><span>Project Type</span><strong>{{ $ti->tank_type }}</strong></div>
-                            <div class="project-detail-box"><span>Shape</span><strong>{{ $ti->shape ?? '—' }}</strong></div>
-                            <div class="project-detail-box"><span>Capacity</span><strong>{{ $ti->capacity ?? '—' }}</strong></div>
-                            <div class="project-detail-box"><span>Dimensions</span><strong>{{ $ti->dimensions ?? '—' }}</strong></div>
-                            <div class="project-detail-box"><span>Quantity</span><strong>{{ $ti->quantity }}</strong></div>
+                        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:10px;">
+                            {{-- Two explicit rows (3 then 2) instead of one 5-across grid — each
+                                 row fills its own full width, so there's no leftover gap when
+                                 5 items don't divide evenly. --}}
+                            <div class="pi-tank-grid" style="grid-template-columns:repeat(3, 1fr);">
+                                <div class="project-detail-box"><span>Project Type</span><strong>{{ $ti->tank_type }}</strong></div>
+                                <div class="project-detail-box"><span>Shape</span><strong>{{ $ti->shape ?? '—' }}</strong></div>
+                                <div class="project-detail-box"><span>Capacity</span><strong>{{ $ti->capacity ?? '—' }}</strong></div>
+                            </div>
+                            <div class="pi-tank-grid" style="grid-template-columns:repeat(2, 1fr);">
+                                <div class="project-detail-box"><span>Dimensions</span><strong>{{ $ti->dimensions ?? '—' }}</strong></div>
+                                <div class="project-detail-box"><span>Quantity</span><strong>{{ $ti->quantity }}</strong></div>
+                            </div>
                         </div>
                     </div>
                     @endforeach
                 </div>
                 @else
-                <div class="project-detail-grid" style="margin-top:10px;margin-bottom:20px;">
+                <div class="project-detail-grid" style="margin-top:10px;">
                     <div class="project-detail-box"><span>Project Type</span><strong>{{ $project->tank_type }}</strong></div>
                     <div class="project-detail-box"><span>Capacity</span><strong>{{ $project->capacity }}</strong></div>
                     <div class="project-detail-box"><span>Dimensions</span><strong>{{ $project->dimensions ?? '—' }}</strong></div>
                 </div>
                 @endif
+            </div>
+
+            <!-- Request Update History: every "Request Update" sent for this project — who
+                 it went to, what was asked, and whether it's still open, fulfilled, or came
+                 back around as a revision request. -->
+            <div class="pv-card" style="margin-top:0;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <i data-lucide="send" style="width:18px;height:18px;color:var(--accent);"></i>
+                        <h3 class="pv-card-title" style="margin-bottom:0;">Request Update History</h3>
+                    </div>
+                    <span style="font-size:12px;color:var(--muted);font-weight:600;">
+                        {{ $progressRequests->count() }} {{ Str::plural('request', $progressRequests->count()) }}
+                    </span>
+                </div>
+
+                @php
+                    $requestStatusMap = [
+                        'open'               => ['key' => 'pending',  'icon' => 'clock',      'label' => 'Awaiting Submission'],
+                        'revision_requested' => ['key' => 'revision',  'icon' => 'rotate-ccw', 'label' => 'Revision Requested'],
+                        'completed'          => ['key' => 'approved',  'icon' => 'check',      'label' => 'Fulfilled'],
+                    ];
+                @endphp
+
+                <div style="display:flex;flex-direction:column;gap:10px;max-height:520px;overflow-y:auto;padding-right:4px;">
+                    @forelse($progressRequests as $req)
+                    @php $rs = $requestStatusMap[$req->status] ?? ['key' => 'superseded', 'icon' => 'help-circle', 'label' => ucfirst($req->status)]; @endphp
+                    <div class="pv-history-item" style="margin:0;">
+                        <div class="pv-history-card" style="cursor:default;">
+                            <div class="pv-history-header">
+                                <div class="pv-history-title-col">
+                                    <div class="pv-history-phase-title">
+                                        {{ ucfirst(str_replace('_', ' ', $req->phase)) }} Phase
+                                    </div>
+                                    <div class="pv-history-meta-row">
+                                        <i data-lucide="user"></i>
+                                        Sent to {{ $req->targetEmployee->full_name ?? 'Unassigned' }}
+                                        <span class="pv-history-meta-dot"></span>
+                                        <i data-lucide="calendar"></i>
+                                        {{ $req->created_at->format('M d, Y') }}
+                                    </div>
+                                </div>
+                                <span class="pv-history-status-badge status-{{ $rs['key'] }}">
+                                    <i data-lucide="{{ $rs['icon'] }}"></i>
+                                    {{ $rs['label'] }}
+                                </span>
+                            </div>
+
+                            @php $reqPhotos = $req->projectUpdate->photos ?? []; @endphp
+                            @if($req->message || ($req->status === 'completed' && $req->fulfilledBy) || count($reqPhotos) > 0)
+                            <div class="pv-history-body">
+                                @if($req->message)
+                                <div>
+                                    <div class="pv-history-section-label">Admin's Note</div>
+                                    <div class="pv-work-text">{{ $req->message }}</div>
+                                </div>
+                                @endif
+                                @if($req->status === 'completed' && $req->fulfilledBy)
+                                <div style="font-size:12px;color:var(--muted);font-weight:600;">
+                                    Fulfilled by {{ $req->fulfilledBy->full_name }}{{ $req->fulfilled_at ? ' on ' . $req->fulfilled_at->format('M d, Y') : '' }}
+                                </div>
+                                @endif
+                                @if(count($reqPhotos) > 0)
+                                <div>
+                                    <div class="pv-history-section-label">Site Photos</div>
+                                    <div class="pv-history-attachments">
+                                        @foreach(array_slice($reqPhotos, 0, 4) as $photo)
+                                            @if(preg_match('/\.(jpe?g|png|gif|webp|bmp)(\?.*)?$/i', $photo))
+                                            <img src="{{ $photo }}" class="pv-history-thumb" style="cursor:zoom-in;" onclick="openFileLightbox('{{ $photo }}')">
+                                            @else
+                                            <a href="{{ $photo }}" target="_blank" class="pv-history-thumb-doc" title="Open file"><i data-lucide="file-text"></i></a>
+                                            @endif
+                                        @endforeach
+                                        @if(count($reqPhotos) > 4)
+                                        <div class="pv-history-thumb-more">+{{ count($reqPhotos) - 4 }}</div>
+                                        @endif
+                                    </div>
+                                </div>
+                                @endif
+                            </div>
+                            @endif
+                        </div>
+                    </div>
+                    @empty
+                    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:16px;padding:30px 20px;">
+                        <div style="width:64px;height:64px;border-radius:50%;background:var(--surface-2);display:flex;align-items:center;justify-content:center;">
+                            <i data-lucide="send" style="width:32px;height:32px;color:var(--muted);"></i>
+                        </div>
+                        <div>
+                            <p style="font-size:15px;font-weight:800;color:var(--dark);margin-bottom:6px;">No Requests Yet</p>
+                            <p style="font-size:13px;color:var(--muted);max-width:280px;line-height:1.6;">Update requests sent to employees for this project will appear here.</p>
+                        </div>
+                    </div>
+                    @endforelse
+                </div>
+            </div>
 
             </div>
+            <!-- end Project Information / Request Update History grid -->
 
             <!-- Revolving Fund Summary — only shown when fund has been used -->
             @if($fundReleased > 0 || $fundReplenished > 0)
@@ -1414,7 +1594,8 @@
                 'photos'            => $photos,
                 'date_of_work'      => $u->date_of_work->format('M d, Y'),
                 'submitted_at'      => $u->created_at->format('M d, Y h:i A'),
-                'submitted_by'      => $u->submittedBy ? $u->submittedBy->full_name : 'Admin',
+                'submitted_by'      => $u->submitted_by_name,
+                'submitter_role'    => $u->submitter_role_label, // 'Focal Person' | 'Employee' | 'Admin'
                 'percentage'        => $u->percentage,
             ];
         })->keyBy('id')->toArray();
@@ -1861,7 +2042,7 @@
 
             document.getElementById('modalUpdateTitle').textContent    = ucPhase(u.phase) + ' Phase Update';
             document.getElementById('modalUpdateSubtitle').textContent = u.submitted_at;
-            document.getElementById('modalSubmittedBy').textContent    = u.submitted_by;
+            document.getElementById('modalSubmittedBy').textContent    = (u.submitter_role ? u.submitter_role + ' — ' : '') + u.submitted_by;
             document.getElementById('modalDateOfWork').textContent     = u.date_of_work;
             document.getElementById('modalPhase').textContent          = ucPhase(u.phase);
             document.getElementById('modalType').textContent           = isEmployee ? 'Employee Submission' : 'Admin Update';

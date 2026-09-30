@@ -41,4 +41,10 @@ class ProgressRequest extends Model
     {
         return $this->belongsTo(Employee::class, 'target_employee_id');
     }
+
+    /** The submission (with its site photos) that fulfilled this request, if any. */
+    public function projectUpdate()
+    {
+        return $this->belongsTo(ProjectUpdate::class, 'project_update_id');
+    }
 }

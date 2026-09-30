@@ -55,6 +55,17 @@ class ProjectUpdate extends Model
             : ($person->full_name ?? $person->name ?? 'Unknown');
     }
 
+    /** "Focal Person" when the submitting employee is flagged as one for the project,
+     *  "Employee" for any other assigned employee, "Admin" for an admin-authored update. */
+    public function getSubmitterRoleLabelAttribute(): string
+    {
+        if ($this->submitted_by_type !== 'employee') {
+            return 'Admin';
+        }
+        $person = $this->submittedBy()->first();
+        return ($person && $person->is_focal_person) ? 'Focal Person' : 'Employee';
+    }
+
     public function parentUpdate()
     {
         return $this->belongsTo(ProjectUpdate::class, 'parent_update_id');
