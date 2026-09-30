@@ -202,7 +202,8 @@ class ProjectController extends Controller
         $laborCost    = $estLaborCost;
 
         // Revolving Fund Summary for this project
-        $fundReleased    = FundTransaction::totalReleased($project->id);
+        FundTransaction::syncReleaseStatuses($project->id); // also repairs releases saved before statuses were tracked
+        $fundReleased   = FundTransaction::totalReleased($project->id);
         $fundReplenished = FundTransaction::totalReplenished($project->id);
         $fundOutstanding = $fundReleased - $fundReplenished;
         $fundHistory     = FundTransaction::where('project_id', $project->id)

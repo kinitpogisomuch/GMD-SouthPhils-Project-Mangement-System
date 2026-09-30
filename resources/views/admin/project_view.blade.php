@@ -173,6 +173,16 @@
                     <div style="height:8px;background:rgba(255,255,255,0.12);border-radius:999px;overflow:hidden;">
                         <div style="height:100%;width:{{ $collPct }}%;background:{{ $collPct >= 100 ? '#4ade80' : '#facc15' }};border-radius:999px;transition:width 0.5s;"></div>
                     </div>
+                    @if($fundReleased > 0)
+                    {{-- A fund release is a cash advance, not a cost — it is shown here but only counts in
+                         Actual Materials / Total Actual Spend once what it paid for is logged as a purchase. --}}
+                    <div style="margin-top:12px;font-size:11.5px;color:rgba(255,255,255,0.5);line-height:1.6;">
+                        <i data-lucide="refresh-cw" style="width:12px;height:12px;vertical-align:-2px;"></i>
+                        Revolving fund used: <strong style="color:#fff;">₱{{ number_format($fundReleased, 0) }}</strong>
+                        &middot; {{ $fundOutstanding > 0 ? '₱' . number_format($fundOutstanding, 0) . ' still to be replenished' : 'fully replenished' }}
+                        &middot; a cash advance, not counted in Total Actual Spend until the purchase it paid for is recorded.
+                    </div>
+                    @endif
                 </div>
             </div>
             @php

@@ -26,8 +26,6 @@ class FundController extends Controller
             ->whereYear('date', now()->year)
             ->sum('amount');
 
-        // Pending replenishment = total released - total replenished (outstanding)
-        $pendingReplenishment = max(0, $totalReleased - $totalReplenished);
 
         // Per-project outstanding for the balance tracker
         $projectOutstandings = FundTransaction::where('type', 'release')
@@ -51,6 +49,10 @@ class FundController extends Controller
             })
             ->filter(fn($d) => $d['outstanding'] > 0)
             ->values();
+
+        // Pending replenishment = what each project still owes the fund, added up per project
+        // so one project's repayments can never hide another project's outstanding amount.
+        $pendingReplenishment = (float) $projectOutstandings->sum('outstanding');
 
         // Low balance threshold: < 20% of initial balance
         $isLowBalance = $initialBalance > 0 && ($currentBalance / $initialBalance) < 0.20;
@@ -83,6 +85,15 @@ class FundController extends Controller
             'date'       => 'required|date',
         ]);
 
+        // A project can only pay back what was actually released to it.
+        $outstanding = FundTransaction::outstandingForProject((int) $validated['project_id']);
+        if ((float) $validated['amount'] > $outstanding + 0.005) {
+            return redirect()->route('admin.revolving_fund')
+                ->with('error', $outstanding > 0
+                    ? 'That is more than the ₱' . number_format($outstanding, 2) . ' this project still owes the fund.'
+                    : 'This project has no outstanding fund balance to replenish.');
+        }
+
         $newBalance = FundSetting::adjustBalance((float) $validated['amount']);
 
         FundTransaction::create([
@@ -96,6 +107,8 @@ class FundController extends Controller
             'balance_after' => $newBalance,
             'recorded_by'   => auth()->user()->name ?? 'Admin',
         ]);
+
+        FundTransaction::syncReleaseStatuses((int) $validated['project_id']);
 
         $project = Project::find($validated['project_id']);
         NotificationService::revolvingFundReplenished($project, (float) $validated['amount']);

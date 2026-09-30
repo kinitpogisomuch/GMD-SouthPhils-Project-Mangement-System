@@ -64,6 +64,32 @@ class FundTransaction extends Model
         return static::totalReleased($projectId) - static::totalReplenished($projectId);
     }
 
+    /**
+     * Keep each release's status in step with what the project has paid back. Replenishments
+     * settle the oldest releases first: a release reads "Completed" once everything released
+     * up to and including it has been replenished, otherwise "Pending Replenishment".
+     */
+    public static function syncReleaseStatuses(int $projectId): void
+    {
+        $replenished = static::totalReplenished($projectId);
+        $running     = 0.0;
+
+        $releases = static::where('type', 'release')
+            ->where('project_id', $projectId)
+            ->orderBy('date')
+            ->orderBy('id')
+            ->get();
+
+        foreach ($releases as $release) {
+            $running += (float) $release->amount;
+            $status   = $running <= $replenished + 0.005 ? 'Completed' : 'Pending Replenishment';
+
+            if ($release->status !== $status) {
+                $release->update(['status' => $status]);
+            }
+        }
+    }
+
     public static function activeProjectAdvancesCount(): int
     {
         $released    = static::where('type', 'release')->groupBy('project_id')->selectRaw('project_id, SUM(amount) as total')->pluck('total', 'project_id');
@@ -112,6 +138,8 @@ class FundTransaction extends Model
             'balance_after'=> $newBalance,
             'recorded_by'  => 'System',
         ]);
+
+        static::syncReleaseStatuses($project->id);
 
         NotificationService::revolvingFundReplenished($project, $amount);
 
