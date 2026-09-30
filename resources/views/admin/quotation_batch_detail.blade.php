@@ -240,6 +240,15 @@
         .pm-custom i, .pm-custom svg { width: 14px; height: 14px; }
         .pm-rate { margin-left: auto; font-size: 12px; font-weight: 800; color: var(--muted); white-space: nowrap; }
         #confirmPickMaterials:disabled, #confirmPickLabor:disabled { opacity: .5; cursor: not-allowed; }
+
+        /* View-only builder — once the client has approved the quotation nothing can be edited */
+        .qb-viewonly { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; color: var(--muted); background: var(--cream-soft); border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px; }
+        .qb-viewonly i, .qb-viewonly svg { width: 12px; height: 12px; }
+        .qb-locked .add-btn, .qb-locked .qb-icon-btn, .qb-locked .qb-pill-btn, .qb-locked #qbSaveBtn,
+        .qb-locked .qb-req, .qb-locked label[for="entryDateInput"] { display: none; }
+        .qb-locked input:disabled, .qb-locked select:disabled { background: rgba(0,0,0,.03); color: var(--dark); -webkit-text-fill-color: var(--dark); opacity: 1; cursor: default; }
+        .qb-locked .qb-cell-total:disabled { background: transparent; }
+        .qb-locked .qb-chip { cursor: default; }
     </style>
 </head>
 <body class="page-enter">
@@ -263,7 +272,7 @@
             <div class="page-header">
                 <div>
                     <h1>{{ $batch->client->name ?? 'Client' }}</h1>
-                    <p>Enter materials, labor, and costs for this quotation.</p>
+                    <p>{{ $isLocked ? 'Materials, labor, and costs of the approved quotation.' : 'Enter materials, labor, and costs for this quotation.' }}</p>
                 </div>
                 @if($batchStatus === 'pending')
                 <button class="add-btn" type="button" id="openSendQuotationModal">
@@ -427,16 +436,19 @@
             </div>
 
             {{-- Quotation Builder — pricing, materials and labor in one card with a single Save --}}
-            <form method="POST" action="{{ route('admin.quotation_requests.batch_save', $batch->id) }}" id="quotationForm" class="qb-card">
+            <form method="POST" action="{{ route('admin.quotation_requests.batch_save', $batch->id) }}" id="quotationForm" class="qb-card{{ $isLocked ? ' qb-locked' : '' }}">
                 @csrf
                 <input type="hidden" name="open_send_modal" id="openSendModalFlag" value="0">
 
                 <div class="qb-head">
                     <div>
                         <h2 class="qb-title"><i data-lucide="calculator"></i> Quotation Builder</h2>
-                        <p class="qb-sub">Set the pricing, materials and labor below, then save everything at once.</p>
+                        <p class="qb-sub">{{ $isLocked ? 'The client has approved this quotation, so it can no longer be edited.' : 'Set the pricing, materials and labor below, then save everything at once.' }}</p>
                     </div>
                     <div class="qb-head-right">
+                        @if($isLocked)
+                        <span class="qb-viewonly"><i data-lucide="lock"></i> View only</span>
+                        @endif
                         <span class="qb-dirty" id="qbDirty" hidden><i data-lucide="circle-dot"></i> Unsaved changes</span>
                         <label class="qb-chip" for="entryDateInput" title="Applies to everything added when you save. Leave blank for today; set an earlier date when backfilling history.">
                             Entry Date <span class="qb-optional">(optional)</span>
@@ -796,7 +808,7 @@
     var cancelSendQBtn = document.getElementById('cancelSendQuotation');
     if (cancelSendQBtn) cancelSendQBtn.addEventListener('click', function () { closeModal('sendQuotationModal'); });
 
-    @if(request('open_send'))
+    @if(request('open_send') && !$isLocked)
     openModal('sendQuotationModal');
     @endif
 
@@ -1860,6 +1872,11 @@
     recalc();
     updateSendState();
     if (typeof lucide !== 'undefined') lucide.createIcons();
+
+    @if($isLocked)
+    // View-only: the client has approved this quotation, so every field in the builder is frozen.
+    quotationForm.querySelectorAll('input, select, textarea, button').forEach(function (el) { el.disabled = true; });
+    @endif
     </script>
     @include('partials.receipt_viewer')
 

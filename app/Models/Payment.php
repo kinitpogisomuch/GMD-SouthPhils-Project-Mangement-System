@@ -121,6 +121,30 @@ class Payment extends Model
     }
 
     /**
+     * What the client owes when submitting proof for each stage, judged against the
+     * cumulative total received (same basis as paidStages()). The down payment is a
+     * fixed amount; whatever is left unpaid on the progress payment carries over into
+     * the final payment, so the final amount due is always the rest of the contract.
+     */
+    public function stageAmountsDue(): array
+    {
+        $amounts = $this->stageAmounts();
+        $paid    = round($this->totalPaid(), 2);
+        $down    = (float) $amounts['down_payment'];
+
+        $due = ['down_payment' => max(0, round($down - $paid, 2))];
+
+        if (isset($amounts['progress_payment'])) {
+            $progress = (float) $amounts['progress_payment'];
+            $due['progress_payment'] = max(0, round(min($progress, $down + $progress - $paid), 2));
+        }
+
+        $due['final_payment'] = max(0, round((float) $this->contract_amount - max($paid, $down), 2));
+
+        return $due;
+    }
+
+    /**
      * Which stages are "settled" — i.e. unlock the phase gate tied to them.
      *
      * Real clients rarely pay in the exact 50/30/20 split, so this is judged

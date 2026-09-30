@@ -420,6 +420,19 @@ class PaymentController extends Controller
             'proof_file.required_if'   => 'Please attach an image or file as proof of payment.',
         ]);
 
+        // The down payment is a fixed amount; the other stages can't exceed what is due
+        // (the final payment's due amount already includes any unpaid progress payment).
+        $amountDue = $payment->stageAmountsDue()[$validated['payment_stage']] ?? 0;
+        if ($amountDue > 0) {
+            if ($validated['payment_stage'] === 'down_payment') {
+                $validated['amount_paid'] = $amountDue;
+            } elseif ((float) $validated['amount_paid'] > $amountDue + 0.01) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'amount_paid' => 'The amount cannot be more than the ₱' . number_format($amountDue, 2) . ' due for this stage.',
+                ]);
+            }
+        }
+
         $fileUrl = null;
         if ($request->hasFile('proof_file')) {
             $fileUrls = $this->storage->uploadMultiple(

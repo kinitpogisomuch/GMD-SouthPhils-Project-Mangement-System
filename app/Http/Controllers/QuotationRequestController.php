@@ -377,6 +377,21 @@ class QuotationRequestController extends Controller
         ]);
     }
 
+    /** Once the client has approved the quotation it is final — the Quotation Builder becomes view-only. */
+    private function isLocked(string $batchId): bool
+    {
+        return QuotationRequest::where('batch_id', $batchId)
+            ->whereIn('status', ['approved', 'converted'])
+            ->exists();
+    }
+
+    private function lockedRedirect(string $batchId)
+    {
+        return redirect()
+            ->route('admin.quotation_requests.batch_detail', $batchId)
+            ->with('error', 'The client has already approved this quotation, so it can no longer be edited.');
+    }
+
     public function batchDetail($batchId)
     {
         $batch = $this->resolveBatch($batchId);
@@ -403,6 +418,7 @@ class QuotationRequestController extends Controller
 
         $estimatedBudget = $batch->estimatedBudget();
         $batchStatus     = $tankItems->first()->status ?? 'pending';
+        $isLocked        = in_array($batchStatus, ['approved', 'converted'], true);
 
         $regularEmployees = Employee::where('status', 'Active')
             ->where('employee_type', 'Regular')
@@ -410,7 +426,7 @@ class QuotationRequestController extends Controller
             ->get();
 
         return view('admin.quotation_batch_detail', compact(
-            'batch', 'tankItems', 'batchStatus',
+            'batch', 'tankItems', 'batchStatus', 'isLocked',
             'materials', 'totalMaterials', 'estimatedCost', 'materialFactor',
             'laborEntries', 'totalLaborEntries', 'totalLaborCost',
             'estimatedBudget', 'regularEmployees'
@@ -425,6 +441,10 @@ class QuotationRequestController extends Controller
      */
     public function updateMarkup(Request $request, $batchId)
     {
+        if ($this->isLocked($batchId)) {
+            return $this->lockedRedirect($batchId);
+        }
+
         $batch = $this->resolveBatch($batchId);
 
         $validated = $request->validate([
@@ -482,6 +502,10 @@ class QuotationRequestController extends Controller
 
     public function sendBatchQuotation(Request $request, $batchId)
     {
+        if ($this->isLocked($batchId)) {
+            return $this->lockedRedirect($batchId);
+        }
+
         $batch = $this->resolveBatch($batchId);
 
         // Only a finished Quotation Builder can be sent — the button is disabled until then, this is the backstop.
@@ -547,6 +571,10 @@ class QuotationRequestController extends Controller
 
     public function storeMaterials(Request $request, $batchId)
     {
+        if ($this->isLocked($batchId)) {
+            return $this->lockedRedirect($batchId);
+        }
+
         $this->resolveBatch($batchId);
 
         $request->validate([
@@ -588,6 +616,10 @@ class QuotationRequestController extends Controller
 
     public function storeLabor(Request $request, $batchId)
     {
+        if ($this->isLocked($batchId)) {
+            return $this->lockedRedirect($batchId);
+        }
+
         $batch = $this->resolveBatch($batchId);
 
         $request->validate([
@@ -731,6 +763,10 @@ class QuotationRequestController extends Controller
      */
     public function saveAll(Request $request, $batchId)
     {
+        if ($this->isLocked($batchId)) {
+            return $this->lockedRedirect($batchId);
+        }
+
         $batch = $this->resolveBatch($batchId);
 
         $request->validate([
@@ -881,6 +917,10 @@ class QuotationRequestController extends Controller
 
     public function deleteMaterial($batchId, $materialId)
     {
+        if ($this->isLocked($batchId)) {
+            return $this->lockedRedirect($batchId);
+        }
+
         $material = ProjectMaterial::where('quotation_batch_id', $batchId)->findOrFail($materialId);
         $name     = $material->material_name;
         $material->delete();
@@ -892,6 +932,10 @@ class QuotationRequestController extends Controller
 
     public function updateEstimatedDays(Request $request, $batchId)
     {
+        if ($this->isLocked($batchId)) {
+            return $this->lockedRedirect($batchId);
+        }
+
         $batch = $this->resolveBatch($batchId);
 
         $validated = $request->validate([
@@ -912,6 +956,10 @@ class QuotationRequestController extends Controller
 
     public function archiveLabor($batchId, $laborId)
     {
+        if ($this->isLocked($batchId)) {
+            return $this->lockedRedirect($batchId);
+        }
+
         $entry         = ProjectLabor::where('quotation_batch_id', $batchId)->findOrFail($laborId);
         $entry->status = $entry->status === 'archived' ? 'active' : 'archived';
         $entry->save();

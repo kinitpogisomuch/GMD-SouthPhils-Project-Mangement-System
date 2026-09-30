@@ -43,6 +43,11 @@
         #proofMopGroup.is-invalid .mop-option {
             border-color: #dc2626;
         }
+        /* The down payment is a fixed amount — shown, but not editable */
+        #proofAmountInput[readonly] {
+            background: var(--surface-2);
+            cursor: not-allowed;
+        }
 
         /* This table sits right above a footer strip of its own (submission count/total), so
            the last row needs its bottom border back — otherwise it looks unclosed against the
@@ -145,6 +150,9 @@
                 <div class="card-body" style="display:flex;flex-direction:column;gap:20px;">
                     @php
                         $selectableStages = collect($payment->stagesOpenForProof());
+                        $amountsDue       = $payment->stageAmountsDue();
+                        // Unpaid progress payment that has rolled into the final payment
+                        $finalCarryOver   = max(0, round(($amountsDue['final_payment'] ?? 0) - ($stageAmounts['final_payment'] ?? 0), 2));
                     @endphp
 
                     @if($selectableStages->isEmpty())
@@ -168,7 +176,7 @@
                                 <select name="payment_stage" id="proofStageSelect" required>
                                     <option value="" disabled {{ old('payment_stage') ? '' : 'selected' }}>Select stage</option>
                                     @foreach($selectableStages as $stage)
-                                    <option value="{{ $stage }}" {{ old('payment_stage') === $stage ? 'selected' : '' }}>{{ \App\Models\PaymentTransaction::stageLabel($stage) }}</option>
+                                    <option value="{{ $stage }}" data-due="{{ $amountsDue[$stage] ?? 0 }}" data-carry="{{ $stage === 'final_payment' ? $finalCarryOver : 0 }}" {{ old('payment_stage') === $stage ? 'selected' : '' }}>{{ \App\Models\PaymentTransaction::stageLabel($stage) }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -176,6 +184,7 @@
                                 <label>Amount Paid (₱) <span style="color:#dc2626;">*</span></label>
                                 <input type="text" inputmode="decimal" name="amount_paid" id="proofAmountInput"
                                        placeholder="e.g. 50,000" value="{{ old('amount_paid') }}">
+                                <small id="proofAmountHint" style="display:none;margin-top:6px;font-size:12px;color:var(--muted);"></small>
                             </div>
                             <div class="form-group form-group-full">
                                 <label>Mode of Payment <span style="color:#dc2626;">*</span></label>
@@ -468,7 +477,45 @@
                 amount.value = whole + (parts.length > 1 ? '.' + parts.slice(1).join('').slice(0, 2) : '');
                 amount.classList.remove('is-invalid');
             });
-            stage.addEventListener('change', function () { stage.classList.remove('is-invalid'); });
+            // ── Amount per stage: the down payment is fixed; the final payment is pre-filled with
+            // everything still owed, which includes any progress payment left unpaid. ──
+            var amountHint = document.getElementById('proofAmountHint');
+            function money(n) {
+                return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+            function stageDue() {
+                var opt = stage.options[stage.selectedIndex];
+                return opt && opt.value ? (parseFloat(opt.dataset.due) || 0) : 0;
+            }
+            function syncAmountForStage(keepTyped) {
+                var opt   = stage.options[stage.selectedIndex];
+                var due   = stageDue();
+                var carry = opt ? (parseFloat(opt.dataset.carry) || 0) : 0;
+                var fixed = stage.value === 'down_payment' && due > 0;
+                var hint  = '';
+
+                amount.readOnly = fixed;
+                if (fixed) {
+                    amount.value = money(due);
+                    hint = 'The down payment is a fixed amount.';
+                } else if (stage.value === 'progress_payment' && due > 0) {
+                    if (!keepTyped) amount.value = '';
+                    hint = 'Up to ₱' + money(due) + '. Any part left unpaid is added to your final payment.';
+                } else if (stage.value === 'final_payment' && due > 0) {
+                    if (!keepTyped || !amount.value) amount.value = money(due);
+                    hint = carry > 0
+                        ? 'Balance due: ₱' + money(due) + ', including ₱' + money(carry) + ' unpaid progress payment.'
+                        : 'Balance due: ₱' + money(due) + '.';
+                }
+                amountHint.textContent = hint;
+                amountHint.style.display = hint ? 'block' : 'none';
+                amount.classList.remove('is-invalid');
+            }
+            stage.addEventListener('change', function () {
+                stage.classList.remove('is-invalid');
+                syncAmountForStage(false);
+            });
+            if (stage.value) syncAmountForStage(true); // stage restored after a failed submit
 
             function syncFileRequirement() {
                 var required = fileIsRequired();
@@ -502,7 +549,8 @@
                 stage.classList.toggle('is-invalid', !stage.value);
                 if (!stage.value) invalid = true;
 
-                var validAmount = parseFloat(amount.value.replace(/,/g, '')) > 0;
+                var typedAmount = parseFloat(amount.value.replace(/,/g, ''));
+                var validAmount = typedAmount > 0 && (stageDue() <= 0 || typedAmount <= stageDue() + 0.01);
                 amount.classList.toggle('is-invalid', !validAmount);
                 if (!validAmount) invalid = true;
 
