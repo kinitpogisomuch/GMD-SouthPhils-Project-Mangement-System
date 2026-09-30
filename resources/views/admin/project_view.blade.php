@@ -1474,6 +1474,30 @@
     </div>
     @endif
 
+    <!-- ===== INSPECTION: MARK AS COMPLETED CONFIRM MODAL ===== -->
+    @if($project->current_phase === 'inspection')
+    <div class="modal-overlay" id="inspectionCompleteModal">
+        <div class="modal-card" style="max-width:440px;">
+            <div class="modal-header">
+                <div>
+                    <h2>Mark Inspection as Completed?</h2>
+                    <p>This will complete the inspection phase and move the project to the next phase. Please make sure the inspection details are final before continuing.</p>
+                </div>
+                <button class="modal-close" type="button" id="closeInspectionCompleteModal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="cancel-btn" id="cancelInspectionCompleteModal">Cancel</button>
+                <button type="button" class="save-btn" id="confirmInspectionComplete">
+                    <i data-lucide="check-circle-2"></i>
+                    Mark as Completed
+                </button>
+            </div>
+        </div>
+    </div>
+    @endif
+
     @if($showPTRButton)
     <!-- ===== GENERATE PERFORMANCE TEST REPORT MODAL ===== -->
     <div class="modal-overlay" id="ptrModal">
@@ -1865,6 +1889,34 @@
                 form.submit();
             });
         }
+
+        // Inspection "Mark as Completed" asks for confirmation before it submits
+        const inspectionCompleteBtn   = document.getElementById('inspectionMarkCompleteBtn');
+        const inspectionCompleteModal = document.getElementById('inspectionCompleteModal');
+        if (inspectionCompleteBtn && inspectionCompleteModal) {
+            const closeInspectionCompleteModal = () => {
+                inspectionCompleteModal.classList.remove('show');
+                document.body.style.overflow = '';
+            };
+            inspectionCompleteBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                // anything still missing on the form is pointed out first, before asking to confirm
+                if (!inspectionCompleteBtn.form.reportValidity()) return;
+                inspectionCompleteModal.classList.add('show');
+                document.body.style.overflow = 'hidden';
+            });
+            document.getElementById('closeInspectionCompleteModal').addEventListener('click', closeInspectionCompleteModal);
+            document.getElementById('cancelInspectionCompleteModal').addEventListener('click', closeInspectionCompleteModal);
+            inspectionCompleteModal.addEventListener('click', (e) => {
+                if (e.target === inspectionCompleteModal) closeInspectionCompleteModal();
+            });
+            document.getElementById('confirmInspectionComplete').addEventListener('click', () => {
+                closeInspectionCompleteModal();
+                // submitting through the button keeps its mark_completed=1 value in the request
+                inspectionCompleteBtn.form.requestSubmit(inspectionCompleteBtn);
+            });
+        }
+
         document.getElementById('closeRequestModal').addEventListener('click', () => {
             document.getElementById('requestUpdateModal').classList.remove('show');
             document.body.style.overflow = '';
