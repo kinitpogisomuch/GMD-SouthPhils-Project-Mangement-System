@@ -3472,20 +3472,35 @@ input[type="number"] {
         max-height: calc(100vh - var(--header-height) - 168px) !important;
     }
 
+    /* Mobile nav is a dropdown panel directly under the header (same pattern as
+       the employee side's mobile nav) instead of a full-height, off-canvas
+       left drawer with a dark backdrop — hidden by default, shown full-width
+       when .open is toggled by the same hamburger button/JS as before. */
     .admin-sidebar {
-        width: 78vw;
-        max-width: 280px;
-        transform: translateX(-100%);
-        transition:
-            transform 0.32s cubic-bezier(0.4, 0, 0.2, 1),
-            box-shadow 0.25s ease;
+        left: 0;
+        right: 0;
+        width: 100%;
+        max-width: 100%;
+        height: auto;
+        max-height: calc(100vh - var(--header-height));
+        transform: none;
+        display: none;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.16);
+        transition: none;
     }
 
     .admin-sidebar.open {
-        width: 78vw;
-        max-width: 280px;
-        transform: translateX(0);
-        box-shadow: 6px 0 24px rgba(0, 0, 0, 0.18);
+        width: 100%;
+        max-width: 100%;
+        display: block;
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.16);
+    }
+
+    .admin-sidebar-nav {
+        height: auto;
+        justify-content: flex-start;
     }
 
     .admin-sidebar-nav a,
@@ -3493,8 +3508,9 @@ input[type="number"] {
         width: 100%;
     }
 
+    /* No dark full-screen backdrop for a lightweight dropdown panel. */
     .admin-sidebar.open ~ .sidebar-overlay {
-        display: block;
+        display: none;
     }
 
     .admin-content {
