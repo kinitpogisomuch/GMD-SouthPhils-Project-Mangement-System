@@ -208,12 +208,18 @@ class PaymentController extends Controller
             'proof_id'         => 'nullable|integer',
         ]);
 
-        // Down Payment / Final Payment are fixed splits of the contract (50/30/20 or 50/50) —
-        // always settle them in full. Only Progress Payment (the 30% stage on big projects)
-        // accepts partial payments, and even then never beyond what's left on that stage.
-        $stage          = $validated['payment_stage'];
-        $isPartialStage = $payment->payment_term_type === 'big_project' && $stage === 'progress_payment';
-        $stageRemaining = $payment->stageRemaining($stage);
+        // Stages are settled in order, so only the one currently open can be recorded. The Down
+        // Payment is a fixed amount and always settled in full; Progress and Final Payment accept
+        // partial payments, never beyond what is due. Once the project reaches its final-payment
+        // phase an unpaid Progress Payment is closed and its balance is due with the Final Payment.
+        $stage = $validated['payment_stage'];
+
+        if (($payment->proofStageStates(false)[$stage] ?? null) !== 'open') {
+            return back()->withInput()->with('error', 'That payment stage cannot be recorded right now — it is already paid, closed, or waiting on an earlier stage.');
+        }
+
+        $isPartialStage = $stage !== 'down_payment';
+        $stageRemaining = $payment->stageAmountsDue()[$stage] ?? 0;
 
         if ($stageRemaining <= 0) {
             return back()->withInput()->with('error', 'That payment stage is already fully paid.');

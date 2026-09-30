@@ -21,24 +21,28 @@
                 $totalPaid = $payment->totalPaid();
                 $balance   = $payment->currentBalance();
 
-                // Down Payment / Final Payment are fixed splits of the contract (50/30/20 or 50/50) —
-                // only Progress Payment (the 30% stage on big projects) accepts partial payments.
+                // The Down Payment is a fixed amount; Progress and Final Payment accept partial payments.
                 $stageMeta = [];
-                // Stages must be settled in order — only the earliest unpaid stage is
-                // selectable; later stages stay locked until the ones before them are paid.
-                $currentStage = collect($payment->stages())->first(fn ($s) => !in_array($s, $paidStages));
+                // Stages must be settled in order — only the one currently open is selectable. Once the
+                // project reaches its final-payment phase an unpaid Progress Payment is closed and its
+                // balance is carried into the Final Payment (see Payment::proofStageStates()).
+                $stageStates = $payment->proofStageStates(false);
+                $amountsDue  = $payment->stageAmountsDue();
+                $finalCarry  = max(0, round(($amountsDue['final_payment'] ?? 0) - ($payment->stageAmounts()['final_payment'] ?? 0), 2));
                 foreach ($payment->stages() as $st) {
                     $stageMeta[$st] = [
-                        'remaining' => $payment->stageRemaining($st),
-                        'partial'   => $payment->payment_term_type === 'big_project' && $st === 'progress_payment',
+                        'remaining' => $amountsDue[$st] ?? 0,
+                        'partial'   => $st !== 'down_payment',
+                        'carry'     => $st === 'final_payment' ? $finalCarry : 0,
+                        'isCarried' => $stageStates[$st] === 'carried',
                         'percent'   => match(true) {
                             $st === 'down_payment'     => 50,
                             $st === 'progress_payment' => 30,
                             $st === 'final_payment'    => $payment->payment_term_type === 'big_project' ? 20 : 50,
                             default                    => null,
                         },
-                        'isPaid'      => in_array($st, $paidStages),
-                        'isSelectable' => $st === $currentStage,
+                        'isPaid'      => $stageStates[$st] === 'paid',
+                        'isSelectable' => $stageStates[$st] === 'open',
                     ];
                 }
             @endphp
@@ -318,10 +322,16 @@
                                      data-remaining="{{ $stageMeta[$stage]['remaining'] }}"
                                      data-partial="{{ $stageMeta[$stage]['partial'] ? '1' : '0' }}"
                                      data-percent="{{ $stageMeta[$stage]['percent'] }}"
+                                     data-carry="{{ $stageMeta[$stage]['carry'] }}"
                                      @if($isSelectable) onclick="selectStage(this)" @endif>
                                     <span>{{ $stageLabel }}</span>
                                     @if($isPaid)
                                         <span class="stage-select-status" style="color:#16a34a;">✓ Paid</span>
+                                    @elseif($stageMeta[$stage]['isCarried'])
+                                        <span class="stage-select-status" style="color:var(--muted);">
+                                            <i data-lucide="lock" style="width:11px;height:11px;vertical-align:-1px;"></i>
+                                            Closed — balance added to Final Payment
+                                        </span>
                                     @elseif(!$isSelectable)
                                         <span class="stage-select-status" style="color:var(--muted);">
                                             <i data-lucide="lock" style="width:11px;height:11px;vertical-align:-1px;"></i>
@@ -544,10 +554,13 @@
         btn.addEventListener('click', function () {
             openModal();
             var opt = document.querySelector('.stage-select-option[data-value="' + btn.dataset.stage + '"]');
+            // A submission for a stage that has since closed (e.g. an unpaid Progress Payment once the
+            // project reached final payment) is recorded against the stage that is open now.
+            if (!opt || opt.classList.contains('disabled')) opt = document.querySelector('.stage-select-option:not(.disabled)');
             if (opt) selectStage(opt);
-            // Fixed stages (Down Payment / Final Payment) already got their locked, correct
-            // amount from selectStage() above — only a partial-allowed stage (Progress Payment)
-            // should take the amount the client actually typed in their submission.
+            // The fixed Down Payment already got its locked, correct amount from selectStage()
+            // above — a partial-allowed stage (Progress / Final Payment) takes the amount the
+            // client actually typed in their submission.
             if (opt && opt.dataset.partial === '1' && btn.dataset.amount) {
                 var amountInput = document.getElementById('amountPaidInput');
                 amountInput.value = btn.dataset.amount;
@@ -698,9 +711,9 @@
         applyStageAmountRule(el);
     }
 
-    // ── Down Payment / Final Payment are fixed splits of the contract (e.g. 50/30/20
-    // or 50/50) — lock the amount to what's left on that stage. Progress Payment (the
-    // 30% stage on big projects) is the only stage that accepts partial payments. ──
+    // ── The Down Payment is a fixed amount — locked to what's due. Progress and Final
+    // Payment accept partial payments up to what's due; the Final Payment's due amount
+    // includes any Progress Payment balance that was left unpaid. ──
     function applyStageAmountRule(el) {
         var amountInput = document.getElementById('amountPaidInput');
         var hint         = document.getElementById('amountHint');
@@ -714,7 +727,9 @@
             amountInput.classList.remove('amount-locked');
             amountInput.value = remaining > 0 ? remaining.toFixed(2) : '';
             formatMoneyInput(amountInput);
-            hint.textContent = 'Partial payments allowed — up to ₱' + remainingFmt + ' remaining for this stage.';
+            var carry = parseFloat(el.dataset.carry || '0');
+            hint.textContent = 'Partial payments allowed — up to ₱' + remainingFmt + ' remaining for this stage'
+                + (carry > 0 ? ', including ₱' + carry.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' unpaid progress payment.' : '.');
         } else {
             amountInput.readOnly = true;
             amountInput.classList.add('amount-locked');

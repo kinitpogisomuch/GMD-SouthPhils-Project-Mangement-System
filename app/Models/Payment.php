@@ -116,11 +116,14 @@ class Payment extends Model
      *   carried — progress payment closed unpaid; its balance moved to the final payment
      *   open    — the one stage the client can submit proof for right now
      *   locked  — waits for the stage before it
+     *
+     * The admin's Record Payment form follows the same states; pass false there so a down
+     * payment counts as paid only once its money is actually recorded.
      */
-    public function proofStageStates(): array
+    public function proofStageStates(bool $forClient = true): array
     {
         $paid       = $this->paidStages();
-        $downProven = in_array('down_payment', $this->confirmedProofStages());
+        $downProven = $forClient && in_array('down_payment', $this->confirmedProofStages());
         $closed     = $this->progressPaymentClosed();
         $states     = [];
         $opened     = false;
