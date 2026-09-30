@@ -187,6 +187,23 @@ class ClientSettingsController extends Controller
 
         \App\Services\NotificationService::clientRejected($client, $request->input('reason'));
 
+        if ($client->email) {
+            try {
+                Mail::html(
+                    $this->buildRejectionEmailHtml($client->name),
+                    function ($message) use ($client) {
+                        $message->to($client->email, $client->name)
+                                ->from(config('mail.from.address'), config('mail.from.name'))
+                                ->replyTo(config('mail.from.address'), config('mail.from.name'))
+                                ->subject('Update on Your GMD South Phils Account Application');
+                    }
+                );
+                Log::info('ClientSettings: rejection email sent', ['email' => $client->email]);
+            } catch (\Exception $e) {
+                Log::error('ClientSettings: rejection email failed', ['error' => $e->getMessage()]);
+            }
+        }
+
         return redirect()->route('admin.clients')
             ->with('success', 'Client application rejected.');
     }
@@ -329,6 +346,52 @@ class ClientSettingsController extends Controller
                 <div class="footer">
                     Thank you,<br>
                     <strong>GMD Construction Management Team</strong>
+                </div>
+            </div>
+        </body>
+        </html>';
+    }
+
+    private function buildRejectionEmailHtml(string $name): string
+    {
+        return '
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 20px; }
+                .container { background: #fff; max-width: 520px; margin: 0 auto; border-radius: 12px; padding: 36px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+                .logo { font-size: 20px; font-weight: 900; color: #1a1a2e; margin-bottom: 24px; }
+                .logo span { color: #e8900a; }
+                .badge { display: inline-block; background: #fee2e2; color: #b91c1c; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; border-radius: 999px; padding: 6px 14px; margin-bottom: 18px; }
+                h2 { font-size: 18px; color: #1a1a2e; margin-bottom: 8px; }
+                p { font-size: 14px; color: #444; line-height: 1.6; }
+                ul { margin: 0 0 14px; padding-left: 20px; }
+                li { font-size: 14px; color: #444; line-height: 1.6; margin-bottom: 4px; }
+                .footer { margin-top: 32px; font-size: 12px; color: #aaa; border-top: 1px solid #eee; padding-top: 16px; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="logo">GMD <span>South Phils</span></div>
+                <div class="badge">Application Not Approved</div>
+                <h2>Update on your account application</h2>
+                <p>Dear <strong>' . htmlspecialchars($name) . '</strong>,</p>
+                <p>Thank you for your interest in the GMD South Phils client portal. After careful review of your application, we regret to inform you that we are unable to approve your account at this time.</p>
+                <p>Applications are generally not approved for one or more of the following reasons:</p>
+                <ul>
+                    <li>The information provided during sign-up was incomplete or inaccurate.</li>
+                    <li>We were unable to verify the identity or contact details submitted.</li>
+                    <li>An account has already been registered under the same name or email address.</li>
+                    <li>The application does not correspond to an existing or prospective project with our company.</li>
+                </ul>
+                <p>Should you have any questions regarding this decision, or if you believe it was made in error, you may reply to this email and our team will be glad to assist you.</p>
+                <p>We appreciate your understanding.</p>
+
+                <div class="footer">
+                    Respectfully,<br>
+                    <strong>GMD SouthPhils Metal Fabrication Works</strong>
                 </div>
             </div>
         </body>

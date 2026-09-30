@@ -465,13 +465,6 @@
             <form method="POST" id="rejectClientForm">
                 @csrf
                 @method('PATCH')
-                <div class="form-group" style="text-align:left;padding:0 24px 8px;">
-                    <label style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:8px;">
-                        Reason <span style="font-weight:400;text-transform:none;">(optional)</span>
-                    </label>
-                    <textarea name="reason" class="log-textarea" rows="3"
-                              placeholder="Let the client know why their application was declined..."></textarea>
-                </div>
                 <div class="modal-actions">
                     <button type="button" class="cancel-btn" id="cancelRejectClient">Cancel</button>
                     <button type="submit" class="save-btn" style="background:#dc2626;">
