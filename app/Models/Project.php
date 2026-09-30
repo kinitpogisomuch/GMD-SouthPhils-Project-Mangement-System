@@ -515,7 +515,9 @@ class Project extends Model
 
     private function hasAnyPaymentTowardStage(?Payment $payment, string $stage): bool
     {
-        return $payment && $payment->stagePaidAmount($stage) > 0;
+        // A stage already covered by earlier payments (e.g. extra paid on the progress payment)
+        // counts too, even though nothing was recorded under its own label.
+        return $payment && ($payment->stagePaidAmount($stage) > 0 || in_array($stage, $payment->paidStages()));
     }
 
     // Scope for ongoing projects

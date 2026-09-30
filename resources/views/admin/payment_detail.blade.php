@@ -729,7 +729,8 @@
             formatMoneyInput(amountInput);
             var carry = parseFloat(el.dataset.carry || '0');
             hint.textContent = 'Partial payments allowed — up to ₱' + remainingFmt + ' remaining for this stage'
-                + (carry > 0 ? ', including ₱' + carry.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' unpaid progress payment.' : '.');
+                + (carry > 0 ? ', including ₱' + carry.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' unpaid progress payment.' : '.')
+                + (el.dataset.value === 'progress_payment' ? ' Anything paid above it is deducted from the Final Payment.' : '');
         } else {
             amountInput.readOnly = true;
             amountInput.classList.add('amount-locked');

@@ -219,15 +219,19 @@ class PaymentController extends Controller
         }
 
         $isPartialStage = $stage !== 'down_payment';
-        $stageRemaining = $payment->stageAmountsDue()[$stage] ?? 0;
+        $amountsDue     = $payment->stageAmountsDue();
+        $stageRemaining = $amountsDue[$stage] ?? 0;
+        // A progress payment may go above the progress amount (the extra comes off the final
+        // payment), but never above what is left on the whole contract.
+        $stageCap       = $stage === 'progress_payment' ? $amountsDue['final_payment'] : $stageRemaining;
 
         if ($stageRemaining <= 0) {
             return back()->withInput()->with('error', 'That payment stage is already fully paid.');
         }
 
         if ($isPartialStage) {
-            if ((float) $validated['amount_paid'] > $stageRemaining + 0.01) {
-                return back()->withInput()->with('error', 'Amount exceeds the ₱' . number_format($stageRemaining, 2) . ' remaining for this stage.');
+            if ((float) $validated['amount_paid'] > $stageCap + 0.01) {
+                return back()->withInput()->with('error', 'Amount exceeds the ₱' . number_format($stageCap, 2) . ' that can still be recorded for this stage.');
             }
         } else {
             $validated['amount_paid'] = $stageRemaining;
@@ -427,15 +431,17 @@ class PaymentController extends Controller
             'proof_file.required_if'   => 'Please attach an image or file as proof of payment.',
         ]);
 
-        // The down payment is a fixed amount; the other stages can't exceed what is due
-        // (the final payment's due amount already includes any unpaid progress payment).
-        $amountDue = $payment->stageAmountsDue()[$validated['payment_stage']] ?? 0;
+        // Down and final payments are fixed amounts (the final one is whatever is still owed on
+        // the contract). Only the progress payment is typed in — it may go above the progress
+        // amount, which then comes off the final payment, but never above the remaining balance.
+        $amountsDue = $payment->stageAmountsDue();
+        $amountDue  = $amountsDue[$validated['payment_stage']] ?? 0;
         if ($amountDue > 0) {
-            if ($validated['payment_stage'] === 'down_payment') {
+            if ($validated['payment_stage'] !== 'progress_payment') {
                 $validated['amount_paid'] = $amountDue;
-            } elseif ((float) $validated['amount_paid'] > $amountDue + 0.01) {
+            } elseif ((float) $validated['amount_paid'] > $amountsDue['final_payment'] + 0.01) {
                 throw \Illuminate\Validation\ValidationException::withMessages([
-                    'amount_paid' => 'The amount cannot be more than the ₱' . number_format($amountDue, 2) . ' due for this stage.',
+                    'amount_paid' => 'The amount cannot be more than your remaining balance of ₱' . number_format($amountsDue['final_payment'], 2) . '.',
                 ]);
             }
         }
