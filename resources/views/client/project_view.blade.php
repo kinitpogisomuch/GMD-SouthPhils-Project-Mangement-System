@@ -405,7 +405,8 @@
                                         {{ $update->submittedBy?->full_name ?? 'Team' }}
                                         <span class="pv-history-meta-dot"></span>
                                         <i data-lucide="calendar"></i>
-                                        {{ $update->created_at->format('M d, Y') }}
+                                        {{-- Date of Work (may be backdated), same date the admin's Progress History shows --}}
+                                        {{ ($update->date_of_work ?? $update->created_at)->format('M d, Y') }}
                                     </div>
                                 </div>
                                 <span class="pv-approved-badge">
