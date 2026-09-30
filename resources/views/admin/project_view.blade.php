@@ -109,12 +109,20 @@
                         <span class="fd-ov-val">{{ $projectBudget > 0 ? '₱'.number_format($projectBudget,0) : '—' }}</span>
                     </div>
                     <div class="fd-ov-item">
-                        <span class="fd-ov-label">Total Received</span>
-                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">
-                            {{ $payment && $payment->status === 'Fully Paid' ? 'Fully Paid' : 'Amount received' }}
+                        {{-- Remaining funds =what is left of the money received after actual materials + actual labor --}}
+                        @php $remainingBalance = $budgetReceived - ($actMaterialCost + $actLaborCost); @endphp
+                        <span class="fd-ov-label" style="font-size:9.5px;">Total Received / Remaining Funds</span>
+                        <span class="fd-ov-label" style="font-size:8px;color:rgba(255,255,255,0.3);">
+                            {{ $payment && $payment->status === 'Fully Paid' ? 'Fully Paid' : 'Amount received' }} &middot; less Actual Materials + Actual Labor
                         </span>
                         <span class="fd-ov-val" style="color:#4ade80;">
-                            {{ $budgetReceived > 0 ? '₱'.number_format($budgetReceived,0) : '—' }}
+                            @if($budgetReceived > 0)
+                            ₱{{ number_format($budgetReceived,0) }}
+                            <span style="color:rgba(255,255,255,0.35);font-weight:600;">/</span>
+                            <span style="color:{{ $remainingBalance >= 0 ? '#fff' : '#f87171' }};">{{ $remainingBalance < 0 ? '-' : '' }}₱{{ number_format(abs($remainingBalance),0) }}</span>
+                            @else
+                            —
+                            @endif
                         </span>
                     </div>
                     <div class="fd-ov-item">

@@ -1013,7 +1013,8 @@ class ProjectController extends Controller
         NotificationService::phaseAdvanced(
             $project,
             'procurement',
-            "Your project \"{$project->name}\" has advanced to the Procurement phase."
+            "Your project \"{$project->name}\" has advanced to the Procurement phase.",
+            NotificationService::occurredOn($request->date_of_work)
         );
 
         return redirect()->route('admin.project_view', $project->id)
@@ -1057,7 +1058,8 @@ class ProjectController extends Controller
         NotificationService::phaseAdvanced(
             $project,
             'matl_prep',
-            'Materials have been delivered and procurement is complete.'
+            'Materials have been delivered and procurement is complete.',
+            NotificationService::occurredOn($request->date_of_work)
         );
 
         return redirect()->route('admin.project_view', $project->id)
@@ -1098,7 +1100,8 @@ class ProjectController extends Controller
         NotificationService::phaseAdvanced(
             $project,
             'fabrication',
-            'Material preparation has been completed.'
+            'Material preparation has been completed.',
+            NotificationService::occurredOn($request->date_of_work)
         );
 
         return redirect()->route('admin.project_view', $project->id)
@@ -1151,7 +1154,8 @@ class ProjectController extends Controller
         NotificationService::phaseAdvanced(
             $project,
             'inspection',
-            'Fabrication has been completed. Your project is now ready for inspection.'
+            'Fabrication has been completed. Your project is now ready for inspection.',
+            NotificationService::occurredOn($request->date_of_work)
         );
 
         return redirect()->route('admin.project_view', $project->id)
@@ -1243,7 +1247,8 @@ class ProjectController extends Controller
         NotificationService::phaseAdvanced(
             $project,
             'painting',
-            'Inspection completed successfully.'
+            'Inspection completed successfully.',
+            NotificationService::occurredOn($request->date_of_work)
         );
 
         return redirect()->route('admin.project_view', $project->id)
@@ -1294,7 +1299,8 @@ class ProjectController extends Controller
         NotificationService::phaseAdvanced(
             $project,
             'completion',
-            'Painting has been completed.'
+            'Painting has been completed.',
+            NotificationService::occurredOn($request->date_of_work)
         );
 
         return redirect()->route('admin.project_view', $project->id)
@@ -1346,7 +1352,8 @@ class ProjectController extends Controller
         NotificationService::phaseAdvanced(
             $project,
             'delivery',
-            'Project completion update.'
+            'Project completion update.',
+            NotificationService::occurredOn($request->date_of_work)
         );
 
         return redirect()->route('admin.project_view', $project->id)
@@ -1396,7 +1403,7 @@ class ProjectController extends Controller
             'date_of_work' => $request->filled('date_of_work') ? $request->date_of_work : now()->toDateString(),
         ]);
 
-        NotificationService::projectCompleted($project);
+        NotificationService::projectCompleted($project, NotificationService::occurredOn($request->date_of_work));
 
         return redirect()->route('admin.project_view', $project->id)
             ->with('success', 'Project delivered! Marked as completed (100%).');
@@ -1563,7 +1570,7 @@ class ProjectController extends Controller
 
         $employee = Employee::find(session('user_id'));
         if ($employee) {
-            NotificationService::progressSubmitted($project, $employee, $projectUpdate->id);
+            NotificationService::progressSubmitted($project, $employee, $projectUpdate->id, NotificationService::occurredOn($request->date_of_work));
         }
 
         return redirect()->route('employee.project_view', $project->id)
@@ -1699,7 +1706,7 @@ class ProjectController extends Controller
 
         $employee = Employee::find(session('user_id'));
         if ($employee) {
-            NotificationService::revisionSubmitted($project, $employee, $revisionUpdate->id);
+            NotificationService::revisionSubmitted($project, $employee, $revisionUpdate->id, NotificationService::occurredOn($request->date_of_work));
         }
 
         return redirect()->route('employee.project_view', $id)
@@ -1763,7 +1770,7 @@ class ProjectController extends Controller
             ]);
         }
 
-        NotificationService::revisionRequested($project, $update->submitted_by, $request->revision_comment);
+        NotificationService::revisionRequested($project, $update->submitted_by, $request->revision_comment, NotificationService::occurredOn($update->date_of_work));
 
         return redirect()->route('admin.project_view', $update->project_id)
             ->with('success', 'Revision requested. Employee can now resubmit.');
@@ -1794,7 +1801,7 @@ class ProjectController extends Controller
             ]);
 
             $project->refresh();
-            NotificationService::progressApproved($project, $nextPhase, $update->submitted_by, $update->id);
+            NotificationService::progressApproved($project, $nextPhase, $update->submitted_by, $update->id, NotificationService::occurredOn($update->date_of_work));
 
             return redirect()->route('admin.project_view', $project->id)
                 ->with('success', 'Update approved! Project advanced to ' . ucfirst(str_replace('_', ' ', $nextPhase)) . ' phase (' . $newProgress . '% complete).');
@@ -1804,7 +1811,7 @@ class ProjectController extends Controller
         $project->update(['progress' => 100, 'status' => 'completed']);
 
         $project->refresh();
-        NotificationService::progressApproved($project, 'delivery', $update->submitted_by, $update->id);
+        NotificationService::progressApproved($project, 'delivery', $update->submitted_by, $update->id, NotificationService::occurredOn($update->date_of_work));
 
         return redirect()->route('admin.project_view', $project->id)
             ->with('success', 'Update approved! Project is now complete.');

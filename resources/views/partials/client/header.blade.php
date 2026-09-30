@@ -210,9 +210,12 @@
         </button>
     </div>
     {{-- Hidden file inputs --}}
-    <input type="file" id="chatCameraInput"     accept="image/*" capture="environment" style="display:none;" onchange="sendChatFile(this)">
-    <input type="file" id="chatImageInput"      accept="image/*" multiple style="display:none;" onchange="sendChatFile(this)">
-    <input type="file" id="chatAttachInput"     multiple style="display:none;" onchange="sendChatFile(this)">
+    <input type="file" id="chatCameraInput"     accept="image/*" capture="environment" style="display:none;" onchange="queueChatFiles(this)">
+    <input type="file" id="chatImageInput"      accept="image/*" multiple style="display:none;" onchange="queueChatFiles(this)">
+    <input type="file" id="chatAttachInput"     multiple style="display:none;" onchange="queueChatFiles(this)">
+
+    {{-- Picked files wait here until Send is pressed, so several can go out together --}}
+    <div id="chatWinAttachPreview" class="message-attachment-preview" style="background:#fff;border-top:1px solid #eee;padding:8px 10px 2px;gap:6px;max-height:96px;overflow-y:auto;"></div>
 
     {{-- Input bar --}}
     <div style="background:#fff;border-top:1px solid #eee;padding:6px 10px;display:flex;align-items:center;gap:4px;flex-shrink:0;">
@@ -715,6 +718,7 @@
     window.openChatWith = function(type, id, name, photo) {
         newMsgPill.style.display = 'none';
 
+        if (chatContact && (chatContact.type !== type || String(chatContact.id) !== String(id))) clearChatFiles();
         chatContact = { type: type, id: id, name: name, photo: photo || '' };
         dropdown.style.display = 'none';
         popupOpen = false;
@@ -877,7 +881,11 @@
     window.sendChatMsg = function() {
         var input = document.getElementById('chatWinInput');
         var body  = input.value.trim();
-        if (!body || !chatContact) return;
+        var files  = pendingChatFiles.slice();
+        var sentTo = chatContact;
+        if ((!body && !files.length) || !chatContact) return;
+        var filesLabel = files.length + (files.length === 1 ? ' file' : ' files');
+        clearChatFiles();
         input.value = '';
         input.style.height = 'auto';
 
@@ -886,6 +894,7 @@
         fd.append('recipient_id',   chatContact.id);
         fd.append('body',           body);
         fd.append('_token',         CSRF);
+        files.forEach(function(f) { fd.append('attachments[]', f); });
 
         // Optimistic render
         var myInit   = '{{ strtoupper(substr(session("full_name", "C"), 0, 1)) }}';
@@ -901,59 +910,112 @@
             ? '<img src="' + MY_PHOTO + '" style="width:30px;height:30px;border-radius:50%;object-fit:cover;flex-shrink:0;">'
             : '<div style="width:30px;height:30px;border-radius:50%;background:#555;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0;">'+myInit+'</div>';
         div.innerHTML = '<div style="display:flex;align-items:flex-end;gap:6px;">'
-            + '<div style="max-width:72%;background:var(--dark);color:#fff;border-radius:18px 18px 4px 18px;padding:9px 14px;font-size:13px;line-height:1.5;word-break:break-word;">'+escHtml(body)+'</div>'
+            + '<div style="max-width:72%;background:var(--dark);color:#fff;border-radius:18px 18px 4px 18px;padding:9px 14px;font-size:13px;line-height:1.5;word-break:break-word;">'+escHtml(body || filesLabel)+'</div>'
             + myAvatarHtml
             + '</div>'
-            + '<div id="'+statusId+'" style="font-size:10px;color:#aaa;margin-top:3px;margin-right:36px;">Sending…</div>';
+            + '<div id="'+statusId+'" style="font-size:10px;color:#aaa;margin-top:3px;margin-right:36px;">' + (files.length ? 'Sending ' + filesLabel + '…' : 'Sending…') + '</div>';
         msgList.appendChild(div);
         msgList.scrollTop = msgList.scrollHeight;
 
+        function sendFailed() {
+            var statusEl = document.getElementById(statusId);
+            if (statusEl) {
+                statusEl.textContent = 'Failed to send';
+                statusEl.style.color = '#e53e3e';
+            }
+            // Put the files back so they can be retried without picking them again
+            if (files.length) {
+                pendingChatFiles = files.concat(pendingChatFiles).slice(0, MAX_CHAT_FILES);
+                renderChatFilePreview();
+            }
+        }
+
         fetch(SEND_URL, { method:'POST', body: fd, headers:{ 'X-Requested-With':'XMLHttpRequest' } })
             .then(function(r){
+                if (!r.ok) { sendFailed(); return; }
                 var statusEl = document.getElementById(statusId);
-                if (!statusEl) return;
-                if (r.ok) {
-                    statusEl.textContent = 'Sent';
-                } else {
-                    statusEl.textContent = 'Failed to send';
-                    statusEl.style.color = '#e53e3e';
+                if (statusEl) statusEl.textContent = 'Sent';
+                // Reload thread to show the sent attachments
+                if (files.length && chatContact === sentTo) {
+                    fetch(THREAD_URL + '/' + sentTo.type + '/' + sentTo.id, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                        .then(function(r){ return r.json(); })
+                        .then(function(d){ if (chatContact === sentTo) renderMessages(d.messages || []); });
                 }
             })
-            .catch(function(){
-                var statusEl = document.getElementById(statusId);
-                if (statusEl) {
-                    statusEl.textContent = 'Failed to send';
-                    statusEl.style.color = '#e53e3e';
-                }
-            });
+            .catch(sendFailed);
     };
 
-    window.sendChatFile = function(input) {
+    // Picked files are queued here (not sent yet) so several can go out together with one Send.
+    var pendingChatFiles = [];
+    var MAX_CHAT_FILES = 5; // same limit the server enforces per message
+
+    function renderChatFilePreview(note) {
+        var box = document.getElementById('chatWinAttachPreview');
+        box.innerHTML = '';
+        pendingChatFiles.forEach(function(f) {
+            var chip = document.createElement('div');
+            chip.className = 'attachment-chip';
+            chip.style.maxWidth = '150px';
+
+            if (f.type.indexOf('image/') === 0) {
+                var img = document.createElement('img');
+                img.className = 'attachment-chip-thumb';
+                img.src = URL.createObjectURL(f);
+                img.onload = function() { URL.revokeObjectURL(img.src); };
+                chip.appendChild(img);
+            } else {
+                var icon = document.createElement('span');
+                icon.className = 'attachment-chip-icon';
+                icon.innerHTML = '<i data-lucide="file-text"></i>';
+                chip.appendChild(icon);
+            }
+
+            var name = document.createElement('span');
+            name.className = 'attachment-chip-name';
+            name.textContent = f.name;
+            chip.appendChild(name);
+
+            var remove = document.createElement('button');
+            remove.type = 'button';
+            remove.className = 'attachment-chip-remove';
+            remove.title = 'Remove';
+            remove.innerHTML = '<i data-lucide="x"></i>';
+            remove.addEventListener('click', function() {
+                pendingChatFiles = pendingChatFiles.filter(function(p) { return p !== f; });
+                renderChatFilePreview();
+            });
+            chip.appendChild(remove);
+
+            box.appendChild(chip);
+        });
+        if (note) {
+            var noteEl = document.createElement('div');
+            noteEl.style.cssText = 'flex-basis:100%;font-size:11px;color:#e53e3e;';
+            noteEl.textContent = note;
+            box.appendChild(noteEl);
+        }
+        box.classList.toggle('show', pendingChatFiles.length > 0 || !!note);
+        if (window.lucide) lucide.createIcons();
+    }
+
+    function clearChatFiles() {
+        pendingChatFiles = [];
+        renderChatFilePreview();
+    }
+
+    window.queueChatFiles = function(input) {
         if (!input.files.length || !chatContact) return;
         if (!validateFileSize(input, 10)) return;
-        var fd = new FormData();
-        fd.append('recipient_type', chatContact.type);
-        fd.append('recipient_id',   chatContact.id);
-        fd.append('body',           '');
-        fd.append('_token',         CSRF);
-        Array.from(input.files).forEach(function(f, i){
-            fd.append('attachments[]', f);
-        });
-        input.value = ''; // reset so same file can be re-sent
-
-        fetch(SEND_URL, { method:'POST', body: fd, headers:{ 'X-Requested-With':'XMLHttpRequest' } })
-            .then(function(r){ return r.json(); })
-            .then(function(data) {
-                if (chatContact) {
-                    fetch(THREAD_URL + '/' + chatContact.type + '/' + chatContact.id, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-                        .then(function(r){ return r.json(); })
-                        .then(function(d){ renderMessages(d.messages || []); });
-                }
-            })
-            .catch(function(){});
+        var picked = Array.from(input.files);
+        input.value = ''; // reset so the same file can be picked again
+        var room = MAX_CHAT_FILES - pendingChatFiles.length;
+        pendingChatFiles = pendingChatFiles.concat(picked.slice(0, Math.max(room, 0)));
+        renderChatFilePreview(picked.length > room ? 'You can send up to ' + MAX_CHAT_FILES + ' files at a time.' : '');
+        document.getElementById('chatWinInput').focus();
     };
 
     window.closeChatWindow = function() {
+        clearChatFiles();
         if (openThreadPollTimer) { clearInterval(openThreadPollTimer); openThreadPollTimer = null; }
         window_.style.display = 'none';
         if (wrap) wrap.style.display = '';

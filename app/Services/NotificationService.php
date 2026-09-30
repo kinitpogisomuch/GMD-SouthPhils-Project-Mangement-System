@@ -85,6 +85,23 @@ class NotificationService
         $notification->save();
     }
 
+    /**
+     * Turn the date picked on a progress update into a notification timestamp.
+     * A past date (historical data being backfilled) is returned with the current
+     * time of day, so same-day notifications keep the order they were entered in;
+     * today, a future date or no date returns null — the notification is stamped "now".
+     */
+    public static function occurredOn($date)
+    {
+        if (!$date) {
+            return null;
+        }
+
+        $day = \Carbon\Carbon::parse($date)->startOfDay();
+
+        return $day->lt(now()->startOfDay()) ? $day->setTimeFrom(now()) : null;
+    }
+
     // -------------------------------------------------------------------------
     // Audience helpers
     // -------------------------------------------------------------------------
@@ -116,11 +133,12 @@ class NotificationService
         string  $priority = 'info',
         ?int    $projectId = null,
         ?int    $progressId = null,
-        ?string $actionUrl = null
+        ?string $actionUrl = null,
+        $occurredAt = null
     ): void {
         $employee = Employee::find($employeeId);
         if ($employee) {
-            self::send($employee->id, 'employee', $title, $message, $type, $priority, $projectId, $progressId, $actionUrl);
+            self::send($employee->id, 'employee', $title, $message, $type, $priority, $projectId, $progressId, $actionUrl, $occurredAt);
         }
     }
 
@@ -397,7 +415,7 @@ class NotificationService
     }
 
     /** Employee submitted a progress update → notify admins */
-    public static function progressSubmitted(Project $project, Employee $employee, int $updateId): void
+    public static function progressSubmitted(Project $project, Employee $employee, int $updateId, $occurredAt = null): void
     {
         $name = trim($employee->last_name . ', ' . $employee->first_name);
 
@@ -408,12 +426,13 @@ class NotificationService
             'info',
             $project->id,
             $updateId,
-            "/admin/project-view/{$project->id}"
+            "/admin/project-view/{$project->id}",
+            $occurredAt
         );
     }
 
     /** Admin requested a revision → notify the submitting employee */
-    public static function revisionRequested(Project $project, int $employeeId, string $feedback): void
+    public static function revisionRequested(Project $project, int $employeeId, string $feedback, $occurredAt = null): void
     {
         self::notifyEmployee(
             $employeeId,
@@ -423,12 +442,13 @@ class NotificationService
             'warning',
             $project->id,
             null,
-            "/employee/project-view/{$project->id}"
+            "/employee/project-view/{$project->id}",
+            $occurredAt
         );
     }
 
     /** Employee submitted a revision → notify admins */
-    public static function revisionSubmitted(Project $project, Employee $employee, int $updateId): void
+    public static function revisionSubmitted(Project $project, Employee $employee, int $updateId, $occurredAt = null): void
     {
         $name = trim($employee->last_name . ', ' . $employee->first_name);
 
@@ -439,7 +459,8 @@ class NotificationService
             'info',
             $project->id,
             $updateId,
-            "/admin/project-view/{$project->id}"
+            "/admin/project-view/{$project->id}",
+            $occurredAt
         );
     }
 
@@ -451,7 +472,8 @@ class NotificationService
         Project $project,
         string  $newPhase,
         int     $submittedByEmployeeId,
-        int     $updateId
+        int     $updateId,
+        $occurredAt = null
     ): void {
         $phaseName   = ucfirst(str_replace('_', ' ', $newPhase));
         $isCompleted = ($newPhase === 'delivery' || $project->status === 'completed');
@@ -464,7 +486,8 @@ class NotificationService
             'success',
             $project->id,
             $updateId,
-            "/employee/project-view/{$project->id}"
+            "/employee/project-view/{$project->id}",
+            $occurredAt
         );
 
         self::notifyAllEmployees(
@@ -474,7 +497,8 @@ class NotificationService
             'info',
             $project->id,
             null,
-            "/employee/project-view/{$project->id}"
+            "/employee/project-view/{$project->id}",
+            $occurredAt
         );
 
         if ($isCompleted) {
@@ -485,7 +509,8 @@ class NotificationService
                 self::TYPE_PROJECT_COMPLETED,
                 'success',
                 $updateId,
-                "/client/project-view/{$project->id}"
+                "/client/project-view/{$project->id}",
+                $occurredAt
             );
         } else {
             self::notifyProjectClient(
@@ -495,7 +520,8 @@ class NotificationService
                 self::TYPE_PHASE_ADVANCED,
                 'info',
                 $updateId,
-                "/client/project-view/{$project->id}"
+                "/client/project-view/{$project->id}",
+                $occurredAt
             );
         }
     }
@@ -690,7 +716,7 @@ class NotificationService
     }
 
     /** Project advanced to a new phase → notify all employees, plus the client with a custom message */
-    public static function phaseAdvanced(Project $project, string $newPhase, string $clientMessage): void
+    public static function phaseAdvanced(Project $project, string $newPhase, string $clientMessage, $occurredAt = null): void
     {
         $phaseName = ucfirst(str_replace('_', ' ', $newPhase));
 
@@ -701,7 +727,8 @@ class NotificationService
             'info',
             $project->id,
             null,
-            "/employee/project-view/{$project->id}"
+            "/employee/project-view/{$project->id}",
+            $occurredAt
         );
 
         self::notifyProjectClient(
@@ -711,7 +738,8 @@ class NotificationService
             self::TYPE_PHASE_ADVANCED,
             'info',
             null,
-            "/client/project-view/{$project->id}"
+            "/client/project-view/{$project->id}",
+            $occurredAt
         );
     }
 
@@ -790,7 +818,7 @@ class NotificationService
     }
 
     /** Project fully delivered and marked completed → notify client and employees */
-    public static function projectCompleted(Project $project): void
+    public static function projectCompleted(Project $project, $occurredAt = null): void
     {
         self::notifyProjectClient(
             $project,
@@ -799,7 +827,8 @@ class NotificationService
             self::TYPE_PROJECT_COMPLETED,
             'success',
             null,
-            "/client/project-view/{$project->id}"
+            "/client/project-view/{$project->id}",
+            $occurredAt
         );
 
         self::notifyAllEmployees(
@@ -809,7 +838,8 @@ class NotificationService
             'success',
             $project->id,
             null,
-            "/employee/project-view/{$project->id}"
+            "/employee/project-view/{$project->id}",
+            $occurredAt
         );
     }
 }

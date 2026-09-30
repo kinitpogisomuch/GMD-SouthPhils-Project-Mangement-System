@@ -117,7 +117,8 @@ class ProjectUpdateController extends Controller
             'success',
             $project->id,
             $update->id,
-            "/employee/project-view/{$project->id}"
+            "/employee/project-view/{$project->id}",
+            NotificationService::occurredOn($update->date_of_work)
         );
 
         return redirect()->route('admin.project_view', $project->id)
@@ -177,7 +178,7 @@ class ProjectUpdateController extends Controller
             ]);
         }
 
-        NotificationService::revisionRequested($project, $update->submitted_by, $comment);
+        NotificationService::revisionRequested($project, $update->submitted_by, $comment, NotificationService::occurredOn($update->date_of_work));
 
         return redirect()->route('admin.project_view', $update->project_id)
             ->with('success', 'Revision requested. Employee can now resubmit.');
