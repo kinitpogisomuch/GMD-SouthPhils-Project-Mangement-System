@@ -137,7 +137,7 @@ class AdminController extends Controller
             if ($topYearClient) {
                 $yProjectIds  = Project::where('client', $topYearClient->client)->whereYear('created_at', $y)->pluck('id');
                 $yCompleted   = Project::where('client', $topYearClient->client)
-                    ->where('status', 'completed')->whereYear('updated_at', $y)->count();
+                    ->where('status', 'completed')->whereYear('completed_at', $y)->count();
                 // Total received = sum of ALL payment transactions for each project (no date filter)
                 // matches what the financial overview shows per project
                 $yReceived    = (float) PaymentTransaction::whereIn(
@@ -661,7 +661,7 @@ class AdminController extends Controller
         // Group consecutive months that contain at least one completed project into a single range
         // e.g. projects completed across Jun–Sep form one option, Oct–Nov (after a gap) form another
         $monthsWithData = Project::where('status', 'completed')
-            ->selectRaw("DISTINCT TO_CHAR(updated_at, 'YYYY-MM') as ym")
+            ->selectRaw("DISTINCT TO_CHAR(completed_at, 'YYYY-MM') as ym")
             ->orderBy('ym')
             ->pluck('ym')
             ->toArray();
@@ -750,12 +750,12 @@ class AdminController extends Controller
             ->get(['id', 'name', 'client']);
 
         // ── Per-project KPIs (completed projects only, ordered by completion) ──
-        $query = Project::where('status', 'completed')->orderBy('updated_at');
+        $query = Project::where('status', 'completed')->orderBy('completed_at');
         if ($filterStartDate) {
-            $query->whereDate('updated_at', '>=', $filterStartDate);
+            $query->whereDate('completed_at', '>=', $filterStartDate);
         }
         if ($filterEndDate) {
-            $query->whereDate('updated_at', '<=', $filterEndDate);
+            $query->whereDate('completed_at', '<=', $filterEndDate);
         }
         if ($filterProject !== 'all' && is_numeric($filterProject)) {
             $query->where('id', (int) $filterProject);
@@ -845,11 +845,11 @@ class AdminController extends Controller
 
             // ── On-time delivery ──
             $onTime = $project->end_date
-                && $project->updated_at->startOfDay()->lte($project->end_date);
+                && $project->completed_at->copy()->startOfDay()->lte($project->end_date);
 
             $daysDelay = 0;
             if (!$onTime && $project->end_date) {
-                $daysDelay = (int) $project->end_date->diffInDays($project->updated_at);
+                $daysDelay = (int) $project->end_date->diffInDays($project->completed_at);
             }
 
             $estProfit = max(0, $received - $totalActualSpend);

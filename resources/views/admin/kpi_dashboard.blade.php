@@ -849,19 +849,23 @@
             return '<div class="kd-target-row"><span class="kd-target-label">Owner target</span><span class="kd-target-value">' + (value === null ? 'Not set' : value) + '</span></div>';
         }
 
+        /* A card with no owner target for the period keeps its normal layout, but every
+           value reads "—": the numbers only mean something once there is a goal to measure against. */
+        function noTargetCard(name, secondaryText, rowLabels) {
+            return '<div class="kd-card">' +
+                '<div class="kd-card-top"><span class="kd-card-name">' + name + '</span>' + statusChip(null) + '</div>' +
+                '<div class="kd-primary">—</div>' +
+                '<div class="kd-secondary">— ' + secondaryText + '</div>' +
+                targetRow('Owner target', null) +
+                '<div class="kd-variance">No target set for this quarter yet.</div>' +
+                progressBar(0, null) +
+                breakdownBlock(rowLabels.map(function (label) { return { label: label, value: '—' }; })) +
+                '</div>';
+        }
+
         function profitCard(p) {
-            if (!p.has_target) {
-                return '<div class="kd-card">' +
-                    '<div class="kd-card-top"><span class="kd-card-name">Project profit margin</span>' + statusChip(null) + '</div>' +
-                    '<div class="kd-primary">' + fmtPeso(p.net_profit) + '</div>' +
-                    '<div class="kd-secondary">' + fmtPct(p.avg_margin) + ' avg profit margin</div>' +
-                    targetRow('Owner target', null) +
-                    '<div class="kd-variance">No target set for this quarter yet.</div>' +
-                    progressBar(0, null) +
-                    scaleBlock(p.scale) +
-                    profitBreakdown(p) +
-                    '</div>';
-            }
+            if (!p.has_target) return noTargetCard('Project profit margin', 'avg profit margin',
+                ['Revenue received', 'Material cost', 'Labor cost', 'Overhead cost', 'Net profit']);
             var varianceText = p.variance >= 0
                 ? '+' + fmtPeso(p.variance) + ' above target'
                 : fmtPeso(Math.abs(p.variance)) + ' below target';
@@ -878,18 +882,8 @@
         }
 
         function onTimeCard(o) {
-            if (!o.has_target) {
-                return '<div class="kd-card">' +
-                    '<div class="kd-card-top"><span class="kd-card-name">On-time delivery</span>' + statusChip(null) + '</div>' +
-                    '<div class="kd-primary">' + o.on_time_count + ' of ' + o.total_completed + ' projects</div>' +
-                    '<div class="kd-secondary">' + fmtPct(o.rate) + ' on-time delivery rate</div>' +
-                    targetRow('Owner target', null) +
-                    '<div class="kd-variance">No target set for this quarter yet.</div>' +
-                    progressBar(0, null) +
-                    scaleBlock(o.scale) +
-                    onTimeBreakdown(o) +
-                    '</div>';
-            }
+            if (!o.has_target) return noTargetCard('On-time delivery', 'on-time delivery rate',
+                ['Total projects', 'Delivered on time', 'Delayed', 'Avg delay (delayed)']);
             var varianceText;
             if (o.variance >= 0) {
                 varianceText = o.variance === 0 ? 'Meets target exactly' : '+' + pluralize(o.variance, 'project') + ' above target';
@@ -941,10 +935,12 @@
                 var onTimeTargetText = m.on_time_target === null ? '—' : m.on_time_target;
                 return '<tr data-month-label="' + m.label + '">' +
                     '<td>' + m.label + '</td>' +
-                    '<td style="text-align:center;">' + m.project_count + '</td>' +
-                    '<td style="text-align:right;font-weight:800;">' + fmtPeso(m.profit_actual) + '</td>' +
+                    // A month with no completed projects has no results yet — show "—", not 0 / ₱0,
+                    // so it isn't read as "zero profit" or "nothing delivered on time"
+                    '<td style="text-align:center;">' + (m.project_count ? m.project_count : '—') + '</td>' +
+                    '<td style="text-align:right;font-weight:800;">' + (m.project_count ? fmtPeso(m.profit_actual) : '—') + '</td>' +
                     '<td style="text-align:right;color:var(--muted);">' + profitTargetText + '</td>' +
-                    '<td style="text-align:center;font-weight:800;">' + m.on_time_actual + '</td>' +
+                    '<td style="text-align:center;font-weight:800;">' + (m.project_count ? m.on_time_actual : '—') + '</td>' +
                     '<td style="text-align:center;color:var(--muted);">' + onTimeTargetText + '</td>' +
                 '</tr>';
             }).join('');

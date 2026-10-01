@@ -1393,9 +1393,12 @@ class ProjectController extends Controller
 
         $newProgress = Project::PHASE_PROGRESS['delivery'];
 
+        // Completed on the delivery's Date of Work (may be backdated) — that's the date the KPI uses
+        $deliveredOn = $request->filled('date_of_work') ? $request->date_of_work : now()->toDateString();
         $project->update([
-            'progress' => $newProgress,
-            'status'   => 'completed',
+            'progress'     => $newProgress,
+            'status'       => 'completed',
+            'completed_at' => \Carbon\Carbon::parse($deliveredOn)->isToday() ? now() : \Carbon\Carbon::parse($deliveredOn)->setTimeFrom(now()),
         ]);
 
         $this->createAdminUpdate($project, [
@@ -1815,6 +1818,9 @@ class ProjectController extends Controller
                 'status'        => $newStatus,
             ]);
 
+            if ($project->status === 'completed' && $update->date_of_work) {
+                $project->update(['completed_at' => $update->date_of_work->isToday() ? now() : $update->date_of_work->copy()->setTimeFrom(now())]);
+            }
             $project->refresh();
             NotificationService::progressApproved($project, $nextPhase, $update->submitted_by, $update->id, NotificationService::occurredOn($update->date_of_work));
 
@@ -1823,7 +1829,12 @@ class ProjectController extends Controller
         }
 
         $update->update(['status' => 'approved']);
-        $project->update(['progress' => 100, 'status' => 'completed']);
+        $project->update([
+            'progress'     => 100,
+            'status'       => 'completed',
+            // completed on the approved update's Date of Work (may be backdated)
+            'completed_at' => $update->date_of_work && !$update->date_of_work->isToday() ? $update->date_of_work->copy()->setTimeFrom(now()) : now(),
+        ]);
 
         $project->refresh();
         NotificationService::progressApproved($project, 'delivery', $update->submitted_by, $update->id, NotificationService::occurredOn($update->date_of_work));

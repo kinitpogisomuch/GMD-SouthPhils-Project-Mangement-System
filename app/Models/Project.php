@@ -9,6 +9,20 @@ class Project extends Model
 {
     protected static function booted(): void
     {
+        // completed_at is the project's completion date for reports and the KPI dashboard.
+        // Set it whenever any code path marks the project completed (unless a backdated date
+        // was already given), and clear it if the project is reopened.
+        static::saving(function (Project $project) {
+            if (!$project->isDirty('status')) {
+                return;
+            }
+            if ($project->status === 'completed' && !$project->completed_at) {
+                $project->completed_at = now();
+            } elseif ($project->status !== 'completed') {
+                $project->completed_at = null;
+            }
+        });
+
         // The moment a project finishes, snapshot its real materials/labor/markup/
         // payment terms into its reusable template — regardless of which of the many
         // phase-completion code paths flipped the status, so this can't be missed by
@@ -48,10 +62,12 @@ class Project extends Model
         'phase_completion_status',
         'last_phase_update_at',
         'last_phase_updated_by',
-        'estimated_working_days'
+        'estimated_working_days',
+        'completed_at',
     ];
 
     protected $casts = [
+        'completed_at' => 'datetime',
         'start_date' => 'date',
         'end_date' => 'date',
         'progress' => 'integer',

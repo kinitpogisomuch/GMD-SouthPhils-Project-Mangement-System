@@ -193,7 +193,7 @@ class KpiDashboardController extends Controller
         $currentYear = (int) now()->year;
 
         $earliestYear = (int) (Project::where('status', 'completed')
-            ->selectRaw('MIN(EXTRACT(YEAR FROM updated_at)) as y')
+            ->selectRaw('MIN(EXTRACT(YEAR FROM completed_at)) as y')
             ->value('y') ?? $currentYear);
 
         $minYear = min($earliestYear, $currentYear);
@@ -312,7 +312,7 @@ class KpiDashboardController extends Controller
     private function computeActualsForRange(Carbon $start, Carbon $end): array
     {
         $projects = Project::where('status', 'completed')
-            ->whereBetween('updated_at', [$start, $end])
+            ->whereBetween('completed_at', [$start, $end])
             ->get();
 
         $projectIds = $projects->pluck('id');
@@ -396,7 +396,7 @@ class KpiDashboardController extends Controller
                 ? (float) $payment->project_budget
                 : $bomMatCost + $bomLaborCost;
 
-            $onTime = $project->end_date && $project->updated_at->startOfDay()->lte($project->end_date);
+            $onTime = $project->end_date && $project->completed_at->copy()->startOfDay()->lte($project->end_date);
 
             $totalRevenue    += $received;
             $totalActualCost += $totalActualSpend;
@@ -415,7 +415,7 @@ class KpiDashboardController extends Controller
             } else {
                 $delayedProjectCodes[] = $project->code;
                 if ($project->end_date) {
-                    $totalDelayDays += (int) $project->end_date->diffInDays($project->updated_at);
+                    $totalDelayDays += (int) $project->end_date->diffInDays($project->completed_at);
                 }
             }
         }
