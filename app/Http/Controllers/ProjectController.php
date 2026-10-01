@@ -787,7 +787,11 @@ class ProjectController extends Controller
 
         // Hard gate: payment-tied phases can't advance until at least some
         // amount has been recorded toward the relevant stage (any amount counts).
-        if ($project->awaitingPaymentStage() !== null) {
+        // Except delivery: the tank can be delivered first and the final payment settled
+        // afterwards, when the admin chose "Proceed Anyway".
+        $awaitingStage   = $project->awaitingPaymentStage();
+        $deliverUnpaid   = $awaitingStage === 'final_payment' && $request->boolean('proceed_without_final_payment');
+        if ($awaitingStage !== null && !$deliverUnpaid) {
             return redirect()->route('admin.project_view', $id)
                 ->with('error', 'A payment must be recorded in the Payment Module before this project can proceed to the next phase.');
         }
@@ -1421,6 +1425,9 @@ class ProjectController extends Controller
             'message'               => 'nullable|string',
             'target_employee_id'    => 'required|array|min:1',
             'target_employee_id.*'  => 'integer|exists:employees,id',
+            'request_date'          => 'nullable|date|before_or_equal:today',
+        ], [
+            'request_date.before_or_equal' => 'The request date cannot be in the future.',
         ]);
 
         $project = Project::findOrFail($id);
@@ -1464,7 +1471,7 @@ class ProjectController extends Controller
                 continue;
             }
 
-            ProgressRequest::create([
+            $progressRequest = new ProgressRequest([
                 'project_id'          => $id,
                 'requested_by'        => session('user_id') ?? 1,
                 'message'             => $request->message,
@@ -1472,8 +1479,16 @@ class ProjectController extends Controller
                 'status'              => 'open',
                 'target_employee_id'  => $targetEmployee->id,
             ]);
+            // A past Request Date (backfilling history) dates the request and its notification to that day
+            if (NotificationService::occurredOn($request->request_date)) {
+                $this->applyBackdate($progressRequest, $request->request_date, now()->format('H:i'));
+            }
+            $progressRequest->save();
 
-            NotificationService::progressRequested($project, $targetEmployee, $request->message);
+            NotificationService::progressRequested(
+                $project, $targetEmployee, $request->message,
+                NotificationService::occurredOn($request->request_date)
+            );
             $requestedNames[] = $targetEmployee->first_name;
         }
 

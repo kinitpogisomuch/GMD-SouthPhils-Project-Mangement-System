@@ -70,13 +70,14 @@
                 <div class="table-wrapper">
                     <table class="data-table" id="projectsTable">
                         <colgroup>
-                            <col style="width:32%;">
-                            <col style="width:12%;">
-                            <col style="width:13%;">
-                            <col style="width:13%;">
-                            <col style="width:12%;">
-                            <col style="width:10%;">
-                            <col style="width:18%;">
+                            <col style="width:22%;">  {{-- Project Name --}}
+                            <col style="width:8%;">   {{-- Capacity --}}
+                            <col style="width:11%;">  {{-- Start Date --}}
+                            <col style="width:11%;">  {{-- End Date --}}
+                            <col style="width:11%;">  {{-- Status --}}
+                            <col style="width:14%;">  {{-- Payment --}}
+                            <col style="width:9%;">   {{-- Progress --}}
+                            <col style="width:14%;">  {{-- Action --}}
                         </colgroup>
                         <thead>
                             <tr>
@@ -85,6 +86,7 @@
                                 <th style="text-align:center;">Start Date</th>
                                 <th style="text-align:center;">End Date</th>
                                 <th style="text-align:center;">Status</th>
+                                <th style="text-align:center;">Payment</th>
                                 <th style="text-align:center;">Progress</th>
                                 <th style="text-align:center;">Action</th>
                             </tr>
@@ -144,6 +146,28 @@
                                         {{ $phaseLabel }}
                                     </span>
                                 </td>
+                                @php
+                                    $projPayment = $project->getPaymentRecord();
+                                    if ($project->status === 'completed' && !$project->isPaymentStageSettled('final_payment')) {
+                                        // Delivered before the final payment came in ("Proceed Anyway") — still owed
+                                        [$payLabel, $payClass] = ['Final Payment Pending', 'pending'];
+                                    } elseif ($projPayment) {
+                                        [$payLabel, $payClass] = [$projPayment->status, \App\Models\Payment::statusBadgeClass($projPayment->status)];
+                                    } else {
+                                        [$payLabel, $payClass] = [null, null];
+                                    }
+                                @endphp
+                                <td style="text-align:center;">
+                                    @if($payLabel)
+                                    <a href="{{ $projPayment ? route('admin.payments.show', $projPayment->id) : route('admin.payments') }}" title="Open this project's payments" style="text-decoration:none;">
+                                        <span class="status-badge {{ $payClass }}" style="font-size:11px;line-height:1.3;text-align:center;white-space:normal;">
+                                            @if($payLabel === 'Final Payment Pending')<i data-lucide="alert-triangle" style="width:11px;height:11px;vertical-align:-1px;"></i> @endif{{ $payLabel }}
+                                        </span>
+                                    </a>
+                                    @else
+                                    <span style="color:var(--muted);">—</span>
+                                    @endif
+                                </td>
                                 <td style="text-align:center;">
                                     @php
                                         $prog = $project->progress ?? 0;
@@ -198,14 +222,14 @@
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="7" style="text-align:center; padding:40px; color:var(--muted);">
+                                <td colspan="8" style="text-align:center; padding:40px; color:var(--muted);">
                                     No projects found for this client.
                                 </td>
                             </tr>
                             @endforelse
                             @if($projects->isNotEmpty())
                             <tr id="noProjectsRow" style="display:none;">
-                                <td colspan="7" style="text-align:center;padding:60px 20px;color:var(--muted);">
+                                <td colspan="8" style="text-align:center;padding:60px 20px;color:var(--muted);">
                                     <i data-lucide="folder-open" style="width:36px;height:36px;opacity:.35;display:block;margin:0 auto 12px;"></i>
                                     <div style="font-size:14px;font-weight:700;" id="noProjectsMsg">No projects in this category.</div>
                                     <div style="font-size:13px;margin-top:4px;">Try switching to a different tab.</div>

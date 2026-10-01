@@ -448,6 +448,10 @@
                     <div class="qb-head-right">
                         @if($isLocked)
                         <span class="qb-viewonly"><i data-lucide="lock"></i> View only</span>
+                        @else
+                        <button type="button" class="qb-chip" id="openQuoteTemplateBtn" style="cursor:pointer;">
+                            <i data-lucide="copy"></i> Use Template
+                        </button>
                         @endif
                         <span class="qb-dirty" id="qbDirty" hidden><i data-lucide="circle-dot"></i> Unsaved changes</span>
                         <label class="qb-chip" for="entryDateInput" title="Applies to everything added when you save. Leave blank for today; set an earlier date when backfilling history.">
@@ -709,6 +713,78 @@
             </div>
         </div>
     </div>
+
+    @unless($isLocked)
+    {{-- ===================== SAVE CONFIRMATION MODAL ===================== --}}
+    <div class="modal-overlay" id="confirmSaveQuotationModal">
+        <div class="modal-card" style="max-width:460px;">
+            <div class="modal-header">
+                <div>
+                    <h2>Save Quotation</h2>
+                    <p>Please double-check the figures before saving.</p>
+                </div>
+                <button class="modal-close" type="button" id="closeConfirmSaveQuotation">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="delete-confirm-body">
+                <div class="delete-confirm-icon icon-success"><i data-lucide="save"></i></div>
+                <p>Are you sure you want to save this quotation?</p>
+                <div id="confirmSaveSummary" style="margin-top:10px;font-size:13px;color:var(--muted);line-height:1.7;"></div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="cancel-btn" id="cancelConfirmSaveQuotation">Cancel</button>
+                <button type="button" class="save-btn" id="confirmSaveQuotationBtn">
+                    <i data-lucide="check"></i> Yes, Save
+                </button>
+            </div>
+        </div>
+    </div>
+
+    {{-- ===================== QUOTATION TEMPLATE MODAL (same look as Add Project's "Choose a Starting Point") ===================== --}}
+    <div class="modal-overlay" id="quoteTemplateModal">
+        <div class="modal-card" style="max-width:560px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;">
+            <div class="modal-header" style="flex-shrink:0;">
+                <div>
+                    <h2>Choose a Starting Point</h2>
+                    <p>Copy the materials, labor and pricing of a completed project, or start with a blank quotation.</p>
+                </div>
+                <button class="modal-close" type="button" id="closeQuoteTemplate">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+
+            <div class="search-box" style="margin:0 auto 14px;max-width:100%;flex-shrink:0;">
+                <i data-lucide="search"></i>
+                <input type="text" id="quoteTemplateSearch" placeholder="Search completed projects or clients...">
+            </div>
+
+            <div style="overflow-y:auto;flex:1;">
+                <div class="client-select-item selected" id="quoteScratchOption" style="border-style:dashed;margin-bottom:14px;">
+                    <div class="cs-avatar" style="background:var(--accent-soft);">
+                        <i data-lucide="file-plus-2" style="width:20px;height:20px;color:var(--dark);"></i>
+                    </div>
+                    <div class="cs-info">
+                        <div class="cs-name">Start from Scratch</div>
+                        <div style="font-size:12px;color:var(--muted);margin-top:2px;">Build the quotation with no preset materials or labor</div>
+                    </div>
+                    <div class="cs-check">
+                        <i data-lucide="check-circle-2" style="width:20px;height:20px;color:var(--dark);"></i>
+                    </div>
+                </div>
+
+                <div id="quoteTemplateList" class="cs-list" style="max-height:none;overflow-y:visible;"></div>
+            </div>
+
+            <div class="modal-actions" style="flex-shrink:0;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+                <button type="button" class="cancel-btn" id="cancelQuoteTemplate">Cancel</button>
+                <button type="button" class="save-btn" id="continueQuoteTemplate">
+                    Continue <i data-lucide="arrow-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    @endunless
 
     {{-- ===================== SEND TO CLIENT MODAL ===================== --}}
     <div class="modal-overlay" id="sendQuotationModal">
@@ -1479,6 +1555,204 @@
         if (daysEl.value.trim() === '') daysEl.focus();
     });
 
+    @unless($isLocked)
+    // ---- Choose a Starting Point: copy a past project's materials, labor and pricing ----
+    var QUOTE_TEMPLATES      = @json($quotationTemplates);
+    var selectedQuoteTpl     = null;   // null = Start from Scratch
+    var quoteTplDismissedKey = 'quoteTemplateDismissed-{{ $batch->id }}';
+
+    function quoteTplSummary(tpl) {
+        var pill = 'display:inline-flex;align-items:center;font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;margin:0 6px 4px 0;white-space:nowrap;';
+        return '<span style="' + pill + 'background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;">' + tpl.materials.length + ' material' + (tpl.materials.length === 1 ? '' : 's') + '</span>' +
+            '<span style="' + pill + 'background:#F0FDF4;color:#15803D;border:1px solid #BBF7D0;">' + tpl.labor.length + ' labor</span>' +
+            (tpl.estimated_working_days ? '<span style="' + pill + 'background:#FEF9C3;color:#A16207;border:1px solid #FDE68A;">' + tpl.estimated_working_days + ' working days</span>' : '');
+    }
+
+    function setQuoteScratchSelected(isSelected) {
+        var opt = document.getElementById('quoteScratchOption');
+        opt.classList.toggle('selected', isSelected);
+        opt.querySelector('.cs-check').style.display = isSelected ? 'flex' : 'none';
+    }
+
+    function renderQuoteTemplateList() {
+        var list = document.getElementById('quoteTemplateList');
+        var q    = document.getElementById('quoteTemplateSearch').value.toLowerCase().trim();
+        var shown = QUOTE_TEMPLATES.filter(function (t) {
+            return !q || (t.name + ' ' + (t.client || '')).toLowerCase().indexOf(q) !== -1;
+        });
+
+        if (!shown.length) {
+            list.innerHTML = '<p style="text-align:center;color:var(--muted);padding:20px 0;font-size:13px;">' +
+                (QUOTE_TEMPLATES.length ? 'No past projects match your search.' : 'No templates yet — a project becomes a template here once it is completed.') + '</p>';
+            return;
+        }
+
+        list.innerHTML = '';
+        shown.forEach(function (tpl) {
+            var isSelected = selectedQuoteTpl && selectedQuoteTpl.id === tpl.id;
+            var item = document.createElement('div');
+            item.className = 'client-select-item' + (isSelected ? ' selected' : '');
+            item.innerHTML =
+                '<div class="cs-info">' +
+                    '<div class="cs-name">' + escapeHtml(tpl.name) + '</div>' +
+                    '<div style="font-size:12px;color:var(--muted);margin-bottom:6px;">' + escapeHtml(tpl.client || '') +
+                        (tpl.status ? ' &middot; ' + escapeHtml(tpl.status.charAt(0).toUpperCase() + tpl.status.slice(1)) : '') + '</div>' +
+                    '<div style="display:flex;flex-wrap:wrap;">' + quoteTplSummary(tpl) + '</div>' +
+                '</div>' +
+                '<div class="cs-check" style="display:' + (isSelected ? 'flex' : 'none') + ';">' +
+                    '<i data-lucide="check-circle-2" style="width:20px;height:20px;color:var(--dark);"></i>' +
+                '</div>';
+            item.addEventListener('click', function () {
+                selectedQuoteTpl = tpl;
+                setQuoteScratchSelected(false);
+                renderQuoteTemplateList();
+            });
+            list.appendChild(item);
+        });
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    function openQuoteTemplateModal() {
+        // reopening shows the template currently filled in (if any) as the selected option
+        selectedQuoteTpl = appliedQuoteTpl;
+        setQuoteScratchSelected(!appliedQuoteTpl);
+        document.getElementById('quoteTemplateSearch').value = '';
+        renderQuoteTemplateList();
+        openModal('quoteTemplateModal');
+    }
+
+    function closeQuoteTemplateModal() {
+        try { sessionStorage.setItem(quoteTplDismissedKey, '1'); } catch (e) {}
+        closeModal('quoteTemplateModal');
+    }
+
+    function setFieldValue(id, value, allowBlank) {
+        var el = document.getElementById(id);
+        if (!el || value === null || value === undefined || (value === '' && !allowBlank)) return;
+        el.value = value;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    // What the template filled in, so switching template (or back to Start from Scratch) can take it out again
+    var appliedQuoteTpl   = null;
+    var PRICING_FIELD_IDS = ['markupInput', 'paymentTermsInput', 'materialFactorInput', 'estDaysInput'];
+    var pricingBeforeTpl  = null;   // pricing values as they were before the first template was applied
+    var dirtyBeforeTpl    = false;
+
+    // Removes every row the template added and puts the pricing fields back as they were.
+    // Saved rows, and rows the admin added by hand, are left alone.
+    function clearAppliedQuoteTemplate() {
+        if (!appliedQuoteTpl) return;
+        document.querySelectorAll('#materialRowsContainer [data-from-template], #laborRowsContainer [data-from-template]')
+            .forEach(function (row) { row.remove(); });
+        PRICING_FIELD_IDS.forEach(function (id) { setFieldValue(id, pricingBeforeTpl[id], true); });
+        appliedQuoteTpl = null;
+
+        renumberRows();
+        updateEmptyStates();
+        refreshAllLaborEmployeeOptions();
+        recalc();
+
+        // back to exactly how the page loaded → no "Unsaved changes" warning
+        var otherNewRows = document.querySelector('#materialRowsContainer .qb-row-new, #laborRowsContainer .qb-row-new');
+        if (!dirtyBeforeTpl && !otherNewRows) {
+            qbDirty = false;
+            var pill = document.getElementById('qbDirty');
+            if (pill) pill.hidden = true;
+            updateSendState();
+        }
+    }
+
+    // Copies the template in as new, unsaved rows — nothing is stored until the admin presses Save.
+    // Materials or employees already in the quotation are skipped, so nothing is added twice.
+    function applyQuoteTemplate(tpl) {
+        if (!pricingBeforeTpl) {
+            pricingBeforeTpl = {};
+            PRICING_FIELD_IDS.forEach(function (id) { pricingBeforeTpl[id] = document.getElementById(id).value; });
+            dirtyBeforeTpl = qbDirty;
+        }
+        appliedQuoteTpl = tpl;
+
+        var usedMats = getUsedMaterialNames();
+        var mats = tpl.materials.filter(function (m) {
+            return m.name && usedMats.indexOf(m.name.toLowerCase()) === -1;
+        });
+        if (mats.length) {
+            appendMaterialRows(mats).forEach(function (row) { row.dataset.fromTemplate = '1'; });
+        }
+
+        tpl.labor.forEach(function (l) {
+            if (!l.name || getUsedLaborEmployeeNames().indexOf(l.name) !== -1) return;
+            var row = buildLaborRow(laborContainer.querySelectorAll('tr').length + 1);
+            row.dataset.fromTemplate = '1';
+            laborContainer.appendChild(row);
+            var sel = row.querySelector('.row-labor-name-select');
+            var isEmployee = LABOR_EMPLOYEES.some(function (emp) { return emp.name === l.name; });
+
+            if (isEmployee) {
+                // a current employee: their role and today's daily rate fill in, like picking them by hand
+                sel.value = l.name;
+                onLaborEmployeeChange(sel);
+                return;
+            }
+
+            // no longer on the employee list (or outsourced): keep the name, role and rate from the template
+            sel.value = 'other';
+            onLaborEmployeeChange(sel);
+            row.querySelector('.row-labor-name-custom').value = l.name;
+            var roleSelect = row.querySelector('.row-labor-role-select');
+            if (KNOWN_LABOR_ROLES.indexOf(l.role) !== -1) {
+                roleSelect.value = l.role;
+            } else if (l.role) {
+                roleSelect.value = 'other';
+                toggleRowLaborRole(roleSelect);
+                row.querySelector('.row-labor-role-custom').value = l.role;
+            }
+            row.querySelector('.row-labor-rate').value = l.rate;
+        });
+
+        setFieldValue('markupInput', tpl.markup_percent);
+        setFieldValue('paymentTermsInput', tpl.payment_term_type);
+        setFieldValue('materialFactorInput', tpl.factor);
+        setFieldValue('estDaysInput', tpl.estimated_working_days);
+
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        renumberRows();
+        updateEmptyStates();
+        refreshAllLaborEmployeeOptions();
+        recalc();
+        markDirty();
+    }
+
+    document.getElementById('quoteScratchOption').addEventListener('click', function () {
+        selectedQuoteTpl = null;
+        setQuoteScratchSelected(true);
+        renderQuoteTemplateList();
+    });
+    document.getElementById('quoteTemplateSearch').addEventListener('input', renderQuoteTemplateList);
+    document.getElementById('openQuoteTemplateBtn').addEventListener('click', openQuoteTemplateModal);
+    document.getElementById('closeQuoteTemplate').addEventListener('click', closeQuoteTemplateModal);
+    document.getElementById('cancelQuoteTemplate').addEventListener('click', closeQuoteTemplateModal);
+    document.getElementById('continueQuoteTemplate').addEventListener('click', function () {
+        var tpl = selectedQuoteTpl;
+        closeQuoteTemplateModal();
+        if (tpl === appliedQuoteTpl) return;      // same choice as what's already filled in
+        clearAppliedQuoteTemplate();              // a new template replaces the old one; Start from Scratch just empties it
+        if (tpl) applyQuoteTemplate(tpl);
+    });
+
+    // Opening the builder on a quotation that has nothing in it yet asks where to start
+    // (once per browser session, so a reload after choosing Start from Scratch doesn't ask again).
+    @if($materials->isEmpty() && $laborEntries->isEmpty())
+    (function () {
+        var dismissed = false;
+        try { dismissed = sessionStorage.getItem(quoteTplDismissedKey) === '1'; } catch (e) {}
+        if (!dismissed) openQuoteTemplateModal();
+    })();
+    @endif
+    @endunless
+
     // ---- shared: numbering, empty states, live totals ----
     function renumberRows() {
         matContainer.querySelectorAll('.material-add-row').forEach(function (row, i) {
@@ -1581,6 +1855,19 @@
             if (e.target.classList) e.target.classList.remove('qb-bad');
         });
     });
+
+    // ---- Save confirmation ----
+    var qbSaveConfirmed = false;
+    var confirmSaveBtn  = document.getElementById('confirmSaveQuotationBtn');
+    if (confirmSaveBtn) {
+        confirmSaveBtn.addEventListener('click', function () {
+            closeModal('confirmSaveQuotationModal');
+            qbSaveConfirmed = true;
+            quotationForm.requestSubmit();
+        });
+        document.getElementById('closeConfirmSaveQuotation').addEventListener('click', function () { closeModal('confirmSaveQuotationModal'); });
+        document.getElementById('cancelConfirmSaveQuotation').addEventListener('click', function () { closeModal('confirmSaveQuotationModal'); });
+    }
 
     quotationForm.addEventListener('submit', function (e) {
         var problems = [];
@@ -1697,6 +1984,22 @@
         }
 
         document.getElementById('qbErrors').hidden = true;
+
+        // A plain Save asks for confirmation first. "Send to Client" skips this — its own modal confirms the send.
+        if (!qbSaveConfirmed && document.getElementById('openSendModalFlag').value !== '1') {
+            e.preventDefault();
+            var laborCount = newLaborRows.length + activeSavedLabor;
+            document.getElementById('confirmSaveSummary').innerHTML =
+                matRows.length + ' material' + (matRows.length === 1 ? '' : 's') + ' &middot; ' +
+                laborCount + ' labor entr' + (laborCount === 1 ? 'y' : 'ies') + ' &middot; ' +
+                escapeHtml(daysEl.value.trim()) + ' working days<br>' +
+                'Contract Value: <strong style="color:var(--dark);">' + escapeHtml(document.getElementById('sumContract').textContent) + '</strong>';
+            openModal('confirmSaveQuotationModal');
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+            return;
+        }
+        qbSaveConfirmed = false;
+
         qbSubmitting = true;
         var saveBtn = document.getElementById('qbSaveBtn');
         saveBtn.disabled = true;

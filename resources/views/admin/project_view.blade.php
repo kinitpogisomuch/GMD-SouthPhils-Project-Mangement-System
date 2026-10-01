@@ -109,11 +109,11 @@
                         <span class="fd-ov-val">{{ $projectBudget > 0 ? '₱'.number_format($projectBudget,0) : '—' }}</span>
                     </div>
                     <div class="fd-ov-item">
-                        {{-- Remaining funds =what is left of the money received after actual materials + actual labor --}}
-                        @php $remainingBalance = $budgetReceived - ($actMaterialCost + $actLaborCost); @endphp
+                        {{-- Remaining funds = what is left of the money received after actual materials + actual labor + overhead --}}
+                        @php $remainingBalance = $budgetReceived - ($actMaterialCost + $actLaborCost + $overheadShare); @endphp
                         <span class="fd-ov-label" style="font-size:9.5px;">Total Received / Remaining Funds</span>
                         <span class="fd-ov-label" style="font-size:8px;color:rgba(255,255,255,0.3);">
-                            {{ $payment && $payment->status === 'Fully Paid' ? 'Fully Paid' : 'Amount received' }} &middot; less Actual Materials + Actual Labor
+                            {{ $payment && $payment->status === 'Fully Paid' ? 'Fully Paid' : 'Amount received' }} &middot; less Actual Materials + Labor + Overhead
                         </span>
                         <span class="fd-ov-val" style="color:#4ade80;">
                             @if($budgetReceived > 0)
@@ -441,8 +441,10 @@
                         // If this render is a redirect-back from a failed submission, the real
                         // form fields must already be showing (that's what was submitted), so
                         // skip the confirm step and go straight to the fields + errors.
-                        $revealFormFields = $errors->any() && $gateSettled;
-                        $paymentBlocked   = $showConfirmGate && !$gateSettled;
+                        $revealFormFields = $errors->any() && ($gateSettled || $deliveryGate);
+                        // Delivery is the one exception: the tank can be delivered before the final
+                        // payment is settled, so it offers "Proceed Anyway" instead of blocking.
+                        $paymentBlocked   = $showConfirmGate && !$gateSettled && !$deliveryGate;
                         $sparsePhase    = $planningPaymentGate
                                           || $project->current_phase === 'procurement'
                                           || $project->current_phase === 'matl_prep'
@@ -837,7 +839,7 @@
                                         <i data-lucide="alert-triangle" style="width:26px;height:26px;color:#b45309;"></i>
                                     </div>
                                     <p class="pv-payment-gate-title">Payment Reminder</p>
-                                    <p class="pv-payment-gate-text">The final payment for this phase must be ensured/settled before continuing. Please confirm with the Payment Module.</p>
+                                    <p class="pv-payment-gate-text">The final payment has not been recorded yet. It can still be settled after the tank is delivered — click Proceed Anyway to record the delivery now.</p>
                                     <a href="{{ $paymentUrl }}" class="pv-payment-gate-link">
                                         <i data-lucide="credit-card" style="width:13px;height:13px;"></i>
                                         View Payment Status
@@ -846,6 +848,9 @@
                                 @endif
                             </div>
                             <div id="deliveryFormFields" style="display:{{ $revealFormFields ? 'block' : 'none' }};">
+                            @unless($gateSettled)
+                            <input type="hidden" name="proceed_without_final_payment" value="1">
+                            @endunless
 
                             <div class="form-group">
                                 <label class="log-label">DELIVERY PHOTOS *</label>
@@ -909,12 +914,12 @@
                                 Mark as Already Completed
                             </button>
                             @endif
-                            @if($needsConfirmStep && $gateSettled)
+                            @if($needsConfirmStep && ($gateSettled || $deliveryGate))
                             <button type="button" class="save-btn" id="paymentConfirmBtn"
-                                    onclick="proceedAfterPaymentConfirm('{{ $project->current_phase }}')"
+                                    onclick="{{ $gateSettled ? "proceedAfterPaymentConfirm('" . $project->current_phase . "')" : 'openProceedUnpaidModal()' }}"
                                     style="font-size:13.5px;padding:11px 24px;{{ $revealFormFields ? 'display:none;' : '' }}">
-                                <i data-lucide="check"></i>
-                                Confirm Payment
+                                <i data-lucide="{{ $gateSettled ? 'check' : 'arrow-right' }}"></i>
+                                {{ $gateSettled ? 'Confirm Payment' : 'Proceed Anyway' }}
                             </button>
                             @endif
                             @if(empty($hideSubmitButton) && !$paymentBlocked)
@@ -1293,6 +1298,8 @@
             <form method="POST" action="{{ route('admin.project.request_update', $project->id) }}">
                 @csrf
                 @php
+                    // Set in the progress tracker above, which isn't rendered for every project — resolve it here too
+                    $currentFocalPerson = $currentFocalPerson ?? $project->focalPerson();
                     $otherAssignedEmployees = $project->assignedEmployees->reject(
                         fn($emp) => $currentFocalPerson && $emp->id === $currentFocalPerson->id
                     );
@@ -1350,6 +1357,12 @@
                             No Focal Person is assigned for this phase yet — pick who this request should go to.
                         @endif
                     </p>
+                </div>
+                <div class="form-group">
+                    <label>Request Date
+                        <span style="font-weight:400;color:var(--muted);">(defaults to today — set an earlier date when backfilling history)</span>
+                    </label>
+                    <input type="date" name="request_date" value="{{ now()->format('Y-m-d') }}" max="{{ now()->format('Y-m-d') }}">
                 </div>
                 <div class="form-group">
                     <label>Message
@@ -1490,6 +1503,50 @@
             </div>
         </div>
     </div>
+    @endif
+
+    <!-- ===== DELIVERY: PROCEED WITHOUT FINAL PAYMENT CONFIRM MODAL ===== -->
+    @if($project->current_phase === 'delivery' && $project->awaitingPaymentStage() === 'final_payment')
+    <div class="modal-overlay" id="proceedUnpaidModal">
+        <div class="modal-card" style="max-width:440px;">
+            <div class="modal-header">
+                <div>
+                    <h2>Proceed Without Final Payment?</h2>
+                    <p>No final payment has been recorded for this project yet.</p>
+                </div>
+                <button class="modal-close" type="button" onclick="closeProceedUnpaidModal()">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="delete-confirm-body">
+                <div class="delete-confirm-icon" style="background:#fef3c7;color:#b45309;"><i data-lucide="alert-triangle"></i></div>
+                <p>Are you sure you want to record the delivery now?</p>
+                <div style="margin-top:8px;font-size:13px;color:var(--muted);line-height:1.6;padding:0 12px;">
+                    The project will be marked as delivered and completed. The final payment stays open in the Payment module and can be settled after delivery.
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="cancel-btn" onclick="closeProceedUnpaidModal()">Cancel</button>
+                <button type="button" class="save-btn" onclick="closeProceedUnpaidModal(); proceedAfterPaymentConfirm('delivery');">
+                    <i data-lucide="arrow-right"></i>
+                    Yes, Proceed Anyway
+                </button>
+            </div>
+        </div>
+    </div>
+    <script>
+        function openProceedUnpaidModal() {
+            document.getElementById('proceedUnpaidModal').classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+        function closeProceedUnpaidModal() {
+            document.getElementById('proceedUnpaidModal').classList.remove('show');
+            document.body.style.overflow = '';
+        }
+        document.getElementById('proceedUnpaidModal').addEventListener('click', function (e) {
+            if (e.target === this) closeProceedUnpaidModal();
+        });
+    </script>
     @endif
 
     <!-- ===== INSPECTION: MARK AS COMPLETED CONFIRM MODAL ===== -->

@@ -425,12 +425,71 @@ class QuotationRequestController extends Controller
             ->orderBy('last_name')
             ->get();
 
+        // "Choose a Starting Point" — past projects whose materials, labor and pricing can be
+        // copied into this quotation. Only offered while the quotation can still be edited.
+        $quotationTemplates = $isLocked ? collect() : $this->quotationTemplates();
+
         return view('admin.quotation_batch_detail', compact(
             'batch', 'tankItems', 'batchStatus', 'isLocked',
             'materials', 'totalMaterials', 'estimatedCost', 'materialFactor',
             'laborEntries', 'totalLaborEntries', 'totalLaborCost',
-            'estimatedBudget', 'regularEmployees'
+            'estimatedBudget', 'regularEmployees', 'quotationTemplates'
         ));
+    }
+
+    /**
+     * Every completed project that has a bill of materials, newest first, shaped for the Quotation
+     * Builder's template picker: its active materials and labor, plus the material factor,
+     * working days, markup % and payment terms it was quoted with.
+     */
+    private function quotationTemplates()
+    {
+        $materials = ProjectMaterial::whereNotNull('project_id')->where('status', 'active')
+            ->orderBy('id')->get()->groupBy('project_id');
+        $labor     = ProjectLabor::whereNotNull('project_id')->where('status', 'active')
+            ->orderBy('id')->get()->groupBy('project_id');
+        $payments  = \App\Models\Payment::whereIn('project_id', $materials->keys())->get()->keyBy('project_id');
+
+        return Project::whereIn('id', $materials->keys())
+            ->where('status', 'completed')
+            ->orderByDesc('updated_at')
+            ->get()
+            // One template per project name — when the same kind of project was completed more
+            // than once, only the most recently completed one is offered.
+            ->unique(fn (Project $project) => mb_strtolower(trim($project->name)))
+            ->map(function (Project $project) use ($materials, $labor, $payments) {
+                $projectMaterials = $materials->get($project->id, collect());
+                $payment          = $payments->get($project->id);
+
+                return [
+                    'id'                     => $project->id,
+                    'name'                   => $project->name,
+                    'client'                 => $project->client,
+                    'status'                 => $project->status,
+                    'factor'                 => (float) ($projectMaterials->first()->factor ?? 0),
+                    'estimated_working_days' => $project->estimated_working_days,
+                    'markup_percent'         => $payment && (float) $payment->project_budget > 0
+                        ? round((float) $payment->markup / (float) $payment->project_budget * 100, 2)
+                        : null,
+                    'payment_term_type'      => $payment->payment_term_type ?? null,
+                    'materials'              => $projectMaterials->map(fn ($m) => [
+                        'name'  => $m->material_name,
+                        'unit'  => $m->unit,
+                        'qty'   => (float) $m->quantity,
+                        'price' => (float) $m->price_per_unit,
+                    ])->values(),
+                    // Labor is saved as "Name (Role)" — split it back so the builder can match the employee
+                    'labor'                  => $labor->get($project->id, collect())->map(function ($l) {
+                        $name = trim((string) $l->description);
+                        $role = '';
+                        if (preg_match('/^(.*?)\s*\(([^()]*)\)\s*$/', $name, $m)) {
+                            [$name, $role] = [trim($m[1]), trim($m[2])];
+                        }
+                        return ['name' => $name, 'role' => $role, 'rate' => (float) $l->daily_rate];
+                    })->values(),
+                ];
+            })
+            ->values();
     }
 
     /**
