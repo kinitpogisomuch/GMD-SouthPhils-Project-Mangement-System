@@ -274,18 +274,86 @@ class MaterialUsageController extends Controller
             abort(403);
         }
 
-        $employee = Employee::find(session('user_id'));
+        // Several materials can be logged in one save: quantity_used[<BOM material id>] => qty.
+        // Materials left blank (or 0) in the list are simply skipped.
+        $quantities = collect($request->input('quantity_used', []))
+            ->filter(fn ($qty) => is_numeric($qty) && (float) $qty > 0);
 
-        $this->createUsageEntry(
-            $request,
-            $project,
-            $employee?->full_name ?? 'Employee',
-            $employee?->full_name
-        );
+        $request->validate([
+            'quantity_used'   => 'required|array',
+            'quantity_used.*' => 'nullable|numeric|min:0',
+            'used_date'       => 'required|date|before_or_equal:today',
+            'notes'           => 'nullable|string|max:1000',
+        ], [
+            'used_date.before_or_equal' => 'The date used cannot be in the future.',
+        ]);
 
+        if ($quantities->isEmpty()) {
+            return redirect()->route('employee.material_usage.detail', $project->id)
+                ->with('error', 'Enter the quantity used for at least one material.');
+        }
+
+        // Only this project's own BOM materials can be logged — names and units come from there
+        $materials = $project->activeMaterials()->whereIn('id', $quantities->keys())->get()->keyBy('id');
+        if ($materials->count() !== $quantities->count()) {
+            return redirect()->route('employee.material_usage.detail', $project->id)
+                ->with('error', 'One of the selected materials is not part of this project.');
+        }
+
+        // Employees can only log what is actually in stock: purchased so far minus what's already been used
+        $stockErrors = [];
+        foreach ($quantities as $bomId => $qty) {
+            $bought      = MaterialPurchase::where('project_id', $project->id)->where('project_material_id', $bomId)->sum('qty_bought');
+            $alreadyUsed = MaterialUsage::where('project_id', $project->id)->where('project_material_id', $bomId)
+                ->where('status', 'active')->sum('quantity_used');
+            $inStock = max(0, $bought - $alreadyUsed);
+            $name    = $materials[$bomId]->material_name;
+
+            if ($bought <= 0) {
+                $stockErrors[] = "\"{$name}\" has not been purchased yet.";
+            } elseif ((float) $qty > $inStock + 0.0001) {
+                $stockErrors[] = "\"{$name}\" only has " . rtrim(rtrim(number_format($inStock, 2), '0'), '.') . " {$materials[$bomId]->unit} left in stock.";
+            }
+        }
+        if ($stockErrors) {
+            return redirect()->route('employee.material_usage.detail', $project->id)
+                ->withInput()
+                ->withErrors(['quantity_used' => $stockErrors]);
+        }
+
+        $employee   = Employee::find(session('user_id'));
+        $recordedBy = $employee?->full_name ?? 'Employee';
+        $logged     = [];
+
+        \DB::transaction(function () use ($quantities, $materials, $request, $project, $recordedBy, &$logged) {
+            foreach ($quantities as $bomId => $qty) {
+                $material = $materials[$bomId];
+                MaterialUsage::create([
+                    'project_id'          => $project->id,
+                    'project_material_id' => $material->id,
+                    'material_name'       => $material->material_name,
+                    'quantity_used'       => $qty,
+                    'unit'                => $material->unit,
+                    'used_date'           => $request->input('used_date'),
+                    'notes'               => $request->input('notes'),
+                    'recorded_by'         => $recordedBy,
+                    'status'              => 'active',
+                ]);
+                $logged[] = ['name' => $material->material_name, 'qty' => (float) $qty, 'unit' => $material->unit];
+            }
+        });
+
+        foreach ($materials->keys() as $bomId) {
+            $this->checkLowStock($project, (int) $bomId);
+        }
+
+        // One notification for the whole save, dated the day the materials were used (may be backdated)
+        NotificationService::materialUsageBatchLogged($project, $logged, $recordedBy, \Carbon\Carbon::parse($request->input('used_date')));
+
+        $count = count($logged);
         return redirect()
             ->route('employee.material_usage.detail', $project->id)
-            ->with('success', 'Material usage logged successfully.');
+            ->with('success', $count === 1 ? 'Material usage logged successfully.' : "{$count} materials logged successfully.");
     }
 
     // -----------------------------------------------------------------------
@@ -305,9 +373,29 @@ class MaterialUsageController extends Controller
 
         $activeUsage = $usageEntries->where('status', 'active');
 
-        $materialComparison = $plannedMaterials->map(function ($material) use ($activeUsage) {
+        // What has actually been bought per BOM material — usage can only come out of this stock
+        $purchasedByMaterial = MaterialPurchase::where('project_id', $projectId)
+            ->whereNotNull('project_material_id')
+            ->selectRaw('project_material_id, SUM(qty_bought) as total')
+            ->groupBy('project_material_id')
+            ->pluck('total', 'project_material_id');
+
+        $materialComparison = $plannedMaterials->map(function ($material) use ($activeUsage, $purchasedByMaterial) {
             $usedQty = $activeUsage->where('project_material_id', $material->id)->sum('quantity_used');
             $remaining = $material->quantity - $usedQty;
+
+            // Purchased stock view (employee page): bought, still in stock, and status against what was bought
+            $purchasedQty   = (float) ($purchasedByMaterial[$material->id] ?? 0);
+            $stockRemaining = max(0, $purchasedQty - $usedQty);
+            if ($purchasedQty <= 0) {
+                $stockStatusKey = 'not_purchased';
+            } elseif ($usedQty <= 0) {
+                $stockStatusKey = 'pending';
+            } elseif ($usedQty < $purchasedQty) {
+                $stockStatusKey = 'ongoing';
+            } else {
+                $stockStatusKey = 'completed';
+            }
 
             if ($usedQty <= 0) {
                 $statusKey = 'pending';
@@ -324,6 +412,9 @@ class MaterialUsageController extends Controller
                 'usedQty'   => $usedQty,
                 'remaining' => $remaining,
                 'statusKey' => $statusKey,
+                'purchasedQty'   => $purchasedQty,
+                'stockRemaining' => $stockRemaining,
+                'stockStatusKey' => $stockStatusKey,
             ];
         });
 

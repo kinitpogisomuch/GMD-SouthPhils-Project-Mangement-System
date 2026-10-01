@@ -242,6 +242,39 @@ class NotificationService
         );
     }
 
+    /**
+     * Several materials logged in one save → a single activity-log entry for admins listing them all
+     * (instead of one notification per material). $items: [['name' => ..., 'qty' => ..., 'unit' => ...], ...]
+     */
+    public static function materialUsageBatchLogged(Project $project, array $items, ?string $loggedBy = null, $usedDate = null): void
+    {
+        if (count($items) === 1) {
+            self::materialUsageLogged($project, $items[0]['name'], $items[0]['qty'], $loggedBy, $usedDate);
+            return;
+        }
+
+        $lines = array_map(function ($item) {
+            $qty = rtrim(rtrim(number_format($item['qty'], 2), '0'), '.');
+            return "• {$item['name']}: {$qty}" . ($item['unit'] ? " {$item['unit']}" : '');
+        }, $items);
+
+        $message = count($items) . " materials logged for Project: {$project->name}.\n" . implode("\n", $lines);
+        if ($loggedBy) {
+            $message .= "\nLogged by: {$loggedBy}";
+        }
+
+        self::notifyAdmins(
+            'Material Usage Logged',
+            $message,
+            self::TYPE_MATERIAL_USAGE_LOGGED,
+            'info',
+            $project->id,
+            null,
+            "/admin/material-usage/{$project->id}",
+            $usedDate
+        );
+    }
+
     /** Admin releases revolving fund money to a project → activity log for admins */
     public static function revolvingFundReleased(Project $project, float $amount, string $purpose): void
     {

@@ -6,6 +6,60 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $project->name }} — Material Usage | GMD South Phils</title>
     <link href="{{ asset('css/employee.css') }}" rel="stylesheet">
+    <style>
+        /* ── Materials vs Usage: scroll inside the card, header stays visible ── */
+        .mvu-scroll { max-height: 440px; overflow-y: auto; }
+        .mvu-scroll thead th { position: sticky; top: 0; z-index: 1; background: var(--cream-soft); }
+
+        /* ── Log Material Usage modal ── */
+        .mu-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; flex-shrink: 0; }
+        .mu-toolbar .search-box { max-width: none; flex: 1; height: 44px; }
+        .mu-count { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; color: var(--muted);
+                    background: var(--accent-soft); border-radius: 999px; padding: 6px 12px; white-space: nowrap; transition: .2s ease; }
+        .mu-count svg { width: 13px; height: 13px; }
+        .mu-count.has-items { background: var(--dark); color: var(--white); }
+
+        .mu-list { overflow-y: auto; flex: 1; min-height: 140px; border: 1px solid var(--border); border-radius: 16px; background: var(--white); }
+        .mu-row { display: flex; align-items: center; gap: 14px; padding: 12px 16px; border-bottom: 1px solid var(--border);
+                  border-left: 3px solid transparent; transition: background .15s ease, border-color .15s ease; }
+        .mu-row:last-of-type { border-bottom: none; }
+        .mu-row:hover { background: var(--cream-soft); }
+        .mu-row.is-filled { background: #f3f8f4; border-left-color: var(--success); }
+        .mu-info { flex: 1; min-width: 0; }
+        .mu-name { font-size: 13.5px; font-weight: 800; color: var(--dark); line-height: 1.3; }
+        .mu-remaining { margin-top: 3px; font-size: 11.5px; font-weight: 600; color: var(--muted); }
+        .mu-remaining strong { color: var(--dark); }
+        .mu-over { display: none; margin-top: 3px; font-size: 11.5px; font-weight: 800; color: var(--danger); }
+        .mu-row.is-over { background: #FEF3F2; border-left-color: var(--danger); }
+        .mu-row.is-over .mu-qty-wrap { border-color: var(--danger); }
+        .mu-row.is-over .mu-over { display: block; }
+        .mu-row.is-over .mu-remaining { display: none; }
+        .mu-row.is-disabled { opacity: .55; }
+        .mu-row.is-disabled:hover { background: transparent; }
+        .mu-row.is-disabled .mu-qty-wrap { background: var(--cream-soft); cursor: not-allowed; }
+        .mu-qty:disabled { cursor: not-allowed; }
+
+        .mu-qty-wrap { display: flex; align-items: center; flex-shrink: 0; border: 1.5px solid var(--border); border-radius: 12px;
+                       background: var(--white); overflow: hidden; transition: border-color .15s ease, box-shadow .15s ease; }
+        .mu-qty-wrap:focus-within { border-color: var(--dark); box-shadow: 0 0 0 3px rgba(0,0,0,.08); }
+        .mu-row.is-filled .mu-qty-wrap { border-color: var(--success); }
+        .mu-qty { width: 84px; height: 40px; border: none !important; outline: none; background: transparent; text-align: right;
+                  font-size: 14px; font-weight: 800; color: var(--dark); padding: 0 10px; box-shadow: none !important; -moz-appearance: textfield; }
+        .mu-qty::-webkit-outer-spin-button, .mu-qty::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .mu-qty::placeholder { color: var(--muted-light); font-weight: 600; }
+        .mu-unit { min-width: 52px; height: 40px; display: flex; align-items: center; justify-content: center; padding: 0 10px;
+                   background: var(--cream-soft); border-left: 1px solid var(--border); font-size: 12px; font-weight: 700; color: var(--muted); }
+
+        .mu-empty { display: none; padding: 28px; text-align: center; color: var(--muted); font-size: 13px; }
+        .mu-error { display: none; margin-top: 12px; padding: 10px 14px; border-radius: 10px; background: #FEE4E2; color: var(--danger);
+                    font-size: 13px; font-weight: 700; }
+
+        @media (max-width: 560px) {
+            .mu-row { flex-wrap: wrap; gap: 10px; }
+            .mu-qty-wrap { width: 100%; }
+            .mu-qty { flex: 1; width: auto; }
+        }
+    </style>
 </head>
 <body class="page-enter">
 
@@ -40,6 +94,13 @@
             <div class="alert-banner error">
                 <i data-lucide="alert-circle"></i>
                 {{ session('error') }}
+            </div>
+            @endif
+
+            @if($errors->any())
+            <div class="alert-banner error">
+                <i data-lucide="alert-circle"></i>
+                <div>@foreach($errors->all() as $message)<div>{{ $message }}</div>@endforeach</div>
             </div>
             @endif
 
@@ -91,56 +152,73 @@
                 </div>
             </div>
 
+            @php
+                // Materials that have been purchased come first — those are the ones that can be logged
+                $materialComparison = $materialComparison->sortBy(fn ($r) => $r['purchasedQty'] > 0 ? 0 : 1)->values();
+            @endphp
+
             {{-- Materials vs Usage --}}
             <div class="table-card" style="margin-bottom:24px;">
-                <div class="table-toolbar" style="padding-bottom:0;">
+                <div class="table-toolbar" style="padding-bottom:0;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
                     <span style="font-weight:700;font-size:15px;">Materials vs Usage</span>
+                    @if($materialComparison->isNotEmpty())
+                    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex:1;justify-content:flex-end;">
+                        <div class="search-box" style="height:42px;max-width:300px;">
+                            <i data-lucide="search"></i>
+                            <input type="search" id="mvuSearch" placeholder="Search materials..." autocomplete="off">
+                        </div>
+                        <button type="button" class="save-btn" onclick="openLogUsageModal()">
+                            <i data-lucide="plus"></i> Log Material Usage
+                        </button>
+                    </div>
+                    @endif
                 </div>
-                <div class="table-wrapper">
-                    <table class="data-table">
+                <div class="table-wrapper mvu-scroll">
+                    <table class="data-table" id="mvuTable">
                         <thead>
                             <tr>
                                 <th>Material Name</th>
-                                <th>Planned Qty</th>
+                                <th>Purchased Qty</th>
                                 <th>Used Qty</th>
                                 <th>Remaining</th>
                                 <th>Status</th>
-                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             @forelse($materialComparison as $row)
                             @php
                                 $statusLabels = [
-                                    'pending'   => 'Not Started',
-                                    'ongoing'   => 'In Use',
-                                    'completed' => 'Fully Used',
-                                    'shortage'  => 'Over Used',
+                                    'not_purchased' => 'Not Purchased',
+                                    'pending'       => 'Not Started',
+                                    'ongoing'       => 'In Use',
+                                    'completed'     => 'Fully Used',
                                 ];
                             @endphp
-                            <tr>
+                            <tr class="mvu-row" data-name="{{ strtolower($row['material']->material_name) }}">
                                 <td><strong>{{ $row['material']->material_name }}</strong></td>
-                                <td>{{ number_format($row['material']->quantity, 0) }}</td>
+                                <td>{{ number_format($row['purchasedQty'], 0) }}</td>
                                 <td>{{ number_format($row['usedQty'], 0) }}</td>
-                                <td>{{ number_format($row['remaining'], 0) }}</td>
+                                <td>{{ number_format($row['stockRemaining'], 0) }}</td>
                                 <td>
-                                    <span class="status-badge {{ $row['statusKey'] }}">
-                                        {{ $statusLabels[$row['statusKey']] }}
+                                    @if($row['stockStatusKey'] === 'not_purchased')
+                                    <span class="status-badge" style="background:var(--accent-soft);color:var(--muted);">{{ $statusLabels['not_purchased'] }}</span>
+                                    @else
+                                    <span class="status-badge {{ $row['stockStatusKey'] }}">
+                                        {{ $statusLabels[$row['stockStatusKey']] }}
                                     </span>
-                                </td>
-                                <td class="action-cell">
-                                    <button class="action-btn view" type="button" onclick="openLogUsageModal({{ $row['material']->id }}, {{ \Illuminate\Support\Js::from($row['material']->material_name) }}, {{ \Illuminate\Support\Js::from($row['material']->unit) }})" title="Log usage for this material">
-                                        <i data-lucide="pencil"></i>
-                                    </button>
+                                    @endif
                                 </td>
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="6" style="text-align:center;padding:32px;color:var(--muted);">
+                                <td colspan="5" style="text-align:center;padding:32px;color:var(--muted);">
                                     No planned materials found for this project.
                                 </td>
                             </tr>
                             @endforelse
+                            <tr id="mvuNoMatch" style="display:none;">
+                                <td colspan="5" style="text-align:center;padding:32px;color:var(--muted);">No materials match your search.</td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -176,7 +254,7 @@
                             @empty
                             <tr>
                                 <td colspan="6" style="text-align:center;padding:32px;color:var(--muted);">
-                                    No usage entries yet. Use the edit icon in <strong>Materials vs Usage</strong> to log usage.
+                                    No usage entries yet. Click <strong>Log Material Usage</strong> above to log what was used.
                                 </td>
                             </tr>
                             @endforelse
@@ -187,47 +265,80 @@
 
     </main>
 
-    {{-- ===================== LOG USAGE MODAL ===================== --}}
+    {{-- ===================== LOG USAGE MODAL — several materials in one save ===================== --}}
     <div class="modal-overlay" id="logUsageModal">
-        <div class="modal-card" style="max-width:520px;">
-            <div class="modal-header">
+        <div class="modal-card" style="max-width:640px;max-height:90vh;display:flex;flex-direction:column;">
+            <div class="modal-header" style="flex-shrink:0;">
                 <div>
                     <h2>Log Material Usage</h2>
-                    <p>Record materials consumed for <strong>{{ $project->name }}</strong>.</p>
+                    <p>Enter how much of each material was used on <strong>{{ $project->name }}</strong>. Leave the rest blank.</p>
                 </div>
                 <button class="modal-close" type="button" onclick="closeModal('logUsageModal')">
                     <i data-lucide="x"></i>
                 </button>
             </div>
 
-            <form method="POST" action="{{ route('employee.material_usage.store', $project->id) }}">
+            <form method="POST" action="{{ route('employee.material_usage.store', $project->id) }}" id="logUsageForm" style="display:flex;flex-direction:column;min-height:0;flex:1;">
                 @csrf
-                <div class="form-grid">
-                    <div class="form-group form-group-full">
-                        <label>Material</label>
-                        <div class="form-static" id="usageMaterialDisplay"></div>
-                        <input type="hidden" name="project_material_id" id="usageMaterialIdInput">
-                        <input type="hidden" name="material_name" id="usageMaterialNameInput">
-                        <input type="hidden" name="unit" id="usageUnitInput">
+                <div class="mu-toolbar">
+                    <div class="search-box">
+                        <i data-lucide="search"></i>
+                        <input type="search" id="usageSearch" placeholder="Search materials..." autocomplete="off">
+                    </div>
+                    <span class="mu-count" id="usageCount"><i data-lucide="list-checks"></i><span>0 to log</span></span>
+                </div>
+
+                <div class="mu-list" id="usageList">
+                    @foreach($materialComparison as $row)
+                    @php
+                        $fmtQty  = fn ($n) => rtrim(rtrim(number_format($n, 2), '0'), '.');
+                        $inStock = (float) $row['stockRemaining'];
+                        $unit    = $row['material']->unit;
+                    @endphp
+                    <div class="mu-row{{ $inStock <= 0 ? ' is-disabled' : '' }}" data-name="{{ strtolower($row['material']->material_name) }}">
+                        <div class="mu-info">
+                            <div class="mu-name">{{ $row['material']->material_name }}</div>
+                            <div class="mu-remaining">
+                                @if($row['purchasedQty'] <= 0)
+                                    Not purchased yet
+                                @elseif($inStock <= 0)
+                                    All {{ $fmtQty($row['purchasedQty']) }} {{ $unit }} purchased already used
+                                @else
+                                    <strong>{{ $fmtQty($inStock) }} {{ $unit }}</strong> in stock &middot; {{ $fmtQty($row['purchasedQty']) }} purchased
+                                @endif
+                            </div>
+                            <div class="mu-over">Only {{ $fmtQty($inStock) }} {{ $unit }} in stock</div>
+                        </div>
+                        <label class="mu-qty-wrap" title="{{ $inStock > 0 ? 'Quantity used' : 'Nothing in stock to log' }}">
+                            <input type="number" name="quantity_used[{{ $row['material']->id }}]" class="mu-qty usage-qty"
+                                   data-material-id="{{ $row['material']->id }}" data-max="{{ $inStock }}"
+                                   min="0" max="{{ $inStock }}" step="0.01" placeholder="0" onwheel="this.blur()" inputmode="decimal"
+                                   value="{{ old('quantity_used.' . $row['material']->id) }}"
+                                   {{ $inStock <= 0 ? 'disabled' : '' }}>
+                            <span class="mu-unit">{{ $unit ?: 'qty' }}</span>
+                        </label>
+                    </div>
+                    @endforeach
+                    <div class="mu-empty" id="usageNoMatch">No materials match your search.</div>
+                </div>
+
+                <div class="form-grid" style="margin-top:14px;flex-shrink:0;">
+                    <div class="form-group">
+                        <label>Date Used <span style="font-weight:400;color:var(--muted);">(set an earlier date for past usage)</span></label>
+                        <input type="date" name="used_date" value="{{ old('used_date', now()->format('Y-m-d')) }}" max="{{ now()->format('Y-m-d') }}" required>
                     </div>
                     <div class="form-group">
-                        <label>Quantity Used </label>
-                        <input type="number" name="quantity_used" min="0.01" step="0.01" onwheel="this.blur()" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Date Used </label>
-                        <input type="date" name="used_date" value="{{ now()->format('Y-m-d') }}" required>
-                    </div>
-                    <div class="form-group form-group-full">
-                        <label>Notes</label>
-                        <textarea name="notes" rows="3" placeholder="Optional notes about this usage entry"></textarea>
+                        <label>Notes <span style="font-weight:400;color:var(--muted);">(optional, applies to all)</span></label>
+                        <input type="text" name="notes" maxlength="1000" value="{{ old('notes') }}" placeholder="e.g. Shell welding, day 2">
                     </div>
                 </div>
-                <div class="modal-actions">
+                <div class="mu-error" id="usageFormError"></div>
+
+                <div class="modal-actions" style="flex-shrink:0;">
                     <button type="button" class="cancel-btn" onclick="closeModal('logUsageModal')">Cancel</button>
-                    <button type="submit" class="save-btn">
+                    <button type="submit" class="save-btn" id="usageSaveBtn">
                         <i data-lucide="check-circle" style="width:15px;height:15px;"></i>
-                        Save
+                        Save All
                     </button>
                 </div>
             </form>
@@ -246,15 +357,100 @@
             if (m) { m.classList.remove('show'); document.body.style.overflow = ''; }
         }
 
-        function openLogUsageModal(materialId, materialName, unit) {
-            document.getElementById('usageMaterialIdInput').value = materialId;
-            document.getElementById('usageMaterialNameInput').value = materialName;
-            document.getElementById('usageUnitInput').value = unit;
-            document.getElementById('usageMaterialDisplay').textContent = unit ? (materialName + ' (' + unit + ')') : materialName;
+        // One modal for every material; the row's pencil button jumps straight to that material
+        function openLogUsageModal(materialId) {
+            document.getElementById('usageSearch').value = '';
+            filterUsageRows();
+            document.getElementById('usageFormError').style.display = 'none';
             openModal('logUsageModal');
+            var target = materialId
+                ? document.querySelector('.usage-qty[data-material-id="' + materialId + '"]')
+                : document.querySelector('.usage-qty:not(:disabled)');
+            if (target) {
+                target.scrollIntoView({ block: 'center' });
+                setTimeout(function () { target.focus(); }, 50);
+            }
+        }
+
+        function filterUsageRows() {
+            var q = document.getElementById('usageSearch').value.toLowerCase().trim();
+            var shown = 0;
+            document.querySelectorAll('#usageList .mu-row').forEach(function (row) {
+                var match = !q || row.dataset.name.indexOf(q) !== -1;
+                row.style.display = match ? 'flex' : 'none';
+                if (match) shown++;
+            });
+            document.getElementById('usageNoMatch').style.display = shown ? 'none' : 'block';
+        }
+
+        function updateUsageCount() {
+            var n = 0;
+            var over = 0;
+            document.querySelectorAll('.usage-qty').forEach(function (input) {
+                var qty    = parseFloat(input.value);
+                var filled = qty > 0;
+                var isOver = filled && qty > parseFloat(input.dataset.max) + 0.0001;
+                if (filled) n++;
+                if (isOver) over++;
+                var row = input.closest('.mu-row');
+                row.classList.toggle('is-filled', filled && !isOver);
+                row.classList.toggle('is-over', isOver);
+            });
+            window.__usageOverCount = over;
+            var chip = document.getElementById('usageCount');
+            chip.classList.toggle('has-items', n > 0);
+            chip.lastChild.textContent = n + (n === 1 ? ' material' : ' materials') + ' to log';
+            var btn = document.getElementById('usageSaveBtn');
+            btn.lastChild.textContent = n > 1 ? ' Save All (' + n + ')' : ' Save All';
+            return n;
         }
 
         document.addEventListener('DOMContentLoaded', function() {
+            var mvuSearch = document.getElementById('mvuSearch');
+            if (mvuSearch) {
+                mvuSearch.addEventListener('input', function () {
+                    var q = this.value.toLowerCase().trim();
+                    var shown = 0;
+                    document.querySelectorAll('#mvuTable .mvu-row').forEach(function (row) {
+                        var match = !q || row.dataset.name.indexOf(q) !== -1;
+                        row.style.display = match ? '' : 'none';
+                        if (match) shown++;
+                    });
+                    document.getElementById('mvuNoMatch').style.display = shown ? 'none' : '';
+                });
+            }
+
+            var usageForm = document.getElementById('logUsageForm');
+            if (usageForm) {
+                document.getElementById('usageSearch').addEventListener('input', filterUsageRows);
+                usageForm.addEventListener('input', updateUsageCount);
+                usageForm.addEventListener('submit', function (e) {
+                    var err = document.getElementById('usageFormError');
+                    if (updateUsageCount() === 0) {
+                        e.preventDefault();
+                        err.textContent = 'Enter the quantity used for at least one material.';
+                        err.style.display = 'block';
+                        return;
+                    }
+                    if (window.__usageOverCount > 0) {
+                        e.preventDefault();
+                        err.textContent = 'Some quantities are more than what is in stock — fix the rows marked in red.';
+                        err.style.display = 'block';
+                        var firstOver = document.querySelector('.mu-row.is-over .usage-qty');
+                        if (firstOver) { firstOver.scrollIntoView({ block: 'center' }); firstOver.focus(); }
+                        return;
+                    }
+                    // blank rows aren't sent — only the materials actually used
+                    document.querySelectorAll('.usage-qty').forEach(function (input) {
+                        if (!(parseFloat(input.value) > 0)) input.disabled = true;
+                    });
+                    document.getElementById('usageSaveBtn').disabled = true;
+                });
+                updateUsageCount();
+                // came back with a validation error → reopen the list with what was typed
+                @if($errors->any()) openModal('logUsageModal'); @endif
+            }
+
             document.querySelectorAll('.modal-overlay').forEach(function(overlay) {
                 overlay.addEventListener('click', function(e) {
                     if (e.target === this) closeModal(this.id);
