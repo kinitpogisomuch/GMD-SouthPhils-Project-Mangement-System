@@ -116,10 +116,6 @@
                     <i data-lucide="settings"></i>
                     <span>Settings</span>
                 </a>
-                <a href="{{ route('admin.manual') }}">
-                    <i data-lucide="book-open"></i>
-                    <span>User Manual</span>
-                </a>
                 <div class="admin-dropdown-divider"></div>
                 <a href="{{ route('logout') }}" class="danger"
                    onclick="event.preventDefault(); document.getElementById('adminLogoutModal').classList.add('show');">
@@ -1020,7 +1016,7 @@ document.addEventListener('DOMContentLoaded', function () {
         </div>
         <div class="delete-confirm-body">
             <div class="delete-confirm-icon" style="background:#fee2e2;color:#dc2626;"><i data-lucide="file-warning"></i></div>
-            <p id="fileTooLargeMsg">This file is too large.</p>
+            <p id="fileTooLargeMsg" style="overflow-wrap:anywhere;">This file is too large.</p>
         </div>
         <div class="modal-actions">
             <button type="button" class="save-btn" onclick="closeFileTooLargeModal()">Okay</button>

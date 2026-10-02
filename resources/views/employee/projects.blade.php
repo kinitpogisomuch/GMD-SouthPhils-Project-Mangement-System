@@ -48,9 +48,9 @@
                                 @endif
                             </div>
                             <div class="project-meta">
-                                Client: <strong class="project-meta-strong">{{ $project->live_client_name }}</strong> &nbsp;·&nbsp;
-                                Tank Type: <strong class="project-meta-strong">{{ $project->tank_type }}</strong>
-                                &nbsp;·&nbsp; Capacity: <strong class="project-meta-strong">{{ $project->capacity }}</strong>
+                                <span class="project-meta-item">Client: <strong class="project-meta-strong">{{ $project->live_client_name }}</strong></span><span class="project-meta-sep"> &nbsp;·&nbsp; </span>
+                                <span class="project-meta-item">Tank Type: <strong class="project-meta-strong">{{ $project->tank_type }}</strong></span><span class="project-meta-sep"> &nbsp;·&nbsp; </span>
+                                <span class="project-meta-item">Capacity: <strong class="project-meta-strong">{{ $project->capacity }}</strong></span>
                             </div>
                         </div>
                         <div class="project-actions">

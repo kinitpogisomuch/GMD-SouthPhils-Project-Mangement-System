@@ -986,7 +986,7 @@
         </div>
         <div class="delete-confirm-body">
             <div class="delete-confirm-icon" style="background:#fee2e2;color:#dc2626;"><i data-lucide="file-warning"></i></div>
-            <p id="fileTooLargeMsg">This file is too large.</p>
+            <p id="fileTooLargeMsg" style="overflow-wrap:anywhere;">This file is too large.</p>
         </div>
         <div class="modal-actions">
             <button type="button" class="save-btn" onclick="closeFileTooLargeModal()">Okay</button>

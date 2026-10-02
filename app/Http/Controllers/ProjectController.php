@@ -1528,7 +1528,7 @@ class ProjectController extends Controller
             'work_done'    => 'nullable|string',
             'issues'       => 'nullable|string',
             'photos'       => 'required|array|min:1|max:5',
-            'photos.*'     => 'required|image|max:5120',
+            'photos.*'     => 'required|image|max:10240',
         ]);
 
         if ($validator->fails()) {
@@ -1638,7 +1638,7 @@ class ProjectController extends Controller
             'work_done'        => 'required|string',
             'issues'           => 'nullable|string',
             'photos'           => 'required|array|min:1|max:5',
-            'photos.*'         => 'required|image|max:5120',
+            'photos.*'         => 'required|image|max:10240',
             'parent_update_id' => 'required|integer',
         ]);
 

@@ -3743,6 +3743,8 @@ body {
 @media (max-width: 900px) {
     .settings-layout { flex-direction: column; }
     .settings-avatar-card { width: 100%; min-width: unset; }
+    /* Profile photo + GCash QR column: its desktop width is fixed inline at 260px — fill the screen once stacked */
+    .settings-side-col { width: 100% !important; }
     .settings-single-card { justify-content: center; }
     .settings-single-card .pv-card { max-width: 100% !important; }
 }
@@ -4296,5 +4298,81 @@ body.page-enter .admin-content {
     body.page-enter .employee-header,
     body.page-enter .admin-content {
         animation: none;
+    }
+}
+
+/* ================= EMPLOYEE PROJECTS — MOBILE CARD LAYOUT =================
+   Mobile only (desktop layout above is untouched). The desktop card puts the
+   title, badge/button and the progress + dates side by side, which squeezes
+   everything into a narrow column on phones — here it stacks instead. */
+@media (max-width: 640px) {
+    .project-card-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 14px;
+    }
+
+    .project-title {
+        font-size: 17px;
+        line-height: 1.3;
+    }
+
+    .project-meta {
+        font-size: 12.5px;
+        line-height: 1.6;
+        margin-top: 6px;
+    }
+
+    /* Client / Tank Type / Capacity each on their own line — no "·" separators */
+    .project-meta-item {
+        display: block;
+    }
+
+    .project-meta-sep {
+        display: none;
+    }
+
+    /* status badge on the left, View button on the right, on one row under the title */
+    .project-actions {
+        justify-content: space-between;
+        padding-top: 12px;
+        border-top: 1px solid var(--border);
+    }
+
+    .project-actions .btn {
+        min-height: 40px;
+        padding-left: 18px;
+        padding-right: 18px;
+    }
+
+    .project-progress-container {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    .project-progress-container .progress-wrap {
+        width: 100%;
+    }
+
+    /* Start / End / Phase as three equal tiles in a soft panel */
+    .project-progress-info {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        background: var(--cream-soft);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 12px;
+    }
+
+    .project-info-label {
+        font-size: 9.5px;
+        letter-spacing: 0.05em;
+    }
+
+    .project-info-value {
+        font-size: 13px;
+        line-height: 1.3;
+        margin-top: 4px;
     }
 }

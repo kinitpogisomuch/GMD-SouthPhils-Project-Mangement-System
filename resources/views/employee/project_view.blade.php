@@ -152,7 +152,7 @@
                                     <span style="font-size:12px;font-weight:600;color:#9a3412;">Take Photo</span>
                                 </label>
                             </div>
-                            <span style="display:block;font-size:11.5px;color:#c2410c;margin-top:6px;">Required — JPG, PNG up to 5MB each</span>
+                            <span style="display:block;font-size:11.5px;color:#c2410c;margin-top:6px;">Required — JPG, PNG up to 10MB each</span>
                             {{-- Validated in JS on submit instead of native `required` — see note on the
                                  progress-update form's photo input above. --}}
                             <input type="file" name="photos[]" id="revisionPhotoFileInput" multiple accept="image/*"
@@ -260,7 +260,7 @@
                                     <span style="font-size:10.5px;color:#b45309;text-align:center;">Use camera</span>
                                 </label>
                             </div>
-                            <span style="display:block;font-size:11.5px;color:#b45309;margin-top:8px;">Up to 5 photos &middot; JPG/PNG &middot; max 5MB each</span>
+                            <span style="display:block;font-size:11.5px;color:#b45309;margin-top:8px;">Up to 5 photos &middot; JPG/PNG &middot; max 10MB each</span>
                             {{-- No native `required` here — a display:none file input can't be focused to
                                  show the browser's validation bubble, which silently blocks submission
                                  with no visible feedback. Validated in JS on submit instead (below). --}}
@@ -820,7 +820,7 @@
             const rejected = [];
             for (const f of Array.from(input.files)) {
                 if (empPhotoFiles.length >= 5) break;
-                if (f.size > 5 * 1024 * 1024) { rejected.push(f.name); continue; }
+                if (f.size > 10 * 1024 * 1024) { rejected.push(f.name); continue; }
                 empPhotoFiles.push(f);
             }
             // Reset the input that just fired BEFORE re-syncing — when that's the
@@ -830,7 +830,7 @@
             input.value = '';
             syncInput(document.getElementById('photoFileInput'), empPhotoFiles);
             buildPhotoPreview(empPhotoFiles, 'photoPreview', 'removeEmpPhoto');
-            if (rejected.length) showFileTooLargeModal(rejected.join(', '), 5);
+            if (rejected.length) showFileTooLargeModal(rejected.join(', '), 10);
         }
 
         function removeEmpPhoto(index) {
@@ -843,14 +843,14 @@
             const rejected = [];
             for (const f of Array.from(input.files)) {
                 if (empRevisionFiles.length >= 5) break;
-                if (f.size > 5 * 1024 * 1024) { rejected.push(f.name); continue; }
+                if (f.size > 10 * 1024 * 1024) { rejected.push(f.name); continue; }
                 empRevisionFiles.push(f);
             }
             // Same ordering fix as previewPhotos() — reset before re-sync, never after.
             input.value = '';
             syncInput(document.getElementById('revisionPhotoFileInput'), empRevisionFiles);
             buildPhotoPreview(empRevisionFiles, 'revisionPhotoPreview', 'removeRevisionPhoto');
-            if (rejected.length) showFileTooLargeModal(rejected.join(', '), 5);
+            if (rejected.length) showFileTooLargeModal(rejected.join(', '), 10);
         }
 
         function removeRevisionPhoto(index) {

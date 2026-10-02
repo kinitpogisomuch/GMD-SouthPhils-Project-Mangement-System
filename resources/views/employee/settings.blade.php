@@ -46,7 +46,7 @@
 
                     <!-- Left column: Avatar Card + GCash QR, stacked so the QR doesn't take up the
                          full page width — it only needs to be as wide as the photo card beside it. -->
-                    <div style="display:flex;flex-direction:column;gap:10px;width:260px;flex-shrink:0;">
+                    <div class="settings-side-col" style="display:flex;flex-direction:column;gap:10px;width:260px;flex-shrink:0;">
                     <div class="settings-avatar-card" style="flex:1;justify-content:center;">
                         <div class="settings-avatar" id="avatarDisplay">
                             @if(session('profile_photo'))
