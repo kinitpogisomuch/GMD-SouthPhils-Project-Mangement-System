@@ -208,6 +208,13 @@ class PaymentController extends Controller
             'proof_id'         => 'nullable|integer',
         ]);
 
+        // Each OR / Serial Number can only be used once across all payments (trimmed, case-insensitive)
+        $validated['reference_number'] = trim($validated['reference_number']);
+        $orTaken = PaymentTransaction::whereRaw('LOWER(TRIM(reference_number)) = ?', [mb_strtolower($validated['reference_number'])])->exists();
+        if ($orTaken) {
+            return back()->withInput()->with('error', 'OR / Serial Number "' . $validated['reference_number'] . '" is already used on another payment. Please enter a different one.');
+        }
+
         // Stages are settled in order, so only the one currently open can be recorded. The Down
         // Payment is a fixed amount and always settled in full; Progress and Final Payment accept
         // partial payments, never beyond what is due. Once the project reaches its final-payment

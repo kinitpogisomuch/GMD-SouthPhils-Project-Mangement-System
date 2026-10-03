@@ -8,6 +8,9 @@
     <link href="{{ asset('css/admin.css') }}" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
+        /* While another period is being fetched: dim the content so the change is visible */
+        body.kd-is-loading .kd-panel { opacity: .45; pointer-events: none; transition: opacity .15s ease; }
+        body.kd-is-loading #kdPeriodLabel { color: var(--muted); }
         /* Tabs (top-level + modal) reuse .filter-tabs/.filter-tab; header reuses .page-title/.page-subtitle;
            buttons reuse .add-btn/.cancel-btn/.save-btn; modal reuses .modal-overlay/.modal-card/.form-group —
            only the pieces with no existing equivalent (cards, insight box, chips, progress bar) are custom here. */
@@ -582,6 +585,7 @@
         var REPORT_RANGE_URL      = "{{ route('admin.kpi_dashboard.report_range') }}";
         var SAVE_QUARTER_URL      = "{{ route('admin.kpi_dashboard.save_quarter_targets') }}";
         var CSRF_TOKEN            = "{{ csrf_token() }}";
+        var KPI_PAGE_URL          = "{{ route('admin.kpi_dashboard') }}";
 
         var STATE = {
             payload: @json($initialData),
@@ -675,8 +679,7 @@
                 wholeBtn.className = 'kd-period-whole-quarter-btn';
                 wholeBtn.textContent = 'View all of Q' + pickerQuarter;
                 wholeBtn.addEventListener('click', function () {
-                    loadPeriod(pickerYear, pickerQuarter);
-                    closePeriodPanel();
+                    goToPeriod(pickerYear, pickerQuarter);
                 });
                 list.appendChild(wholeBtn);
 
@@ -694,13 +697,10 @@
                     mBtn.dataset.month      = monthNum;
                     mBtn.dataset.monthLabel = monthAbbr + ' ' + pickerYear;
                     mBtn.addEventListener('click', function () {
-                        // The scorecard cards/insight/chart now show this specific month's
+                        // The scorecard cards/insight/chart then show this specific month's
                         // actuals vs. its own monthly target — the Monthly Breakdown table
-                        // still shows the whole containing quarter for context, scrolling to
-                        // and flashing this exact month's row.
-                        window.__kdPendingMonthHighlight = this.dataset.monthLabel;
-                        loadPeriod(pickerYear, pickerQuarter, parseInt(this.dataset.month, 10));
-                        closePeriodPanel();
+                        // still shows the whole containing quarter, with this month's row flashed.
+                        goToPeriod(pickerYear, pickerQuarter, parseInt(this.dataset.month, 10));
                     });
                     monthsGrid.appendChild(mBtn);
                 }
@@ -741,17 +741,52 @@
             pickerYear = STATE.payload.year;
         }
 
+        // Picking a period in the picker loads the page for it (like any other page) —
+        // the URL then reflects the period, so refresh / back / bookmarks keep it.
+        function goToPeriod(year, quarter, month) {
+            closePeriodPanel();
+            document.getElementById('kdPeriodLabel').textContent = 'Loading…';
+            document.body.classList.add('kd-is-loading');
+            var url = KPI_PAGE_URL + '?year=' + year + '&quarter=' + quarter + (month ? '&month=' + month : '');
+            window.location.href = url;
+        }
+
+        // A page loaded for a single month flashes that month's row in the Monthly Breakdown
+        if (STATE.payload.month) {
+            window.__kdPendingMonthHighlight = MONTH_ABBR[STATE.payload.month - 1] + ' ' + STATE.payload.year;
+        }
+
+        // In-place refresh — still used by the Set Targets modal, which stays open while it switches quarter
         function loadPeriod(year, quarter, month) {
             var url = KPI_DATA_URL + '?year=' + year + '&quarter=' + quarter;
             if (month) url += '&month=' + month;
+
+            // Show that the new period is loading — the data is fetched in the background, not by a page reload
+            var labelEl = document.getElementById('kdPeriodLabel');
+            labelEl.textContent = 'Loading ' + (month ? MONTH_FULL[month - 1] + ' ' + year : 'Q' + quarter + ' ' + year) + '…';
+            document.body.classList.add('kd-is-loading');
+
             fetch(url, {
                 headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
             })
-            .then(function (r) { return r.json(); })
+            .then(function (r) {
+                // e.g. an expired session redirects to the login page (HTML), which isn't KPI data
+                if (!r.ok || (r.headers.get('content-type') || '').indexOf('application/json') === -1) {
+                    throw new Error('Unexpected response ' + r.status);
+                }
+                return r.json();
+            })
             .then(function (payload) {
                 STATE.payload = payload;
                 renderPeriodOptions();
                 renderEverything();
+            })
+            .catch(function () {
+                renderPeriodOptions();   // put the label back to the period still on screen
+                alert('Could not load that period. Please refresh the page (your session may have expired) and try again.');
+            })
+            .finally(function () {
+                document.body.classList.remove('kd-is-loading');
             });
         }
 
@@ -1485,17 +1520,27 @@
                 ' <span class="muted">/ ' + (hasTarget ? targetText : '—') + '</span>';
         }
 
+        // Project / client names are typed by users — escape them before putting them in the report HTML
+        function escapeHtml(str) {
+            return String(str == null ? '' : str)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
         function buildReportDocument(data) {
             var rows = data.quarters.map(function (q) {
                 var profitCell = actualTargetCell(fmtPeso(q.profit.net_profit), fmtPeso(q.profit.target), q.profit.has_target, q.profit.hit);
                 var onTimeCell = actualTargetCell(q.on_time.on_time_count, q.on_time.target, q.on_time.has_target, q.on_time.hit);
                 var budgetStatus = budgetRangeStatus(q.budget.adherence_rate);
-                var budgetCell = '<span style="color:' + budgetStatus.color + ';font-weight:800;">' + fmtPct(q.budget.adherence_rate) + '</span> <span class="muted">' + budgetStatus.label + '</span>';
+                // A quarter with no completed projects has nothing to measure — not "0% / significantly under budget"
+                var budgetCell = q.project_count
+                    ? '<span style="color:' + budgetStatus.color + ';font-weight:800;">' + fmtPct(q.budget.adherence_rate) + '</span> <span class="muted">' + budgetStatus.label + '</span>'
+                    : '<span class="muted">—</span>';
 
                 return '<tr>' +
                     '<td><strong>' + q.label + '</strong></td>' +
                     '<td class="r">' + q.project_count + '</td>' +
                     '<td class="r">' + profitCell + '</td>' +
+                    '<td class="r">' + (q.project_count ? fmtPct(q.profit.avg_margin) : '—') + '</td>' +
                     '<td class="r">' + onTimeCell + '</td>' +
                     '<td class="r">' + budgetCell + '</td>' +
                 '</tr>';
@@ -1632,6 +1677,51 @@
                 '</tr>';
             }).join('');
 
+            // ── Project-level detail (every project completed in the range) ──
+            var projects       = data.projects || [];
+            var totalRevenueP  = projects.reduce(function (s, p) { return s + p.revenue; }, 0);
+            var overallMargin  = totalRevenueAll > 0 ? (totalProfit / totalRevenueAll * 100) : 0;
+            var avgProjectSize = projects.length ? projects.reduce(function (s, p) { return s + p.contract; }, 0) / projects.length : 0;
+            var delayed        = projects.filter(function (p) { return !p.on_time; });
+
+            function deliveryCell(p) {
+                return p.on_time
+                    ? '<span class="hit-y">On time</span>'
+                    : '<span class="hit-n">' + (p.delay_days ? p.delay_days + ' day' + (p.delay_days === 1 ? '' : 's') + ' late' : 'Late') + '</span>';
+            }
+            function adherenceCell(v) {
+                if (v === null || v === undefined) return '—';
+                var st = budgetRangeStatus(v);
+                return '<span style="color:' + st.color + ';font-weight:800;">' + fmtPct(v) + '</span>';
+            }
+
+            var projectRows = projects.map(function (p) {
+                var totalCost = p.mat_cost + p.labor_cost + p.overhead_cost;
+                return '<tr>' +
+                    '<td><strong>' + escapeHtml(p.name) + '</strong><div class="muted small">' + escapeHtml(p.client || '') + ' &middot; ' + p.code + '</div></td>' +
+                    '<td>' + p.completed_on + '<div class="muted small">Due ' + (p.due_on || '—') + '</div></td>' +
+                    '<td>' + deliveryCell(p) + '</td>' +
+                    '<td class="r">' + fmtPeso(p.revenue) + '</td>' +
+                    '<td class="r">' + fmtPeso(totalCost) + '</td>' +
+                    '<td class="r"><strong>' + fmtPeso(p.net_profit) + '</strong></td>' +
+                    '<td class="r">' + (p.margin === null ? '—' : fmtPct(p.margin)) + '</td>' +
+                    '<td class="r">' + adherenceCell(p.adherence) + '</td>' +
+                '</tr>';
+            }).join('');
+
+            if (delayed.length) {
+                takeaways.push('Delayed ' + (delayed.length === 1 ? 'project' : 'projects') + ': ' + delayed.map(function (p) {
+                    return escapeHtml(p.name) + (p.delay_days ? ' (' + p.delay_days + ' day' + (p.delay_days === 1 ? '' : 's') + ' late)' : '');
+                }).join('; ') + '.');
+            }
+            if (projects.length >= 2) {
+                var bestP = projects.reduce(function (a, b) { return (b.margin || -Infinity) > (a.margin || -Infinity) ? b : a; });
+                if (bestP.margin !== null) takeaways.push('Most profitable project: ' + escapeHtml(bestP.name) + ' at a ' + fmtPct(bestP.margin) + ' margin (' + fmtPeso(bestP.net_profit) + ').');
+            }
+
+            var company = data.company || {};
+            var contactLine = [company.address, company.phone, company.email].filter(Boolean).map(escapeHtml).join(' &nbsp;·&nbsp; ');
+
             return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>KPI Report — ' + data.from_label + ' to ' + data.to_label + '</title>' +
                 '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"><\/script>' +
                 '<style>' +
@@ -1649,6 +1739,7 @@
                     '.chart-title{font-size:11.5px;font-weight:700;color:#333;margin-bottom:8px;}' +
                     '.chart-canvas{position:relative;height:170px;width:100%;}' +
                     '.chart-canvas canvas{position:absolute;top:0;left:0;width:100% !important;height:100% !important;}' +
+                    '.chart-canvas img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain;}' +
                     '.section-title{font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#666;margin-bottom:10px;}' +
                     '.takeaways{background:#EAF0FF;border:1px solid rgba(42,78,170,.2);border-radius:10px;padding:16px 18px;margin-bottom:26px;}' +
                     '.takeaways ul{margin:0 0 12px 18px;padding:0;font-size:13px;line-height:1.7;color:#222;}' +
@@ -1662,15 +1753,44 @@
                     '.muted{color:#999;font-weight:400;}' +
                     'tbody tr:nth-child(even){background:#fafafa;}' +
                     'tfoot td{font-weight:700;background:#f0f0f0;}' +
-                    '@media print{body{padding:0;} .charts,.stats{page-break-inside:avoid;}}' +
+                    '.report-head{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;border-bottom:3px solid #222;padding-bottom:12px;margin-bottom:18px;}' +
+                    '.company{font-size:11.5px;color:#666;margin-top:3px;}' +
+                    '.head-meta{text-align:right;font-size:11.5px;color:#666;line-height:1.6;white-space:nowrap;}' +
+                    '.head-meta strong{color:#222;}' +
+                    '.small{font-size:11px;margin-top:2px;}' +
+                    '.section{margin-bottom:26px;page-break-inside:avoid;}' +
+                    '.defs{display:grid;grid-template-columns:1fr 1fr;gap:8px 22px;font-size:11.5px;color:#444;line-height:1.55;}' +
+                    '.defs strong{color:#222;}' +
+                    '.signoff{display:flex;gap:60px;margin-top:40px;page-break-inside:avoid;}' +
+                    '.sign{flex:1;font-size:12px;color:#444;}' +
+                    '.sign-line{border-top:1px solid #222;margin-top:46px;padding-top:6px;font-weight:700;color:#222;}' +
+                    '.empty{padding:18px;text-align:center;color:#999;font-size:12.5px;border:1px dashed #ddd;border-radius:10px;}' +
+                    '@page{margin:14mm;}' +
+                    '@media print{body{padding:0;} .charts,.stats{page-break-inside:avoid;} thead{display:table-header-group;} tr{page-break-inside:avoid;}}' +
                 '</style></head><body>' +
-                '<h1>GMD South Phils — Quarterly KPI Report</h1>' +
-                '<div class="sub">' + data.from_label + ' to ' + data.to_label + ' &nbsp;·&nbsp; Generated ' + data.generated_at + '</div>' +
+                '<div class="report-head">' +
+                    '<div>' +
+                        '<h1>GMD South Phils Metal Fabrication Works</h1>' +
+                        '<div style="font-size:15px;font-weight:800;color:#444;">Quarterly KPI Report</div>' +
+                        (contactLine ? '<div class="company">' + contactLine + '</div>' : '') +
+                    '</div>' +
+                    '<div class="head-meta">' +
+                        'Period: <strong>' + data.from_label + (data.from_label !== data.to_label ? ' – ' + data.to_label : '') + '</strong><br>' +
+                        'Prepared by: <strong>' + escapeHtml(data.prepared_by || 'Administrator') + '</strong><br>' +
+                        'Generated: ' + data.generated_at +
+                    '</div>' +
+                '</div>' +
+                '<div class="section-title">Executive Summary</div>' +
                 '<div class="narrative">' + narrative + '</div>' +
                 '<div class="stats">' +
                     '<div class="stat"><div class="stat-label">Total Net Profit</div><div class="stat-value">' + fmtPeso(totalProfit) + '</div><div class="stat-sub">Profit target hit: ' + hitSummary(function (q) { return q.profit; }) + '</div></div>' +
                     '<div class="stat"><div class="stat-label">On-Time Delivery</div><div class="stat-value">' + overallOnTimeRate.toFixed(1) + '%</div><div class="stat-sub">On-time target hit: ' + hitSummary(function (q) { return q.on_time; }) + '</div></div>' +
                     '<div class="stat"><div class="stat-label">Budget Adherence</div><div class="stat-value">' + overallAdherence.toFixed(1) + '%</div><div class="stat-sub">Not over budget: ' + budgetOkSummary() + '</div></div>' +
+                '</div>' +
+                '<div class="stats">' +
+                    '<div class="stat"><div class="stat-label">Projects Completed</div><div class="stat-value">' + totalProjects + '</div><div class="stat-sub">' + delayed.length + ' delivered late</div></div>' +
+                    '<div class="stat"><div class="stat-label">Profit Margin</div><div class="stat-value">' + overallMargin.toFixed(1) + '%</div><div class="stat-sub">Net profit ÷ revenue received</div></div>' +
+                    '<div class="stat"><div class="stat-label">Average Contract Value</div><div class="stat-value">' + (projects.length ? fmtPeso(avgProjectSize) : '—') + '</div><div class="stat-sub">Per completed project</div></div>' +
                 '</div>' +
                 '<div class="charts">' +
                     '<div class="chart-box"><div class="chart-title">Net Profit (₱)</div><div class="chart-canvas"><canvas id="repChartProfit"></canvas></div></div>' +
@@ -1705,14 +1825,31 @@
                 '<table><thead><tr>' +
                     '<th>Quarter</th><th class="r">Projects</th>' +
                     '<th class="r">Net Profit (Actual / Target)</th>' +
+                    '<th class="r">Margin</th>' +
                     '<th class="r">On-Time (Actual / Target)</th>' +
                     '<th class="r">Budget Adherence</th>' +
                 '</tr></thead><tbody>' + rows + '</tbody>' +
                 '<tfoot><tr><td>Total / Overall</td><td class="r">' + totalProjects + '</td>' +
                     '<td class="r">' + fmtPeso(totalProfit) + '</td>' +
+                    '<td class="r">' + overallMargin.toFixed(1) + '%</td>' +
                     '<td class="r">' + totalOnTime + ' (' + overallOnTimeRate.toFixed(1) + '%)</td>' +
                     '<td class="r">' + overallAdherence.toFixed(1) + '%</td>' +
                 '</tr></tfoot></table>' +
+
+                '<div class="section-title" style="margin-top:26px;">Completed Projects</div>' +
+                (projects.length
+                    ? '<table style="margin-bottom:26px;"><thead><tr>' +
+                        '<th>Project / Client</th><th>Completed</th><th>Delivery</th><th class="r">Revenue</th><th class="r">Total Cost</th><th class="r">Net Profit</th><th class="r">Margin</th><th class="r">Budget Used</th>' +
+                      '</tr></thead><tbody>' + projectRows + '</tbody>' +
+                      '<tfoot><tr><td colspan="3">' + projects.length + ' project' + (projects.length === 1 ? '' : 's') + '</td>' +
+                        '<td class="r">' + fmtPeso(totalRevenueP) + '</td>' +
+                        '<td class="r">' + fmtPeso(totalMatCostAll + totalLaborAll + totalOverheadAll) + '</td>' +
+                        '<td class="r">' + fmtPeso(totalProfit) + '</td>' +
+                        '<td class="r">' + overallMargin.toFixed(1) + '%</td>' +
+                        '<td class="r">' + overallAdherence.toFixed(1) + '%</td>' +
+                      '</tr></tfoot></table>'
+                    : '<div class="empty" style="margin-bottom:26px;">No projects were completed in this period.</div>') +
+
                 '<script>' +
                     'window.addEventListener("load", function () {' +
                         'var labels = ' + JSON.stringify(quarterLabels) + ';' +
@@ -1723,20 +1860,30 @@
                         'var matCostData = ' + JSON.stringify(matCostSeries) + ';' +
                         'var laborCostData = ' + JSON.stringify(laborCostSeries) + ';' +
                         'var overheadData = ' + JSON.stringify(overheadSeries) + ';' +
-                        'var opts = function (formatter) { return { responsive:true, maintainAspectRatio:false, layout:{padding:{top:10,right:6,bottom:2,left:2}}, plugins:{legend:{display:false}}, ' +
-                            'scales:{ x:{ grid:{display:false}, ticks:{font:{size:9},color:"#666"} }, y:{ grid:{color:"rgba(0,0,0,.06)"}, ticks:{font:{size:9},color:"#666",callback:formatter} } } }; };' +
+                        'var peso = function (v) { return "₱" + (Math.abs(v) >= 1000 ? Math.round(v / 1000) + "k" : v); };' +
+                        'var tick = { font:{size:11}, color:"#555" };' +
+                        // Static, sharp drawings (no animation, 2x resolution) that are then swapped for images,
+                        // so printing scales them in proportion instead of stretching a live canvas.
+                        'var base = { responsive:true, maintainAspectRatio:false, animation:false, devicePixelRatio:2, layout:{padding:{top:12,right:10,bottom:4,left:4}} };' +
+                        'var opts = function (formatter) { return Object.assign({}, base, { plugins:{legend:{display:false}}, ' +
+                            'scales:{ x:{ grid:{display:false}, ticks:tick }, y:{ beginAtZero:true, grid:{color:"rgba(0,0,0,.06)"}, ticks:Object.assign({ callback:formatter }, tick) } } }); };' +
+                        'var freeze = function (chart) {' +
+                            'var img = new Image(); img.src = chart.toBase64Image("image/png", 1); img.alt = "";' +
+                            'var canvas = chart.canvas; canvas.parentNode.replaceChild(img, canvas); chart.destroy();' +
+                        '};' +
                         'if (window.Chart) {' +
-                            'new Chart(document.getElementById("repChartProfit"), { type:"line", data:{ labels:labels, datasets:[{ data:profitData, borderColor:"#207A3A", backgroundColor:"rgba(32,122,58,.12)", fill:true, tension:.3, pointRadius:3, borderWidth:2 }] }, options: opts(function(v){ return "₱"+Math.round(v/1000)+"k"; }) });' +
-                            'new Chart(document.getElementById("repChartOnTime"), { type:"line", data:{ labels:labels, datasets:[{ data:onTimeData, borderColor:"#2A4EAA", backgroundColor:"rgba(42,78,170,.12)", fill:true, tension:.3, pointRadius:3, borderWidth:2 }] }, options: opts(function(v){ return v; }) });' +
-                            'new Chart(document.getElementById("repChartBudget"), { type:"line", data:{ labels:labels, datasets:[{ data:budgetData, borderColor:"#8A6100", backgroundColor:"rgba(138,97,0,.12)", fill:true, tension:.3, pointRadius:3, borderWidth:2 }] }, options: opts(function(v){ return v+"%"; }) });' +
-                            'new Chart(document.getElementById("repChartCost"), { data:{ labels:labels, datasets:[' +
-                                '{ type:"bar", label:"Material", data:matCostData, backgroundColor:"#2A4EAA", stack:"cost" },' +
-                                '{ type:"bar", label:"Labor", data:laborCostData, backgroundColor:"#8A6100", stack:"cost" },' +
-                                '{ type:"bar", label:"Overhead", data:overheadData, backgroundColor:"#B42318", stack:"cost" },' +
-                                '{ type:"line", label:"Revenue", data:revenueData, borderColor:"#207A3A", backgroundColor:"rgba(32,122,58,.12)", tension:.3, pointRadius:3, borderWidth:2 }' +
-                            '] }, options:{ responsive:true, maintainAspectRatio:false, layout:{padding:{top:10,right:6,bottom:2,left:2}}, ' +
-                                'plugins:{legend:{display:true, position:"bottom", labels:{font:{size:9}, boxWidth:10}}}, ' +
-                                'scales:{ x:{ stacked:true, grid:{display:false}, ticks:{font:{size:9},color:"#666"} }, y:{ stacked:true, grid:{color:"rgba(0,0,0,.06)"}, ticks:{font:{size:9},color:"#666",callback:function(v){ return "₱"+Math.round(v/1000)+"k"; }} } } } });' +
+                            'freeze(new Chart(document.getElementById("repChartProfit"), { type:"line", data:{ labels:labels, datasets:[{ data:profitData, borderColor:"#207A3A", backgroundColor:"rgba(32,122,58,.12)", fill:true, tension:0, pointRadius:4, pointBackgroundColor:"#207A3A", borderWidth:2 }] }, options: opts(peso) }));' +
+                            'freeze(new Chart(document.getElementById("repChartOnTime"), { type:"line", data:{ labels:labels, datasets:[{ data:onTimeData, borderColor:"#2A4EAA", backgroundColor:"rgba(42,78,170,.12)", fill:true, tension:0, pointRadius:4, pointBackgroundColor:"#2A4EAA", borderWidth:2 }] }, options: opts(function (v) { return Number.isInteger(v) ? v : ""; }) }));' +
+                            'freeze(new Chart(document.getElementById("repChartBudget"), { type:"line", data:{ labels:labels, datasets:[{ data:budgetData, borderColor:"#8A6100", backgroundColor:"rgba(138,97,0,.12)", fill:true, tension:0, pointRadius:4, pointBackgroundColor:"#8A6100", borderWidth:2 }] }, options: opts(function (v) { return v + "%"; }) }));' +
+                            // Cost bars stack per quarter; revenue is its own line (not stacked), drawn on top and centred on each bar
+                            'freeze(new Chart(document.getElementById("repChartCost"), { data:{ labels:labels, datasets:[' +
+                                '{ type:"line", label:"Revenue", data:revenueData, borderColor:"#207A3A", backgroundColor:"#207A3A", tension:0, pointRadius:5, pointBackgroundColor:"#ffffff", pointBorderWidth:2, borderWidth:2.5, order:0 },' +
+                                '{ type:"bar", label:"Material", data:matCostData, backgroundColor:"#2A4EAA", stack:"cost", order:1, maxBarThickness:70 },' +
+                                '{ type:"bar", label:"Labor", data:laborCostData, backgroundColor:"#C08A1A", stack:"cost", order:1, maxBarThickness:70 },' +
+                                '{ type:"bar", label:"Overhead", data:overheadData, backgroundColor:"#B42318", stack:"cost", order:1, maxBarThickness:70 }' +
+                            '] }, options: Object.assign({}, base, { ' +
+                                'plugins:{ legend:{ display:true, position:"bottom", labels:{ font:{size:11}, boxWidth:12, padding:14 } } }, ' +
+                                'scales:{ x:{ stacked:true, grid:{display:false}, ticks:tick }, y:{ stacked:true, beginAtZero:true, grid:{color:"rgba(0,0,0,.06)"}, ticks:Object.assign({ callback:peso }, tick) } } }) }));' +
                         '}' +
                         'setTimeout(function () { window.print(); }, 350);' +
                     '});' +

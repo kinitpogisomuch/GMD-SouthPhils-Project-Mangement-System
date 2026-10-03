@@ -20,14 +20,26 @@ class KpiDashboardController extends Controller
     | Page
     |--------------------------------------------------------------------------
     */
-    public function index()
+    public function index(Request $request)
     {
+        // The period picker loads the page as ?year=&quarter=(&month=) — anything missing or
+        // out of range falls back to the current quarter.
         $current = $this->currentPeriod();
-        $data    = $this->buildPayload($current['year'], $current['quarter']);
+        $year    = (int) $request->input('year', $current['year']);
+        $quarter = (int) $request->input('quarter', $current['quarter']);
+        if ($year < 2000 || $year > 2100 || $quarter < 1 || $quarter > 4) {
+            [$year, $quarter] = [$current['year'], $current['quarter']];
+        }
+        $month = $request->filled('month') ? (int) $request->input('month') : null;
+        if ($month !== null && (int) ceil($month / 3) !== $quarter) {
+            $month = null; // a month must belong to the chosen quarter
+        }
+
+        $data = $this->buildPayload($year, $quarter, $month);
 
         return view('admin.kpi_dashboard', [
-            'initialYear'      => $current['year'],
-            'initialQuarter'   => $current['quarter'],
+            'initialYear'      => $year,
+            'initialQuarter'   => $quarter,
             'initialData'      => $data,
         ]);
     }
@@ -77,10 +89,53 @@ class KpiDashboardController extends Controller
             $quarters[] = $this->computeQuarterKpis($p['year'], $p['quarter'], false);
         }
 
+        // Every project completed inside the range, for the report's project-level tables
+        $from       = $this->quarterFromKey($fromKey);
+        $to         = $this->quarterFromKey($toKey);
+        $rangeStart = Carbon::create($from['year'], ($from['quarter'] - 1) * 3 + 1, 1)->startOfDay();
+        $rangeEnd   = Carbon::create($to['year'], $to['quarter'] * 3, 1)->endOfMonth();
+        $projects   = $this->loadCompletedData()['projects']
+            ->filter(fn (Project $p) => $p->completed_at->between($rangeStart, $rangeEnd))
+            ->sortBy('completed_at')
+            ->values()
+            ->map(function (Project $p) {
+                $f         = $this->projectFigures($p);
+                $netProfit = $f['received'] - $f['totalActualSpend'] - $f['overheadCost'];
+                $delayDays = (!$f['onTime'] && $p->end_date) ? (int) $p->end_date->diffInDays($p->completed_at->copy()->startOfDay()) : 0;
+                return [
+                    'code'          => $p->code,
+                    'name'          => $p->name,
+                    'client'        => $p->live_client_name ?? $p->client,
+                    'quarter'       => 'Q' . (int) ceil($p->completed_at->month / 3) . ' ' . $p->completed_at->year,
+                    'completed_on'  => $p->completed_at->format('M d, Y'),
+                    'due_on'        => $p->end_date?->format('M d, Y'),
+                    'on_time'       => $f['onTime'],
+                    'delay_days'    => $delayDays,
+                    'contract'      => round((float) ($f['payment']->contract_amount ?? 0), 2),
+                    'revenue'       => round($f['received'], 2),
+                    'mat_cost'      => round($f['actualMatSpend'], 2),
+                    'labor_cost'    => round($f['actualLaborCost'], 2),
+                    'overhead_cost' => round($f['overheadCost'], 2),
+                    'net_profit'    => round($netProfit, 2),
+                    'margin'        => $f['received'] > 0 ? round($netProfit / $f['received'] * 100, 1) : null,
+                    'budget'        => round($f['bomBudget'], 2),
+                    'adherence'     => $f['bomBudget'] > 0 ? round($f['totalActualSpend'] / $f['bomBudget'] * 100, 1) : null,
+                ];
+            });
+
+        $site = \App\Models\SiteSetting::instance();
+
         return response()->json([
             'from_label'   => $quarters[0]['label'],
             'to_label'     => end($quarters)['label'],
             'quarters'     => $quarters,
+            'projects'     => $projects,
+            'company'      => [
+                'address' => $site->address,
+                'phone'   => $site->phone ?: $site->mobile,
+                'email'   => $site->email,
+            ],
+            'prepared_by'  => session('full_name') ?: session('name') ?: 'Administrator',
             'generated_at' => now()->format('M j, Y g:i A'),
         ]);
     }
@@ -114,6 +169,7 @@ class KpiDashboardController extends Controller
         // profit_target / on_time_target stay as the quarterly totals, auto-summed from the
         // three monthly figures the modal collects — nothing downstream that reads those two
         // columns (cards, charts, trend, forecast) needs to change.
+        $this->quarterTargets = null;
         KpiQuarterTarget::updateOrCreate(
             ['year' => $validated['year'], 'quarter' => $validated['quarter']],
             [
@@ -192,9 +248,8 @@ class KpiDashboardController extends Controller
     {
         $currentYear = (int) now()->year;
 
-        $earliestYear = (int) (Project::where('status', 'completed')
-            ->selectRaw('MIN(EXTRACT(YEAR FROM completed_at)) as y')
-            ->value('y') ?? $currentYear);
+        // Earliest completion year, taken from the completed projects already loaded for this page
+        $earliestYear = (int) ($this->loadCompletedData()['projects']->min(fn ($p) => $p->completed_at->year) ?? $currentYear);
 
         $minYear = min($earliestYear, $currentYear);
 
@@ -309,57 +364,125 @@ class KpiDashboardController extends Controller
      * shared core both the quarter and month scorecards are built from, so the two
      * granularities can never silently drift apart in how a number is computed.
      */
-    private function computeActualsForRange(Carbon $start, Carbon $end): array
-    {
-        $projects = Project::where('status', 'completed')
-            ->whereBetween('completed_at', [$start, $end])
-            ->get();
+    /** All saved quarter targets keyed "year-quarter", loaded once per request. */
+    private ?\Illuminate\Support\Collection $quarterTargets = null;
 
+    private function quarterTarget(int $year, int $quarter): ?KpiQuarterTarget
+    {
+        $this->quarterTargets ??= KpiQuarterTarget::all()->keyBy(fn ($t) => $t->year . '-' . $t->quarter);
+
+        return $this->quarterTargets->get($year . '-' . $quarter);
+    }
+
+    /** Every completed project and its money figures, loaded once per request (see loadCompletedData()). */
+    private ?array $completedData = null;
+
+    /**
+     * One page shows many periods (the selected quarter or month, the 4-quarter trend, the
+     * forecast, the monthly breakdown). Instead of re-running the same queries for each of
+     * them — every query is a round trip to the remote database — all completed projects
+     * and their totals are fetched once here, and each period is then cut from it in memory.
+     */
+    private function loadCompletedData(): array
+    {
+        if ($this->completedData !== null) {
+            return $this->completedData;
+        }
+
+        $projects   = Project::where('status', 'completed')->whereNotNull('completed_at')->get();
         $projectIds = $projects->pluck('id');
 
         $paymentsByProject = Payment::whereIn('project_id', $projectIds)->get()->keyBy('project_id');
-        $paymentIds        = $paymentsByProject->pluck('id');
 
-        $receivedByPayment = PaymentTransaction::whereIn('payment_id', $paymentIds)
-            ->selectRaw('payment_id, SUM(amount_paid) as total')
-            ->groupBy('payment_id')
-            ->pluck('total', 'payment_id');
+        return $this->completedData = [
+            'projects'          => $projects,
+            'paymentsByProject' => $paymentsByProject,
+            'receivedByPayment' => PaymentTransaction::whereIn('payment_id', $paymentsByProject->pluck('id'))
+                ->selectRaw('payment_id, SUM(amount_paid) as total')
+                ->groupBy('payment_id')
+                ->pluck('total', 'payment_id'),
+            'matSpendByProject' => MaterialPurchase::whereIn('project_id', $projectIds)
+                ->selectRaw('project_id, SUM(total_paid) as total')
+                ->groupBy('project_id')
+                ->pluck('total', 'project_id'),
+            // Estimated materials — applies the same per-material waste/handling factor
+            // Project::estimatedBudget() uses for Financial Overview's "Est. Materials",
+            // so the live-estimate fallback below matches what it's standing in for.
+            'bomMatCostByProject' => ProjectMaterial::whereIn('project_id', $projectIds)
+                ->where('status', 'active')
+                ->selectRaw('project_id, SUM(total_cost * (1 + COALESCE(factor, 7) / 100.0)) as total')
+                ->groupBy('project_id')
+                ->pluck('total', 'project_id'),
+            'laborPivotByProject' => \DB::table('salary_record_project')
+                ->whereIn('project_id', $projectIds)
+                ->selectRaw('project_id, SUM(allocated_pay) as total')
+                ->groupBy('project_id')
+                ->pluck('total', 'project_id'),
+            // Active-only, matching Project::estimatedBudget()'s labor() — used both as the
+            // actual-cost fallback and as the live estimate's labor component below.
+            'activeLaborByProject' => ProjectLabor::whereIn('project_id', $projectIds)
+                ->where('status', 'active')
+                ->selectRaw('project_id, SUM(total_cost) as total')
+                ->groupBy('project_id')
+                ->pluck('total', 'project_id'),
+            // Monthly overhead allocated to each project — same source Financial Overview's
+            // Net Profit subtracts, so Project Profit Margin reflects it too.
+            'overheadByProject' => \DB::table('monthly_expense_projects')
+                ->whereIn('project_id', $projectIds)
+                ->selectRaw('project_id, SUM(allocated_amount) as total')
+                ->groupBy('project_id')
+                ->pluck('total', 'project_id'),
+        ];
+    }
 
-        $matSpendByProject = MaterialPurchase::whereIn('project_id', $projectIds)
-            ->selectRaw('project_id, SUM(total_paid) as total')
-            ->groupBy('project_id')
-            ->pluck('total', 'project_id');
+    /**
+     * One completed project's money and delivery figures — the single place they're worked out,
+     * shared by the period totals and the per-project table in the generated report.
+     */
+    private function projectFigures(Project $project): array
+    {
+        $data    = $this->loadCompletedData();
+        $payment = $data['paymentsByProject']->get($project->id);
 
-        // Estimated materials — applies the same per-material waste/handling factor
-        // Project::estimatedBudget() uses for Financial Overview's "Est. Materials",
-        // so the live-estimate fallback below matches what it's standing in for.
-        $bomMatCostByProject = ProjectMaterial::whereIn('project_id', $projectIds)
-            ->where('status', 'active')
-            ->selectRaw('project_id, SUM(total_cost * (1 + COALESCE(factor, 7) / 100.0)) as total')
-            ->groupBy('project_id')
-            ->pluck('total', 'project_id');
+        $received = $payment ? (float) ($data['receivedByPayment'][$payment->id] ?? 0) : 0;
 
-        $laborPivotByProject = \DB::table('salary_record_project')
-            ->whereIn('project_id', $projectIds)
-            ->selectRaw('project_id, SUM(allocated_pay) as total')
-            ->groupBy('project_id')
-            ->pluck('total', 'project_id');
+        $actualMatSpend  = (float) ($data['matSpendByProject'][$project->id] ?? 0);
+        $actualLaborCost = (float) ($data['laborPivotByProject'][$project->id] ?? 0);
+        if ($actualLaborCost == 0) {
+            $actualLaborCost = (float) ($data['activeLaborByProject'][$project->id] ?? 0);
+        }
+        $totalActualSpend = $actualMatSpend + $actualLaborCost;
+        $overheadCost     = (float) ($data['overheadByProject'][$project->id] ?? 0);
 
-        // Active-only, matching Project::estimatedBudget()'s labor() — used both as the
-        // actual-cost fallback and as the live estimate's labor component below.
-        $activeLaborByProject = ProjectLabor::whereIn('project_id', $projectIds)
-            ->where('status', 'active')
-            ->selectRaw('project_id, SUM(total_cost) as total')
-            ->groupBy('project_id')
-            ->pluck('total', 'project_id');
+        $bomMatCost   = (float) ($data['bomMatCostByProject'][$project->id] ?? 0);
+        $bomLaborCost = (float) ($data['activeLaborByProject'][$project->id] ?? 0);
 
-        // Monthly overhead allocated to each project — same source Financial Overview's
-        // Net Profit subtracts, so Project Profit Margin reflects it too.
-        $overheadByProject = \DB::table('monthly_expense_projects')
-            ->whereIn('project_id', $projectIds)
-            ->selectRaw('project_id, SUM(allocated_amount) as total')
-            ->groupBy('project_id')
-            ->pluck('total', 'project_id');
+        // Budget Adherence measures against the frozen Project Budget locked in at
+        // payment setup — the same value Project Financial Overview shows — instead
+        // of a live BOM total that would drift every time the BOM changes. Falls
+        // back to the live estimate only for payments that predate that field.
+        $bomBudget = ($payment && (float) $payment->project_budget > 0)
+            ? (float) $payment->project_budget
+            : $bomMatCost + $bomLaborCost;
+
+        $onTime = $project->end_date && $project->completed_at->copy()->startOfDay()->lte($project->end_date);
+
+        return compact('payment', 'received', 'actualMatSpend', 'actualLaborCost', 'totalActualSpend', 'overheadCost', 'bomBudget', 'onTime');
+    }
+
+    private function computeActualsForRange(Carbon $start, Carbon $end): array
+    {
+        $data = $this->loadCompletedData();
+
+        $projects = $data['projects']->filter(fn (Project $p) => $p->completed_at->between($start, $end))->values();
+
+        [
+            'paymentsByProject' => $paymentsByProject, 'receivedByPayment' => $receivedByPayment,
+            'matSpendByProject' => $matSpendByProject, 'bomMatCostByProject' => $bomMatCostByProject,
+            'laborPivotByProject' => $laborPivotByProject, 'activeLaborByProject' => $activeLaborByProject,
+            'overheadByProject' => $overheadByProject,
+        ] = $data;
+
 
         $totalRevenue        = 0.0;
         $totalActualCost     = 0.0;
@@ -374,29 +497,11 @@ class KpiDashboardController extends Controller
         $delayedProjectCodes = [];
 
         foreach ($projects as $project) {
-            $payment  = $paymentsByProject->get($project->id);
-            $received = $payment ? (float) ($receivedByPayment[$payment->id] ?? 0) : 0;
-
-            $actualMatSpend  = (float) ($matSpendByProject[$project->id] ?? 0);
-            $actualLaborCost = (float) ($laborPivotByProject[$project->id] ?? 0);
-            if ($actualLaborCost == 0) {
-                $actualLaborCost = (float) ($activeLaborByProject[$project->id] ?? 0);
-            }
-            $totalActualSpend = $actualMatSpend + $actualLaborCost;
-            $overheadCost     = (float) ($overheadByProject[$project->id] ?? 0);
-
-            $bomMatCost   = (float) ($bomMatCostByProject[$project->id] ?? 0);
-            $bomLaborCost = (float) ($activeLaborByProject[$project->id] ?? 0);
-
-            // Budget Adherence measures against the frozen Project Budget locked in at
-            // payment setup — the same value Project Financial Overview shows — instead
-            // of a live BOM total that would drift every time the BOM changes. Falls
-            // back to the live estimate only for payments that predate that field.
-            $bomBudget = ($payment && (float) $payment->project_budget > 0)
-                ? (float) $payment->project_budget
-                : $bomMatCost + $bomLaborCost;
-
-            $onTime = $project->end_date && $project->completed_at->copy()->startOfDay()->lte($project->end_date);
+            [
+                'payment' => $payment, 'received' => $received, 'actualMatSpend' => $actualMatSpend,
+                'actualLaborCost' => $actualLaborCost, 'totalActualSpend' => $totalActualSpend,
+                'overheadCost' => $overheadCost, 'bomBudget' => $bomBudget, 'onTime' => $onTime,
+            ] = $this->projectFigures($project);
 
             $totalRevenue    += $received;
             $totalActualCost += $totalActualSpend;
@@ -521,7 +626,7 @@ class KpiDashboardController extends Controller
 
         // Targets are strictly per-quarter — a quarter with no target explicitly saved for it
         // has no target at all (never borrowed from another quarter).
-        $target     = KpiQuarterTarget::forPeriod($year, $quarter);
+        $target     = $this->quarterTarget($year, $quarter);
         $hasTarget  = $target !== null;
 
         $profitTarget = $hasTarget ? (float) $target->profit_target : null;
@@ -587,7 +692,7 @@ class KpiDashboardController extends Controller
         $quarter    = (int) ceil($month / 3);
         $monthIndex = ($month - 1) % 3; // 0, 1, or 2 within that quarter
 
-        $target    = KpiQuarterTarget::forPeriod($year, $quarter);
+        $target    = $this->quarterTarget($year, $quarter);
         $hasTarget = $target !== null;
 
         $profitField = 'profit_target_m' . ($monthIndex + 1);

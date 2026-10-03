@@ -30,6 +30,24 @@
         }
         .payments-view-tab:hover { color: var(--dark); }
         .payments-view-tab.active { background: var(--dark); color: var(--white); }
+
+        /* ── Receipts table: fits the card (no sideways scroll), long names wrap ── */
+        #receiptsTableWrapper { overflow-x: hidden; max-height: 800px; overflow-y: auto; }
+        #receiptsTableWrapper thead th { position: sticky; top: 0; z-index: 1; }
+        #receiptsTable { table-layout: fixed; min-width: 0; width: 100%; }
+        #receiptsTable td { vertical-align: middle; }
+        #receiptsTable .client-pill { white-space: normal; line-height: 1.35; max-width: 100%; }
+        .rc-or { display: inline-flex; align-items: center; gap: 6px; font-weight: 900; color: var(--dark); font-variant-numeric: tabular-nums; }
+        .rc-or-tag { font-size: 9.5px; font-weight: 800; letter-spacing: .05em; color: var(--muted); background: var(--accent-soft); border-radius: 6px; padding: 2px 6px; }
+        .rc-project { display: flex; flex-direction: column; min-width: 0; }
+        .rc-project-prefix { font-size: 9px; font-weight: 700; color: var(--muted); letter-spacing: .05em; text-transform: uppercase; line-height: 1.2; }
+        .rc-project-name { font-size: 12.5px; font-weight: 800; color: var(--dark); line-height: 1.3; word-break: break-word; }
+        .rc-stage { display: inline-flex; align-items: center; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
+        .rc-stage.down     { background: #EAF0FF; color: #2A4EAA; }
+        .rc-stage.progress { background: #FEF3C7; color: #8A6100; }
+        .rc-stage.final    { background: #E7F6EC; color: #207A3A; }
+        .rc-amount { font-weight: 900; color: var(--dark); font-variant-numeric: tabular-nums; white-space: nowrap; }
+        .rc-date { color: var(--muted); font-weight: 700; white-space: nowrap; font-size: 12.5px; }
     </style>
 </head>
 <body class="page-enter">
@@ -217,29 +235,53 @@
                         </div>
                     </div>
 
-                    <div class="table-wrapper">
+                    <div class="table-wrapper" id="receiptsTableWrapper">
                         <table class="data-table" id="receiptsTable">
+                            <colgroup>
+                                <col style="width:11%;">  {{-- OR Number --}}
+                                <col style="width:20%;">  {{-- Client --}}
+                                <col style="width:24%;">  {{-- Project --}}
+                                <col style="width:13%;">  {{-- Stage --}}
+                                <col style="width:11%;">  {{-- Amount --}}
+                                <col style="width:12%;">  {{-- Date Issued --}}
+                                <col style="width:9%;">   {{-- Receipt --}}
+                            </colgroup>
                             <thead>
                                 <tr>
                                     <th>OR Number</th>
                                     <th>Client</th>
                                     <th>Project</th>
                                     <th>Stage</th>
-                                    <th>Amount</th>
-                                    <th>Date Issued</th>
-                                    <th>Receipt</th>
+                                    <th style="text-align:right;">Amount</th>
+                                    <th style="text-align:center;">Date Issued</th>
+                                    <th style="text-align:center;">Receipt</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @forelse($receipts as $r)
                                 <tr data-search="{{ strtolower($r['or_number'] . ' ' . $r['client'] . ' ' . $r['project']) }}">
-                                    <td>{{ $r['or_number'] }}</td>
+                                    @php
+                                        // "Fabrication of X" → small prefix + X, like the Projects tables
+                                        $rcPrefix = '';
+                                        $rcName   = $r['project'];
+                                        if (preg_match('/^(Fabrication of)\s+(.+)$/i', (string) $r['project'], $rcm)) {
+                                            [$rcPrefix, $rcName] = [$rcm[1], $rcm[2]];
+                                        }
+                                        $rcStageClass = str_contains(strtolower($r['stage']), 'down') ? 'down'
+                                            : (str_contains(strtolower($r['stage']), 'progress') ? 'progress' : 'final');
+                                    @endphp
+                                    <td><span class="rc-or"><span class="rc-or-tag">OR</span>{{ $r['or_number'] }}</span></td>
                                     <td><span class="client-pill">{{ $r['client'] }}</span></td>
-                                    <td>{{ $r['project'] }}</td>
-                                    <td>{{ $r['stage'] }}</td>
-                                    <td>₱{{ number_format($r['amount'], 0) }}</td>
-                                    <td>{{ \Carbon\Carbon::parse($r['date_issued'])->format('M d, Y') }}</td>
                                     <td>
+                                        <div class="rc-project">
+                                            @if($rcPrefix)<span class="rc-project-prefix">{{ $rcPrefix }}</span>@endif
+                                            <span class="rc-project-name">{{ $rcName }}</span>
+                                        </div>
+                                    </td>
+                                    <td><span class="rc-stage {{ $rcStageClass }}">{{ $r['stage'] }}</span></td>
+                                    <td style="text-align:right;"><span class="rc-amount">₱{{ number_format($r['amount'], 0) }}</span></td>
+                                    <td style="text-align:center;"><span class="rc-date">{{ \Carbon\Carbon::parse($r['date_issued'])->format('M d, Y') }}</span></td>
+                                    <td style="text-align:center;">
                                         @if(!empty($r['receipt_urls']))
                                         <div style="display:inline-flex;gap:4px;" data-receipt-set>
                                             @foreach($r['receipt_urls'] as $i => $url)

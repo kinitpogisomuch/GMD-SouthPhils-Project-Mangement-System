@@ -387,7 +387,10 @@
                     <div class="form-group form-group-full">
                         <label>OR / Serial Number</label>
                         <input type="text" name="reference_number" id="referenceNumberInput" required maxlength="100"
-                               placeholder="e.g. OR-2026-00123">
+                               placeholder="e.g. OR-2026-00123" autocomplete="off">
+                        <small id="referenceNumberErr" style="display:none;margin-top:6px;font-size:12px;font-weight:700;color:#dc2626;">
+                            This OR / Serial Number is already used on another payment.
+                        </small>
                     </div>
 
                     <div class="form-group form-group-full">
@@ -774,10 +777,32 @@
     const receiptFileErr   = document.getElementById('receiptFileErr');
     const receiptDropzone  = document.getElementById('receiptDropzone');
 
+    // OR / Serial Numbers already recorded on any payment (any project) — each one can only be used once.
+    // Compared trimmed and case-insensitive, the same way the server checks it.
+    var USED_OR_NUMBERS = @json(\App\Models\PaymentTransaction::whereNotNull('reference_number')
+        ->pluck('reference_number')->map(fn ($n) => mb_strtolower(trim($n)))->filter()->values());
+    var referenceInput = document.getElementById('referenceNumberInput');
+    var referenceErr   = document.getElementById('referenceNumberErr');
+
+    function isDuplicateOrNumber() {
+        var dup = USED_OR_NUMBERS.indexOf(referenceInput.value.trim().toLowerCase()) !== -1;
+        referenceErr.style.display = dup ? 'block' : 'none';
+        referenceInput.style.borderColor = dup ? '#dc2626' : '';
+        return dup;
+    }
+    referenceInput.addEventListener('input', isDuplicateOrNumber);
+
     recordForm.addEventListener('submit', function (e) {
         stripCommas(document.getElementById('amountPaidInput'));
 
         var invalid = false;
+
+        if (isDuplicateOrNumber()) {
+            e.preventDefault();
+            referenceInput.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            referenceInput.focus();
+            return;
+        }
 
         if (!stageSelect.value) {
             invalid = true;
