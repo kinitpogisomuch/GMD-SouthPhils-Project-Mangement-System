@@ -2,7 +2,9 @@
     <div class="employee-header-left">
         {{-- Hamburger toggle — hidden on desktop, shown only in the mobile @media block below --}}
         <button type="button" class="employee-nav-toggle" id="employeeNavToggle" aria-label="Toggle navigation" aria-expanded="false" aria-controls="employeeHeaderNav">
-            <i data-lucide="menu"></i>
+            <span class="employee-nav-toggle-icon" id="employeeNavToggleIcon"><i data-lucide="menu"></i></span>
+            {{-- Sum of the badges inside the menu (e.g. Projects requests), so they're visible while it's closed --}}
+            <span class="notification-count-badge" id="navToggleBadge" style="display:none;"></span>
         </button>
         <img src="{{ asset('images/gmdlogo-circle.svg') }}" alt="GMD South Phils" style="width:34px;height:34px;flex-shrink:0;border-radius:50%;border:1.5px solid rgba(255,255,255,0.25);">
         <div>
@@ -108,15 +110,25 @@
     var nav    = document.getElementById('employeeHeaderNav');
     if (!toggle || !nav) return;
 
+    // Burger turns into an X while the menu is open (same as the landing page).
+    // Lucide swaps <i> for an <svg>, so the <i> is put back before re-rendering.
+    function setIcon(isOpen) {
+        document.getElementById('employeeNavToggleIcon').innerHTML = '<i data-lucide="' + (isOpen ? 'x' : 'menu') + '"></i>';
+        if (window.lucide) lucide.createIcons();
+    }
+
     function closeNav() {
+        if (!nav.classList.contains('open')) return;
         nav.classList.remove('open');
         toggle.setAttribute('aria-expanded', 'false');
+        setIcon(false);
     }
 
     toggle.addEventListener('click', function (e) {
         e.stopPropagation();
         var isOpen = nav.classList.toggle('open');
         toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        setIcon(isOpen);
     });
 
     // Close after picking a link, or when tapping anywhere outside the menu.
@@ -428,13 +440,16 @@
             .then(r => r.json())
             .then(data => {
                 const badge = document.getElementById('projectsRequestBadge');
-                if (!badge) return;
-                if (data.count > 0) {
-                    badge.style.display = 'flex';
-                    badge.textContent = data.count > 99 ? '99+' : data.count;
-                } else {
-                    badge.style.display = 'none';
-                }
+                const toggleBadge = document.getElementById('navToggleBadge');
+                [badge, toggleBadge].forEach(function (b) {
+                    if (!b) return;
+                    if (data.count > 0) {
+                        b.style.display = 'flex';
+                        b.textContent = data.count > 99 ? '99+' : data.count;
+                    } else {
+                        b.style.display = 'none';
+                    }
+                });
             })
             .catch(() => {});
     }

@@ -22,7 +22,9 @@
     <div class="client-header-left">
         {{-- Hamburger toggle — hidden on desktop, shown only on phones (same as the employee portal) --}}
         <button type="button" class="client-nav-toggle" id="clientNavToggle" aria-label="Toggle navigation" aria-expanded="false" aria-controls="clientHeaderNav">
-            <i data-lucide="menu"></i>
+            <span class="client-nav-toggle-icon" id="clientNavToggleIcon"><i data-lucide="menu"></i></span>
+            {{-- Mirrors the Payments badge inside the menu, so it's visible while the menu is closed --}}
+            <span class="notification-count-badge" id="navToggleBadge" style="display:none;"></span>
         </button>
         <img src="{{ asset('images/gmdlogo-circle.svg') }}" alt="GMD South Phils" style="width:34px;height:34px;flex-shrink:0;border-radius:50%;border:1.5px solid rgba(255,255,255,0.25);">
         <div>
@@ -131,15 +133,25 @@
     var nav    = document.getElementById('clientHeaderNav');
     if (!toggle || !nav) return;
 
+    // Burger turns into an X while the menu is open (same as the landing page).
+    // Lucide swaps <i> for an <svg>, so the <i> is put back before re-rendering.
+    function setIcon(isOpen) {
+        document.getElementById('clientNavToggleIcon').innerHTML = '<i data-lucide="' + (isOpen ? 'x' : 'menu') + '"></i>';
+        if (window.lucide) lucide.createIcons();
+    }
+
     function closeNav() {
+        if (!nav.classList.contains('open')) return;
         nav.classList.remove('open');
         toggle.setAttribute('aria-expanded', 'false');
+        setIcon(false);
     }
 
     toggle.addEventListener('click', function (e) {
         e.stopPropagation();
         var isOpen = nav.classList.toggle('open');
         toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        setIcon(isOpen);
     });
 
     // Close after picking a link, or when tapping anywhere outside the menu.
@@ -546,13 +558,16 @@
             .then(r => r.json())
             .then(data => {
                 const badge = document.getElementById('paymentsNavBadge');
-                if (!badge) return;
-                if (data.count > 0) {
-                    badge.style.display = 'flex';
-                    badge.textContent = data.count > 9 ? '9+' : data.count;
-                } else {
-                    badge.style.display = 'none';
-                }
+                const toggleBadge = document.getElementById('navToggleBadge');
+                [badge, toggleBadge].forEach(function (b) {
+                    if (!b) return;
+                    if (data.count > 0) {
+                        b.style.display = 'flex';
+                        b.textContent = data.count > 9 ? '9+' : data.count;
+                    } else {
+                        b.style.display = 'none';
+                    }
+                });
             })
             .catch(() => {});
     }

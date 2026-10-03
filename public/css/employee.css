@@ -117,6 +117,14 @@ body {
     width: 20px;
     height: 20px;
 }
+.employee-nav-toggle {
+    position: relative;
+}
+.employee-nav-toggle-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
 
 .system-title {
     font-size: 17px;
@@ -4625,4 +4633,93 @@ body:has(.modal-overlay.show) #chatPopupWrap {
     }
     #usageTable .ul-action-text { display: inline; }
     #usageTable tr:not(.ul-row), #usageTable tr:not(.ul-row) td { display: block; }
+}
+
+
+/* ================= BURGER MENU — SAME LOOK AS THE LANDING PAGE =================
+   Phones/tablets only (the burger only exists ≤768px). The menu drops down as a white
+   panel under the header: full-width rows split by thin lines, like the landing page. */
+@media (max-width: 768px) {
+    .employee-header-nav {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        gap: 0;
+        background: var(--white);
+        border-radius: 0;
+        border-bottom: 1px solid var(--border);
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.10);
+        padding: 8px 20px 20px;
+        z-index: 199;
+    }
+
+    .employee-header-nav a {
+        gap: 12px;
+        padding: 15px 4px;
+        border-radius: 0;
+        border-bottom: 1px solid var(--border);
+        color: var(--dark);
+        font-size: 15px;
+        font-weight: 600;
+        background: none;
+        box-shadow: none;
+    }
+
+    .employee-header-nav a:last-child {
+        border-bottom: none;
+    }
+
+    .employee-header-nav a svg {
+        width: 18px;
+        height: 18px;
+        color: var(--muted);
+    }
+
+    .employee-header-nav a:hover {
+        background: none;
+        color: var(--muted);
+    }
+
+    /* the page you're on: bold, with a small dark marker on the right */
+    .employee-header-nav a.active {
+        background: none;
+        color: var(--dark);
+        font-weight: 800;
+        box-shadow: none;
+    }
+
+    .employee-header-nav a.active svg {
+        color: var(--dark);
+    }
+
+    .employee-header-nav a.active::after {
+        content: '';
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--dark);
+        margin-left: auto;
+    }
+
+    .employee-header-nav a .notification-count-badge {
+        position: static;
+        margin-left: auto;
+        transform: none;
+    }
+}
+
+
+/* ================= CHAT WINDOW ON PHONES =================
+   The chat window is a fixed 360px wide, pinned 24px from the right, so on a phone it ran
+   off the left edge. On phones it spans the screen with a small gutter and never grows
+   taller than the space under the header. Desktop untouched. */
+@media (max-width: 640px) {
+    #chatFloatWindow {
+        left: 8px !important;
+        right: 8px !important;
+        width: auto !important;
+        max-width: none !important;
+        height: min(520px, calc(100dvh - var(--header-height) - 12px)) !important;
+    }
 }

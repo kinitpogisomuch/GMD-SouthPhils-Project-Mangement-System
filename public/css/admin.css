@@ -6522,3 +6522,215 @@ body.page-enter .admin-content {
         overflow-wrap: anywhere;
     }
 }
+
+
+/* ================= BURGER MENU — SAME LOOK AS THE LANDING PAGE =================
+   Phones/tablets only (≤768px, where the sidebar becomes a dropdown under the header).
+   Same as the employee/client portals: white panel, full-width rows split by thin lines,
+   section names kept as small headings. Desktop sidebar untouched. */
+.sidebar-toggle-btn {
+    position: relative;
+}
+
+.sidebar-toggle-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+@media (min-width: 769px) {
+    /* desktop shows the badges on the sidebar itself */
+    #navToggleBadge {
+        display: none !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .admin-sidebar,
+    .admin-sidebar.open {
+        padding: 8px 20px 20px;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.10);
+    }
+
+    .admin-sidebar-nav {
+        gap: 0;
+    }
+
+    .admin-sidebar .sidebar-section-label,
+    .admin-sidebar.open .sidebar-section-label {
+        display: block;
+        margin: 14px 0 2px;
+        padding: 0 4px;
+        font-size: 10px;
+    }
+
+    .admin-sidebar .sidebar-section-label:first-child {
+        margin-top: 6px;
+    }
+
+    .admin-sidebar-nav a,
+    .admin-sidebar.open .admin-sidebar-nav a {
+        position: relative;
+        height: auto;
+        gap: 12px;
+        padding: 13px 4px;
+        border-radius: 0;
+        border-bottom: 1px solid var(--border);
+        color: var(--dark);
+        font-size: 15px;
+        font-weight: 600;
+        background: none;
+        box-shadow: none;
+    }
+
+    /* last row of each section has no line under it */
+    .admin-sidebar-nav a:has(+ .sidebar-section-label),
+    .admin-sidebar-nav a:last-child {
+        border-bottom: none;
+    }
+
+    .admin-sidebar-nav .sidebar-icon {
+        position: static;
+        width: 20px;
+        height: 20px;
+        min-width: 20px;
+    }
+
+    .admin-sidebar-nav .sidebar-icon svg {
+        width: 18px;
+        height: 18px;
+        color: var(--muted);
+    }
+
+    .admin-sidebar-nav a span {
+        opacity: 1;
+        visibility: visible;
+        transform: none;
+        max-width: none;
+        margin-left: 0;
+    }
+
+    .admin-sidebar-nav a:hover {
+        background: none;
+        color: var(--muted);
+    }
+
+    .admin-sidebar-nav a:hover .sidebar-icon svg {
+        transform: none;
+    }
+
+    /* the page you're on: bold, with a small dark marker on the right */
+    .admin-sidebar-nav a.active,
+    .admin-sidebar.open .admin-sidebar-nav a.active {
+        background: none;
+        color: var(--dark);
+        font-weight: 800;
+        box-shadow: none;
+    }
+
+    .admin-sidebar-nav a.active .sidebar-icon svg {
+        color: var(--dark);
+    }
+
+    .admin-sidebar-nav a.active::after {
+        content: '';
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--dark);
+        margin-left: auto;
+        flex-shrink: 0;
+    }
+
+    /* count badges sit at the right end of the row, like the employee/client menus */
+    .admin-sidebar-nav a .sidebar-badge {
+        top: 50%;
+        right: 4px;
+        transform: translateY(-50%);
+        min-width: 18px;
+        height: 18px;
+        font-size: 10px;
+        border: none;
+    }
+
+    .admin-sidebar-nav a.active .sidebar-badge {
+        right: 20px;
+    }
+}
+
+
+/* ================= MESSAGES BUTTON ON PHONES — FLOATING, LIKE EMPLOYEE/CLIENT =================
+   ≤768px only: the Messages button leaves the crowded header and floats at the bottom-right
+   as a round dark button (same as the employee/client portals); its contact list opens just
+   above it. Desktop keeps the button in the header exactly as before. */
+@media (max-width: 768px) {
+    #chatPopupWrap {
+        position: fixed !important;
+        right: 20px;
+        bottom: 20px;
+        z-index: 9997;
+    }
+
+    #chatPopupBtn {
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        background: var(--dark);
+        color: var(--white);
+        border: none;
+        box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
+    }
+
+    #chatPopupBtn svg {
+        width: 22px;
+        height: 22px;
+    }
+
+    #chatPopupDropdown {
+        position: absolute !important;
+        top: auto !important;
+        bottom: 64px !important;
+        left: auto !important;
+        right: 0 !important;
+        width: 360px !important;
+        max-width: calc(100vw - 40px) !important;
+        max-height: calc(100vh - 160px) !important;
+        border-radius: 20px !important;
+    }
+
+    #chatContactList {
+        max-height: calc(100vh - 330px) !important;
+    }
+
+    /* same as employee/client: the floating button steps aside while a chat window is open */
+    body.chat-window-open #chatPopupWrap {
+        display: none;
+    }
+}
+
+
+/* ================= CHAT WINDOW ON PHONES =================
+   The chat window is a fixed 360px wide, pinned 24px from the right, so on a phone it ran
+   off the left edge. On phones it spans the screen with a small gutter and never grows
+   taller than the space under the header. Desktop untouched. */
+@media (max-width: 640px) {
+    #chatWindow {
+        left: 8px !important;
+        right: 8px !important;
+        width: auto !important;
+        max-width: none !important;
+        height: min(520px, calc(100dvh - var(--header-height) - 12px)) !important;
+    }
+}
+
+
+/* Phones: the burger menu opens instantly with no animated rows/icons (same as the landing page) */
+@media (max-width: 768px) {
+    .admin-sidebar,
+    .admin-sidebar-nav a,
+    .admin-sidebar-nav a span,
+    .admin-sidebar-nav .sidebar-icon svg {
+        transition: none !important;
+        animation: none !important;
+    }
+}

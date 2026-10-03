@@ -225,6 +225,13 @@
             #logUsageModal .modal-header h2 { font-size: 20px; }
             #logUsageModal .modal-header p { font-size: 12.5px; line-height: 1.45; }
             #logUsageModal .modal-close { flex-shrink: 0; width: 36px; height: 36px; }
+
+            /* nothing squeezes on top of anything: the material list has its own scroll height,
+               and if the screen is still too short the whole popup scrolls */
+            #logUsageModal .modal-card { max-height: 92vh !important; max-height: 92dvh !important; overflow-y: auto; }
+            #logUsageModal #logUsageForm { flex: none !important; }
+            #logUsageModal #logUsageForm > * { flex-shrink: 0; }
+            #logUsageModal .mu-list { flex: none; height: clamp(200px, 42vh, 360px); min-height: 0; }
         }
         @media (max-width: 560px) {
             .mu-row { flex-wrap: wrap; gap: 10px; }

@@ -1,7 +1,9 @@
 <header class="admin-header">
     <div class="admin-header-left">
         <button class="sidebar-toggle-btn" type="button" id="sidebarToggleBtn" title="Toggle menu">
-            <i data-lucide="menu"></i>
+            <span class="sidebar-toggle-icon" id="sidebarToggleIcon"><i data-lucide="menu"></i></span>
+            {{-- Phones only: total of the sidebar badges, so they're visible while the menu is closed --}}
+            <span class="notification-count-badge" id="navToggleBadge" style="display:none;"></span>
         </button>
         <img src="{{ asset('images/gmdlogo-circle.svg') }}" alt="GMD South Phils" style="width:34px;height:34px;flex-shrink:0;border-radius:50%;border:1.5px solid rgba(255,255,255,0.25);">
         <div>
@@ -211,6 +213,9 @@ document.addEventListener('DOMContentLoaded', function () {
         // left to fight the transform below), then undo the jump with a single
         // GPU-composited transform that eases back to zero — same end state, smooth motion.
         function flipSidebarNav(mutate) {
+            // Phones: the menu just appears/disappears, no glide (same as the landing page)
+            if (window.matchMedia('(max-width: 768px)').matches) { mutate(); return; }
+
             var links = sidebar.querySelectorAll('.admin-sidebar-nav a');
             var before = [];
             links.forEach(function (a) { before.push(a.getBoundingClientRect().top); });
@@ -256,7 +261,43 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!desktopMQ.matches || !sidebar.classList.contains('open')) return;
             flipSidebarNav(function () { sidebar.classList.remove('open'); });
         });
+
+        // Phones: the burger turns into an X while the menu is open (same as the landing page).
+        // Watching the class covers every way the menu opens/closes. Lucide swaps <i> for an
+        // <svg>, so the <i> is put back before re-rendering.
+        var phoneMQ  = window.matchMedia('(max-width: 768px)');
+        var iconSlot = document.getElementById('sidebarToggleIcon');
+        var lastIcon = 'menu';
+        function syncToggleIcon() {
+            var want = (phoneMQ.matches && sidebar.classList.contains('open')) ? 'x' : 'menu';
+            if (!iconSlot || want === lastIcon) return;
+            lastIcon = want;
+            iconSlot.innerHTML = '<i data-lucide="' + want + '"></i>';
+            if (window.lucide) lucide.createIcons();
+        }
+        new MutationObserver(syncToggleIcon).observe(sidebar, { attributes: true, attributeFilter: ['class'] });
+        phoneMQ.addEventListener('change', syncToggleIcon);
     }
+
+    // Burger badge = total of the sidebar badges (Projects, Quotation, Payments, Clients).
+    // Re-counted whenever any of them changes (they refresh on their own every 30s).
+    var toggleBadge   = document.getElementById('navToggleBadge');
+    var sidebarBadges = document.querySelectorAll('.admin-sidebar .sidebar-badge');
+    function syncToggleBadge() {
+        if (!toggleBadge) return;
+        var total = 0;
+        sidebarBadges.forEach(function (b) {
+            if (b.style.display === 'none') return;
+            var n = parseInt(b.textContent, 10);
+            if (!isNaN(n)) total += n;
+        });
+        toggleBadge.style.display = total > 0 ? 'flex' : 'none';
+        toggleBadge.textContent   = total > 99 ? '99+' : total;
+    }
+    sidebarBadges.forEach(function (b) {
+        new MutationObserver(syncToggleBadge).observe(b, { attributes: true, childList: true, characterData: true, subtree: true });
+    });
+    syncToggleBadge();
 });
 
 (function () {
@@ -620,6 +661,7 @@ document.addEventListener('DOMContentLoaded', function () {
             ? '<img src="' + chatContact.photo + '" style="width:100%;height:100%;object-fit:cover;">'
             : '<span id="chatWinAvatar">' + name.charAt(0).toUpperCase() + '</span>';
         window_.style.display = 'flex';
+        document.body.classList.add('chat-window-open'); // phones hide the floating Messages button meanwhile
         if (window.lucide) lucide.createIcons();
         msgList.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px;">Loading...</div>';
 
@@ -909,6 +951,7 @@ document.addEventListener('DOMContentLoaded', function () {
         clearChatFiles();
         if (openThreadPollTimer) { clearInterval(openThreadPollTimer); openThreadPollTimer = null; }
         window_.style.display = 'none';
+        document.body.classList.remove('chat-window-open');
         chatContact = null;
         try { localStorage.removeItem('gmd_open_chat'); } catch (e) {}
         if (window.lucide) lucide.createIcons();
