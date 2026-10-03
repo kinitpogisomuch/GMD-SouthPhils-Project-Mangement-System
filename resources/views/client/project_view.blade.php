@@ -96,7 +96,7 @@
                 <div class="tracker-card-header">
                     <div class="tracker-title">
                         <i data-lucide="layers"></i>
-                        Fabrication Phase Tracker &nbsp;·&nbsp; {{ $project->capacity }} {{ $project->tank_type }}
+                        <span class="tracker-title-text"><span>Fabrication Phase Tracker</span><span class="tracker-title-sep"> &nbsp;·&nbsp; </span><span class="tracker-title-sub">{{ $project->capacity }} {{ $project->tank_type }}</span></span>
                     </div>
                     <span class="tracker-progress-badge">{{ $project->progress }}%</span>
                 </div>

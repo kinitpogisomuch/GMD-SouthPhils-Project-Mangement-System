@@ -94,14 +94,15 @@
             <div class="page-header" style="margin-bottom:24px;align-items:flex-start;">
                 <div>
                     <h1 class="page-title" style="margin:0;">{{ $payment->project->name ?? 'Payment Detail' }}</h1>
-                    <p class="page-subtitle">
+                    <p class="page-subtitle pay-detail-meta">
                         @if($payment->project && $payment->project->tankItems->isNotEmpty())
+                            <span class="pay-detail-meta-item">
                             @foreach($payment->project->tankItems as $ti)
                             <strong>{{ $ti->quantity }}×</strong> {{ $ti->tank_type }}@if($ti->capacity) ({{ $ti->capacity }})@endif{{ !$loop->last ? ', ' : '' }}
                             @endforeach
-                            &nbsp;·&nbsp;
+                            </span><span class="pay-detail-meta-sep"> &nbsp;·&nbsp; </span>
                         @endif
-                        {{ $payment->payment_terms }} &nbsp;·&nbsp; Contract signed {{ $payment->date ? \Carbon\Carbon::parse($payment->date)->format('M d, Y') : '—' }}
+                        <span class="pay-detail-meta-item">{{ $payment->payment_terms }}</span><span class="pay-detail-meta-sep"> &nbsp;·&nbsp; </span><span class="pay-detail-meta-item">Contract signed {{ $payment->date ? \Carbon\Carbon::parse($payment->date)->format('M d, Y') : '—' }}</span>
                     </p>
                 </div>
                 <span class="status-badge {{ \App\Models\Payment::statusBadgeClass($status) }}" style="font-size:13px;padding:8px 16px;">

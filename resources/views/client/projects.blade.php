@@ -36,7 +36,7 @@
             @endif
 
             @if($projects->isNotEmpty())
-            <div class="filter-tabs" style="margin-bottom:20px;width:fit-content;">
+            <div class="filter-tabs project-filter-tabs" style="margin-bottom:20px;width:fit-content;">
                 <button type="button" class="filter-tab active" data-filter="all" onclick="filterProjects('all', this)">
                     All Projects
                     <span class="filter-count">{{ $projects->count() }}</span>
@@ -71,7 +71,7 @@
                 <div class="card-header project-card-header" style="padding:14px 18px 12px;">
                     <div>
                         <div class="card-title" style="font-size:14.5px;font-weight:900;">{{ $project->name }}</div>
-                        <div style="font-size:11.5px;color:var(--muted);margin-top:3px;display:flex;gap:14px;flex-wrap:wrap;">
+                        <div class="project-meta-list" style="font-size:11.5px;color:var(--muted);margin-top:3px;display:flex;gap:14px;flex-wrap:wrap;">
                             <span><strong>Type:</strong> {{ $project->tank_type }}</span>
                             <span><strong>Capacity:</strong> {{ $project->capacity }}</span>
                             <span><strong>Created:</strong> {{ $project->created_at->format('M d, Y') }}</span>

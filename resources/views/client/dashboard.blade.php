@@ -98,6 +98,56 @@
                     top: 0;
                     z-index: 1;
                 }
+                .dash-mini-bar { display: none; }
+
+                /* Phones: each row becomes a small stacked card — full project name on top,
+                   progress / amount and status side by side underneath. Desktop keeps the table. */
+                @media (max-width: 640px) {
+                    .dash-recent-scroll { max-height: 340px; }
+                    .dash-recent-table, .dash-recent-table tbody { display: block; width: 100%; }
+                    .dash-recent-table colgroup, .dash-recent-table thead { display: none; }
+                    .dash-recent-table tr {
+                        display: grid;
+                        grid-template-columns: minmax(0, 1fr) auto;
+                        align-items: center;
+                        gap: 10px 12px;
+                        padding: 14px 18px;
+                        border-bottom: 1px solid var(--border);
+                    }
+                    .dash-recent-table tr:last-child { border-bottom: none; }
+                    .dash-recent-table td { display: block; padding: 0 !important; border: none !important; min-width: 0; }
+                    .dash-recent-table td:first-child { grid-column: 1 / -1; }
+                    .dash-recent-table td:first-child strong { font-size: 14px; line-height: 1.35; word-break: normal; overflow-wrap: anywhere; }
+                    .dash-recent-table td[data-label]:not([data-label="Status"]) {
+                        text-align: left !important;
+                        display: flex;
+                        align-items: center;
+                        gap: 10px;
+                        padding-left: 46px !important;   /* lines up under the project name, past the icon */
+                    }
+                    .dash-recent-table td[data-label]:not([data-label="Status"])::before {
+                        content: attr(data-label);
+                        font-size: 10px;
+                        font-weight: 800;
+                        letter-spacing: .06em;
+                        text-transform: uppercase;
+                        color: var(--muted);
+                    }
+                    .dash-recent-table td[data-label="Status"] { text-align: right !important; }
+                    .dash-recent-table td[data-label="Status"] .status-badge { white-space: nowrap; }
+                    .dash-recent-table td[data-label="Progress"] strong { font-size: 13px; }
+                    .dash-mini-bar {
+                        display: block;
+                        flex: 1;
+                        max-width: 90px;
+                        height: 6px;
+                        border-radius: 999px;
+                        background: var(--border);
+                        overflow: hidden;
+                    }
+                    .dash-mini-bar span { display: block; height: 100%; border-radius: 999px; background: var(--dark); }
+                    .dash-recent-table td[colspan] { grid-column: 1 / -1; text-align: center !important; padding: 8px 0 !important; }
+                }
             </style>
 
             <div class="stats-grid">
@@ -145,7 +195,7 @@
                         </a>
                     </div>
                     <div class="table-wrap dash-recent-scroll">
-                        <table style="table-layout:fixed;">
+                        <table class="dash-recent-table" style="table-layout:fixed;">
                             <colgroup>
                                 <col style="width:34%;">
                                 <col style="width:33%;">
@@ -177,8 +227,11 @@
                                             <strong style="word-break:break-word;">{{ $project->name }}</strong>
                                         </div>
                                     </td>
-                                    <td style="text-align:center;"><strong>{{ $project->progress }}%</strong></td>
-                                    <td style="text-align:center;">
+                                    <td style="text-align:center;" data-label="Progress">
+                                        <strong>{{ $project->progress }}%</strong>
+                                        <span class="dash-mini-bar" aria-hidden="true"><span style="width:{{ max(0, min(100, (int) $project->progress)) }}%;"></span></span>
+                                    </td>
+                                    <td style="text-align:center;" data-label="Status">
                                         @if($project->status === 'ongoing')
                                             <span class="status-badge ongoing">In Progress</span>
                                         @elseif($project->status === 'completed')
@@ -209,7 +262,7 @@
                         </a>
                     </div>
                     <div class="table-wrap dash-recent-scroll">
-                        <table style="table-layout:fixed;">
+                        <table class="dash-recent-table" style="table-layout:fixed;">
                             <colgroup>
                                 <col style="width:34%;">
                                 <col style="width:33%;">
@@ -241,8 +294,10 @@
                                             <strong style="word-break:break-word;">{{ $payment->project->name ?? '—' }}</strong>
                                         </div>
                                     </td>
-                                    <td style="text-align:center;"><strong>₱{{ number_format($payment->contract_amount) }}</strong></td>
-                                    <td style="text-align:center;">
+                                    <td style="text-align:center;" data-label="Contract">
+                                        <strong>₱{{ number_format($payment->contract_amount) }}</strong>
+                                    </td>
+                                    <td style="text-align:center;" data-label="Status">
                                         <span class="status-badge {{ $payBadgeClass }}">
                                             {{ $payment->status }}
                                         </span>

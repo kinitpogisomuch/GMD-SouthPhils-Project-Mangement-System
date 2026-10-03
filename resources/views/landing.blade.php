@@ -35,7 +35,6 @@
         </ul>
 
         <div class="nav-actions">
-            <a href="{{ route('login') }}" class="nav-login">Login</a>
             <button class="nav-hamburger" id="navHamburger" aria-label="Open menu">
                 <span></span><span></span><span></span>
             </button>

@@ -20,6 +20,10 @@
 @endphp
 <header class="client-header">
     <div class="client-header-left">
+        {{-- Hamburger toggle — hidden on desktop, shown only on phones (same as the employee portal) --}}
+        <button type="button" class="client-nav-toggle" id="clientNavToggle" aria-label="Toggle navigation" aria-expanded="false" aria-controls="clientHeaderNav">
+            <i data-lucide="menu"></i>
+        </button>
         <img src="{{ asset('images/gmdlogo-circle.svg') }}" alt="GMD South Phils" style="width:34px;height:34px;flex-shrink:0;border-radius:50%;border:1.5px solid rgba(255,255,255,0.25);">
         <div>
             <div class="system-title">GMD South Phils</div>
@@ -27,7 +31,7 @@
         </div>
     </div>
 
-    <nav class="client-header-nav">
+    <nav class="client-header-nav" id="clientHeaderNav">
         @if($clientUnlocked)
         <a href="{{ route('client.dashboard') }}"
            class="{{ request()->routeIs('client.dashboard') ? 'active' : '' }}">
@@ -98,22 +102,6 @@
                 <i data-lucide="chevron-down" class="dropdown-arrow"></i>
             </button>
             <div class="client-dropdown-menu">
-                <div class="client-dropdown-profile">
-                    <div class="client-dropdown-profile-avatar">
-                        @if(session('profile_photo'))
-                            <img src="{{ session('profile_photo') }}" alt="Profile">
-                        @else
-                            <span>{{ strtoupper(substr(session('name', 'C'), 0, 1)) }}</span>
-                        @endif
-                    </div>
-                    <div>
-                        <div class="client-dropdown-profile-name">{{ session('full_name', 'Client') }}</div>
-                        <div class="client-dropdown-profile-role">Client</div>
-                    </div>
-                </div>
-
-                <div class="client-dropdown-divider"></div>
-
                 <a href="{{ route('client.settings') }}" class="client-dropdown-item">
                     <span class="client-dropdown-icon"><i data-lucide="settings"></i></span>
                     <span class="client-dropdown-label">Settings</span>
@@ -135,6 +123,32 @@
 
     </div>
 </header>
+
+<script>
+(function () {
+    // Phones: the burger opens/closes the navigation as a panel under the header (same as the employee portal)
+    var toggle = document.getElementById('clientNavToggle');
+    var nav    = document.getElementById('clientHeaderNav');
+    if (!toggle || !nav) return;
+
+    function closeNav() {
+        nav.classList.remove('open');
+        toggle.setAttribute('aria-expanded', 'false');
+    }
+
+    toggle.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var isOpen = nav.classList.toggle('open');
+        toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    });
+
+    // Close after picking a link, or when tapping anywhere outside the menu.
+    nav.querySelectorAll('a').forEach(function (a) { a.addEventListener('click', closeNav); });
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest('#clientHeaderNav') && !e.target.closest('#clientNavToggle')) closeNav();
+    });
+})();
+</script>
 
 @if($messagingUnlocked)
 {{-- Floating chat launcher --}}

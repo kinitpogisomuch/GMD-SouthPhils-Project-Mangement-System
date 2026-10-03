@@ -69,12 +69,12 @@
                     $phasePercents  = $isBigProject ? ['50%', '30%', '20%'] : ['50%', '50%'];
                     $phaseTermsText = count($phasePercents) . ' Phases (' . implode(' / ', $phasePercents) . ')';
                 @endphp
-                <div class="card">
-                    <div class="card-header">
+                <div class="card pay-card">
+                    <div class="card-header pay-card-header">
                         <div>
                             <div class="card-title">{{ $payment->project->name ?? '—' }}</div>
                         </div>
-                        <div style="display:flex;align-items:center;gap:10px;">
+                        <div class="pay-card-actions" style="display:flex;align-items:center;gap:10px;">
                             <span class="status-badge {{ \App\Models\Payment::statusBadgeClass($status) }}">
                                 {{ $status }}
                             </span>
@@ -84,24 +84,24 @@
                         </div>
                     </div>
                     <div class="card-body">
-                        <div style="display:flex;flex-wrap:wrap;align-items:center;">
-                            <div class="project-info-item" style="padding-right:24px;">
+                        <div class="pay-card-figures" style="display:flex;flex-wrap:wrap;align-items:center;">
+                            <div class="project-info-item pay-fig" style="padding-right:24px;">
                                 <div class="project-info-label">Contract Amount</div>
                                 <div class="project-info-value">₱{{ number_format($payment->contract_amount, 2) }}</div>
                             </div>
-                            <div class="project-info-item" style="border-left:1px solid var(--border);padding:0 24px;">
+                            <div class="project-info-item pay-fig" style="border-left:1px solid var(--border);padding:0 24px;">
                                 <div class="project-info-label">Total Paid</div>
                                 <div class="project-info-value" style="color:var(--success);">₱{{ number_format($totalPaid, 2) }}</div>
                             </div>
-                            <div class="project-info-item" style="border-left:1px solid var(--border);padding:0 24px;">
+                            <div class="project-info-item pay-fig" style="border-left:1px solid var(--border);padding:0 24px;">
                                 <div class="project-info-label">Remaining Balance</div>
                                 <div class="project-info-value" style="color:var(--danger);">₱{{ number_format($balance, 2) }}</div>
                             </div>
-                            <div class="project-info-item" style="border-left:1px solid var(--border);padding:0 24px;">
+                            <div class="project-info-item pay-fig" style="border-left:1px solid var(--border);padding:0 24px;">
                                 <div class="project-info-label">Payment Terms</div>
                                 <div class="project-info-value">{{ $phaseTermsText }}</div>
                             </div>
-                            <div style="flex:1;min-width:180px;margin-left:auto;border-left:1px solid var(--border);padding-left:24px;">
+                            <div class="pay-progress" style="flex:1;min-width:180px;margin-left:auto;border-left:1px solid var(--border);padding-left:24px;">
                                 <div class="project-info-label">Payment Progress</div>
                                 <div style="display:flex;align-items:center;gap:14px;margin-top:6px;">
                                     <div class="progress-bar" style="height:10px;flex:1;">

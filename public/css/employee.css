@@ -1135,6 +1135,24 @@ body {
     align-items: center;
 }
 
+/* On a table cell, display:flex takes the <td> out of the table's row layout, so its
+   height and bottom border no longer line up with the rest of the row. Keep it a real
+   table cell and space the buttons with margins instead. */
+td.action-cell {
+    display: table-cell;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+td.action-cell > .action-btn {
+    display: inline-flex;
+    vertical-align: middle;
+}
+
+td.action-cell > .action-btn + .action-btn {
+    margin-left: 6px;
+}
+
 /* ================= INFO CARDS (summary grid) ================= */
 
 .page-grid {
@@ -4375,4 +4393,114 @@ body.page-enter .admin-content {
         line-height: 1.3;
         margin-top: 4px;
     }
+}
+
+
+/* ================= PROJECT VIEW — PHASE TRACKER ON PHONES =================
+   Phones only, same layout as the client side: the phases wrap into a grid of
+   tiles so the current phase is never hidden off-screen in a sideways strip. */
+@media (max-width: 640px) {
+    .emp-tracker {
+        padding: 18px 16px;
+        border-radius: 18px;
+    }
+
+    .emp-tracker-header {
+        align-items: flex-start;
+        flex-wrap: nowrap;
+        margin-bottom: 16px;
+    }
+
+    .emp-tracker-title {
+        align-items: flex-start;
+        font-size: 15.5px;
+        line-height: 1.3;
+        min-width: 0;
+    }
+
+    .emp-tracker-title svg {
+        flex-shrink: 0;
+        margin-top: 2px;
+    }
+
+    /* "Fabrication Phase Tracker" on one line, the tank under it in smaller text */
+    .tracker-title-text {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+    }
+
+    .tracker-title-sep {
+        display: none;
+    }
+
+    .tracker-title-sub {
+        font-size: 12.5px;
+        font-weight: 700;
+        color: var(--muted);
+    }
+
+    .emp-tracker-header .pv-progress-badge {
+        flex-shrink: 0;
+    }
+
+    .emp-phase-steps {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+        gap: 6px;
+        overflow: visible;
+        padding-bottom: 0;
+    }
+
+    .emp-phase-steps .phase-step {
+        min-width: 0;
+    }
+
+    .emp-phase-steps .phase-step-box,
+    .emp-phase-steps .phase-step:first-child .phase-step-box,
+    .emp-phase-steps .phase-step:last-child .phase-step-box {
+        border-width: 2px;
+        border-radius: 12px;
+        height: 100%;
+        padding: 9px 4px;
+        gap: 5px;
+    }
+
+    .emp-phase-steps .phase-step-icon {
+        width: 24px;
+        height: 24px;
+    }
+
+    .emp-phase-steps .phase-step-icon svg {
+        width: 12px;
+        height: 12px;
+    }
+
+    .emp-phase-steps .phase-step-label {
+        font-size: 10.5px;
+        overflow-wrap: anywhere;
+    }
+}
+
+
+/* ================= UPDATE DETAILS MODAL (Progress History) =================
+   The title and close button stay pinned at the top while the details, work done
+   and site photos scroll underneath, so a long update never pushes the close
+   button out of reach. */
+#updateDetailModal .modal-header {
+    position: sticky;
+    top: -24px;               /* cancels the card's 24px top padding */
+    z-index: 2;
+    margin: -24px -24px 18px;
+    padding: 24px 24px 14px;
+    background: var(--white);
+    border-bottom: 1px solid var(--border);
+    border-radius: 26px 26px 0 0;
+}
+
+/* The floating chat button sits above everything; hide it while a popup is open
+   so it doesn't cover the popup's content or buttons. */
+body:has(.modal-overlay.show) #chatPopupWrap {
+    display: none;
 }

@@ -7,6 +7,62 @@
     <title>My Salary | GMD South Phils</title>
     <link href="{{ asset('css/employee.css') }}" rel="stylesheet">
     <style>
+        /* Phones only: each pay period becomes a small card — dates + details button on top,
+           Daily Rate / Full Days / Half Days / OT Hours as tiles, then the Gross Pay. */
+        @media (max-width: 640px) {
+            #salaryHistoryTable, #salaryHistoryTable tbody { display: block; width: 100%; min-width: 0; }
+            #salaryHistoryTable thead { display: none; }
+            #salaryHistoryTable tr.sal-row {
+                display: grid;
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+                gap: 8px;
+                padding: 14px 16px;
+                border-bottom: 1px solid var(--border);
+            }
+            #salaryHistoryTable tr.sal-row td { display: block; padding: 0 !important; border: none !important; min-width: 0; }
+            #salaryHistoryTable tr.sal-row td.sal-period {
+                grid-column: 1 / 4; grid-row: 1; align-self: center;
+                display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+            }
+            #salaryHistoryTable tr.sal-row td.sal-period strong { font-size: 14px; }
+            #salaryHistoryTable tr.sal-row td.sal-action { grid-column: 4; grid-row: 1; display: flex; justify-content: flex-end; align-items: center; }
+
+            #salaryHistoryTable tr.sal-row td.sal-tile {
+                grid-row: 2;
+                background: var(--white);
+                border: 1px solid var(--border) !important;
+                border-radius: 12px;
+                padding: 8px 4px !important;
+                text-align: center;
+                font-weight: 900;
+                font-size: 14px;
+                color: var(--dark);
+                font-variant-numeric: tabular-nums;
+                overflow-wrap: anywhere;
+            }
+            #salaryHistoryTable tr.sal-row td.sal-tile::before,
+            #salaryHistoryTable tr.sal-row td.sal-gross::before,
+            #salaryHistoryTable tr.sal-row td.sal-net::before {
+                content: attr(data-label);
+                display: block;
+                font-size: 9px;
+                font-weight: 800;
+                letter-spacing: .05em;
+                text-transform: uppercase;
+                color: var(--muted);
+                margin-bottom: 3px;
+            }
+            #salaryHistoryTable tr.sal-row td.sal-gross {
+                grid-column: 1 / 3; grid-row: 3; align-self: end;
+                font-size: 13px; font-weight: 700; color: var(--muted);
+            }
+            #salaryHistoryTable tr.sal-row td.sal-net {
+                grid-column: 1 / -1; grid-row: 3; text-align: right;
+            }
+            #salaryHistoryTable tr.sal-row td.sal-net strong { font-size: 18px; }
+            #salaryHistoryTable tr:not(.sal-row), #salaryHistoryTable tr:not(.sal-row) td { display: block; }
+        }
+
         #salaryPageHeader {
             justify-content: center;
             text-align: center;
@@ -65,9 +121,9 @@
                 <div class="stat-card purple">
                     <div class="stat-icon purple"><i data-lucide="wallet"></i></div>
                     <div class="stat-info">
-                        <div class="stat-value">₱{{ number_format($currentRecord->net_pay ?? 0, 2) }}</div>
+                        <div class="stat-value">₱{{ number_format($currentRecord->gross_pay ?? 0, 2) }}</div>
                         <div class="stat-label">
-                            Net Pay This Week
+                            Gross Pay This Week
                             @if($currentRecord)
                                 <span class="status-badge completed">Recorded</span>
                             @else
@@ -98,7 +154,6 @@
                                 <th>Half Days</th>
                                 <th>OT Hours</th>
                                 <th>Gross Pay</th>
-                                <th>Net Pay</th>
                                 <th>Salary Details</th>
                             </tr>
                         </thead>
@@ -111,20 +166,19 @@
                                     $halfDays   = ($record->days_worked - $fullDays) >= 0.5 ? 1 : 0;
                                     $periodText = $weekStart->format('M d') . ' – ' . $weekEnd->format('M d, Y');
                                 @endphp
-                                <tr class="{{ $record->pay_period === $payPeriod ? 'salary-row-current' : '' }}">
-                                    <td>
+                                <tr class="sal-row {{ $record->pay_period === $payPeriod ? 'salary-row-current' : '' }}">
+                                    <td class="sal-period">
                                         <strong>{{ $periodText }}</strong>
                                         @if($record->pay_period === $payPeriod)
                                             <span class="status-badge ongoing">This Week</span>
                                         @endif
                                     </td>
-                                    <td>₱{{ number_format($record->daily_rate, 2) }}</td>
-                                    <td>{{ number_format($fullDays, 0) }}</td>
-                                    <td>{{ $halfDays }}</td>
-                                    <td>{{ number_format($record->overtime_hours, 0) }}</td>
-                                    <td>₱{{ number_format($record->gross_pay, 2) }}</td>
-                                    <td class="salary-net-pay"><strong>₱{{ number_format($record->net_pay, 2) }}</strong></td>
-                                    <td class="action-cell">
+                                    <td class="sal-tile" data-label="Daily Rate">₱{{ number_format($record->daily_rate, 2) }}</td>
+                                    <td class="sal-tile" data-label="Full Days">{{ number_format($fullDays, 0) }}</td>
+                                    <td class="sal-tile" data-label="Half Days">{{ $halfDays }}</td>
+                                    <td class="sal-tile" data-label="OT Hours">{{ number_format($record->overtime_hours, 0) }}</td>
+                                    <td class="salary-net-pay sal-net" data-label="Gross Pay"><strong>₱{{ number_format($record->gross_pay, 2) }}</strong></td>
+                                    <td class="action-cell sal-action">
                                         <button type="button" class="action-btn view"
                                                 title="View Salary Details"
                                                 onclick='openSalaryDetail({{ json_encode([
@@ -145,7 +199,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="8" style="text-align:center;color:var(--muted);padding:32px 0;">
+                                    <td colspan="7" style="text-align:center;color:var(--muted);padding:32px 0;">
                                         No salary records yet.
                                     </td>
                                 </tr>
@@ -213,7 +267,6 @@
             var basicPay   = dailyRate * daysWorked;
             var grossPay   = parseFloat(r.gross_pay)         || 0;
             var deductions = parseFloat(r.total_deductions)  || 0;
-            var netPay     = parseFloat(r.net_pay)           || 0;
 
             var dedSection = deductions > 0
                 ? detailRow('Deductions', '- ₱' + fmt(deductions), 'color:#dc2626;')
@@ -230,12 +283,11 @@
                 + detailRow('Half Day', halfDays + ' day' + (halfDays !== 1 ? 's' : ''))
                 + detailRow('Basic Pay', '₱' + fmt(basicPay))
                 + detailRow('Overtime (' + otHours + ' hrs)', otHours > 0 ? '₱' + fmt(otPay) : '0.00', otHours > 0 ? 'color:#2563eb;' : 'color:var(--muted);')
-                + detailRow('Gross Pay', '₱' + fmt(grossPay))
                 + detailRow('Payment Method', pmLabel)
                 + dedSection
                 + '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-top:2px solid var(--border);background:var(--cream-soft);">'
-                    + '<span style="font-size:14px;font-weight:900;color:var(--dark);">NET PAY</span>'
-                    + '<strong style="font-size:20px;font-weight:900;color:#16a34a;">₱' + fmt(netPay) + '</strong>'
+                    + '<span style="font-size:14px;font-weight:900;color:var(--dark);">GROSS PAY</span>'
+                    + '<strong style="font-size:20px;font-weight:900;color:#16a34a;">₱' + fmt(grossPay) + '</strong>'
                 + '</div>'
                 + '</div>';
 
@@ -265,7 +317,6 @@
             var basicPay   = dailyRate * daysWorked;
             var grossPay   = parseFloat(r.gross_pay)        || 0;
             var deductions = parseFloat(r.total_deductions) || 0;
-            var netPay     = parseFloat(r.net_pay)          || 0;
 
             var printedOn = new Date().toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' });
             var pmLabel   = r.payment_method === 'gcash' ? 'GCash' : 'Cash';
@@ -276,10 +327,9 @@
                 payslipRow('Half Day', fmtDays(halfDays) + ' day' + (halfDays !== 1 ? 's' : '')) +
                 payslipRow('Basic Pay', '₱' + fmt(basicPay)) +
                 payslipRow('Overtime (' + fmtDays(otHours) + ' hrs)', otHours > 0 ? '₱' + fmt(otPay) : '0.00') +
-                '<tr class="bs-subtotal-row">' + '<td>Gross Pay</td><td style="text-align:right;">₱' + fmt(grossPay) + '</td></tr>' +
                 (deductions > 0 ? payslipRow('Deductions', '- ₱' + fmt(deductions), 'color:#dc2626;') : '') +
                 payslipRow('Payment Method', pmLabel) +
-                '<tr class="bs-total-row"><td style="font-size:14px;">NET PAY</td><td style="text-align:right;font-size:17px;color:#16a34a;">₱' + fmt(netPay) + '</td></tr>';
+                '<tr class="bs-total-row"><td style="font-size:14px;">TOTAL PAY</td><td style="text-align:right;font-size:17px;color:#16a34a;">₱' + fmt(grossPay) + '</td></tr>';
 
             var html =
                 '<html><head><title>Salary Slip – ' + EMPLOYEE_NAME + '</title>' +

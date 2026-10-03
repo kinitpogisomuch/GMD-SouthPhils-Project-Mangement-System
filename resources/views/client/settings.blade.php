@@ -14,10 +14,10 @@
 
     <main class="admin-content">
 
-            <div class="page-header">
+            <div class="page-header" style="margin-bottom:24px;">
                 <div>
-                    <h1>Settings</h1>
-                    <p>Manage your profile and account security.</p>
+                    <h1 class="page-title">Settings</h1>
+                    <p class="page-subtitle">Manage your profile and account security.</p>
                 </div>
             </div>
 
@@ -102,7 +102,7 @@
                     <!-- Right: Profile Form -->
                     <div style="flex:1;">
                         <div class="pv-card">
-                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                            <div class="profile-info-head" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
                                 <h3 class="pv-card-title" style="margin-bottom:0;">Profile Information</h3>
                                 <div id="profileActions">
                                     <button type="button" class="save-btn" onclick="enableEdit()">

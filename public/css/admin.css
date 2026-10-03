@@ -6233,3 +6233,183 @@ body.page-enter .admin-content {
         animation: none;
     }
 }
+
+
+/* ================= PROJECT VIEW — PHASE TRACKER ON PHONES =================
+   Phones only, same layout as the client and employee sides: the phases wrap into
+   a grid of tiles instead of a sideways-scrolling strip, so all of them are visible. */
+@media (max-width: 640px) {
+    .tracker-card {
+        padding: 18px 16px;
+        border-radius: 18px;
+    }
+
+    /* title on top, then the progress bar + % on their own full-width row */
+    .tracker-card-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        margin-bottom: 16px;
+    }
+
+    .tracker-title {
+        font-size: 15.5px;
+    }
+
+    .tracker-progress-wrap {
+        width: 100%;
+    }
+
+    .phase-steps-scroll {
+        overflow-x: visible;
+    }
+
+    .phase-steps-scroll .phase-steps,
+    .phase-steps {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+        gap: 6px;
+        min-width: 0;
+        overflow: visible;
+        padding-bottom: 0;
+    }
+
+    .phase-step {
+        min-width: 0;
+    }
+
+    .phase-step-box,
+    .phase-step:first-child .phase-step-box,
+    .phase-step:last-child .phase-step-box {
+        border-width: 2px;
+        border-radius: 12px;
+        height: 100%;
+        padding: 9px 4px;
+        gap: 5px;
+    }
+
+    .phase-step-icon {
+        width: 24px;
+        height: 24px;
+    }
+
+    .phase-step-icon svg {
+        width: 12px;
+        height: 12px;
+    }
+
+    .phase-step-label {
+        font-size: 10.5px;
+        overflow-wrap: anywhere;
+    }
+}
+
+
+/* ================= UPDATE DETAILS MODAL (Progress History) =================
+   The title and close button stay pinned at the top while the details, work done
+   and site photos scroll underneath, so a long update never pushes the close
+   button out of reach. */
+#updateDetailModal .modal-header {
+    position: sticky;
+    top: -24px;               /* cancels the card's 24px top padding */
+    z-index: 2;
+    margin: -24px -24px 18px;
+    padding: 24px 24px 14px;
+    background: var(--white);
+    border-bottom: 1px solid var(--border);
+    border-radius: 26px 26px 0 0;
+}
+
+
+/* ================= TAB BARS ON PHONES =================
+   The tabs can still scroll sideways when they don't fit, but without showing a scrollbar
+   under/beside them (e.g. Employee List / Salary Management). Desktop is unchanged.
+   900px = the same width where the tab bar starts scrolling. */
+@media (max-width: 900px) {
+    .emp-tabs {
+        overflow-y: hidden;
+        scrollbar-width: none;          /* Firefox */
+        -ms-overflow-style: none;       /* old Edge */
+    }
+
+    .emp-tabs::-webkit-scrollbar {      /* Chrome, Safari, new Edge */
+        display: none;
+    }
+}
+
+
+
+/* ================= SALARY MANAGEMENT ON PHONES =================
+   Phones only (desktop unchanged).
+   Week selector: arrows + calendar stay on one row; the dates wrap instead of pushing buttons off-screen.
+   Records: each employee becomes a small card — name/role and buttons on top, Daily Rate / Full Days /
+   Half Day / OT Hours as tiles, then OT Pay and Gross Pay. */
+@media (max-width: 640px) {
+    #tab-salary .table-toolbar { flex-direction: column; align-items: stretch; gap: 10px; }
+    #tab-salary .search-box { max-width: none; width: 100%; height: 44px; min-height: 44px; flex-shrink: 0; }
+    /* "This Week" (shown when viewing another week) gets its own full-width row */
+    #tab-salary #salaryThisWeek { grid-column: 1 / -1; width: 100%; height: 40px; justify-content: center; text-align: center; }
+    #tab-salary .pay-period-nav {
+        display: grid;
+        grid-template-columns: 40px minmax(0, 1fr) 40px 40px;
+        gap: 6px;
+        width: 100%;
+    }
+    #tab-salary .pay-period-label {
+        height: auto;
+        min-height: 40px;
+        justify-content: center;
+        text-align: center;
+        white-space: normal;
+        font-size: 12px;
+        line-height: 1.25;
+        padding: 6px 8px;
+        min-width: 0;
+    }
+    #tab-salary .pay-period-label svg { display: none; }
+    #tab-salary .pay-period-jump-panel { left: 0; right: 0; width: auto; }
+
+    #salaryTable, #salaryTable tbody { display: block; width: 100%; min-width: 0; }
+    #salaryTable thead { display: none; }
+    #salaryTable tr.sal-m-row {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--border);
+    }
+    #salaryTable tr.sal-m-row td { display: block; padding: 0 !important; border: none !important; min-width: 0; }
+    #salaryTable tr.sal-m-row td.sal-m-name { grid-column: 1 / 3; grid-row: 1; font-size: 14px; font-weight: 800 !important; color: var(--dark); align-self: end; }
+    #salaryTable tr.sal-m-row td.sal-m-role { grid-column: 1 / 3; grid-row: 2; font-size: 12px; color: var(--muted); font-weight: 700; margin-top: -6px; }
+    #salaryTable tr.sal-m-row td.sal-m-actions {
+        grid-column: 3 / 5; grid-row: 1 / 3;
+        display: flex; justify-content: flex-end; align-items: center; gap: 6px;
+    }
+    #salaryTable tr.sal-m-row td.sal-m-tile {
+        grid-row: 3;
+        background: var(--white);
+        border: 1px solid var(--border) !important;
+        border-radius: 12px;
+        padding: 8px 4px !important;
+        text-align: center;
+        font-weight: 900;
+        font-size: 13.5px;
+        font-variant-numeric: tabular-nums;
+        overflow-wrap: anywhere;
+    }
+    #salaryTable tr.sal-m-row td.sal-m-tile::before,
+    #salaryTable tr.sal-m-row td.sal-m-otpay::before,
+    #salaryTable tr.sal-m-row td.sal-m-gross::before {
+        content: attr(data-label);
+        display: block;
+        font-size: 9px;
+        font-weight: 800;
+        letter-spacing: .05em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 3px;
+    }
+    #salaryTable tr.sal-m-row td.sal-m-otpay { grid-column: 1 / 3; grid-row: 4; align-self: end; font-size: 13px; font-weight: 700; }
+    #salaryTable tr.sal-m-row td.sal-m-gross { grid-column: 3 / 5; grid-row: 4; text-align: right; font-size: 18px; }
+    #salaryTable tr:not(.sal-m-row), #salaryTable tr:not(.sal-m-row) td { display: block; }
+}

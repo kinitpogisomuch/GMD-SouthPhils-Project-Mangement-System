@@ -7,9 +7,150 @@
     <title>{{ $project->name }} — Material Usage | GMD South Phils</title>
     <link href="{{ asset('css/employee.css') }}" rel="stylesheet">
     <style>
+        /* ── Project header card ── */
+        .mu-proj { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 20px 24px; flex-wrap: wrap; }
+        .mu-proj-main { display: flex; align-items: center; gap: 14px; min-width: 0; flex: 1 1 320px; }
+        .mu-proj-icon { width: 46px; height: 46px; border-radius: 14px; background: var(--dark); color: var(--white);
+                        display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .mu-proj-icon svg { width: 22px; height: 22px; }
+        .mu-proj-text { min-width: 0; }
+        .mu-proj-prefix { font-size: 10px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+        .mu-proj-name { font-size: 18px; font-weight: 900; color: var(--dark); line-height: 1.25; }
+        .mu-proj-client { display: flex; align-items: center; gap: 6px; margin-top: 5px; font-size: 13px; font-weight: 700; color: var(--muted); }
+        .mu-proj-client svg { width: 14px; height: 14px; flex-shrink: 0; }
+        .mu-proj-pills { display: flex; gap: 10px; flex-wrap: wrap; }
+        .mu-proj-pill { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; padding: 10px 14px;
+                        border: 1px solid var(--border); border-radius: 12px; background: var(--cream-soft); min-width: 110px; }
+        .mu-proj-pill-label { font-size: 10px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+        @media (max-width: 640px) {
+            .mu-proj { padding: 16px; gap: 14px; }
+            .mu-proj-main { flex-basis: 100%; align-items: flex-start; }
+            .mu-proj-icon { width: 40px; height: 40px; border-radius: 12px; }
+            .mu-proj-name { font-size: 16px; }
+            .mu-proj-pills { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+            .mu-proj-pill { min-width: 0; }
+        }
+
         /* ── Materials vs Usage: scroll inside the card, header stays visible ── */
         .mvu-scroll { max-height: 440px; overflow-y: auto; }
         .mvu-scroll thead th { position: sticky; top: 0; z-index: 1; background: var(--cream-soft); }
+
+        /* Phones only: full-width search and button; each material row becomes a small card
+           (name + status on top, Purchased / Used / Remaining underneath). Desktop unchanged. */
+        @media (max-width: 640px) {
+            .mvu-toolbar { flex-direction: column; align-items: stretch !important; gap: 10px !important; }
+            .mvu-title { font-size: 16px !important; }
+            .mvu-tools { flex-direction: column; align-items: stretch !important; gap: 8px !important; }
+            .mvu-tools .search-box { max-width: none !important; width: 100%; }
+            .mvu-tools .save-btn { width: 100%; justify-content: center; }
+
+            .mvu-scroll { max-height: 520px; }
+            #mvuTable, #mvuTable tbody { display: block; width: 100%; min-width: 0; }
+            #mvuTable thead { display: none; }
+            #mvuTable tr.mvu-row {
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 8px;
+                padding: 14px 16px;
+                border-bottom: 1px solid var(--border);
+            }
+            #mvuTable tr.mvu-row td { display: block; padding: 0 !important; border: none !important; min-width: 0; }
+            #mvuTable td.mvu-name { grid-column: 1 / 3; align-self: center; }
+            #mvuTable td.mvu-name strong { font-size: 13.5px; line-height: 1.3; }
+            #mvuTable td.mvu-status { grid-column: 3; grid-row: 1; text-align: right; align-self: center; }
+            #mvuTable td.mvu-status .status-badge { white-space: nowrap; }
+            /* (tr.mvu-row td.mvu-num so it outranks the "no border / no padding" cell reset above) */
+            #mvuTable tr.mvu-row td.mvu-num {
+                background: var(--white);
+                border: 1px solid var(--border) !important;
+                border-radius: 12px;
+                padding: 9px 6px !important;
+                text-align: center;
+                font-weight: 900;
+                font-size: 17px;
+                line-height: 1.1;
+                color: var(--dark);
+                font-variant-numeric: tabular-nums;
+            }
+            #mvuTable tr.mvu-row td.mvu-num::before {
+                content: attr(data-label);
+                display: block;
+                font-size: 9.5px;
+                font-weight: 800;
+                letter-spacing: .06em;
+                text-transform: uppercase;
+                color: var(--muted);
+                margin-bottom: 4px;
+            }
+            /* nothing left in stock reads in red */
+            #mvuTable tr.mvu-row td.mvu-num[data-label="Remaining"].is-zero { color: var(--danger); }
+            #mvuTable tr:not(.mvu-row) { display: block; }
+            #mvuTable tr:not(.mvu-row) td { display: block; }
+        }
+
+        /* ── Usage Log: desktop keeps the table; the unit only shows in the phone layout ── */
+        .ulog-unit { display: none; }
+        /* Desktop: the log scrolls inside its card (about 8 rows), header row stays visible */
+        .ulog-scroll { max-height: 440px; overflow-y: auto; }
+        .ulog-scroll thead th { position: sticky; top: 0; z-index: 1; background: var(--cream-soft); }
+
+        /* Phones only: each entry becomes a small card in the same style as Materials vs Usage —
+           material name on top, then Date Used / Quantity / Recorded By as three tiles,
+           with Used For and Notes underneath only when they have something in them. */
+        @media (max-width: 640px) {
+            .ulog-scroll { max-height: 520px; overflow-y: auto; }
+            #usageLogTable, #usageLogTable tbody { display: block; width: 100%; min-width: 0; }
+            #usageLogTable thead { display: none; }
+            #usageLogTable tr.ulog-row {
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 8px;
+                padding: 14px 16px;
+                border-bottom: 1px solid var(--border);
+            }
+            #usageLogTable tr.ulog-row td { display: block; padding: 0 !important; border: none !important; min-width: 0; }
+            #usageLogTable tr.ulog-row td.ulog-material { grid-column: 1 / -1; grid-row: 1; }
+            #usageLogTable tr.ulog-row td.ulog-material strong { font-size: 13.5px; line-height: 1.3; }
+
+            #usageLogTable tr.ulog-row td.ulog-date,
+            #usageLogTable tr.ulog-row td.ulog-qty,
+            #usageLogTable tr.ulog-row td.ulog-by {
+                grid-row: 2;
+                background: var(--white);
+                border: 1px solid var(--border) !important;
+                border-radius: 12px;
+                padding: 9px 6px !important;
+                text-align: center;
+                font-weight: 800;
+                font-size: 13px;
+                line-height: 1.2;
+                color: var(--dark);
+                overflow-wrap: anywhere;
+            }
+            #usageLogTable tr.ulog-row td.ulog-qty { font-size: 17px; font-weight: 900; font-variant-numeric: tabular-nums; }
+            #usageLogTable tr.ulog-row td.ulog-date::before,
+            #usageLogTable tr.ulog-row td.ulog-qty::before,
+            #usageLogTable tr.ulog-row td.ulog-by::before {
+                content: attr(data-label);
+                display: block;
+                font-size: 9.5px;
+                font-weight: 800;
+                letter-spacing: .06em;
+                text-transform: uppercase;
+                color: var(--muted);
+                margin-bottom: 4px;
+            }
+            #usageLogTable .ulog-unit { display: inline; font-size: 11px; font-weight: 700; color: var(--muted); }
+
+            #usageLogTable tr.ulog-row td.ulog-for.is-empty,
+            #usageLogTable tr.ulog-row td.ulog-notes.is-empty { display: none; }
+            #usageLogTable tr.ulog-row td.ulog-for,
+            #usageLogTable tr.ulog-row td.ulog-notes {
+                grid-column: 1 / -1; font-size: 12px; color: var(--dark);
+                background: var(--cream-soft); border-radius: 8px; padding: 6px 10px !important;
+            }
+            #usageLogTable tr:not(.ulog-row), #usageLogTable tr:not(.ulog-row) td { display: block; }
+        }
 
         /* ── Log Material Usage modal ── */
         .mu-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; flex-shrink: 0; }
@@ -105,27 +246,34 @@
             @endif
 
             {{-- Project Info --}}
-            <div class="table-card" style="margin-bottom:24px;">
-                <div style="padding:20px 24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px 24px;">
-                    <div>
-                        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px;">Project</div>
-                        <div style="font-weight:800;color:var(--dark);">{{ $project->name }}</div>
+            @php
+                // "Fabrication of X" → small prefix + X as the headline
+                $muPrefix = '';
+                $muName   = $project->name;
+                if (preg_match('/^(Fabrication of)\s+(.+)$/i', (string) $project->name, $muM)) {
+                    [$muPrefix, $muName] = [$muM[1], $muM[2]];
+                }
+                $muPhase       = ucfirst(str_replace('_', ' ', $project->current_phase ?? 'Planning'));
+                $muStatus      = $project->status ?? 'planning';
+                $muStatusClass = strtolower($muStatus);
+            @endphp
+            {{-- Project header (all screen sizes) --}}
+            <div class="table-card mu-proj" style="margin-bottom:24px;">
+                <div class="mu-proj-main">
+                    <div class="mu-proj-text">
+                        @if($muPrefix)<div class="mu-proj-prefix">{{ $muPrefix }}</div>@endif
+                        <div class="mu-proj-name">{{ $muName }}</div>
+                        <div class="mu-proj-client"><i data-lucide="building-2"></i>{{ $project->live_client_name }}</div>
                     </div>
-                    <div>
-                        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px;">Client</div>
-                        <div style="font-weight:700;">{{ $project->live_client_name }}</div>
+                </div>
+                <div class="mu-proj-pills">
+                    <div class="mu-proj-pill">
+                        <span class="mu-proj-pill-label">Phase</span>
+                        <span class="status-badge {{ $muStatus === 'completed' ? 'completed' : 'ongoing' }}">{{ $muPhase }}</span>
                     </div>
-                    <div>
-                        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px;">Current Phase</div>
-                        <span class="status-badge {{ $project->status === 'completed' ? 'completed' : 'ongoing' }}">
-                            {{ ucfirst(str_replace('_', ' ', $project->current_phase ?? 'Planning')) }}
-                        </span>
-                    </div>
-                    <div>
-                        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px;">Status</div>
-                        <span class="status-badge {{ strtolower($project->status ?? 'planning') }}">
-                            {{ ucfirst($project->status ?? 'Planning') }}
-                        </span>
+                    <div class="mu-proj-pill">
+                        <span class="mu-proj-pill-label">Status</span>
+                        <span class="status-badge {{ $muStatusClass }}">{{ ucfirst($muStatus) }}</span>
                     </div>
                 </div>
             </div>
@@ -159,10 +307,10 @@
 
             {{-- Materials vs Usage --}}
             <div class="table-card" style="margin-bottom:24px;">
-                <div class="table-toolbar" style="padding-bottom:0;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-                    <span style="font-weight:700;font-size:15px;">Materials vs Usage</span>
+                <div class="table-toolbar mvu-toolbar" style="padding-bottom:0;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                    <span class="mvu-title" style="font-weight:700;font-size:15px;">Materials vs Usage</span>
                     @if($materialComparison->isNotEmpty())
-                    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex:1;justify-content:flex-end;">
+                    <div class="mvu-tools" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex:1;justify-content:flex-end;">
                         <div class="search-box" style="height:42px;max-width:300px;">
                             <i data-lucide="search"></i>
                             <input type="search" id="mvuSearch" placeholder="Search materials..." autocomplete="off">
@@ -195,11 +343,11 @@
                                 ];
                             @endphp
                             <tr class="mvu-row" data-name="{{ strtolower($row['material']->material_name) }}">
-                                <td><strong>{{ $row['material']->material_name }}</strong></td>
-                                <td>{{ number_format($row['purchasedQty'], 0) }}</td>
-                                <td>{{ number_format($row['usedQty'], 0) }}</td>
-                                <td>{{ number_format($row['stockRemaining'], 0) }}</td>
-                                <td>
+                                <td class="mvu-name"><strong>{{ $row['material']->material_name }}</strong></td>
+                                <td class="mvu-num" data-label="Purchased">{{ number_format($row['purchasedQty'], 0) }}</td>
+                                <td class="mvu-num" data-label="Used">{{ number_format($row['usedQty'], 0) }}</td>
+                                <td class="mvu-num{{ $row['purchasedQty'] > 0 && $row['stockRemaining'] <= 0 ? ' is-zero' : '' }}" data-label="Remaining">{{ number_format($row['stockRemaining'], 0) }}</td>
+                                <td class="mvu-status">
                                     @if($row['stockStatusKey'] === 'not_purchased')
                                     <span class="status-badge" style="background:var(--accent-soft);color:var(--muted);">{{ $statusLabels['not_purchased'] }}</span>
                                     @else
@@ -229,8 +377,8 @@
                 <div class="table-toolbar" style="padding-bottom:0;">
                     <span style="font-weight:700;font-size:15px;">Usage Log</span>
                 </div>
-                <div class="table-wrapper">
-                    <table class="data-table">
+                <div class="table-wrapper ulog-scroll">
+                    <table class="data-table" id="usageLogTable">
                         <thead>
                             <tr>
                                 <th>Date Used</th>
@@ -243,13 +391,13 @@
                         </thead>
                         <tbody>
                             @forelse($usageEntries as $entry)
-                            <tr>
-                                <td>{{ $entry->used_date->format('M d, Y') }}</td>
-                                <td><strong>{{ $entry->material_name }}</strong></td>
-                                <td>{{ number_format($entry->quantity_used, 0) }}</td>
-                                <td>{{ $entry->used_for ? ucfirst(str_replace('_', ' ', $entry->used_for)) : '—' }}</td>
-                                <td>{{ $entry->notes ?? '—' }}</td>
-                                <td>{{ $entry->recorded_by ?? '—' }}</td>
+                            <tr class="ulog-row">
+                                <td class="ulog-date" data-label="Date Used">{{ $entry->used_date->format('M d, Y') }}</td>
+                                <td class="ulog-material"><strong>{{ $entry->material_name }}</strong></td>
+                                <td class="ulog-qty" data-label="Quantity">{{ number_format($entry->quantity_used, 0) }}<span class="ulog-unit"> {{ $entry->unit }}</span></td>
+                                <td class="ulog-for{{ $entry->used_for ? '' : ' is-empty' }}">{{ $entry->used_for ? ucfirst(str_replace('_', ' ', $entry->used_for)) : '—' }}</td>
+                                <td class="ulog-notes{{ $entry->notes ? '' : ' is-empty' }}">{{ $entry->notes ?? '—' }}</td>
+                                <td class="ulog-by" data-label="Recorded By">{{ $entry->recorded_by ?? '—' }}</td>
                             </tr>
                             @empty
                             <tr>

@@ -108,6 +108,19 @@
             .qr-tank-row-grid .form-group,
             .qr-tank-row-grid .form-group:nth-child(1),
             .qr-tank-row-grid .form-group:nth-child(3) { flex:1 1 100%; max-width:none; }
+
+            /* The 40px right padding only makes room for the remove (✕) button beside the
+               fields on desktop; on phones that button sits in the dark "TANK" bar, so the
+               card content gets equal space on both sides and is centred. */
+            .qr-tank-row-grid { padding:16px 18px 10px; }
+            .qr-tank-fulfill  { padding:0 18px 10px; }
+            .qr-tank-design   { padding:0 18px 14px; }
+            .qr-tank-remove   { color:rgba(255,255,255,.75); }
+            .qr-tank-remove:hover { color:#dc2626; }
+
+            /* Delivery / Pick-up share the row evenly */
+            .qr-fulfill-opts { display:grid; grid-template-columns:1fr 1fr; }
+            .qr-fulfill-opt  { justify-content:center; }
         }
 
         .qr-add-tank-btn {
@@ -170,6 +183,11 @@
             margin-top:24px;flex-wrap:wrap;
         }
         .qr-submit-hint { font-size:12.5px;color:var(--muted); }
+        /* Phones: the note and the Submit Request button stack, both centred */
+        @media (max-width:640px) {
+            .qr-submit-row { flex-direction:column; justify-content:center; text-align:center; }
+            .qr-submit-row .save-btn { align-self:center; justify-content:center; }
+        }
     </style>
 </head>
 <body class="page-enter">

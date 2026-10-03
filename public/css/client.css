@@ -2330,7 +2330,8 @@ tbody tr:last-child td { border-bottom: none; }
 .pw-match-msg { font-size: 12px; font-weight: 800; margin-top: 6px; }
 
 @media (max-width: 900px) {
-    .settings-layout { flex-direction: column; }
+    /* stretch: once stacked, every card (Profile Information too) is as wide as the photo card */
+    .settings-layout { flex-direction: column; align-items: stretch; }
     .settings-avatar-card { width: 100%; min-width: unset; }
     .settings-single-card { justify-content: center; }
     .settings-single-card .pv-card { max-width: 100% !important; }
@@ -3535,3 +3536,347 @@ body.page-enter .admin-content {
 }
 .qr-file-add:hover { background: var(--accent-soft, var(--surface-2)); border-color: var(--dark); }
 .qr-file-add svg { width: 16px; height: 16px; }
+
+
+/* ================= MY PROJECTS — MOBILE CARD LAYOUT =================
+   Phones only (desktop layout above is untouched), matching the employee
+   Projects cards: details one per line, progress full width, and the
+   Start / End / Phase details as three equal tiles. */
+@media (max-width: 640px) {
+    /* All Projects / Active / Completed tabs centred on the screen */
+    .project-filter-tabs {
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .project-card-header .card-title {
+        font-size: 16px !important;
+        line-height: 1.3;
+    }
+
+    /* Type / Capacity / Created each on their own line */
+    .project-meta-list {
+        flex-direction: column;
+        gap: 3px !important;
+        font-size: 12.5px !important;
+        margin-top: 6px !important;
+    }
+
+    /* status badge left, View Details right, under a thin divider */
+    .project-card-actions {
+        padding-top: 12px;
+        border-top: 1px solid var(--border);
+    }
+
+    .project-card-actions .btn {
+        min-height: 40px;
+    }
+
+    .project-progress-container {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    .project-progress-container .progress-wrap {
+        width: 100%;
+    }
+
+    .project-progress-info {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        background: var(--cream-soft);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 12px;
+    }
+
+    .project-info-label {
+        font-size: 9.5px;
+        letter-spacing: 0.05em;
+    }
+
+    .project-info-value {
+        font-size: 13px;
+        line-height: 1.3;
+        margin-top: 4px;
+    }
+}
+
+
+/* ================= PROJECT VIEW — PHASE TRACKER ON PHONES =================
+   Phones only. The desktop tracker is one sideways strip; on a phone that hides the
+   current phase off-screen, so the phases wrap into a grid and all stay visible. */
+@media (max-width: 640px) {
+    .tracker-card {
+        padding: 18px 16px;
+        border-radius: 18px;
+    }
+
+    .tracker-card-header {
+        align-items: flex-start;
+        flex-wrap: nowrap;
+        margin-bottom: 16px;
+    }
+
+    .tracker-title {
+        align-items: flex-start;
+        font-size: 15.5px;
+        line-height: 1.3;
+        min-width: 0;
+    }
+
+    .tracker-title svg {
+        flex-shrink: 0;
+        margin-top: 2px;
+    }
+
+    /* "Fabrication Phase Tracker" on one line, the tank under it in smaller text */
+    .tracker-title-text {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+    }
+
+    .tracker-title-sep {
+        display: none;
+    }
+
+    .tracker-title-sub {
+        font-size: 12.5px;
+        font-weight: 700;
+        color: var(--muted);
+    }
+
+    .tracker-progress-badge {
+        flex-shrink: 0;
+        font-size: 12.5px;
+        padding: 6px 12px;
+    }
+
+    .phase-steps {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+        gap: 6px;
+        overflow: visible;
+        padding-bottom: 0;
+    }
+
+    .phase-step {
+        min-width: 0;
+    }
+
+    /* separate rounded tiles instead of one joined strip */
+    .phase-step-box,
+    .phase-step:first-child .phase-step-box,
+    .phase-step:last-child .phase-step-box {
+        border-width: 2px;
+        border-radius: 12px;
+        height: 100%;
+        padding: 9px 4px;
+        gap: 5px;
+    }
+
+    .phase-step-icon {
+        width: 24px;
+        height: 24px;
+    }
+
+    .phase-step-icon svg {
+        width: 12px;
+        height: 12px;
+    }
+
+    .phase-step-label {
+        font-size: 10.5px;
+        overflow-wrap: anywhere;
+    }
+}
+
+
+/* ================= UPDATE DETAILS MODAL (Progress History) =================
+   The title and close button stay pinned at the top while the details, work done
+   and site photos scroll underneath, so a long update never pushes the close
+   button out of reach. */
+#updateDetailModal .modal-header {
+    position: sticky;
+    top: -24px;               /* cancels the card's 24px top padding */
+    z-index: 2;
+    margin: -24px -24px 18px;
+    padding: 24px 24px 14px;
+    background: var(--white);
+    border-bottom: 1px solid var(--border);
+    border-radius: 26px 26px 0 0;
+}
+
+/* The floating chat button sits above everything; hide it while a popup is open
+   so it doesn't cover the popup's content or buttons. */
+body:has(.modal-overlay.show) #chatPopupWrap {
+    display: none;
+}
+
+
+/* ================= HEADER — BURGER MENU ON PHONES =================
+   Same as the employee portal: on phones the nav row is replaced by a burger button
+   that opens the links as a vertical panel under the header. Desktop is unchanged. */
+.client-nav-toggle {
+    display: none;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background-color: rgba(255, 255, 255, 0.10);
+    color: var(--white);
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.client-nav-toggle:hover {
+    background-color: rgba(255, 255, 255, 0.16);
+}
+.client-nav-toggle svg {
+    width: 20px;
+    height: 20px;
+}
+
+@media (max-width: 768px) {
+    .client-nav-toggle {
+        display: flex;
+    }
+
+    .client-header-nav {
+        display: none;
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 4px;
+        overflow: visible;
+        background: rgba(0, 0, 0, 0.18);
+        border-radius: 12px;
+        padding: 8px;
+    }
+
+    .client-header-nav.open {
+        display: flex;
+    }
+
+    .client-header-nav a {
+        justify-content: flex-start;
+        width: 100%;
+        padding: 11px 14px;
+        border-radius: 10px;
+    }
+}
+
+
+
+/* ================= PAYMENTS LIST — MOBILE CARD LAYOUT =================
+   Phones only (desktop unchanged): title on top, status + View Details on one row,
+   the four figures as a 2x2 grid of tiles, and the progress bar full width. */
+@media (max-width: 640px) {
+    .pay-card-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    .pay-card-header .card-title {
+        font-size: 16px;
+        line-height: 1.3;
+    }
+
+    .pay-card-actions {
+        justify-content: space-between;
+        padding-top: 12px;
+        border-top: 1px solid var(--border);
+    }
+
+    .pay-card-actions .btn {
+        min-height: 40px;
+        white-space: nowrap;
+    }
+
+    .pay-card-figures {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .pay-card-figures .pay-fig {
+        border: 1px solid var(--border) !important;
+        border-radius: 12px;
+        padding: 10px 12px !important;
+        background: var(--cream-soft);
+        min-width: 0;
+    }
+
+    .pay-card-figures .pay-fig .project-info-label {
+        font-size: 9.5px;
+        letter-spacing: 0.05em;
+    }
+
+    .pay-card-figures .pay-fig .project-info-value {
+        font-size: 13.5px;
+        margin-top: 4px;
+        overflow-wrap: anywhere;
+    }
+
+    .pay-card-figures .pay-progress {
+        grid-column: 1 / -1;
+        min-width: 0 !important;
+        margin: 6px 0 0 !important;
+        padding: 0 !important;
+        border: none !important;
+    }
+}
+
+
+/* ================= PAYMENT DETAIL — HEADER ON PHONES =================
+   Phones only: the tank, payment terms and contract date each on their own line
+   (no "·" separators) instead of one wrapped sentence. Desktop unchanged. */
+@media (max-width: 640px) {
+    .pay-detail-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        margin-top: 6px;
+        line-height: 1.45;
+    }
+
+    .pay-detail-meta-sep {
+        display: none;
+    }
+}
+
+
+/* ================= SETTINGS — PROFILE INFORMATION HEADER ON PHONES =================
+   Phones only: the title gets its own line and the Edit Profile (or Cancel / Save Changes)
+   buttons sit underneath at full width, instead of squeezing against the title. */
+@media (max-width: 640px) {
+    .profile-info-head {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 12px;
+    }
+
+    .profile-info-head .pv-card-title {
+        justify-content: center;
+        text-align: center;
+    }
+
+    .profile-info-head #profileActions .save-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .profile-info-head #profileEditActions {
+        width: 100%;
+    }
+
+    .profile-info-head #profileEditActions > button {
+        flex: 1;
+        justify-content: center;
+    }
+}

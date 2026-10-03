@@ -264,13 +264,12 @@
                                     <th>OT Hours</th>
                                     <th>OT Pay</th>
                                     <th>Gross Pay</th>
-                                    <th>Net Pay</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="salaryTableBody">
                                 <tr id="salaryLoadingRow">
-                                    <td colspan="10" style="text-align:center;color:var(--muted);padding:0;">
+                                    <td colspan="9" style="text-align:center;color:var(--muted);padding:0;">
                                         <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:260px;">
                                             <i data-lucide="loader" style="width:28px;height:28px;opacity:0.4;"></i>
                                             <span style="font-size:14px;font-weight:600;">Loading...</span>
@@ -1437,7 +1436,7 @@
 
     function loadSalaryRecords(payPeriod) {
         var tbody  = document.getElementById('salaryTableBody');
-        tbody.innerHTML = '<tr id="salaryLoadingRow"><td colspan="10" style="text-align:center;color:var(--muted);padding:0;"><div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:260px;"><i data-lucide="loader" style="width:28px;height:28px;opacity:0.4;"></i><span style="font-size:14px;font-weight:600;">Loading...</span></div></td></tr>';
+        tbody.innerHTML = '<tr id="salaryLoadingRow"><td colspan="9" style="text-align:center;color:var(--muted);padding:0;"><div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:260px;"><i data-lucide="loader" style="width:28px;height:28px;opacity:0.4;"></i><span style="font-size:14px;font-weight:600;">Loading...</span></div></td></tr>';
         if (window.lucide) lucide.createIcons();
 
         var url = SALARY_INDEX_URL + (payPeriod ? ('?pay_period=' + encodeURIComponent(payPeriod)) : '') + '&_=' + Date.now();
@@ -1461,7 +1460,7 @@
         CURRENT_SALARY_RECORDS = records || [];
 
         if (!records || records.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:48px 20px;"><div style="display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--muted);"><i data-lucide="inbox" style="width:36px;height:36px;opacity:0.4;"></i><span style="font-size:14px;font-weight:600;">No salary records yet.</span></div></td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:48px 20px;"><div style="display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--muted);"><i data-lucide="inbox" style="width:36px;height:36px;opacity:0.4;"></i><span style="font-size:14px;font-weight:600;">No salary records yet.</span></div></td></tr>';
             if (window.lucide) lucide.createIcons();
             document.getElementById('summaryGross').textContent = '₱0.00';
             return;
@@ -1476,7 +1475,6 @@
             var otHours    = parseFloat(r.overtime_hours)   || 0;
             var otPay      = otHours * (dailyRate / 8);
             var grossPay   = (dailyRate * daysWorked) + otPay;
-            var netPay     = parseFloat(r.net_pay)          || 0;
 
             var iconStyle = 'style="width:16px;height:16px;"';
             var viewBtn = hasRecord
@@ -1487,17 +1485,16 @@
                 ? '<button class="action-btn" title="Delete" style="color:#dc2626;" onclick="deleteSalaryRecord(' + r.id + ')"><i data-lucide="trash-2"></i></button>'
                 : '';
 
-            return '<tr data-id="' + (r.id || '') + '" data-name="' + r.employee_name.toLowerCase() + '">'
-                + '<td style="font-weight:600;">'                                          + escHtml(r.employee_name) + '</td>'
-                + '<td>'                                                                   + escHtml(r.role || '—') + '</td>'
-                + '<td>₱'                                                                  + fmt(dailyRate) + '</td>'
-                + '<td>'                                                                   + (hasRecord ? fullDays : '—') + '</td>'
-                + '<td>'                                                                   + (hasRecord ? (halfDays > 0 ? halfDays : '—') : '—') + '</td>'
-                + '<td style="color:' + (otHours > 0 ? '#2563eb' : 'var(--muted)') + ';">'+ (otHours > 0 ? otHours + ' hrs' : '—') + '</td>'
-                + '<td style="color:' + (otPay   > 0 ? '#2563eb' : 'var(--muted)') + ';">'+ (otPay   > 0 ? '₱' + fmt(otPay) : '—') + '</td>'
-                + '<td>'                                                                   + (hasRecord ? '₱' + fmt(grossPay) : '—') + '</td>'
-                + '<td style="font-weight:900;color:#16a34a;">'                           + (hasRecord ? '₱' + fmt(netPay) : '—') + '</td>'
-                + '<td class="action-cell">' + editBtn + viewBtn + delBtn + '</td>'
+            return '<tr class="sal-m-row" data-id="' + (r.id || '') + '" data-name="' + r.employee_name.toLowerCase() + '">'
+                + '<td class="sal-m-name" style="font-weight:600;">'                       + escHtml(r.employee_name) + '</td>'
+                + '<td class="sal-m-role">'                                                + escHtml(r.role || '—') + '</td>'
+                + '<td class="sal-m-tile" data-label="Daily Rate">₱'                       + fmt(dailyRate) + '</td>'
+                + '<td class="sal-m-tile" data-label="Full Days">'                         + (hasRecord ? fullDays : '—') + '</td>'
+                + '<td class="sal-m-tile" data-label="Half Day">'                          + (hasRecord ? (halfDays > 0 ? halfDays : '—') : '—') + '</td>'
+                + '<td class="sal-m-tile" data-label="OT Hours" style="color:' + (otHours > 0 ? '#2563eb' : 'var(--muted)') + ';">'+ (otHours > 0 ? otHours + ' hrs' : '—') + '</td>'
+                + '<td class="sal-m-otpay" data-label="OT Pay" style="color:' + (otPay   > 0 ? '#2563eb' : 'var(--muted)') + ';">'+ (otPay   > 0 ? '₱' + fmt(otPay) : '—') + '</td>'
+                + '<td class="sal-m-gross" data-label="Gross Pay" style="font-weight:900;color:#16a34a;">' + (hasRecord ? '₱' + fmt(grossPay) : '—') + '</td>'
+                + '<td class="action-cell sal-m-actions">' + editBtn + viewBtn + delBtn + '</td>'
                 + '</tr>';
         }).join('');
 
@@ -1922,7 +1919,6 @@
         var basicPay   = dailyRate * daysWorked;
         var grossPay   = parseFloat(r.gross_pay)         || 0;
         var deductions = parseFloat(r.total_deductions)  || 0;
-        var netPay     = parseFloat(r.net_pay)           || 0;
 
         var periodStart = parsePayPeriod(r.pay_period);
         var periodEnd   = new Date(periodStart);
@@ -1953,12 +1949,11 @@
             + detailRow('Half Day', halfDays + (halfDays === 1 ? ' day' : ' days'))
             + detailRow('Basic Pay', '₱' + fmt(basicPay))
             + detailRow('Overtime (' + otHours + ' hrs)', otHours > 0 ? '₱' + fmt(otPay) : '0.00', otHours > 0 ? 'color:#2563eb;' : 'color:var(--muted);')
-            + detailRow('Gross Pay', '₱' + fmt(grossPay))
             + detailRow('Payment Method', pmLabel)
             + dedSection
             + '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-top:2px solid var(--border);background:var(--cream-soft);">'
-                + '<span style="font-size:14px;font-weight:900;color:var(--dark);">NET PAY</span>'
-                + '<strong style="font-size:20px;font-weight:900;color:#16a34a;">₱' + fmt(netPay) + '</strong>'
+                + '<span style="font-size:14px;font-weight:900;color:var(--dark);">GROSS PAY</span>'
+                + '<strong style="font-size:20px;font-weight:900;color:#16a34a;">₱' + fmt(grossPay) + '</strong>'
             + '</div>'
             + '</div>';
 

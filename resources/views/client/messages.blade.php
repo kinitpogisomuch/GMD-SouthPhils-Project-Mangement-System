@@ -15,8 +15,8 @@
 
             <div class="page-header">
                 <div>
-                    <h1>Messages</h1>
-                    <p>Chat with the GMD team about your projects.</p>
+                    <h1 class="page-title">Messages</h1>
+                    <p class="page-subtitle">Chat with the GMD team about your projects.</p>
                 </div>
             </div>
 
