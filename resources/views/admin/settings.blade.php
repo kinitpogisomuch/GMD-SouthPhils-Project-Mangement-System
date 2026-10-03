@@ -520,8 +520,8 @@
                 @csrf
                 <div class="form-grid">
                     <div class="form-group form-group-full">
-                        <label>Image <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
-                        <input type="file" name="image" accept="image/*" onchange="validateFileSize(this, 10)">
+                        <label>Image <span style="font-weight:400;color:var(--muted);">(required, up to 10MB)</span></label>
+                        <input type="file" name="image" accept="image/*" required onchange="validateFileSize(this, 10)">
                     </div>
                     <div class="form-group">
                         <label>Capacity / Badge </label>
@@ -588,11 +588,11 @@
 
                 {{-- Image section --}}
                 <div class="form-group form-group-full" style="margin-bottom:14px;">
-                    <label>Image <span style="font-weight:400;color:var(--muted);">(optional — choosing a new file replaces the current one)</span></label>
+                    <label>Image <span style="font-weight:400;color:var(--muted);">(up to 10MB — choosing a new file replaces the current one)</span></label>
                     <div style="display:flex;align-items:center;gap:14px;">
                         <img id="editPortfolioImagePreview" src="" alt=""
                              style="display:none;width:70px;height:56px;object-fit:cover;border-radius:10px;border:1px solid var(--border);flex-shrink:0;">
-                        <input type="file" name="image" id="editPortfolioImageInput" accept="image/*" style="flex:1;min-width:0;">
+                        <input type="file" name="image" id="editPortfolioImageInput" accept="image/*" style="flex:1;min-width:0;" onchange="validateFileSize(this, 10)">
                     </div>
                 </div>
 
