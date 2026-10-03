@@ -125,7 +125,7 @@
                 </div>
                 @enderror
                 <div class="pw-reqs">
-                    <span class="pw-req" id="req-len">Min 6 characters</span>
+                    <span class="pw-req" id="req-len">Min 8 characters</span>
                     <span class="pw-req" id="req-upper">Uppercase</span>
                     <span class="pw-req" id="req-lower">Lowercase</span>
                     <span class="pw-req" id="req-num">Number</span>
@@ -181,7 +181,7 @@
     var resetBtn  = document.getElementById('resetBtn');
 
     var reqs = {
-        len:   { el: document.getElementById('req-len'),   test: function(v) { return v.length >= 6; } },
+        len:   { el: document.getElementById('req-len'),   test: function(v) { return v.length >= 8; } },
         upper: { el: document.getElementById('req-upper'), test: function(v) { return /[A-Z]/.test(v); } },
         lower: { el: document.getElementById('req-lower'), test: function(v) { return /[a-z]/.test(v); } },
         num:   { el: document.getElementById('req-num'),   test: function(v) { return /[0-9]/.test(v); } },

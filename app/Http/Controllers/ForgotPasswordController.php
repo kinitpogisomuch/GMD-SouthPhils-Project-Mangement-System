@@ -228,7 +228,7 @@ class ForgotPasswordController extends Controller
 
         $validator = Validator::make($request->all(), [
             'password' => [
-                'required', 'string', 'min:6', 'confirmed',
+                'required', 'string', 'min:8', 'confirmed',
                 function ($_, $value, $fail) {
                     if (!preg_match('/[A-Z]/', $value)) {
                         $fail('Password must contain at least one uppercase letter.');

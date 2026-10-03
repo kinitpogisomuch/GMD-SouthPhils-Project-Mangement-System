@@ -85,7 +85,7 @@ class FirstLoginController extends Controller
             'barangay'                 => 'required|string|max:255',
             'street_address'           => 'nullable|string|max:500',
             'current_pin'              => 'required|string',
-            'new_password'             => ['required', 'string', 'min:6', 'confirmed',
+            'new_password'             => ['required', 'string', 'min:8', 'confirmed',
                 function ($_, $value, $fail) {
                     if (!preg_match('/[A-Z]/', $value)) {
                         $fail('Password must contain at least one uppercase letter.');

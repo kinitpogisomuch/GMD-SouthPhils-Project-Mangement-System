@@ -215,7 +215,7 @@
                         <div>
                             <h3 class="pv-card-title" style="margin-bottom:4px;">Security Settings</h3>
                             <p style="font-size:13px;color:var(--muted);margin:0;">
-                                Password must be at least 6 characters with an uppercase letter, lowercase letter, and number.
+                                Password must be at least 8 characters with an uppercase letter, lowercase letter, and number.
                             </p>
                         </div>
                     </div>
@@ -246,7 +246,7 @@
                                     <button type="button" class="toggle-pw" data-target="newPassword"><i data-lucide="eye"></i></button>
                                 </div>
                                 <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;">
-                                    <span class="pw-req" id="req-len">Min 6 chars</span>
+                                    <span class="pw-req" id="req-len">Min 8 chars</span>
                                     <span class="pw-req" id="req-upper">Uppercase</span>
                                     <span class="pw-req" id="req-lower">Lowercase</span>
                                     <span class="pw-req" id="req-num">Number</span>
@@ -558,7 +558,7 @@
     function checkPw() {
         var v = document.getElementById('newPassword').value;
         var c = document.getElementById('confirmPassword').value;
-        setReq('req-len',   v.length >= 6);
+        setReq('req-len',   v.length >= 8);
         setReq('req-upper', /[A-Z]/.test(v));
         setReq('req-lower', /[a-z]/.test(v));
         setReq('req-num',   /[0-9]/.test(v));
@@ -583,5 +583,72 @@
         .pw-req.met  { background:#dcfce7;border-color:#86efac;color:#15803d; }
         .pw-req.fail { background:#fee2e2;border-color:#fca5a5;color:#dc2626; }
     </style>
+    {{-- ===================== CONFIRM PASSWORD UPDATE ===================== --}}
+    <div class="modal-overlay" id="confirmPasswordModal">
+        <div class="modal-card" style="max-width:440px;">
+            <div class="modal-header">
+                <div>
+                    <h2>Update Password?</h2>
+                    <p>Your current password will stop working.</p>
+                </div>
+                <button class="modal-close" type="button" onclick="closeConfirmPasswordModal()">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="delete-confirm-body">
+                <div class="delete-confirm-icon" style="background:#fef3c7;color:#b45309;"><i data-lucide="key-round"></i></div>
+                <p>Are you sure you want to update your password?</p>
+                <div style="margin-top:8px;font-size:13px;color:var(--muted);line-height:1.6;padding:0 12px;">
+                    From now on, sign in with your new password.
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="cancel-btn" onclick="closeConfirmPasswordModal()">Cancel</button>
+                <button type="button" class="save-btn" id="confirmPasswordBtn">
+                    <i data-lucide="lock"></i> Yes, Update Password
+                </button>
+            </div>
+        </div>
+    </div>
+    <script>
+        // Asks before the password is changed — the modal appears as soon as Update Password is
+        // clicked; the usual field checks run after the admin/employee/client answers "Yes".
+        function closeConfirmPasswordModal() {
+            document.getElementById('confirmPasswordModal').classList.remove('show');
+            document.body.style.overflow = '';
+        }
+        document.addEventListener('DOMContentLoaded', function () {
+            var form  = document.getElementById('passwordForm');
+            var modal = document.getElementById('confirmPasswordModal');
+            if (!form || !modal) return;
+            var confirmed = false;
+            // Capture phase, so this runs before the page's own checks: the question comes first.
+            form.addEventListener('submit', function (e) {
+                if (confirmed) return;           // answered "Yes" — let the normal checks and submit run
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                modal.classList.add('show');
+                document.body.style.overflow = 'hidden';
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }, true);
+            document.getElementById('confirmPasswordBtn').addEventListener('click', function () {
+                closeConfirmPasswordModal();
+                confirmed = true;
+                form.requestSubmit();            // runs the blank-field checks; if one fails, the fields turn red
+                confirmed = false;
+            });
+            modal.addEventListener('click', function (e) { if (e.target === modal) closeConfirmPasswordModal(); });
+
+            // Clear (a reset button) empties the fields but not the requirement pills — refresh them too
+            form.addEventListener('reset', function () {
+                setTimeout(function () {
+                    form.querySelectorAll('input').forEach(function (input) {
+                        input.classList.remove('is-invalid');
+                        input.dispatchEvent(new Event('input', { bubbles: true }));
+                    });
+                }, 0);
+            });
+        });
+    </script>
 </body>
 </html>

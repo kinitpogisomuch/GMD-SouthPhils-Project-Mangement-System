@@ -317,7 +317,7 @@
                             <label>New PIN / Password </label>
                             <div class="pw-wrap">
                                 <input type="password" name="new_password" id="newPassword"
-                                       placeholder="Min 6 chars"
+                                       placeholder="Min 8 chars"
                                        class="{{ $errors->has('new_password') ? 'input-error' : '' }}"
                                        oninput="checkPwReqs()" required>
                                 <button type="button" class="pw-toggle" onclick="togglePw('newPassword',this)">
@@ -346,7 +346,7 @@
                     </div>
 
                     <div class="pw-req-list" id="pwReqList">
-                        <span class="pw-req" id="req-len">Min 6 characters</span>
+                        <span class="pw-req" id="req-len">Min 8 characters</span>
                         <span class="pw-req" id="req-upper">1 uppercase letter</span>
                         <span class="pw-req" id="req-lower">1 lowercase letter</span>
                         <span class="pw-req" id="req-num">1 number</span>
@@ -608,7 +608,7 @@
 
     function checkPwReqs() {
         var val = document.getElementById('newPassword').value;
-        setReq('req-len',   val.length >= 6);
+        setReq('req-len',   val.length >= 8);
         setReq('req-upper', /[A-Z]/.test(val));
         setReq('req-lower', /[a-z]/.test(val));
         setReq('req-num',   /[0-9]/.test(val));

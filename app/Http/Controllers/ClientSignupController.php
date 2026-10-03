@@ -42,7 +42,7 @@ class ClientSignupController extends Controller
             'username'       => 'required|string|max:50|alpha_dash|unique:clients,username',
             'signup_date'    => 'nullable|date',
             'signup_time'    => 'nullable|date_format:H:i',
-            'password'       => ['required', 'string', 'min:6', 'confirmed',
+            'password'       => ['required', 'string', 'min:8', 'confirmed',
                 function ($_, $value, $fail) {
                     if (!preg_match('/[A-Z]/', $value)) {
                         $fail('Password must contain at least one uppercase letter.');

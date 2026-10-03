@@ -225,7 +225,7 @@ class ProfileController extends Controller
         $validator = Validator::make($request->all(), [
             'current_password' => 'required|string',
             'new_password'     => [
-                'required', 'string', 'min:6', 'confirmed',
+                'required', 'string', 'min:8', 'confirmed',
                 function ($_, $value, $fail) {
                     if (!preg_match('/[A-Z]/', $value)) $fail('Password must contain at least one uppercase letter.');
                     if (!preg_match('/[a-z]/', $value)) $fail('Password must contain at least one lowercase letter.');
