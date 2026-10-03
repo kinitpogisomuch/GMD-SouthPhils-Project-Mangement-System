@@ -435,7 +435,8 @@
             btn.addEventListener('click', function () {
                 var field = document.getElementById(this.dataset.target);
                 field.type = field.type === 'password' ? 'text' : 'password';
-                this.querySelector('i').setAttribute('data-lucide', field.type === 'password' ? 'eye' : 'eye-off');
+                // Lucide has already swapped the <i> for an <svg>, so put a fresh icon back in
+                this.innerHTML = '<i data-lucide="' + (field.type === 'password' ? 'eye' : 'eye-off') + '"></i>';
                 if (typeof lucide !== 'undefined') lucide.createIcons();
             });
         });

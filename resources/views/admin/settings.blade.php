@@ -224,23 +224,15 @@
                             <div class="form-group">
                                 <label>Current Password</label>
                                 <div class="password-input-wrap">
-                                    <input type="password" name="current_password" id="currentPassword"
-                                           placeholder="Enter current password" required>
-                                    <button type="button" class="toggle-pw" data-target="currentPassword">
-                                        <span class="pw-icon-off">@include('partials.icons.eye-off')</span>
-                                        <span class="pw-icon-on" style="display:none;">@include('partials.icons.eye')</span>
-                                    </button>
+                                    <input type="password" name="current_password" id="currentPassword" placeholder="Enter current password" required>
+                                    <button type="button" class="toggle-pw" data-target="currentPassword"><i data-lucide="eye"></i></button>
                                 </div>
                             </div>
                             <div class="form-group">
                                 <label>New Password</label>
                                 <div class="password-input-wrap">
-                                    <input type="password" name="new_password" id="newPassword"
-                                           placeholder="Enter new password" required>
-                                    <button type="button" class="toggle-pw" data-target="newPassword">
-                                        <span class="pw-icon-off">@include('partials.icons.eye-off')</span>
-                                        <span class="pw-icon-on" style="display:none;">@include('partials.icons.eye')</span>
-                                    </button>
+                                    <input type="password" name="new_password" id="newPassword" placeholder="Enter new password" required>
+                                    <button type="button" class="toggle-pw" data-target="newPassword"><i data-lucide="eye"></i></button>
                                 </div>
                                 <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;">
                                     <span class="pw-req" id="req-len">Min 8 chars</span>
@@ -252,12 +244,8 @@
                             <div class="form-group">
                                 <label>Confirm New Password</label>
                                 <div class="password-input-wrap">
-                                    <input type="password" name="new_password_confirmation" id="confirmPassword"
-                                           placeholder="Confirm new password" required>
-                                    <button type="button" class="toggle-pw" data-target="confirmPassword">
-                                        <span class="pw-icon-off">@include('partials.icons.eye-off')</span>
-                                        <span class="pw-icon-on" style="display:none;">@include('partials.icons.eye')</span>
-                                    </button>
+                                    <input type="password" name="new_password_confirmation" id="confirmPassword" placeholder="Confirm new password" required>
+                                    <button type="button" class="toggle-pw" data-target="confirmPassword"><i data-lucide="eye"></i></button>
                                 </div>
                                 <span class="pw-req" id="req-match" style="margin-top:8px;display:inline-flex;">Passwords match</span>
                             </div>

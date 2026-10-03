@@ -585,12 +585,10 @@ document.querySelectorAll(".toggle-pw").forEach(function (btn) {
     btn.addEventListener("click", function () {
         var target = document.getElementById(btn.dataset.target);
         if (!target) return;
-        var show = target.type === "password";
-        target.type = show ? "text" : "password";
-        var off = btn.querySelector(".pw-icon-off");
-        var on  = btn.querySelector(".pw-icon-on");
-        if (off) off.style.display = show ? "none" : "";
-        if (on)  on.style.display  = show ? ""     : "none";
+        target.type = target.type === "password" ? "text" : "password";
+        // Lucide has already swapped the <i> for an <svg>, so put a fresh icon back in
+        btn.innerHTML = '<i data-lucide="' + (target.type === "password" ? "eye" : "eye-off") + '"></i>';
+        if (typeof lucide !== "undefined") lucide.createIcons();
     });
 });
 
@@ -630,27 +628,6 @@ if (confirmPwInput) {
             msg.textContent = "✗ Passwords do not match";
             msg.style.color = "#B42318";
         }
-    });
-}
-
-var pwForm = document.getElementById("passwordForm");
-if (pwForm) {
-    pwForm.addEventListener("submit", function (e) {
-        e.preventDefault();
-        var current = document.getElementById("currentPassword").value;
-        var newPw   = document.getElementById("newPassword").value;
-        var confirm = document.getElementById("confirmPassword").value;
-        if (!current) { alert("Please enter your current password."); return; }
-        if (newPw.length < 8) { alert("New password must be at least 8 characters."); return; }
-        if (newPw !== confirm) { alert("New passwords do not match."); return; }
-        pwForm.reset();
-        var fill  = document.getElementById("pwStrengthFill");
-        var label = document.getElementById("pwStrengthLabel");
-        var match = document.getElementById("pwMatchMsg");
-        if (fill)  fill.style.width    = "0%";
-        if (label) label.textContent   = "";
-        if (match) match.textContent   = "";
-        showToast("Password updated successfully.");
     });
 }
 
