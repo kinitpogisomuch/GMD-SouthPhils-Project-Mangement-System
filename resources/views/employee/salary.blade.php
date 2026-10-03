@@ -38,8 +38,14 @@
                 font-size: 14px;
                 color: var(--dark);
                 font-variant-numeric: tabular-nums;
-                overflow-wrap: anywhere;
+                white-space: nowrap;
             }
+            /* peso amount stays on one line — slightly smaller so it fits the tile */
+            #salaryHistoryTable tr.sal-row td.sal-tile[data-label="Daily Rate"] { font-size: clamp(11px, 3.3vw, 14px); }
+
+            /* "This Week" blue marker runs down the card's left edge instead of over the date text */
+            #salaryHistoryTable tbody tr.sal-row.salary-row-current td:first-child { box-shadow: none; }
+            #salaryHistoryTable tbody tr.sal-row.salary-row-current { box-shadow: inset 4px 0 0 #2A4EAA; }
             #salaryHistoryTable tr.sal-row td.sal-tile::before,
             #salaryHistoryTable tr.sal-row td.sal-gross::before,
             #salaryHistoryTable tr.sal-row td.sal-net::before {

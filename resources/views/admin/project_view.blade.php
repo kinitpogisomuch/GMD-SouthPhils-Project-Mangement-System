@@ -108,7 +108,7 @@
                         <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Est. Materials + Est. Labor</span>
                         <span class="fd-ov-val">{{ $projectBudget > 0 ? '₱'.number_format($projectBudget,0) : '—' }}</span>
                     </div>
-                    <div class="fd-ov-item">
+                    <div class="fd-ov-item fd-ov-received">
                         {{-- Remaining funds = what is left of the money received after actual materials + actual labor + overhead --}}
                         @php $remainingBalance = $budgetReceived - ($actMaterialCost + $actLaborCost + $overheadShare); @endphp
                         <span class="fd-ov-label" style="font-size:9.5px;">Total Received / Remaining Funds</span>
@@ -1107,7 +1107,7 @@
                             {{-- Two explicit rows (3 then 2) instead of one 5-across grid — each
                                  row fills its own full width, so there's no leftover gap when
                                  5 items don't divide evenly. --}}
-                            <div class="pi-tank-grid" style="grid-template-columns:repeat(3, 1fr);">
+                            <div class="pi-tank-grid pi-tank-grid-top" style="grid-template-columns:repeat(3, 1fr);">
                                 <div class="project-detail-box"><span>Project Type</span><strong>{{ $ti->tank_type }}</strong></div>
                                 <div class="project-detail-box"><span>Shape</span><strong>{{ $ti->shape ?? '—' }}</strong></div>
                                 <div class="project-detail-box"><span>Capacity</span><strong>{{ $ti->capacity ?? '—' }}</strong></div>

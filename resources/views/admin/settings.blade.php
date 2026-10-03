@@ -234,7 +234,7 @@
                                     <input type="password" name="new_password" id="newPassword" placeholder="Enter new password" required>
                                     <button type="button" class="toggle-pw" data-target="newPassword"><i data-lucide="eye"></i></button>
                                 </div>
-                                <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;">
+                                <div class="pw-req-row" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;">
                                     <span class="pw-req" id="req-len">Min 8 chars</span>
                                     <span class="pw-req" id="req-upper">Uppercase</span>
                                     <span class="pw-req" id="req-lower">Lowercase</span>
@@ -1200,6 +1200,13 @@
         }
         .pw-req.met  { background: #dcfce7; border-color: #86efac; color: #15803d; }
         .pw-req.fail { background: #fee2e2; border-color: #fca5a5; color: #dc2626; }
+
+        /* Phones: the 4 password rule pills stay on one line, shrinking to fit */
+        @media (max-width: 640px) {
+            .pw-req-row { flex-wrap: nowrap !important; gap: 4px !important; }
+            .pw-req-row .pw-req { flex: 1 1 auto; justify-content: center; white-space: nowrap;
+                                  font-size: clamp(9px, 2.6vw, 11.5px); padding: 3px 5px; }
+        }
 
         /* A blank required password field gets a red outline instead of blocking on the
            server-side message list. */

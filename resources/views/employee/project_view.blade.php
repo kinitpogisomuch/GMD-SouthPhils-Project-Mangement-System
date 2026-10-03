@@ -24,6 +24,13 @@
         .pv-grid-2-card-scroll-center {
             justify-content: center;
         }
+        /* entries keep their natural height — the list scrolls instead of squashing them on top of each other */
+        .pv-grid-2-card-scroll > * {
+            flex-shrink: 0;
+        }
+        .pv-grid-2-card-scroll {
+            padding-right: 4px;
+        }
     </style>
 </head>
 <body class="page-enter">
@@ -70,7 +77,11 @@
                         <i data-lucide="layers"></i>
                         <span class="tracker-title-text"><span>Fabrication Phase Tracker</span><span class="tracker-title-sep"> &nbsp;·&nbsp; </span><span class="tracker-title-sub">{{ $project->capacity }} {{ $project->tank_type }}</span></span>
                     </div>
-                    <span class="pv-progress-badge" id="empProgressBadge">{{ $project->progress }}%</span>
+                    {{-- The bar only shows on phones (same as the admin tracker); desktop keeps just the badge --}}
+                    <div class="tracker-mobile-progress">
+                        <div class="tracker-mobile-bar"><span style="width:{{ max(0, min(100, (int) $project->progress)) }}%;"></span></div>
+                        <span class="pv-progress-badge" id="empProgressBadge">{{ $project->progress }}%</span>
+                    </div>
                 </div>
                 <div class="emp-phase-steps" id="empPhaseSteps"></div>
             </div>

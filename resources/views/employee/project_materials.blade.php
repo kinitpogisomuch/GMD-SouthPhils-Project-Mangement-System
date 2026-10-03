@@ -55,27 +55,41 @@
                         </thead>
                         <tbody>
                             @forelse($projects as $project)
-                            <tr>
-                                <td><strong>{{ $project->name }}</strong></td>
-                                <td>{{ $project->live_client_name }}</td>
-                                <td>
+                            @php
+                                // phones show "Fabrication of" as a small label above the tank name
+                                $ulPrefix = '';
+                                $ulName   = $project->name;
+                                if (preg_match('/^(Fabrication of)\s+(.+)$/i', (string) $project->name, $ulM)) {
+                                    [$ulPrefix, $ulName] = [$ulM[1], $ulM[2]];
+                                }
+                            @endphp
+                            <tr class="ul-row">
+                                <td class="ul-name">
+                                    <strong class="ul-name-full">{{ $project->name }}</strong>
+                                    <span class="ul-name-split">
+                                        @if($ulPrefix)<span class="ul-prefix">{{ $ulPrefix }}</span>@endif
+                                        <strong>{{ $ulName }}</strong>
+                                    </span>
+                                </td>
+                                <td class="ul-client">{{ $project->live_client_name }}</td>
+                                <td class="ul-phase">
                                     <span class="status-badge {{ $project->status === 'completed' ? 'completed' : 'ongoing' }}">
                                         {{ ucfirst(str_replace('_', ' ', $project->current_phase ?? 'Planning')) }}
                                     </span>
                                 </td>
-                                <td>
+                                <td class="ul-tile" data-label="Entries Logged">
                                     @php $usageCount = $project->activeMaterialUsages->count(); @endphp
                                     <span style="font-weight:700;">{{ $usageCount }}</span>
                                     <span style="color:var(--muted);font-size:13px;"> entr{{ $usageCount !== 1 ? 'ies' : 'y' }}</span>
                                 </td>
-                                <td>
+                                <td class="ul-tile" data-label="Total Qty Used">
                                     @php $totalQty = $project->activeMaterialUsages->sum('quantity_used'); @endphp
                                     <strong>{{ number_format($totalQty, 0) }}</strong>
                                 </td>
-                                <td class="action-cell">
+                                <td class="action-cell ul-action">
                                     <a href="{{ route('employee.material_usage.detail', $project->id) }}"
                                        class="action-btn view" title="View Usage Log">
-                                        <i data-lucide="clipboard-list"></i>
+                                        <i data-lucide="clipboard-list"></i><span class="ul-action-text">View Usage Log</span>
                                     </a>
                                 </td>
                             </tr>

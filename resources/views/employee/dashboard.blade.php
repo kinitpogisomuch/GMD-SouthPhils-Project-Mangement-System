@@ -111,14 +111,52 @@
                 </div>
             </div>
 
-            <div class="card">
+            <style>
+                .dbp-label { display: none; }
+
+                /* Phones only: each assigned project becomes a small card — name + phase on top,
+                   role + status, a full-width progress bar, then a full-width View button. */
+                @media (max-width: 640px) {
+                    .dbp-card .card-header { gap: 10px; }
+                    .dbp-card .card-title { font-size: 15px; }
+                    .dbp-card .card-header .btn { white-space: nowrap; flex-shrink: 0; }
+                    .dbp-card .table-wrap { max-height: 520px !important; overflow-x: hidden; }
+
+                    #dbProjectsTable, #dbProjectsTable tbody { display: block; width: 100%; min-width: 0; }
+                    #dbProjectsTable thead { display: none; }
+                    #dbProjectsTable tr.dbp-row {
+                        display: grid;
+                        grid-template-columns: minmax(0, 1fr) auto;
+                        gap: 10px 12px;
+                        padding: 14px 16px;
+                        border-bottom: 1px solid var(--border);
+                    }
+                    #dbProjectsTable tr.dbp-row td { display: block; padding: 0 !important; border: none !important; min-width: 0; }
+                    #dbProjectsTable tr.dbp-row td.dbp-name { grid-column: 1; grid-row: 1; font-size: 14px; line-height: 1.3; }
+                    #dbProjectsTable tr.dbp-row td.dbp-phase { grid-column: 2; grid-row: 1; align-self: start; }
+                    #dbProjectsTable tr.dbp-row td.dbp-phase .status-badge,
+                    #dbProjectsTable tr.dbp-row td.dbp-status .status-badge { font-size: 10.5px; padding: 4px 9px; white-space: nowrap; }
+                    #dbProjectsTable tr.dbp-row td.dbp-role { grid-column: 1; grid-row: 2; align-self: center; font-size: 13px; font-weight: 700; color: var(--dark); }
+                    #dbProjectsTable .dbp-label { display: inline; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-right: 6px; }
+                    #dbProjectsTable tr.dbp-row td.dbp-status { grid-column: 2; grid-row: 2; align-self: center; justify-self: end; }
+                    #dbProjectsTable tr.dbp-row td.dbp-progress { grid-column: 1 / -1; grid-row: 3; }
+                    #dbProjectsTable tr.dbp-row td.dbp-progress .progress-bar { flex: 1; width: auto !important; }
+                    #dbProjectsTable tr.dbp-row td.dbp-action { grid-column: 1 / -1; grid-row: 4; }
+                    #dbProjectsTable tr.dbp-row td.dbp-action .btn { width: 100%; height: 40px; justify-content: center; border-radius: 12px; font-size: 13px; }
+                    #dbProjectsTable tr:not(.dbp-row), #dbProjectsTable tr:not(.dbp-row) td { display: block; }
+                }
+            </style>
+
+            <div class="card dbp-card">
                 <div class="card-header">
                     <span class="card-title">My Assigned Projects</span>
-                    <a href="{{ route('employee.projects') }}" class="view-all-link">View Projects <i data-lucide="arrow-right"></i></a>
+                    <a href="{{ route('employee.projects') }}" class="btn btn-outline btn-sm">
+                        <i data-lucide="arrow-right"></i> View Projects
+                    </a>
                 </div>
                 <div style="position:relative;">
                 <div class="table-wrap" style="max-height:340px;overflow-y:auto;">
-                    <table class="data-table">
+                    <table class="data-table" id="dbProjectsTable">
                         <thead style="position:sticky;top:0;z-index:2;">
                             <tr>
                                 <th>Project</th>
@@ -146,15 +184,15 @@
                                 ];
                                 $pc = $phaseColors[$phase] ?? ['bg'=>'#F3F4F6','color'=>'#6B7280'];
                             @endphp
-                            <tr>
-                                <td><strong>{{ $project->name }}</strong></td>
-                                <td>{{ $employee->role }}</td>
-                                <td>
+                            <tr class="dbp-row">
+                                <td class="dbp-name"><strong>{{ $project->name }}</strong></td>
+                                <td class="dbp-role"><span class="dbp-label">My Role</span>{{ $employee->role }}</td>
+                                <td class="dbp-phase">
                                     <span class="status-badge" style="background:{{ $pc['bg'] }};color:{{ $pc['color'] }};">
                                         {{ ucfirst(str_replace('_', ' ', $phase)) }}
                                     </span>
                                 </td>
-                                <td>
+                                <td class="dbp-progress">
                                     <div class="flex-center gap-8">
                                         <div class="progress-bar width-100px">
                                             <div class="progress-fill"
@@ -165,7 +203,7 @@
                                         <span class="font-12 color-muted font-w700">{{ $project->progress }}%</span>
                                     </div>
                                 </td>
-                                <td>
+                                <td class="dbp-status">
                                     @if($project->status === 'ongoing')
                                         <span class="status-badge ongoing">In Progress</span>
                                     @elseif($project->status === 'completed')
@@ -174,7 +212,7 @@
                                         <span class="status-badge pending">Pending</span>
                                     @endif
                                 </td>
-                                <td>
+                                <td class="dbp-action">
                                     <a href="{{ route('employee.project_view', $project->id) }}" class="btn btn-outline btn-sm">
                                         <i data-lucide="external-link" style="width:13px;height:13px;"></i> View
                                     </a>
@@ -197,7 +235,9 @@
             <div class="card" style="margin-top:24px;">
                 <div class="card-header">
                     <span class="card-title">Recent Material Usage</span>
-                    <a href="{{ route('employee.project_materials') }}" class="view-all-link">View All <i data-lucide="arrow-right"></i></a>
+                    <a href="{{ route('employee.project_materials') }}" class="btn btn-outline btn-sm">
+                        <i data-lucide="arrow-right"></i> View All
+                    </a>
                 </div>
                 <div class="card-body">
                     @forelse($recentUsage as $entry)

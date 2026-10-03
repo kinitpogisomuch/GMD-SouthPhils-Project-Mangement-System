@@ -134,7 +134,7 @@
                     <!-- Right: Profile Form -->
                     <div style="flex:1;">
                         <div class="pv-card">
-                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                            <div class="profile-info-head" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
                                 <h3 class="pv-card-title" style="margin-bottom:0;">Profile Information</h3>
                                 <div id="profileActions">
                                     <button type="button" class="save-btn" onclick="enableEdit()">
@@ -284,7 +284,7 @@
                                     <input type="password" name="new_password" id="newPassword" placeholder="Enter new password" required>
                                     <button type="button" class="toggle-pw" data-target="newPassword"><i data-lucide="eye"></i></button>
                                 </div>
-                                <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;">
+                                <div class="pw-req-row" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;">
                                     <span class="pw-req" id="req-len">Min 8 chars</span>
                                     <span class="pw-req" id="req-upper">Uppercase</span>
                                     <span class="pw-req" id="req-lower">Lowercase</span>
@@ -776,6 +776,19 @@
            server-side message list. */
         #passwordForm input.is-invalid {
             border-color: #dc2626 !important;
+        }
+
+        /* Phones: title on its own line, Cancel / Save Changes share the full width below it */
+        @media (max-width: 640px) {
+            .profile-info-head { flex-wrap: wrap; gap: 12px; }
+            .profile-info-head .pv-card-title { flex: 1 1 100%; }
+            .profile-info-head #profileEditActions { width: 100%; }
+            .profile-info-head #profileEditActions button { flex: 1; justify-content: center; white-space: nowrap; }
+
+            /* the 4 password rule pills stay on one line, shrinking to fit */
+            .pw-req-row { flex-wrap: nowrap !important; gap: 4px !important; }
+            .pw-req-row .pw-req { flex: 1 1 auto; justify-content: center; white-space: nowrap;
+                                  font-size: clamp(9px, 2.6vw, 11.5px); padding: 3px 5px; }
         }
     </style>
     {{-- ===================== CONFIRM PASSWORD UPDATE ===================== --}}

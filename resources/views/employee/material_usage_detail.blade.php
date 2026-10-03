@@ -45,6 +45,11 @@
             .mvu-tools .save-btn { width: 100%; justify-content: center; }
 
             .mvu-scroll { max-height: 520px; }
+            /* no sideways scrolling and no visible scrollbar on phones (still scrolls up/down by swiping) */
+            .mvu-scroll,
+            .ulog-scroll { overflow-x: hidden !important; scrollbar-width: none; -ms-overflow-style: none; }
+            .mvu-scroll::-webkit-scrollbar,
+            .ulog-scroll::-webkit-scrollbar { display: none; }
             #mvuTable, #mvuTable tbody { display: block; width: 100%; min-width: 0; }
             #mvuTable thead { display: none; }
             #mvuTable tr.mvu-row {
@@ -56,9 +61,25 @@
             }
             #mvuTable tr.mvu-row td { display: block; padding: 0 !important; border: none !important; min-width: 0; }
             #mvuTable td.mvu-name { grid-column: 1 / 3; align-self: center; }
-            #mvuTable td.mvu-name strong { font-size: 13.5px; line-height: 1.3; }
+            /* one line: the size follows the screen width; anything still too long ends in … */
+            #mvuTable td.mvu-name strong {
+                display: block;
+                font-size: clamp(11px, 3.3vw, 13.5px);
+                line-height: 1.3;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            #mvuTable tr.mvu-row { width: 100%; box-sizing: border-box; }
             #mvuTable td.mvu-status { grid-column: 3; grid-row: 1; text-align: right; align-self: center; }
-            #mvuTable td.mvu-status .status-badge { white-space: nowrap; }
+            /* smaller pill so the longest status ("Not Purchased") fits its third of the row without cropping */
+            #mvuTable td.mvu-status .status-badge {
+                white-space: nowrap;
+                font-size: 9.5px;
+                padding: 3px 7px;
+                letter-spacing: 0;
+                max-width: 100%;
+            }
             /* (tr.mvu-row td.mvu-num so it outranks the "no border / no padding" cell reset above) */
             #mvuTable tr.mvu-row td.mvu-num {
                 background: var(--white);
@@ -96,7 +117,7 @@
 
         /* Phones only: each entry becomes a small card in the same style as Materials vs Usage —
            material name on top, then Date Used / Quantity / Recorded By as three tiles,
-           with Used For and Notes underneath only when they have something in them. */
+           with Used For underneath only when it has something in it. */
         @media (max-width: 640px) {
             .ulog-scroll { max-height: 520px; overflow-y: auto; }
             #usageLogTable, #usageLogTable tbody { display: block; width: 100%; min-width: 0; }
@@ -142,10 +163,8 @@
             }
             #usageLogTable .ulog-unit { display: inline; font-size: 11px; font-weight: 700; color: var(--muted); }
 
-            #usageLogTable tr.ulog-row td.ulog-for.is-empty,
-            #usageLogTable tr.ulog-row td.ulog-notes.is-empty { display: none; }
-            #usageLogTable tr.ulog-row td.ulog-for,
-            #usageLogTable tr.ulog-row td.ulog-notes {
+            #usageLogTable tr.ulog-row td.ulog-for.is-empty { display: none; }
+            #usageLogTable tr.ulog-row td.ulog-for {
                 grid-column: 1 / -1; font-size: 12px; color: var(--dark);
                 background: var(--cream-soft); border-radius: 8px; padding: 6px 10px !important;
             }
@@ -195,6 +214,18 @@
         .mu-error { display: none; margin-top: 12px; padding: 10px 14px; border-radius: 10px; background: #FEE4E2; color: var(--danger);
                     font-size: 13px; font-weight: 700; }
 
+        @media (max-width: 640px) {
+            /* search box gets the full width; the "materials to log" counter sits centered under it */
+            .mu-toolbar { flex-direction: column; align-items: stretch; gap: 8px; }
+            .mu-toolbar .search-box { width: 100%; min-height: 44px; }
+            .mu-count { align-self: center; }
+
+            /* smaller title/description so the close button keeps its full size */
+            #logUsageModal .modal-header { gap: 12px; align-items: flex-start; }
+            #logUsageModal .modal-header h2 { font-size: 20px; }
+            #logUsageModal .modal-header p { font-size: 12.5px; line-height: 1.45; }
+            #logUsageModal .modal-close { flex-shrink: 0; width: 36px; height: 36px; }
+        }
         @media (max-width: 560px) {
             .mu-row { flex-wrap: wrap; gap: 10px; }
             .mu-qty-wrap { width: 100%; }
@@ -385,7 +416,6 @@
                                 <th>Material</th>
                                 <th>Quantity</th>
                                 <th>Used For</th>
-                                <th>Notes</th>
                                 <th>Recorded By</th>
                             </tr>
                         </thead>
@@ -396,12 +426,11 @@
                                 <td class="ulog-material"><strong>{{ $entry->material_name }}</strong></td>
                                 <td class="ulog-qty" data-label="Quantity">{{ number_format($entry->quantity_used, 0) }}<span class="ulog-unit"> {{ $entry->unit }}</span></td>
                                 <td class="ulog-for{{ $entry->used_for ? '' : ' is-empty' }}">{{ $entry->used_for ? ucfirst(str_replace('_', ' ', $entry->used_for)) : '—' }}</td>
-                                <td class="ulog-notes{{ $entry->notes ? '' : ' is-empty' }}">{{ $entry->notes ?? '—' }}</td>
                                 <td class="ulog-by" data-label="Recorded By">{{ $entry->recorded_by ?? '—' }}</td>
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="6" style="text-align:center;padding:32px;color:var(--muted);">
+                                <td colspan="5" style="text-align:center;padding:32px;color:var(--muted);">
                                     No usage entries yet. Click <strong>Log Material Usage</strong> above to log what was used.
                                 </td>
                             </tr>
@@ -471,13 +500,9 @@
                 </div>
 
                 <div class="form-grid" style="margin-top:14px;flex-shrink:0;">
-                    <div class="form-group">
+                    <div class="form-group" style="grid-column:1 / -1;">
                         <label>Date Used <span style="font-weight:400;color:var(--muted);">(set an earlier date for past usage)</span></label>
                         <input type="date" name="used_date" value="{{ old('used_date', now()->format('Y-m-d')) }}" max="{{ now()->format('Y-m-d') }}" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Notes <span style="font-weight:400;color:var(--muted);">(optional, applies to all)</span></label>
-                        <input type="text" name="notes" maxlength="1000" value="{{ old('notes') }}" placeholder="e.g. Shell welding, day 2">
                     </div>
                 </div>
                 <div class="mu-error" id="usageFormError"></div>

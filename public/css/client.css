@@ -3655,9 +3655,13 @@ body.page-enter .admin-content {
         padding: 6px 12px;
     }
 
+    .phase-steps:has(> .phase-step:nth-child(3):last-child) {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
     .phase-steps {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+        grid-template-columns: repeat(4, minmax(0, 1fr))   /* 8 phases = two rows of 4 */;
         gap: 6px;
         overflow: visible;
         padding-bottom: 0;
@@ -3674,7 +3678,7 @@ body.page-enter .admin-content {
         border-width: 2px;
         border-radius: 12px;
         height: 100%;
-        padding: 9px 4px;
+        padding: 9px 2px;
         gap: 5px;
     }
 
@@ -3689,8 +3693,12 @@ body.page-enter .admin-content {
     }
 
     .phase-step-label {
-        font-size: 10.5px;
-        overflow-wrap: anywhere;
+        font-size: clamp(8.5px, 2.5vw, 10.5px);   /* shrinks on narrow phones so names stay on one line */
+        letter-spacing: -0.1px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
     }
 }
 
@@ -3878,5 +3886,53 @@ body:has(.modal-overlay.show) #chatPopupWrap {
     .profile-info-head #profileEditActions > button {
         flex: 1;
         justify-content: center;
+    }
+}
+
+
+
+/* ================= PHASE TRACKER PROGRESS BAR ON PHONES =================
+   Same as the admin tracker on phones: title on top, then a progress bar with the % badge
+   across the full width. On desktop only the badge shows, exactly as before. */
+.tracker-mobile-progress {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.tracker-mobile-bar {
+    display: none;
+}
+
+@media (max-width: 640px) {
+    .tracker-card-header {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 10px;
+    }
+
+    .tracker-mobile-progress {
+        width: 100%;
+    }
+
+    .tracker-mobile-bar {
+        display: block;
+        flex: 1;
+        height: 8px;
+        background: var(--cream-deep);
+        border-radius: 999px;
+        overflow: hidden;
+        box-shadow: inset 0 1px 3px rgba(0, 0, 0, .08);
+    }
+
+    .tracker-mobile-bar span {
+        display: block;
+        height: 100%;
+        border-radius: 999px;
+        background: #059669;
+    }
+
+    .tracker-mobile-progress .tracker-progress-badge {
+        flex-shrink: 0;
     }
 }

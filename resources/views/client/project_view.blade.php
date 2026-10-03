@@ -98,7 +98,11 @@
                         <i data-lucide="layers"></i>
                         <span class="tracker-title-text"><span>Fabrication Phase Tracker</span><span class="tracker-title-sep"> &nbsp;·&nbsp; </span><span class="tracker-title-sub">{{ $project->capacity }} {{ $project->tank_type }}</span></span>
                     </div>
-                    <span class="tracker-progress-badge">{{ $project->progress }}%</span>
+                    {{-- The bar only shows on phones (same as the admin tracker); desktop keeps just the badge --}}
+                    <div class="tracker-mobile-progress">
+                        <div class="tracker-mobile-bar"><span style="width:{{ max(0, min(100, (int) $project->progress)) }}%;"></span></div>
+                        <span class="tracker-progress-badge">{{ $project->progress }}%</span>
+                    </div>
                 </div>
                 <div class="phase-steps" id="phaseSteps"></div>
 
