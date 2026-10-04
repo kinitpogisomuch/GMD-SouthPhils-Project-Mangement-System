@@ -40,21 +40,21 @@
     <main class="admin-content">
 
             <!-- Breadcrumb -->
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;font-size:13px;color:var(--muted);">
+            <div class="epv-crumb" style="display:flex;align-items:center;gap:8px;margin-bottom:20px;font-size:13px;color:var(--muted);">
                 <a href="{{ route('employee.projects') }}" style="color:var(--muted);text-decoration:none;font-weight:600;">
                     Projects
                 </a>
                 <i data-lucide="chevron-right" style="width:14px;height:14px;"></i>
-                <span style="color:var(--dark);font-weight:700;">{{ $project->name }}</span>
+                <span class="epv-crumb-current" style="color:var(--dark);font-weight:700;">{{ $project->name }}</span>
             </div>
 
-            <!-- Page Header -->
-            <div class="pv-page-header">
-                <div>
-                    <h1>{{ $project->name }}</h1>
-                    <p>{{ $project->live_client_name }} &nbsp;·&nbsp; {{ $project->tank_type }} &nbsp;·&nbsp; {{ $project->capacity }}</p>
-                </div>
-            </div>
+            {{-- No page title here: the project name already shows in the breadcrumb above --}}
+            <style>
+                @media (max-width: 640px) {
+                    .epv-crumb { font-size: 12px !important; margin-bottom: 14px !important; min-width: 0; }
+                    .epv-crumb-current { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+                }
+            </style>
 
             @if(session('success'))
             <div class="alert-banner success">

@@ -348,7 +348,14 @@ function showLogSuccess(message) {
     var adjustedDays = empAdjustDays(PROJECT_DURATION);
     EMP_PHASES.forEach(function(p, i) { p.days = adjustedDays[i]; });
 
-    var statuses = empGetStatuses(PROJECT_PROGRESS);
+    // Follow the project's actual current phase (same as the admin/client trackers); the
+    // progress-% guess is only a fallback for a project with no phase set.
+    var phaseIdx = (typeof PROJECT_CURRENT_PHASE !== 'undefined')
+        ? EMP_PHASES.findIndex(function(p) { return p.key === String(PROJECT_CURRENT_PHASE).toLowerCase(); })
+        : -1;
+    var statuses = phaseIdx === -1
+        ? empGetStatuses(PROJECT_PROGRESS)
+        : EMP_PHASES.map(function(p, i) { return i < phaseIdx ? 'done' : (i === phaseIdx ? 'active' : 'pending'); });
     if (PROJECT_STATUS === 'completed') {
         statuses = statuses.map(function() { return 'done'; });
     }

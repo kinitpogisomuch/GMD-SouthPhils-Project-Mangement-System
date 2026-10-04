@@ -1,7 +1,7 @@
 <header class="admin-header">
     <div class="admin-header-left">
         <button class="sidebar-toggle-btn" type="button" id="sidebarToggleBtn" title="Toggle menu">
-            <span class="sidebar-toggle-icon" id="sidebarToggleIcon"><i data-lucide="menu"></i></span>
+            <span class="burger-lines" aria-hidden="true"><span></span><span></span><span></span></span>
             {{-- Phones only: total of the sidebar badges, so they're visible while the menu is closed --}}
             <span class="notification-count-badge" id="navToggleBadge" style="display:none;"></span>
         </button>
@@ -262,18 +262,12 @@ document.addEventListener('DOMContentLoaded', function () {
             flipSidebarNav(function () { sidebar.classList.remove('open'); });
         });
 
-        // Phones: the burger turns into an X while the menu is open (same as the landing page).
-        // Watching the class covers every way the menu opens/closes. Lucide swaps <i> for an
-        // <svg>, so the <i> is put back before re-rendering.
-        var phoneMQ  = window.matchMedia('(max-width: 768px)');
-        var iconSlot = document.getElementById('sidebarToggleIcon');
-        var lastIcon = 'menu';
+        // Phones: the three burger lines animate into an X while the menu is open (same as the
+        // landing page). Watching the class covers every way the menu opens/closes; on desktop
+        // the button stays a plain burger.
+        var phoneMQ = window.matchMedia('(max-width: 768px)');
         function syncToggleIcon() {
-            var want = (phoneMQ.matches && sidebar.classList.contains('open')) ? 'x' : 'menu';
-            if (!iconSlot || want === lastIcon) return;
-            lastIcon = want;
-            iconSlot.innerHTML = '<i data-lucide="' + want + '"></i>';
-            if (window.lucide) lucide.createIcons();
+            toggleBtn.classList.toggle('is-open', phoneMQ.matches && sidebar.classList.contains('open'));
         }
         new MutationObserver(syncToggleIcon).observe(sidebar, { attributes: true, attributeFilter: ['class'] });
         phoneMQ.addEventListener('change', syncToggleIcon);

@@ -6,6 +6,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Projects | GMD South Phils</title>
     <link href="{{ asset('css/employee.css') }}" rel="stylesheet">
+    <style>
+        /* Phones: page title, subtitle and the Active / Completed tabs centered */
+        @media (max-width: 640px) {
+            .pv-page-header { justify-content: center; text-align: center; }
+            #projectFilterTabs { margin-left: auto !important; margin-right: auto !important; }
+        }
+    </style>
 </head>
 <body class="page-enter">
 
@@ -41,9 +48,9 @@
                             <div class="project-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                                 {{ $project->name }}
                                 @if($hasPendingRequest)
-                                    <span class="status-badge pending">
+                                    <span class="status-badge pending req-badge-desktop">
                                         <i data-lucide="bell" style="width:11px;height:11px;"></i>
-                                        Update Requested
+                                        Admin Requested Update
                                     </span>
                                 @endif
                             </div>
@@ -60,6 +67,13 @@
                                 <span class="status-badge completed">Completed</span>
                             @else
                                 <span class="status-badge pending">Pending</span>
+                            @endif
+                            @if($hasPendingRequest)
+                                {{-- phones show this here in the top row; desktop keeps it beside the title --}}
+                                <span class="status-badge pending req-badge-mobile">
+                                    <i data-lucide="bell" style="width:11px;height:11px;"></i>
+                                    Admin Requested Update
+                                </span>
                             @endif
                             <a href="{{ url('/employee/project-view/' . $project->id) }}"
                                class="btn btn-outline btn-sm">

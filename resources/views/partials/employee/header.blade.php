@@ -2,7 +2,7 @@
     <div class="employee-header-left">
         {{-- Hamburger toggle — hidden on desktop, shown only in the mobile @media block below --}}
         <button type="button" class="employee-nav-toggle" id="employeeNavToggle" aria-label="Toggle navigation" aria-expanded="false" aria-controls="employeeHeaderNav">
-            <span class="employee-nav-toggle-icon" id="employeeNavToggleIcon"><i data-lucide="menu"></i></span>
+            <span class="burger-lines" aria-hidden="true"><span></span><span></span><span></span></span>
             {{-- Sum of the badges inside the menu (e.g. Projects requests), so they're visible while it's closed --}}
             <span class="notification-count-badge" id="navToggleBadge" style="display:none;"></span>
         </button>
@@ -110,11 +110,9 @@
     var nav    = document.getElementById('employeeHeaderNav');
     if (!toggle || !nav) return;
 
-    // Burger turns into an X while the menu is open (same as the landing page).
-    // Lucide swaps <i> for an <svg>, so the <i> is put back before re-rendering.
+    // The three burger lines animate into an X while the menu is open (same as the landing page)
     function setIcon(isOpen) {
-        document.getElementById('employeeNavToggleIcon').innerHTML = '<i data-lucide="' + (isOpen ? 'x' : 'menu') + '"></i>';
-        if (window.lucide) lucide.createIcons();
+        toggle.classList.toggle('is-open', isOpen);
     }
 
     function closeNav() {
