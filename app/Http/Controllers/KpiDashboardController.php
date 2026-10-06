@@ -153,9 +153,8 @@ class KpiDashboardController extends Controller
             'profit_target_m1'    => 'required|numeric|min:0',
             'profit_target_m2'    => 'required|numeric|min:0',
             'profit_target_m3'    => 'required|numeric|min:0',
-            'on_time_target_m1'   => 'required|integer|min:0',
-            'on_time_target_m2'   => 'required|integer|min:0',
-            'on_time_target_m3'   => 'required|integer|min:0',
+            // On-time delivery target is a RATE in percent (e.g. 90), one for the whole quarter
+            'on_time_target'      => 'required|numeric|min:0|max:100',
         ]);
 
         if ($this->isFinalized((int) $validated['year'], (int) $validated['quarter'])) {
@@ -166,9 +165,9 @@ class KpiDashboardController extends Controller
 
         // Budget adherence is no longer an owner-set target (the KPI card now shows a fixed
         // benchmark range instead) — leave that column alone so any pre-existing value survives.
-        // profit_target / on_time_target stay as the quarterly totals, auto-summed from the
-        // three monthly figures the modal collects — nothing downstream that reads those two
-        // columns (cards, charts, trend, forecast) needs to change.
+        // profit_target stays the quarterly total, auto-summed from the three monthly figures.
+        // on_time_target is a rate, so it is never summed: the quarter's rate is also stored
+        // on each month, so a month view is judged against the same rate.
         $this->quarterTargets = null;
         KpiQuarterTarget::updateOrCreate(
             ['year' => $validated['year'], 'quarter' => $validated['quarter']],
@@ -177,10 +176,10 @@ class KpiDashboardController extends Controller
                 'profit_target_m2'  => $validated['profit_target_m2'],
                 'profit_target_m3'  => $validated['profit_target_m3'],
                 'profit_target'     => $validated['profit_target_m1'] + $validated['profit_target_m2'] + $validated['profit_target_m3'],
-                'on_time_target_m1' => $validated['on_time_target_m1'],
-                'on_time_target_m2' => $validated['on_time_target_m2'],
-                'on_time_target_m3' => $validated['on_time_target_m3'],
-                'on_time_target'    => $validated['on_time_target_m1'] + $validated['on_time_target_m2'] + $validated['on_time_target_m3'],
+                'on_time_target'    => round((float) $validated['on_time_target'], 2),
+                'on_time_target_m1' => round((float) $validated['on_time_target'], 2),
+                'on_time_target_m2' => round((float) $validated['on_time_target'], 2),
+                'on_time_target_m3' => round((float) $validated['on_time_target'], 2),
             ]
         );
 
@@ -347,11 +346,19 @@ class KpiDashboardController extends Controller
                 'avg_margin' => round($avg(fn ($t) => $t['profit']['avg_margin']), 1),
                 'vs_current' => round($avg(fn ($t) => $t['profit']['net_profit']) - $current['profit']['net_profit'], 2),
             ],
-            'on_time'      => [
-                'count'      => round($avg(fn ($t) => $t['on_time']['on_time_count']), 1),
-                'rate'       => round($avg(fn ($t) => $t['on_time']['rate']), 1),
-                'vs_current' => round($avg(fn ($t) => $t['on_time']['on_time_count']) - $current['on_time']['on_time_count'], 1),
-            ],
+            'on_time'      => (function () use ($qualifying, $current) {
+                // total on-time ÷ total completed across the window — not an average of quarterly rates
+                $onTime    = array_sum(array_map(fn ($t) => $t['on_time']['on_time_count'], $qualifying));
+                $completed = array_sum(array_map(fn ($t) => $t['on_time']['total_completed'], $qualifying));
+                $rate      = $completed > 0 ? round(($onTime / $completed) * 100, 1) : 0.0;
+
+                return [
+                    'rate'       => $rate,
+                    'on_time'    => $onTime,
+                    'completed'  => $completed,
+                    'vs_current' => $current['on_time']['has_data'] ? round($rate - $current['on_time']['rate'], 1) : null,   // percentage points
+                ];
+            })(),
             'budget'       => [
                 'adherence_rate' => round($avg(fn ($t) => $t['budget']['adherence_rate']), 1),
                 'vs_current'     => round($avg(fn ($t) => $t['budget']['adherence_rate']) - $current['budget']['adherence_rate'], 1),
@@ -549,7 +556,7 @@ class KpiDashboardController extends Controller
     private function formatScorecard(
         array $a,
         ?float $profitTarget,
-        ?int $onTimeTarget,
+        ?float $onTimeTarget,
         ?float $budgetTarget,
         bool $hasTarget,
         array $profitTargetMonthly,
@@ -563,6 +570,8 @@ class KpiDashboardController extends Controller
         $delayedCount   = $totalCompleted - $a['on_time_count'];
         $avgDelayDays   = $delayedCount > 0 ? (int) round($a['total_delay_days'] / $delayedCount) : 0;
         $netSavings     = $a['total_est_budget'] - $a['total_actual_cost'];
+        // a rate can only be judged against its target once the period has completed projects
+        $onTimeHasResult = $onTimeTarget !== null && $totalCompleted > 0;
 
         return [
             'profit' => [
@@ -580,18 +589,23 @@ class KpiDashboardController extends Controller
                 'progress_pct' => $hasTarget ? ($profitTarget > 0 ? min(100, round(($netProfit / $profitTarget) * 100, 1)) : ($netProfit > 0 ? 100 : 0)) : null,
                 'scale'        => $this->profitMarginScale($avgMargin),
             ],
+            // On-time delivery RATE = projects finished on or before the deadline ÷ completed
+            // projects × 100, recomputed from the period's own counts (never an average of
+            // monthly rates). Judged against the owner's target rate in percentage points.
             'on_time' => [
                 'on_time_count'   => $a['on_time_count'],
                 'total_completed' => $totalCompleted,
+                'has_data'        => $totalCompleted > 0,
                 'rate'            => $onTimeRate,
                 'delayed_count'   => $delayedCount,
                 'avg_delay_days'  => $avgDelayDays,
-                'has_target'      => $hasTarget,
+                'has_target'      => $onTimeTarget !== null,
                 'target'          => $onTimeTarget,
                 'target_monthly'  => $onTimeTargetMonthly,
-                'variance'        => $hasTarget ? ($a['on_time_count'] - $onTimeTarget) : null,
-                'hit'             => $hasTarget ? ($a['on_time_count'] >= $onTimeTarget) : null,
-                'progress_pct'    => $hasTarget ? ($onTimeTarget > 0 ? min(100, round(($a['on_time_count'] / $onTimeTarget) * 100, 1)) : ($a['on_time_count'] > 0 ? 100 : 0)) : null,
+                'variance'        => $onTimeHasResult ? round($onTimeRate - $onTimeTarget, 1) : null,   // percentage points
+                'level'           => $onTimeHasResult ? $this->onTimeLevel($onTimeRate, $onTimeTarget) : null,
+                'hit'             => $onTimeHasResult ? ($onTimeRate >= $onTimeTarget) : null,
+                'progress_pct'    => $onTimeHasResult ? ($onTimeTarget > 0 ? min(100, round(($onTimeRate / $onTimeTarget) * 100, 1)) : 100) : null,
                 'scale'           => $this->onTimeScale($onTimeRate),
                 'delayed_projects'=> $a['delayed_project_codes'],
             ],
@@ -630,15 +644,13 @@ class KpiDashboardController extends Controller
         $hasTarget  = $target !== null;
 
         $profitTarget = $hasTarget ? (float) $target->profit_target : null;
-        $onTimeTarget = $hasTarget ? (int) $target->on_time_target : null;
+        $onTimeTarget = ($hasTarget && $target->on_time_target !== null) ? (float) $target->on_time_target : null;
         $budgetTarget = $hasTarget ? (float) $target->budget_adherence_target : null;
 
         $profitTargetMonthly = $hasTarget
             ? [(float) $target->profit_target_m1, (float) $target->profit_target_m2, (float) $target->profit_target_m3]
             : [0, 0, 0];
-        $onTimeTargetMonthly = $hasTarget
-            ? [(int) $target->on_time_target_m1, (int) $target->on_time_target_m2, (int) $target->on_time_target_m3]
-            : [0, 0, 0];
+        $onTimeTargetMonthly = [$onTimeTarget, $onTimeTarget, $onTimeTarget];   // one rate for the whole quarter
 
         $current = $this->currentPeriod();
 
@@ -657,7 +669,8 @@ class KpiDashboardController extends Controller
                     'profit_actual'  => $monthActual['net_profit'],
                     'profit_target'  => $hasTarget ? $profitTargetMonthly[$i] : null,
                     'on_time_actual' => $monthActual['on_time_count'],
-                    'on_time_target' => $hasTarget ? $onTimeTargetMonthly[$i] : null,
+                    'on_time_rate'   => $monthActual['on_time_rate'],
+                    'on_time_target' => $onTimeTarget,
                 ];
             }
         }
@@ -696,10 +709,9 @@ class KpiDashboardController extends Controller
         $hasTarget = $target !== null;
 
         $profitField = 'profit_target_m' . ($monthIndex + 1);
-        $onTimeField = 'on_time_target_m' . ($monthIndex + 1);
 
         $profitTarget = $hasTarget ? (float) $target->$profitField : null;
-        $onTimeTarget = $hasTarget ? (int) $target->$onTimeField : null;
+        $onTimeTarget = ($hasTarget && $target->on_time_target !== null) ? (float) $target->on_time_target : null;   // the quarter's rate
         $budgetTarget = $hasTarget ? (float) $target->budget_adherence_target : null;
 
         // target_monthly only matters for the quarter-level scorecard (it's what
@@ -736,7 +748,22 @@ class KpiDashboardController extends Controller
             'project_count' => $a['total_completed'],
             'net_profit'    => round($a['total_revenue'] - $a['total_actual_cost'] - $a['total_overhead'], 2),
             'on_time_count' => $a['on_time_count'],
+            // recomputed from this month's own counts
+            'on_time_rate'  => $a['total_completed'] > 0 ? round(($a['on_time_count'] / $a['total_completed']) * 100, 1) : null,
         ];
+    }
+
+    /**
+     * On-time status: Target hit when the rate is at or above the target rate; Tolerable when it
+     * is below but within 10 percentage points; Below target when more than 10 points below.
+     */
+    private function onTimeLevel(float $rate, float $target): string
+    {
+        if ($rate >= $target) {
+            return 'hit';
+        }
+
+        return ($target - $rate) <= 10 ? 'tolerable' : 'below';
     }
 
     /** Source: Tangle Research 2026 FMA Survey. */

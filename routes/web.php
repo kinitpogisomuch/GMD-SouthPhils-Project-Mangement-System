@@ -45,6 +45,7 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::get('/signup', [ClientSignupController::class, 'show'])->name('signup');
 Route::post('/signup', [ClientSignupController::class, 'store'])->name('signup.post');
 Route::get('/signup/next-username', [ClientSignupController::class, 'nextUsername'])->name('signup.next_username');
+Route::get('/signup/check-email', [ClientSignupController::class, 'checkEmail'])->name('signup.check_email')->middleware('throttle:30,1');
 
 // First-Login Credential Setup (client & employee, no profile.complete middleware here)
 Route::get('/setup/credentials', [FirstLoginController::class, 'show'])->name('setup.credentials');

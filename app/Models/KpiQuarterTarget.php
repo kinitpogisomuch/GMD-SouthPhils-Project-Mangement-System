@@ -27,10 +27,12 @@ class KpiQuarterTarget extends Model
         'profit_target_m1'         => 'float',
         'profit_target_m2'         => 'float',
         'profit_target_m3'         => 'float',
-        'on_time_target'           => 'integer',
-        'on_time_target_m1'        => 'integer',
-        'on_time_target_m2'        => 'integer',
-        'on_time_target_m3'        => 'integer',
+        // On-time delivery target RATE in percent (e.g. 90.00), one per quarter — the
+        // monthly columns hold a copy of it. Null = no on-time target set.
+        'on_time_target'           => 'float',
+        'on_time_target_m1'        => 'float',
+        'on_time_target_m2'        => 'float',
+        'on_time_target_m3'        => 'float',
         'budget_adherence_target'  => 'float',
     ];
 

@@ -28,11 +28,67 @@ class ClientSignupController extends Controller
         return response()->json(['username' => Client::nextAvailableUsername()]);
     }
 
+    /** Common misspellings of popular email domains → the domain the client most likely meant */
+    private const DOMAIN_TYPOS = [
+        'gmial.com' => 'gmail.com', 'gmai.com' => 'gmail.com', 'gmal.com' => 'gmail.com', 'gamil.com' => 'gmail.com',
+        'gmail.co' => 'gmail.com', 'gmail.con' => 'gmail.com', 'gmail.cm' => 'gmail.com', 'gnail.com' => 'gmail.com',
+        'yaho.com' => 'yahoo.com', 'yahooo.com' => 'yahoo.com', 'yahoo.con' => 'yahoo.com', 'yhoo.com' => 'yahoo.com',
+        'hotmial.com' => 'hotmail.com', 'hotmai.com' => 'hotmail.com', 'hotmail.con' => 'hotmail.com',
+        'outlok.com' => 'outlook.com', 'outloo.com' => 'outlook.com', 'outlook.con' => 'outlook.com',
+        'iclod.com' => 'icloud.com', 'icloud.con' => 'icloud.com',
+    ];
+
+    /**
+     * Why an email can't be used to sign up, or null when it's fine. Checks the format, common
+     * domain typos, and that the domain really exists and can receive mail (MX / A record).
+     * A mailbox itself can't be confirmed without emailing it — mail servers don't reveal that.
+     */
+    private function emailProblem(string $email): ?string
+    {
+        $email = trim($email);
+
+        if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return 'Please enter a valid email address (e.g. name@gmail.com).';
+        }
+
+        $domain = strtolower(substr(strrchr($email, '@'), 1));
+
+        if (isset(self::DOMAIN_TYPOS[$domain])) {
+            $local = substr($email, 0, strrpos($email, '@'));
+            return "This email doesn't exist. Did you mean {$local}@" . self::DOMAIN_TYPOS[$domain] . '?';
+        }
+
+        $domainExists = checkdnsrr($domain, 'MX') || checkdnsrr($domain, 'A');
+        if (!$domainExists) {
+            return "This email doesn't exist — \"@{$domain}\" is not a real email domain. Please check it and try again.";
+        }
+
+        if (Client::where('email', $email)->exists()) {
+            return 'An account with this email address already exists.';
+        }
+
+        return null;
+    }
+
+    /** Live check from the sign-up form (when the client leaves the email box) */
+    public function checkEmail(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $problem = $this->emailProblem((string) $request->query('email', ''));
+
+        return response()->json(['ok' => $problem === null, 'message' => $problem]);
+    }
+
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'full_name'      => 'required|string|max:255',
-            'email'          => 'required|email|unique:clients,email',
+            'email'          => ['required', 'string', 'max:255',
+                function ($_, $value, $fail) {
+                    if ($problem = $this->emailProblem((string) $value)) {
+                        $fail($problem);
+                    }
+                },
+            ],
             'contact_number' => 'required|string|max:20',
             'region'         => 'required|string|max:255',
             'province'       => 'required|string|max:255',

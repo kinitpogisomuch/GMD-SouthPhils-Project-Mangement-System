@@ -147,6 +147,16 @@
                     }
                     .dash-mini-bar span { display: block; height: 100%; border-radius: 999px; background: var(--dark); }
                     .dash-recent-table td[colspan] { grid-column: 1 / -1; text-align: center !important; padding: 8px 0 !important; }
+
+                    /* Recent Payments: "CONTRACT" label sits above the amount on the left, the status
+                       badge on the right — stacked label keeps it narrow enough that a long status like
+                       "Down Payment Paid" no longer pushes the amount off the edge */
+                    .dash-pay-table td:first-child strong { font-size: 13.5px; }
+                    .dash-pay-table td[data-label="Contract"] { grid-column: 1; flex-direction: column; align-items: flex-start !important; gap: 1px !important; }
+                    .dash-pay-table td[data-label="Contract"]::before { font-size: 9px !important; }
+                    .dash-pay-table td[data-label="Contract"] strong { font-size: 15px; font-weight: 900; white-space: nowrap; }
+                    .dash-pay-table td[data-label="Status"] { grid-column: 2; justify-self: end; align-self: center; text-align: right !important; }
+                    .dash-pay-table td[data-label="Status"] .status-badge { font-size: 10.5px; padding: 4px 10px; }
                 }
             </style>
 
@@ -262,7 +272,7 @@
                         </a>
                     </div>
                     <div class="table-wrap dash-recent-scroll">
-                        <table class="dash-recent-table" style="table-layout:fixed;">
+                        <table class="dash-recent-table dash-pay-table" style="table-layout:fixed;">
                             <colgroup>
                                 <col style="width:34%;">
                                 <col style="width:33%;">

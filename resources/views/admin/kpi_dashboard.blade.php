@@ -245,7 +245,40 @@
         .kd-scale-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 8px; }
         .kd-scale-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
-        .kd-breakdown { margin-top: auto; padding-top: 12px; }
+        .kd-breakdown { margin-top: auto; padding-top: 16px; }
+
+        /* KPI cards: big centered number, a soft goal box, then a labelled breakdown */
+        .kd-hero { text-align: center; font-size: 68px; font-weight: 900; letter-spacing: -2px; line-height: 1; color: var(--dark); margin-top: 12px; }
+        .kd-hero-caption { text-align: center; font-size: 14.5px; color: var(--muted); margin-top: 10px; }
+        /* the breakdown fills the rest of the card — its rows spread evenly, so a card with
+           fewer rows has no empty gap above its breakdown */
+        .kd-card .kd-breakdown { flex: 1; display: flex; flex-direction: column; justify-content: space-between; margin-top: 0; }
+        .kd-card .kd-breakdown-row { margin-bottom: 0; padding: 9px 0; }
+        .kd-card .kd-breakdown-row.total { padding-bottom: 0; }
+        .kd-goal { margin-top: 20px; padding: 12px 14px 12px; background: var(--cream-soft); border: 1px solid var(--border); border-radius: 14px; }
+        .kd-goal-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 12px; }
+        .kd-goal-label { color: var(--muted); font-weight: 700; }
+        .kd-goal-value { font-weight: 900; color: var(--dark); font-size: 13px; white-space: nowrap; }
+        .kd-goal .kd-progress-track { height: 8px; margin-top: 10px; background: var(--white); border: 1px solid var(--border); }
+        .kd-goal-result { display: flex; align-items: center; gap: 6px; margin-top: 9px; font-size: 12px; font-weight: 800; color: var(--muted); }
+        .kd-goal-result svg { width: 14px; height: 14px; flex-shrink: 0; }
+        .kd-goal-result.good { color: var(--success); }
+        .kd-goal-result.bad { color: var(--danger); }
+        .kd-goal-result.warn { color: #A16207; }
+        .kd-goal-result.info { color: #2A4EAA; }
+        .kd-card-empty .kd-empty-body { flex: 1; min-height: 220px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+                                        gap: 10px; color: var(--muted-light); font-size: 13px; font-weight: 600; text-align: center; }
+        .kd-card-empty .kd-empty-body svg { width: 28px; height: 28px; opacity: .55; }
+        .kd-hero.kd-hero-text { font-size: 30px; letter-spacing: -.5px; line-height: 1.15; }
+        .kd-card-notarget .kd-breakdown { padding-top: 8px; flex: 0 0 auto; justify-content: flex-start; }
+        .kd-breakdown-title { font-size: 10px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+        .kd-breakdown-row:has(+ .kd-breakdown-row.total) { border-bottom: none; }
+        .kd-breakdown-row.total { border-top: 1px solid var(--dark); padding-top: 9px; margin-top: 2px; font-size: 12.5px; }
+        .kd-breakdown-row.total .kd-breakdown-label { color: var(--dark); font-weight: 800; }
+        .kd-breakdown-row.total .kd-breakdown-value { font-weight: 900; }
+        @media (max-width: 640px) {
+            .kd-hero { font-size: 44px; }
+        }
         .kd-breakdown-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px solid var(--border); }
         .kd-breakdown-row:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
         .kd-breakdown-label { color: var(--muted); }
@@ -285,6 +318,18 @@
         .kd-targets-section { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border); }
         .kd-targets-section:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
         .kd-targets-section-title { font-size: 14px; font-weight: 800; color: var(--dark); margin-bottom: 4px; }
+        .kd-report-presets { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+        .kd-report-preset { border: 1px solid var(--border); background: var(--cream-soft); color: var(--dark); font-size: 12px; font-weight: 700;
+                            border-radius: 999px; padding: 6px 12px; cursor: pointer; font-family: inherit; }
+        .kd-report-preset:hover, .kd-report-preset.active { background: var(--dark); border-color: var(--dark); color: #fff; }
+        .kd-report-includes { margin: 4px 0 16px; padding: 12px 14px; background: var(--cream-soft); border: 1px solid var(--border); border-radius: 12px; }
+        .kd-report-includes-title { font-size: 10px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+        .kd-report-includes-list { display: flex; flex-wrap: wrap; gap: 6px; }
+        .kd-report-includes-list span { font-size: 11px; font-weight: 700; color: var(--dark); background: var(--white); border: 1px solid var(--border); border-radius: 999px; padding: 3px 9px; }
+        .kd-band-legend { display: flex; flex-wrap: wrap; gap: 6px; margin: -6px 0 14px; }
+        .kd-band { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: var(--dark);
+                   background: var(--cream-soft); border: 1px solid var(--border); border-radius: 999px; padding: 3px 9px; }
+        .kd-band i { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
         .kd-targets-section-sub { font-size: 12px; color: var(--muted); line-height: 1.5; margin-bottom: 14px; }
 
         .kd-month-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
@@ -340,7 +385,7 @@
             <div class="page-header">
                 <div class="kd-header-title-block">
                     <h1 class="page-title">KPI dashboard</h1>
-                    <div class="kd-subtitle kd-meta"><span class="kd-meta-company">GMD South Phils Metal Fabrication Works</span></div>
+                    <p class="page-subtitle" style="margin:4px 0 10px;">Track profit, on-time delivery and budget performance against your targets.</p>
                 </div>
                 <div class="kd-header-actions">
                     <div class="kd-period-picker" id="kdPeriodPicker">
@@ -391,8 +436,8 @@
                                     <th style="text-align:center;">Completed</th>
                                     <th style="text-align:right;">Net Profit (Actual)</th>
                                     <th style="text-align:right;">Net Profit (Target)</th>
-                                    <th style="text-align:center;">On-Time (Actual)</th>
-                                    <th style="text-align:center;">On-Time (Target)</th>
+                                    <th style="text-align:center;">On-Time Rate (Actual)</th>
+                                    <th style="text-align:center;">On-Time Rate (Target)</th>
                                 </tr>
                             </thead>
                             <tbody id="kdMonthlyBreakdownBody"></tbody>
@@ -418,7 +463,7 @@
                         <canvas id="kdProfitTrendChart" height="200"></canvas>
                     </div>
                     <div class="kd-chart-card" style="margin-bottom:0;">
-                        <div class="kd-chart-title">On-time delivery trend (projects)</div>
+                        <div class="kd-chart-title">On-time delivery rate trend (%)</div>
                         <canvas id="kdOnTimeTrendChart" height="200"></canvas>
                     </div>
                 </div>
@@ -458,6 +503,12 @@
                 </button>
             </div>
 
+            <div class="kd-report-presets">
+                <button type="button" class="kd-report-preset" data-preset="quarter">This quarter</button>
+                <button type="button" class="kd-report-preset" data-preset="year">This year</button>
+                <button type="button" class="kd-report-preset" data-preset="last4">Last 4 quarters</button>
+            </div>
+
             <div class="form-group">
                 <label>From</label>
                 <div style="display:flex;gap:10px;">
@@ -483,6 +534,14 @@
                 </div>
             </div>
             <p id="kdReportError" style="display:none;font-size:12.5px;font-weight:700;color:var(--danger);margin:-6px 0 14px;"></p>
+
+            <div class="kd-report-includes">
+                <div class="kd-report-includes-title">The report includes</div>
+                <div class="kd-report-includes-list">
+                    <span>Executive summary</span><span>KPI scorecard</span><span>Performance trends</span>
+                    <span>Key takeaways</span><span>Cost &amp; revenue</span><span>Quarter detail</span><span>Completed projects</span>
+                </div>
+            </div>
 
             <div class="modal-actions">
                 <button type="button" class="cancel-btn" id="kdCancelReport">Cancel</button>
@@ -517,19 +576,20 @@
 
             <div class="kd-targets-section">
                 <div class="kd-targets-section-title">Profit margin target</div>
-                <p class="kd-targets-section-sub">Set a net profit goal for each month based on GMD's expected workload.</p>
+                <p class="kd-targets-section-sub">Set a net profit goal for each month based on GMD's expected workload. Status = net profit ÷ target × 100 (higher is better).</p>
+                <div class="kd-band-legend"><span class="kd-band"><i style="background:#207A3A;"></i>100%+ Target hit</span><span class="kd-band"><i style="background:#A16207;"></i>80–99.9% Tolerable</span><span class="kd-band"><i style="background:#B42318;"></i>Below 80% Below target</span></div>
 
                 <div class="kd-month-row">
                     <label id="kdProfitMonthLabel1"></label>
-                    <div class="kd-month-input has-prefix"><span class="kd-month-prefix">₱</span><input type="number" min="0" step="1" id="kdInputProfitM1"></div>
+                    <div class="kd-month-input has-prefix"><span class="kd-month-prefix">₱</span><input type="text" inputmode="decimal" autocomplete="off" placeholder="0" id="kdInputProfitM1"></div>
                 </div>
                 <div class="kd-month-row">
                     <label id="kdProfitMonthLabel2"></label>
-                    <div class="kd-month-input has-prefix"><span class="kd-month-prefix">₱</span><input type="number" min="0" step="1" id="kdInputProfitM2"></div>
+                    <div class="kd-month-input has-prefix"><span class="kd-month-prefix">₱</span><input type="text" inputmode="decimal" autocomplete="off" placeholder="0" id="kdInputProfitM2"></div>
                 </div>
                 <div class="kd-month-row">
                     <label id="kdProfitMonthLabel3"></label>
-                    <div class="kd-month-input has-prefix"><span class="kd-month-prefix">₱</span><input type="number" min="0" step="1" id="kdInputProfitM3"></div>
+                    <div class="kd-month-input has-prefix"><span class="kd-month-prefix">₱</span><input type="text" inputmode="decimal" autocomplete="off" placeholder="0" id="kdInputProfitM3"></div>
                 </div>
 
                 <div class="kd-quarter-total">
@@ -540,30 +600,20 @@
 
             <div class="kd-targets-section">
                 <div class="kd-targets-section-title">On-time delivery target</div>
-                <p class="kd-targets-section-sub">Set the number of projects expected to be delivered on time each month.</p>
+                <p class="kd-targets-section-sub">Set the share of completed projects that should be delivered on or before their deadline this quarter (it applies to each month too). On-time rate = projects on time ÷ completed projects × 100.</p>
+                <div class="kd-band-legend"><span class="kd-band"><i style="background:#207A3A;"></i>At or above target: Target hit</span><span class="kd-band"><i style="background:#A16207;"></i>Up to 10 pts below: Tolerable</span><span class="kd-band"><i style="background:#B42318;"></i>More than 10 pts below: Below target</span></div>
 
                 <div class="kd-month-row">
-                    <label id="kdOnTimeMonthLabel1"></label>
-                    <div class="kd-month-input has-suffix"><input type="number" min="0" step="1" id="kdInputOnTimeM1"><span class="kd-month-suffix">projects</span></div>
+                    <label for="kdInputOnTimeRate">Target rate</label>
+                    <div class="kd-month-input has-suffix"><input type="number" min="0" max="100" step="0.1" id="kdInputOnTimeRate" placeholder="e.g. 90"><span class="kd-month-suffix">%</span></div>
                 </div>
-                <div class="kd-month-row">
-                    <label id="kdOnTimeMonthLabel2"></label>
-                    <div class="kd-month-input has-suffix"><input type="number" min="0" step="1" id="kdInputOnTimeM2"><span class="kd-month-suffix">projects</span></div>
-                </div>
-                <div class="kd-month-row">
-                    <label id="kdOnTimeMonthLabel3"></label>
-                    <div class="kd-month-input has-suffix"><input type="number" min="0" step="1" id="kdInputOnTimeM3"><span class="kd-month-suffix">projects</span></div>
-                </div>
-
-                <div class="kd-quarter-total">
-                    <span>Quarterly total (auto-calculated)</span>
-                    <strong id="kdOnTimeQuarterTotal">0 projects</strong>
-                </div>
+                <p id="kdOnTimeRateError" style="display:none;font-size:12px;font-weight:700;color:var(--danger);margin:4px 0 0;">Enter a target rate from 0 to 100%.</p>
             </div>
 
             <div class="kd-targets-section">
                 <div class="kd-targets-section-title">Budget adherence</div>
-                <p class="kd-targets-section-sub">No monthly target needed — this KPI compares actual vs. estimated cost per project using a fixed tolerance band, so it isn't set on a schedule.</p>
+                <p class="kd-targets-section-sub">No monthly target needed — status = actual spend ÷ estimated cost × 100 (lower is better), judged on these fixed bands:</p>
+                <div class="kd-band-legend"><span class="kd-band"><i style="background:#2A4EAA;"></i>Below 90% Well below estimate</span><span class="kd-band"><i style="background:#207A3A;"></i>90–100% Within budget</span><span class="kd-band"><i style="background:#A16207;"></i>100.1–103% Tolerable</span><span class="kd-band"><i style="background:#C2410C;"></i>103.1–107% Over budget</span><span class="kd-band"><i style="background:#B42318;"></i>Above 107% Critical</span></div>
                 <div class="kd-info-note">
                     <i data-lucide="info"></i>
                     <span>Whatever you enter per month is used directly — no automatic splitting or guessing. The Month view on the dashboard shows this number as-is, and Quarter/Year views simply add up the relevant months.</span>
@@ -801,13 +851,32 @@
         });
 
         /* ── KPI Cards ── */
-        function statusChip(hit) {
-            if (hit === null || hit === undefined) {
-                return '<span class="icon-chip-neutral" style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:800;padding:4px 10px;border-radius:999px;white-space:nowrap;"><i data-lucide="minus-circle" style="width:12px;height:12px;"></i>No target set</span>';
+        /* Profit + on-time status bands: achievement = actual ÷ owner's target × 100
+           (higher is better) — 100% or above Target hit · 80%–99.9% Tolerable · below 80% Below target */
+        function achievementLevel(actual, target) {
+            var pct = target > 0 ? (actual / target) * 100 : (actual > 0 ? 100 : 0);
+            if (pct >= 100) return { key: 'hit',       label: 'Target hit',   icon: 'check-circle-2', chip: 'icon-chip-success', color: '#207A3A', tone: 'good', pct: pct };
+            if (pct >= 80)  return { key: 'tolerable', label: 'Tolerable',    icon: 'alert-circle',   chip: 'icon-chip-warning', color: '#A16207', tone: 'warn', pct: pct };
+            return                 { key: 'below',     label: 'Below target', icon: 'alert-triangle', chip: 'icon-chip-danger',  color: '#B42318', tone: 'bad',  pct: pct };
+        }
+
+        /* On-time status (rate vs the owner's target rate, in percentage points):
+           at or above the target → Target hit · up to 10 pts below → Tolerable · more → Below target.
+           Same names and colours as the other cards. */
+        function onTimeLevel(rate, target) {
+            var points = rate - target;
+            if (points >= 0)   return { key: 'hit',       label: 'Target hit',   icon: 'check-circle-2', chip: 'icon-chip-success', color: '#207A3A', tone: 'good', points: points };
+            if (points >= -10) return { key: 'tolerable', label: 'Tolerable',    icon: 'alert-circle',   chip: 'icon-chip-warning', color: '#A16207', tone: 'warn', points: points };
+            return                    { key: 'below',     label: 'Below target', icon: 'alert-triangle', chip: 'icon-chip-danger',  color: '#B42318', tone: 'bad',  points: points };
+        }
+        function fmtPts(v) { return (Math.round(Math.abs(v) * 10) / 10).toFixed(1) + ' pts'; }
+
+        function statusChip(level) {
+            var base = 'display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:800;padding:4px 10px;border-radius:999px;white-space:nowrap;';
+            if (!level) {
+                return '<span class="icon-chip-neutral" style="' + base + '"><i data-lucide="minus-circle" style="width:12px;height:12px;"></i>No target set</span>';
             }
-            return hit
-                ? '<span class="icon-chip-success" style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:800;padding:4px 10px;border-radius:999px;white-space:nowrap;"><i data-lucide="check-circle-2" style="width:12px;height:12px;"></i>Target hit</span>'
-                : '<span class="icon-chip-warning" style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:800;padding:4px 10px;border-radius:999px;white-space:nowrap;"><i data-lucide="alert-triangle" style="width:12px;height:12px;"></i>Below target</span>';
+            return '<span class="' + level.chip + '" style="' + base + '"><i data-lucide="' + level.icon + '" style="width:12px;height:12px;"></i>' + level.label + '</span>';
         }
 
         function scaleBlock(scale) {
@@ -819,10 +888,13 @@
                 '</div>';
         }
 
+        var CARDS_HAVE_DATA = true;   // set per render: false when the period has no completed projects
+
         function breakdownBlock(rows) {
-            var html = '<div class="kd-scale-divider"></div><div class="kd-breakdown">';
+            var html = '<div class="kd-breakdown"><div class="kd-breakdown-title">Breakdown</div>';
             rows.forEach(function (r) {
-                html += '<div class="kd-breakdown-row">' +
+                if (!CARDS_HAVE_DATA) r = { label: r.label, value: '—', total: r.total };
+                html += '<div class="kd-breakdown-row' + (r.total ? ' total' : '') + '">' +
                     '<span class="kd-breakdown-label">' + r.label + '</span>' +
                     '<span class="kd-breakdown-value' + (r.tone ? ' ' + r.tone : '') + '">' + r.value + '</span>' +
                 '</div>';
@@ -836,13 +908,13 @@
                 { label: 'Material cost',    value: fmtPeso(p.mat_cost) },
                 { label: 'Labor cost',       value: fmtPeso(p.labor_cost) },
                 { label: 'Overhead cost',    value: fmtPeso(p.overhead_cost) },
-                { label: 'Net profit',       value: fmtPeso(p.net_profit), tone: 'good' },
+                { label: 'Net profit',       value: fmtPeso(p.net_profit), tone: p.net_profit >= 0 ? 'good' : 'bad', total: true },
             ]);
         }
 
         function onTimeBreakdown(o) {
             return breakdownBlock([
-                { label: 'Total projects',      value: pluralize(o.total_completed, 'project') },
+                { label: 'Completed projects',  value: pluralize(o.total_completed, 'project') },
                 { label: 'Delivered on time',   value: pluralize(o.on_time_count, 'project'), tone: 'good' },
                 { label: 'Delayed',             value: pluralize(o.delayed_count, 'project'), tone: o.delayed_count > 0 ? 'bad' : undefined },
                 { label: 'Avg delay (delayed)', value: o.avg_delay_days > 0 ? '~' + o.avg_delay_days + ' days' : '—', tone: o.avg_delay_days > 0 ? 'warn' : undefined },
@@ -853,8 +925,8 @@
             return breakdownBlock([
                 { label: 'Project budget',        value: fmtPeso(b.estimated_budget) },
                 { label: 'Actual spend',          value: fmtPeso(b.actual_cost) },
-                { label: 'Net savings',           value: fmtPeso(b.net_savings), tone: b.net_savings >= 0 ? 'good' : 'bad' },
-                { label: 'Projects over budget',  value: b.over_budget_count + ' of ' + b.total_completed },
+                { label: 'Projects over budget',  value: b.over_budget_count + ' of ' + b.total_completed, tone: b.over_budget_count > 0 ? 'bad' : undefined },
+                { label: 'Net savings',           value: fmtPeso(b.net_savings), tone: b.net_savings >= 0 ? 'good' : 'bad', total: true },
             ]);
         }
 
@@ -869,90 +941,140 @@
             return '<div class="kd-progress-track"><div class="kd-progress-fill" style="width:' + Math.max(0, Math.min(100, pct)) + '%;background:' + color + ';"></div></div>';
         }
 
-        /* Fixed benchmark range for the Budget Adherence status chip — no longer tied to an
-           owner-set target. Ranges per spec: >110% over, 101-110% slightly over, 90-100% within,
-           80-89% under, <80% significantly under. */
+        /* Budget adherence bands: actual spend ÷ estimated cost × 100 (lower is better).
+           Below 90% Well below estimate · 90%–100% Within budget · 100.1%–103% Tolerable ·
+           103.1%–107% Over budget · above 107% Critical */
         function budgetRangeStatus(rate) {
-            if (rate > 110) return { label: 'Over budget',               bg: '#FEE4E2', color: '#B42318' };
-            if (rate > 100) return { label: 'Slightly over budget',      bg: '#FFEDD5', color: '#C2410C' };
-            if (rate >= 90) return { label: 'Within budget',             bg: '#E7F6EC', color: '#207A3A' };
-            if (rate >= 80) return { label: 'Under budget',              bg: '#FEF9C3', color: '#A16207' };
-            return                 { label: 'Significantly under budget', bg: '#EAF0FF', color: '#2A4EAA' };
+            if (rate > 107) return { key: 'critical',  label: 'Critical',            bg: '#FEE4E2', color: '#B42318', tone: 'bad'  };
+            if (rate > 103) return { key: 'over',      label: 'Over budget',         bg: '#FFEDD5', color: '#C2410C', tone: 'bad'  };
+            if (rate > 100) return { key: 'tolerable', label: 'Tolerable',           bg: '#FEF9C3', color: '#A16207', tone: 'warn' };
+            if (rate >= 90) return { key: 'within',    label: 'Within budget',       bg: '#E7F6EC', color: '#207A3A', tone: 'good' };
+            return                 { key: 'below',     label: 'Well below estimate', bg: '#EAF0FF', color: '#2A4EAA', tone: 'info' };
         }
 
-        function targetRow(label, value) {
-            return '<div class="kd-target-row"><span class="kd-target-label">Owner target</span><span class="kd-target-value">' + (value === null ? 'Not set' : value) + '</span></div>';
+        /* Big centered number + a one-line caption saying what it means */
+        function heroBlock(value, caption) {
+            return '<div class="kd-hero">' + value + '</div>' +
+                '<div class="kd-hero-caption">' + caption + '</div>';
+        }
+
+        /* The goal box: what the number is measured against, the progress bar, and the
+           result in plain words (with an icon so good / short is readable at a glance) */
+        function goalBox(label, value, barHtml, resultText, tone) {
+            var icon = tone === 'good' ? 'trending-up' : (tone === 'bad' ? 'trending-down' : (tone === 'warn' ? 'alert-circle' : 'info'));
+            return '<div class="kd-goal">' +
+                '<div class="kd-goal-top"><span class="kd-goal-label">' + label + '</span><span class="kd-goal-value">' + value + '</span></div>' +
+                barHtml +
+                '<div class="kd-goal-result ' + (tone || '') + '"><i data-lucide="' + icon + '"></i><span>' + resultText + '</span></div>' +
+                '</div>';
         }
 
         /* A card with no owner target for the period keeps its normal layout, but every
            value reads "—": the numbers only mean something once there is a goal to measure against. */
-        function noTargetCard(name, secondaryText, rowLabels) {
-            return '<div class="kd-card">' +
+        /* KPI card states
+           1. No project data + no target  → empty card: only the KPI name, nothing measured
+           2. Project data + no owner target → "No target set" + the breakdown only — no percentage,
+              no owner target, nothing that needs a target to calculate
+           3. Project data + target set     → the full card
+           4. Budget adherence needs no owner target → full card whenever there is project data */
+        function emptyCard(name) {
+            return '<div class="kd-card kd-card-empty">' +
+                '<div class="kd-card-top"><span class="kd-card-name">' + name + '</span></div>' +
+                '<div class="kd-empty-body"><i data-lucide="bar-chart-3"></i><span>Nothing to show for this period yet</span></div>' +
+                '</div>';
+        }
+
+        function emptyCardText(name, text) {
+            return '<div class="kd-card kd-card-empty">' +
+                '<div class="kd-card-top"><span class="kd-card-name">' + name + '</span></div>' +
+                '<div class="kd-empty-body"><i data-lucide="bar-chart-3"></i><span>' + text + '</span></div>' +
+                '</div>';
+        }
+
+        function noTargetCard(name, breakdownHtml) {
+            return '<div class="kd-card kd-card-notarget">' +
                 '<div class="kd-card-top"><span class="kd-card-name">' + name + '</span>' + statusChip(null) + '</div>' +
-                '<div class="kd-primary">—</div>' +
-                '<div class="kd-secondary">— ' + secondaryText + '</div>' +
-                targetRow('Owner target', null) +
-                '<div class="kd-variance">No target set for this quarter yet.</div>' +
-                progressBar(0, null) +
-                breakdownBlock(rowLabels.map(function (label) { return { label: label, value: '—' }; })) +
+                breakdownHtml +
                 '</div>';
         }
 
         function profitCard(p) {
-            if (!p.has_target) return noTargetCard('Project profit margin', 'avg profit margin',
-                ['Revenue received', 'Material cost', 'Labor cost', 'Overhead cost', 'Net profit']);
-            var varianceText = p.variance >= 0
-                ? '+' + fmtPeso(p.variance) + ' above target'
-                : fmtPeso(Math.abs(p.variance)) + ' below target';
+            if (!p.has_target) return CARDS_HAVE_DATA ? noTargetCard('Project profit margin rate', profitBreakdown(p)) : emptyCard('Project profit margin rate');
+            var lvl = achievementLevel(p.net_profit, p.target);
+            var resultText = fmtPct(lvl.pct) + ' of target · ' + (p.variance >= 0
+                ? '+' + fmtPeso(p.variance) + ' above'
+                : fmtPeso(Math.abs(p.variance)) + ' below');
             return '<div class="kd-card">' +
-                '<div class="kd-card-top"><span class="kd-card-name">Project profit margin</span>' + statusChip(p.hit) + '</div>' +
-                '<div class="kd-primary">' + fmtPeso(p.net_profit) + '</div>' +
-                '<div class="kd-secondary">' + fmtPct(p.avg_margin) + ' avg profit margin</div>' +
-                targetRow('Owner target', fmtPeso(p.target)) +
-                '<div class="kd-variance ' + (p.hit ? 'good' : 'bad') + '">' + varianceText + '</div>' +
-                progressBar(p.progress_pct, p.hit) +
+                '<div class="kd-card-top"><span class="kd-card-name">Project profit margin rate</span>' + statusChip(lvl) + '</div>' +
+                heroBlock(fmtPct(p.avg_margin), fmtPeso(p.net_profit) + ' net profit this period') +
+                goalBox('Owner target (net profit)', fmtPeso(p.target), progressBar(p.progress_pct, null, lvl.color), resultText, lvl.tone) +
                 scaleBlock(p.scale) +
                 profitBreakdown(p) +
                 '</div>';
         }
 
+        /* On-time delivery card — a RATE (projects on time ÷ completed projects × 100):
+           · no completed projects → "No completed projects" instead of 0%
+           · no target → the rate still shows, with "No target set"
+           · target set → rate vs target rate, status by percentage points */
         function onTimeCard(o) {
-            if (!o.has_target) return noTargetCard('On-time delivery', 'on-time delivery rate',
-                ['Total projects', 'Delivered on time', 'Delayed', 'Avg delay (delayed)']);
-            var varianceText;
-            if (o.variance >= 0) {
-                varianceText = o.variance === 0 ? 'Meets target exactly' : '+' + pluralize(o.variance, 'project') + ' above target';
-            } else {
-                varianceText = pluralize(Math.abs(o.variance), 'project') + ' short of target';
+            var name = 'On-time delivery rate';
+            var note = o.on_time_count + ' of ' + pluralize(o.total_completed, 'project') + ' on time';
+
+            if (!o.has_data) {
+                if (!o.has_target) return emptyCardText(name, 'No completed projects');
+                return '<div class="kd-card">' +
+                    '<div class="kd-card-top"><span class="kd-card-name">' + name + '</span></div>' +
+                    '<div class="kd-hero kd-hero-text">No completed projects</div>' +
+                    '<div class="kd-hero-caption">The rate shows once a project is completed in this period</div>' +
+                    goalBox('Owner target (on-time rate)', fmtPct(o.target), progressBar(0, null), 'Not measured yet', null) +
+                    '</div>';
             }
+
+            if (!o.has_target) {
+                return '<div class="kd-card kd-card-notarget">' +
+                    '<div class="kd-card-top"><span class="kd-card-name">' + name + '</span>' + statusChip(null) + '</div>' +
+                    heroBlock(fmtPct(o.rate), note) +
+                    onTimeBreakdown(o) +
+                    '</div>';
+            }
+
+            var lvl = onTimeLevel(o.rate, o.target);
+            var resultText = lvl.points >= 0
+                ? (lvl.points === 0 ? 'Exactly on target' : '+' + fmtPts(lvl.points) + ' above target')
+                : fmtPts(lvl.points) + ' below target';
             return '<div class="kd-card">' +
-                '<div class="kd-card-top"><span class="kd-card-name">On-time delivery</span>' + statusChip(o.hit) + '</div>' +
-                '<div class="kd-primary">' + o.on_time_count + ' of ' + o.target + ' projects</div>' +
-                '<div class="kd-secondary">' + fmtPct(o.rate) + ' on-time delivery rate</div>' +
-                targetRow('Owner target', pluralize(o.target, 'project')) +
-                '<div class="kd-variance ' + (o.hit ? 'good' : 'bad') + '">' + varianceText + '</div>' +
-                progressBar(o.progress_pct, o.hit) +
+                '<div class="kd-card-top"><span class="kd-card-name">' + name + '</span>' + statusChip(lvl) + '</div>' +
+                heroBlock(fmtPct(o.rate), note) +
+                goalBox('Owner target (on-time rate)', fmtPct(o.target), progressBar(o.progress_pct, null, lvl.color), resultText, lvl.tone) +
                 scaleBlock(o.scale) +
                 onTimeBreakdown(o) +
                 '</div>';
         }
 
         function budgetCard(b) {
+            // needs no owner target — its healthy range is fixed — so only project data decides
+            if (!CARDS_HAVE_DATA) return emptyCard('Budget adherence rate');
             var status = budgetRangeStatus(b.adherence_rate);
             var chip = '<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:800;padding:4px 10px;border-radius:999px;white-space:nowrap;background:' +
                 status.bg + ';color:' + status.color + ';">' + status.label + '</span>';
+            var resultText = status.key === 'below'
+                ? fmtPeso(b.net_savings) + ' under — check the estimate or unlogged costs'
+                : (b.net_savings >= 0
+                    ? fmtPeso(b.net_savings) + ' under the project budget'
+                    : fmtPeso(Math.abs(b.net_savings)) + ' over the project budget');
 
             return '<div class="kd-card">' +
-                '<div class="kd-card-top"><span class="kd-card-name">Budget adherence</span>' + chip + '</div>' +
-                '<div class="kd-primary" style="text-align:center;font-size:64px;line-height:1;margin-top:8px;">' + fmtPct(b.adherence_rate) + '</div>' +
-                '<div class="kd-secondary" style="text-align:center;font-size:14px;margin-top:8px;">' + fmtPeso(b.actual_cost) + ' actual vs ' + fmtPeso(b.estimated_budget) + ' estimated</div>' +
-                '<div style="margin-top:24px;">' + progressBar(Math.min(100, b.adherence_rate), null, status.color) + '</div>' +
+                '<div class="kd-card-top"><span class="kd-card-name">Budget adherence rate</span>' + chip + '</div>' +
+                heroBlock(fmtPct(b.adherence_rate), fmtPeso(b.actual_cost) + ' spent of ' + fmtPeso(b.estimated_budget) + ' budget') +
+                goalBox('Healthy range', '90% – 100%', progressBar(Math.min(100, b.adherence_rate), null, status.color), resultText, status.tone) +
                 scaleBlock(b.scale) +
                 budgetBreakdown(b) +
                 '</div>';
         }
 
         function renderCards(sc) {
+            CARDS_HAVE_DATA = (sc.project_count || 0) > 0;
             document.getElementById('kdCards').innerHTML =
                 profitCard(sc.profit) + onTimeCard(sc.on_time) + budgetCard(sc.budget);
             if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -967,7 +1089,7 @@
 
             body.innerHTML = rows.map(function (m) {
                 var profitTargetText = m.profit_target === null ? '—' : fmtPeso(m.profit_target);
-                var onTimeTargetText = m.on_time_target === null ? '—' : m.on_time_target;
+                var onTimeTargetText = m.on_time_target === null ? '—' : fmtPct(m.on_time_target);
                 return '<tr data-month-label="' + m.label + '">' +
                     '<td>' + m.label + '</td>' +
                     // A month with no completed projects has no results yet — show "—", not 0 / ₱0,
@@ -975,7 +1097,7 @@
                     '<td style="text-align:center;">' + (m.project_count ? m.project_count : '—') + '</td>' +
                     '<td style="text-align:right;font-weight:800;">' + (m.project_count ? fmtPeso(m.profit_actual) : '—') + '</td>' +
                     '<td style="text-align:right;color:var(--muted);">' + profitTargetText + '</td>' +
-                    '<td style="text-align:center;font-weight:800;">' + (m.project_count ? m.on_time_actual : '—') + '</td>' +
+                    '<td style="text-align:center;font-weight:800;">' + (m.project_count ? fmtPct(m.on_time_rate) + '<div style="font-size:11px;font-weight:600;color:var(--muted);">' + m.on_time_actual + ' of ' + m.project_count + '</div>' : '—') + '</td>' +
                     '<td style="text-align:center;color:var(--muted);">' + onTimeTargetText + '</td>' +
                 '</tr>';
             }).join('');
@@ -1004,43 +1126,70 @@
             return html;
         }
 
+        function budgetActionText(rate) {
+            if (rate > 107) return 'Costs are critically above estimates — review BOM pricing and vendor quotes before the next quotation cycle.';
+            if (rate > 103) return 'Spending is over budget — tighten BOM estimates and watch material purchases on active projects.';
+            if (rate > 100) return 'Spending is slightly above estimate but tolerable — keep an eye on remaining purchases.';
+            if (rate < 90)  return 'Actual spend is well below estimate — check whether the estimates are too high or some costs were not logged.';
+            return null;
+        }
+
+        function budgetSentence(sc) {
+            var budgetStatus = budgetRangeStatus(sc.budget.adherence_rate);
+            return 'Budget adherence is at ' + fmtPct(sc.budget.adherence_rate) + ' (' +
+                fmtPeso(sc.budget.actual_cost) + ' actual vs ' + fmtPeso(sc.budget.estimated_budget) + ' estimated) — ' +
+                budgetStatus.label.toLowerCase() + '.';
+        }
+
         function renderScorecardInsight(sc) {
+            var box = document.getElementById('kdScorecardInsight');
+            var hasData = (sc.project_count || 0) > 0;
+
+            // 1. no project data + no target → no insight at all
+            if (!hasData && !sc.profit.has_target) {
+                box.innerHTML = '';
+                box.style.display = 'none';
+                return;
+            }
+            box.style.display = '';
+
+            // 2. project data but no owner target → only budget adherence can be judged
             if (!sc.profit.has_target) {
-                document.getElementById('kdScorecardInsight').innerHTML = buildInsightHtml(
-                    'No KPI targets have been set for ' + sc.label + ' yet, so performance can\'t be measured against a goal.',
-                    'Click "Set targets" above to define a profit and on-time delivery goal for this quarter.'
-                );
+                box.innerHTML = buildInsightHtml(budgetSentence(sc), budgetActionText(sc.budget.adherence_rate) ||
+                    'Spending is within budget — maintain current cost discipline.');
                 if (typeof lucide !== 'undefined') lucide.createIcons();
                 return;
             }
 
+            // 3. targets set → the full insight
             var parts = [];
-            parts.push('Your profit target was ' + (sc.profit.hit ? 'hit' : 'missed') + ' this quarter with a net profit of ' +
+            var profitLvl = achievementLevel(sc.profit.net_profit, sc.profit.target);
+            var onTimeLvl = (sc.on_time.has_target && sc.on_time.has_data) ? onTimeLevel(sc.on_time.rate, sc.on_time.target) : null;
+            var profitPhrase = profitLvl.key === 'hit' ? 'Profit hit its target' : 'Profit is ' + profitLvl.label.toLowerCase();
+            parts.push(profitPhrase + ' (' + fmtPct(profitLvl.pct) + ' of target) with a net profit of ' +
                 fmtPeso(sc.profit.net_profit) + ' against a target of ' + fmtPeso(sc.profit.target) + '.');
 
-            if (sc.on_time.hit) {
-                parts.push('On-time delivery met the target at ' + sc.on_time.on_time_count + ' of ' + sc.on_time.target + ' projects.');
+            if (!sc.on_time.has_data) {
+                parts.push('No projects were completed this period, so the on-time delivery rate can\'t be measured yet.');
+            } else if (!onTimeLvl) {
+                parts.push('On-time delivery rate is ' + fmtPct(sc.on_time.rate) + ' (' + sc.on_time.on_time_count + ' of ' + pluralize(sc.on_time.total_completed, 'project') + ' on time) — no target set.');
+            } else if (onTimeLvl.key === 'hit') {
+                parts.push('On-time delivery rate hit its target at ' + fmtPct(sc.on_time.rate) + ' against ' + fmtPct(sc.on_time.target) +
+                    ' (' + sc.on_time.on_time_count + ' of ' + pluralize(sc.on_time.total_completed, 'project') + ' on time).');
             } else {
-                var short = sc.on_time.target - sc.on_time.on_time_count;
-                parts.push('On-time delivery fell short by ' + pluralize(short, 'project') + '.');
+                parts.push('On-time delivery rate is ' + onTimeLvl.label.toLowerCase() + ' at ' + fmtPct(sc.on_time.rate) + ', ' +
+                    fmtPts(onTimeLvl.points) + ' below the ' + fmtPct(sc.on_time.target) + ' target.');
             }
 
-            var budgetStatus = budgetRangeStatus(sc.budget.adherence_rate);
-            parts.push('Budget adherence is at ' + fmtPct(sc.budget.adherence_rate) + ' (' +
-                fmtPeso(sc.budget.actual_cost) + ' actual vs ' + fmtPeso(sc.budget.estimated_budget) + ' estimated) — ' +
-                budgetStatus.label.toLowerCase() + '.');
+            if (hasData) parts.push(budgetSentence(sc));
 
             var action;
-            if (!sc.on_time.hit && sc.on_time.delayed_projects && sc.on_time.delayed_projects.length) {
+            if (onTimeLvl && onTimeLvl.key !== 'hit' && sc.on_time.delayed_projects && sc.on_time.delayed_projects.length) {
                 action = 'Review which phases caused delays in ' + sc.on_time.delayed_projects.join(' and ') + '. Adjust duration estimates for similar projects next quarter.';
             } else if (!sc.profit.hit) {
                 action = 'Review material and labor costing on recent quotations to recover margin next quarter.';
-            } else if (sc.budget.adherence_rate > 110) {
-                action = 'Costs are significantly exceeding estimates — review BOM pricing and vendor quotes before the next quotation cycle.';
-            } else if (sc.budget.adherence_rate > 100) {
-                action = 'Tighten BOM estimates — actual spend is running ahead of the estimated budget.';
-            } else if (sc.budget.adherence_rate < 80) {
-                action = 'Actual spend is running well under estimate — review whether quotations are being priced too conservatively.';
+            } else if (hasData && budgetActionText(sc.budget.adherence_rate)) {
+                action = budgetActionText(sc.budget.adherence_rate);
             } else {
                 action = 'All targets are on track — maintain current cost discipline and delivery cadence into next quarter.';
             }
@@ -1075,10 +1224,10 @@
             charts.comparative = new Chart(el, {
                 type: 'bar',
                 data: {
-                    labels: ['Profit (₱ thousands)', 'On-time delivery (projects)', 'Budget adherence (%)'],
+                    labels: ['Profit (₱ thousands)', 'On-time delivery rate (%)', 'Budget adherence (%)'],
                     datasets: [
                         { label: 'Target', data: [sc.profit.target / 1000, sc.on_time.target, null], backgroundColor: '#2A4EAA', borderRadius: 4 },
-                        { label: 'Actual', data: [sc.profit.net_profit / 1000, sc.on_time.on_time_count, sc.budget.adherence_rate], backgroundColor: '#207A3A', borderRadius: 4 },
+                        { label: 'Actual', data: [sc.profit.net_profit / 1000, sc.on_time.has_data ? sc.on_time.rate : null, sc.budget.adherence_rate], backgroundColor: '#207A3A', borderRadius: 4 },
                     ]
                 },
                 options: {
@@ -1122,11 +1271,33 @@
                     data: {
                         labels: labels,
                         datasets: [
-                            { label: 'Actual', data: trend.map(function (t) { return t.on_time.on_time_count; }), borderColor: '#2A4EAA', backgroundColor: 'rgba(42,78,170,.10)', fill: true, tension: 0.35, pointRadius: 4, borderWidth: 2.5 },
-                            { label: 'Target', data: trend.map(function (t) { return t.on_time.target; }), borderColor: '#8A6100', borderDash: [6, 4], tension: 0.35, pointRadius: 3, borderWidth: 2 }
+                            // Actual rate — drawn on top, a gap where a quarter had no completed projects
+                            { label: 'Actual rate', data: trend.map(function (t) { return t.on_time.has_data ? t.on_time.rate : null; }), spanGaps: true,
+                              borderColor: '#2A4EAA', backgroundColor: 'rgba(42,78,170,.10)', fill: 'origin', tension: 0, borderWidth: 2.5,
+                              pointRadius: 6, pointHoverRadius: 7, pointBackgroundColor: '#2A4EAA', pointBorderColor: '#ffffff', pointBorderWidth: 2, order: 0 },
+                            // Target rate — one per quarter, so a dashed step line rather than a slope
+                            { label: 'Target rate', data: trend.map(function (t) { return t.on_time.target; }), spanGaps: false,
+                              borderColor: '#8A6100', backgroundColor: '#8A6100', borderDash: [6, 4], stepped: 'middle', tension: 0, borderWidth: 2,
+                              pointRadius: 3, pointStyle: 'rectRot', order: 1 }
                         ]
                     },
-                    options: trendOptions(function (v) { return v; })
+                    options: (function () {
+                        var o = trendOptions(function (v) { return v + '%'; });
+                        o.scales.y.min = 0;
+                        o.scales.y.max = 100;
+                        o.scales.y.ticks.stepSize = 20;
+                        o.plugins.legend = { display: true, position: 'bottom', labels: { boxWidth: 12, boxHeight: 12, usePointStyle: true, font: { size: 11 }, color: '#555' } };
+                        o.plugins.tooltip = { callbacks: { label: function (ctx) {
+                            var t = trend[ctx.dataIndex];
+                            if (ctx.datasetIndex === 0) {
+                                return t.on_time.has_data
+                                    ? ' Actual: ' + fmtPct(t.on_time.rate) + ' (' + t.on_time.on_time_count + ' of ' + t.on_time.total_completed + ' on time)'
+                                    : ' Actual: no completed projects';
+                            }
+                            return ' Target: ' + (t.on_time.target === null ? 'not set' : fmtPct(t.on_time.target));
+                        } } };
+                        return o;
+                    })()
                 });
             }
 
@@ -1166,15 +1337,30 @@
 
         function renderTrendInsight(trend) {
             var profitVals = trend.map(function (t) { return t.profit.net_profit; });
-            var onTimeVals = trend.map(function (t) { return t.on_time.rate; });
             var budgetVals = trend.map(function (t) { return t.budget.adherence_rate; });
 
             var profitDir = trendDirection(profitVals);
-            var onTimeDir = trendDirection(onTimeVals);
             var budgetDir = trendDirection(budgetVals);
 
+            // On-time rate only exists for quarters with completed projects — an empty quarter is
+            // not a 0% rate, so only measured quarters are compared (change in percentage points)
+            var measured = trend.filter(function (t) { return t.on_time.has_data; });
+            var onTimeDir, onTimeSentence;
+            if (measured.length < 2) {
+                onTimeDir = 'not enough data';
+                onTimeSentence = measured.length === 1
+                    ? 'On-time delivery rate was ' + fmtPct(measured[0].on_time.rate) + ' in ' + measured[0].label + ', the only quarter with completed projects — not enough to show a trend yet. '
+                    : 'No quarter in this span had completed projects, so there is no on-time delivery rate to trend yet. ';
+            } else {
+                var firstM = measured[0], lastM = measured[measured.length - 1];
+                var pts = lastM.on_time.rate - firstM.on_time.rate;
+                onTimeDir = pts > 3 ? 'improving' : (pts < -3 ? 'declining' : 'holding steady');
+                onTimeSentence = 'On-time delivery rate is ' + onTimeDir + ', from ' + fmtPct(firstM.on_time.rate) + ' in ' + firstM.label +
+                    ' to ' + fmtPct(lastM.on_time.rate) + ' in ' + lastM.label + '. ';
+            }
+
             var text = 'Net profit has been ' + profitDir + ' from ' + trend[0].label + ' to ' + trend[trend.length - 1].label + '. ' +
-                'On-time delivery is ' + onTimeDir + ' over the same span. ' +
+                onTimeSentence +
                 'Budget adherence is ' + budgetDir + ' quarter over quarter.';
 
             var action;
@@ -1234,23 +1420,25 @@
             chartCard.style.display = '';
 
             var profitHtml = forecastCard(
-                'Project profit margin',
-                fmtPeso(fc.profit.net_profit),
-                fmtPct(fc.profit.avg_margin) + ' avg profit margin',
+                'Project profit margin rate',
+                fmtPct(fc.profit.avg_margin),
+                fmtPeso(fc.profit.net_profit) + ' net profit',
                 directionBadge(fc.profit.vs_current, fmtPeso(Math.abs(fc.profit.vs_current))),
                 fc.window_label, fc.sample_size
             );
 
             var onTimeHtml = forecastCard(
-                'On-time delivery',
-                fc.on_time.count.toFixed(1) + ' projects',
-                fmtPct(fc.on_time.rate) + ' on-time delivery rate',
-                directionBadge(fc.on_time.vs_current, Math.abs(fc.on_time.vs_current).toFixed(1) + ' projects'),
+                'On-time delivery rate',
+                fmtPct(fc.on_time.rate),
+                fc.on_time.on_time + ' of ' + pluralize(fc.on_time.completed, 'project') + ' on time across the window',
+                fc.on_time.vs_current === null
+                    ? '<div class="kd-variance">No completed projects this quarter to compare</div>'
+                    : directionBadge(fc.on_time.vs_current, fmtPts(fc.on_time.vs_current)),
                 fc.window_label, fc.sample_size
             );
 
             var budgetHtml = forecastCard(
-                'Budget adherence',
+                'Budget adherence rate',
                 fmtPct(fc.budget.adherence_rate),
                 'Forecast for ' + fc.target_label,
                 directionBadge(fc.budget.vs_current, fmtPct(Math.abs(fc.budget.vs_current))),
@@ -1271,7 +1459,7 @@
 
             var text = 'Based on a simple moving average of ' + fc.sample_size + ' quarter' + (fc.sample_size === 1 ? '' : 's') +
                 ' with completed projects (' + fc.window_label + '), ' + fc.target_label + ' is forecasted at ' +
-                fmtPeso(fc.profit.net_profit) + ' net profit, ' + fc.on_time.count.toFixed(1) + ' on-time project' + (Math.abs(fc.on_time.count - 1) < 0.05 ? '' : 's') +
+                fmtPeso(fc.profit.net_profit) + ' net profit, a ' + fmtPct(fc.on_time.rate) + ' on-time delivery rate' +
                 ', and ' + fmtPct(fc.budget.adherence_rate) + ' budget adherence.';
 
             var action;
@@ -1299,10 +1487,10 @@
             charts.forecast = new Chart(el, {
                 type: 'bar',
                 data: {
-                    labels: ['Profit (₱ thousands)', 'On-time delivery (projects)', 'Budget adherence (%)'],
+                    labels: ['Profit (₱ thousands)', 'On-time delivery rate (%)', 'Budget adherence (%)'],
                     datasets: [
-                        { label: 'Last actual', data: [current.profit.net_profit / 1000, current.on_time.on_time_count, current.budget.adherence_rate], backgroundColor: '#2A4EAA', borderRadius: 4 },
-                        { label: 'SMA forecast', data: [fc.profit.net_profit / 1000, fc.on_time.count, fc.budget.adherence_rate], backgroundColor: '#207A3A', borderRadius: 4 },
+                        { label: 'Last actual', data: [current.profit.net_profit / 1000, current.on_time.has_data ? current.on_time.rate : null, current.budget.adherence_rate], backgroundColor: '#2A4EAA', borderRadius: 4 },
+                        { label: 'SMA forecast', data: [fc.profit.net_profit / 1000, fc.on_time.rate, fc.budget.adherence_rate], backgroundColor: '#207A3A', borderRadius: 4 },
                     ]
                 },
                 options: {
@@ -1323,14 +1511,6 @@
 
         function renderEverything() {
             var sc = STATE.payload.scorecard;
-            var projectWord = sc.project_count === 1 ? 'completed project' : 'completed projects';
-            document.querySelector('.kd-subtitle').innerHTML =
-                '<span class="kd-meta-company">GMD South Phils Metal Fabrication Works</span>' +
-                '<span class="kd-meta-chip kd-meta-period"><i data-lucide="calendar"></i>' + sc.label + '</span>' +
-                '<span class="kd-meta-chip' + (sc.project_count > 0 ? ' kd-meta-ok' : ' kd-meta-empty') + '">' +
-                    '<i data-lucide="' + (sc.project_count > 0 ? 'check-circle-2' : 'circle-dashed') + '"></i>' +
-                    '<strong>' + sc.project_count + '</strong> ' + projectWord +
-                '</span>';
             if (typeof lucide !== 'undefined') lucide.createIcons();
 
             // Text/HTML content renders first and independently of the charts below, so a
@@ -1362,10 +1542,10 @@
         };
 
         var PROFIT_MONTH_IDS  = ['kdInputProfitM1', 'kdInputProfitM2', 'kdInputProfitM3'];
-        var ONTIME_MONTH_IDS  = ['kdInputOnTimeM1', 'kdInputOnTimeM2', 'kdInputOnTimeM3'];
+        var ONTIME_RATE_ID    = 'kdInputOnTimeRate';
 
         function setQuarterFieldsReadOnly(readOnly) {
-            PROFIT_MONTH_IDS.concat(ONTIME_MONTH_IDS).forEach(function (id) {
+            PROFIT_MONTH_IDS.concat([ONTIME_RATE_ID]).forEach(function (id) {
                 document.getElementById(id).disabled = readOnly;
             });
             document.getElementById('kdModalPeriodSelect').disabled = readOnly;
@@ -1375,19 +1555,48 @@
             saveBtn.style.cursor = readOnly ? 'not-allowed' : '';
         }
 
-        function recalcQuarterTotals() {
-            var profitTotal = PROFIT_MONTH_IDS.reduce(function (sum, id) {
-                return sum + (parseFloat(document.getElementById(id).value) || 0);
-            }, 0);
-            var onTimeTotal = ONTIME_MONTH_IDS.reduce(function (sum, id) {
-                return sum + (parseInt(document.getElementById(id).value, 10) || 0);
-            }, 0);
-            document.getElementById('kdProfitQuarterTotal').textContent = fmtPeso(profitTotal);
-            document.getElementById('kdOnTimeQuarterTotal').textContent = pluralize(onTimeTotal, 'project');
+        /* Profit target boxes show thousands separators (40,000) — these turn them back into numbers */
+        function moneyInputValue(id) {
+            var n = parseFloat(String(document.getElementById(id).value).replace(/,/g, ''));
+            return isNaN(n) ? 0 : n;
+        }
+        function formatMoneyText(raw) {
+            var clean = String(raw).replace(/[^0-9.]/g, '');
+            var dot = clean.indexOf('.');
+            var whole = dot === -1 ? clean : clean.slice(0, dot);
+            var dec = dot === -1 ? '' : '.' + clean.slice(dot + 1).replace(/\./g, '').slice(0, 2);
+            whole = whole.replace(/^0+(?=\d)/, '');
+            return whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + dec;
+        }
+        // Re-format while typing, keeping the cursor after the same digit
+        function attachMoneyFormat(input) {
+            input.addEventListener('input', function () {
+                var caret = input.selectionStart;
+                var digitsBefore = input.value.slice(0, caret).replace(/[^0-9.]/g, '').length;
+                input.value = formatMoneyText(input.value);
+                var pos = 0, seen = 0;
+                while (pos < input.value.length && seen < digitsBefore) {
+                    if (/[0-9.]/.test(input.value[pos])) seen++;
+                    pos++;
+                }
+                input.setSelectionRange(pos, pos);
+            });
         }
 
-        PROFIT_MONTH_IDS.concat(ONTIME_MONTH_IDS).forEach(function (id) {
+        function recalcQuarterTotals() {
+            var profitTotal = PROFIT_MONTH_IDS.reduce(function (sum, id) {
+                return sum + moneyInputValue(id);
+            }, 0);
+            document.getElementById('kdProfitQuarterTotal').textContent = fmtPeso(profitTotal);
+        }
+
+        PROFIT_MONTH_IDS.forEach(function (id) {
+            attachMoneyFormat(document.getElementById(id));   // runs first, so the total reads the formatted value
             document.getElementById(id).addEventListener('input', recalcQuarterTotals);
+        });
+        document.getElementById(ONTIME_RATE_ID).addEventListener('input', function () {
+            this.classList.remove('is-invalid');
+            document.getElementById('kdOnTimeRateError').style.display = 'none';
         });
 
         /* Populates the modal's own fields + period-select from a given payload, without
@@ -1401,10 +1610,11 @@
 
             for (var i = 0; i < 3; i++) {
                 document.getElementById('kdProfitMonthLabel' + (i + 1)).textContent = months[i];
-                document.getElementById('kdOnTimeMonthLabel' + (i + 1)).textContent = months[i];
-                document.getElementById(PROFIT_MONTH_IDS[i]).value = sc.profit.target_monthly[i] || '';
-                document.getElementById(ONTIME_MONTH_IDS[i]).value = sc.on_time.target_monthly[i] || '';
+                document.getElementById(PROFIT_MONTH_IDS[i]).value = sc.profit.target_monthly[i] ? formatMoneyText(sc.profit.target_monthly[i]) : '';
             }
+            document.getElementById(ONTIME_RATE_ID).value = (sc.on_time.target === null || sc.on_time.target === undefined) ? '' : sc.on_time.target;
+            document.getElementById(ONTIME_RATE_ID).classList.remove('is-invalid');
+            document.getElementById('kdOnTimeRateError').style.display = 'none';
             recalcQuarterTotals();
 
             var note = document.getElementById('kdFinalizedNote');
@@ -1453,6 +1663,14 @@
 
         document.getElementById('kdSaveQuarterTargets').addEventListener('click', function () {
             var btn = this;
+            var rateInput = document.getElementById(ONTIME_RATE_ID);
+            var rateVal = rateInput.value.trim();
+            if (rateVal === '' || isNaN(Number(rateVal)) || Number(rateVal) < 0 || Number(rateVal) > 100) {
+                rateInput.classList.add('is-invalid');
+                document.getElementById('kdOnTimeRateError').style.display = 'block';
+                rateInput.focus();
+                return;
+            }
             btn.disabled = true;
             fetch(SAVE_QUARTER_URL, {
                 method: 'POST',
@@ -1460,12 +1678,10 @@
                 body: JSON.stringify({
                     year: STATE.payload.year,
                     quarter: STATE.payload.quarter,
-                    profit_target_m1:  document.getElementById('kdInputProfitM1').value || 0,
-                    profit_target_m2:  document.getElementById('kdInputProfitM2').value || 0,
-                    profit_target_m3:  document.getElementById('kdInputProfitM3').value || 0,
-                    on_time_target_m1: document.getElementById('kdInputOnTimeM1').value || 0,
-                    on_time_target_m2: document.getElementById('kdInputOnTimeM2').value || 0,
-                    on_time_target_m3: document.getElementById('kdInputOnTimeM3').value || 0,
+                    profit_target_m1:  moneyInputValue('kdInputProfitM1'),
+                    profit_target_m2:  moneyInputValue('kdInputProfitM2'),
+                    profit_target_m3:  moneyInputValue('kdInputProfitM3'),
+                    on_time_target:    Number(rateVal),
                 })
             })
             .then(function (r) { return r.json().then(function (body) { return { ok: r.ok, body: body }; }); })
@@ -1508,14 +1724,35 @@
             document.getElementById('kdReportToYear').value      = STATE.payload.year;
             document.getElementById('kdReportToQuarter').value   = STATE.payload.quarter;
             document.getElementById('kdReportError').style.display = 'none';
+            document.querySelectorAll('.kd-report-preset').forEach(function (b) { b.classList.toggle('active', b.dataset.preset === 'quarter'); });
             openReportModal();
+        });
+        // Quick ranges: this quarter, this calendar year, or the last 4 quarters up to the current one
+        document.querySelectorAll('.kd-report-preset').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var y = Number(STATE.payload.year), q = Number(STATE.payload.quarter);
+                var fromY = y, fromQ = q, toY = y, toQ = q;
+                if (btn.dataset.preset === 'year') { fromQ = 1; toQ = 4; }
+                if (btn.dataset.preset === 'last4') { fromQ = q - 3; if (fromQ < 1) { fromQ += 4; fromY = y - 1; } }
+                var years = Array.prototype.map.call(document.getElementById('kdReportFromYear').options, function (o) { return Number(o.value); });
+                if (years.indexOf(fromY) === -1) { fromY = Math.min.apply(null, years); fromQ = 1; }
+                document.getElementById('kdReportFromYear').value    = fromY;
+                document.getElementById('kdReportFromQuarter').value = fromQ;
+                document.getElementById('kdReportToYear').value      = toY;
+                document.getElementById('kdReportToQuarter').value   = toQ;
+                document.querySelectorAll('.kd-report-preset').forEach(function (b) { b.classList.toggle('active', b === btn); });
+            });
         });
         document.getElementById('kdCloseReportModal').addEventListener('click', closeReportModal);
         document.getElementById('kdCancelReport').addEventListener('click', closeReportModal);
         reportModal.addEventListener('click', function (e) { if (e.target === reportModal) closeReportModal(); });
 
-        function actualTargetCell(actualText, targetText, hasTarget, hit) {
-            var cls = hasTarget ? (hit ? 'hit-y' : 'hit-n') : '';
+        function actualTargetCell(actualText, targetText, hasTarget, hit, actual, target) {
+            var cls = '';
+            if (hasTarget) {
+                var lvl = (actual !== undefined) ? achievementLevel(actual, target) : null;
+                cls = lvl ? (lvl.key === 'hit' ? 'hit-y' : (lvl.key === 'tolerable' ? 'hit-t' : 'hit-n')) : (hit ? 'hit-y' : 'hit-n');
+            }
             return '<span class="' + cls + '">' + actualText + '</span>' +
                 ' <span class="muted">/ ' + (hasTarget ? targetText : '—') + '</span>';
         }
@@ -1526,14 +1763,39 @@
                 .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
 
+        /* Small coloured status pill for the printed report */
+        function reportPill(label, color, bg) {
+            return '<span class="pill" style="color:' + color + ';background:' + bg + ';">' + label + '</span>';
+        }
+        var LEVEL_BG = { hit: '#E7F6EC', tolerable: '#FEF9C3', below: '#FEE4E2' };
+        function targetPill(hasTarget, actual, target) {
+            if (!hasTarget) return reportPill('No target set', '#666', '#F0F0F0');
+            var lvl = achievementLevel(actual, target);
+            return reportPill(lvl.label, lvl.color, LEVEL_BG[lvl.key]);
+        }
+
+        var REPORT_LOGO_URL = @json(asset('images/gmdlogo-circle.svg'));
+
         function buildReportDocument(data) {
             var rows = data.quarters.map(function (q) {
-                var profitCell = actualTargetCell(fmtPeso(q.profit.net_profit), fmtPeso(q.profit.target), q.profit.has_target, q.profit.hit);
-                var onTimeCell = actualTargetCell(q.on_time.on_time_count, q.on_time.target, q.on_time.has_target, q.on_time.hit);
+                var profitCell = actualTargetCell(fmtPeso(q.profit.net_profit), fmtPeso(q.profit.target), q.profit.has_target, q.profit.hit, q.profit.net_profit, q.profit.target) +
+                    '<div class="cell-pill">' + targetPill(q.profit.has_target, q.profit.net_profit, q.profit.target) + '</div>';
+                var onTimeCell;
+                if (!q.project_count) {
+                    onTimeCell = '<span class="muted">No completed projects</span>' +
+                        (q.on_time.has_target ? ' <span class="muted">/ ' + fmtPct(q.on_time.target) + '</span>' : '');
+                } else {
+                    var otLvl = q.on_time.has_target ? onTimeLevel(q.on_time.rate, q.on_time.target) : null;
+                    onTimeCell = '<span class="' + (otLvl ? (otLvl.key === 'hit' ? 'hit-y' : (otLvl.key === 'tolerable' ? 'hit-t' : 'hit-n')) : '') + '">' + fmtPct(q.on_time.rate) + '</span>' +
+                        ' <span class="muted">/ ' + (q.on_time.has_target ? fmtPct(q.on_time.target) : '—') + '</span>' +
+                        '<div class="muted small">' + q.on_time.on_time_count + ' of ' + q.project_count + ' on time</div>' +
+                        '<div class="cell-pill">' + (otLvl ? reportPill(otLvl.label, otLvl.color, LEVEL_BG[otLvl.key]) : targetPill(false)) + '</div>';
+                }
                 var budgetStatus = budgetRangeStatus(q.budget.adherence_rate);
-                // A quarter with no completed projects has nothing to measure — not "0% / significantly under budget"
+                // A quarter with no completed projects has nothing to measure — not "0% / well below estimate"
                 var budgetCell = q.project_count
-                    ? '<span style="color:' + budgetStatus.color + ';font-weight:800;">' + fmtPct(q.budget.adherence_rate) + '</span> <span class="muted">' + budgetStatus.label + '</span>'
+                    ? '<span style="color:' + budgetStatus.color + ';font-weight:800;">' + fmtPct(q.budget.adherence_rate) + '</span>' +
+                      '<div class="cell-pill">' + reportPill(budgetStatus.label, budgetStatus.color, budgetStatus.bg) + '</div>'
                     : '<span class="muted">—</span>';
 
                 return '<tr>' +
@@ -1564,7 +1826,7 @@
             function budgetOkSummary() {
                 var withProjects = data.quarters.filter(function (q) { return q.project_count > 0; });
                 if (!withProjects.length) return '—';
-                var okCount = withProjects.filter(function (q) { return q.budget.adherence_rate <= 100; }).length;
+                var okCount = withProjects.filter(function (q) { return q.budget.adherence_rate <= 103; }).length;
                 return okCount + ' / ' + withProjects.length + ' quarters';
             }
 
@@ -1615,10 +1877,10 @@
             }
 
             if (withData.length) {
-                var overBudgetCount = withData.filter(function (q) { return q.budget.adherence_rate > 100; }).length;
+                var overBudgetCount = withData.filter(function (q) { return q.budget.adherence_rate > 103; }).length;
                 takeaways.push(overBudgetCount === 0
-                    ? 'No quarter in this range exceeded its estimated budget.'
-                    : overBudgetCount + ' of ' + withData.length + ' quarter' + (withData.length === 1 ? '' : 's') + ' ran over the estimated budget.');
+                    ? 'No quarter in this range went over budget (every quarter stayed at or below 103% of its estimate).'
+                    : overBudgetCount + ' of ' + withData.length + ' quarter' + (withData.length === 1 ? '' : 's') + ' went over budget (above 103% of the estimate).');
             }
 
             var idleQuarters = data.quarters.filter(function (q) { return q.project_count === 0; });
@@ -1646,7 +1908,7 @@
 
             var quarterLabels = data.quarters.map(function (q) { return q.label; });
             var profitSeries  = data.quarters.map(function (q) { return q.profit.net_profit; });
-            var onTimeSeries  = data.quarters.map(function (q) { return q.on_time.on_time_count; });
+            var onTimeSeries  = data.quarters.map(function (q) { return q.project_count ? q.on_time.rate : null; });
             var budgetSeries  = data.quarters.map(function (q) { return q.budget.adherence_rate; });
 
             // ── Cost & Revenue Breakdown: the "why" behind the profit numbers above ──
@@ -1722,124 +1984,201 @@
             var company = data.company || {};
             var contactLine = [company.address, company.phone, company.email].filter(Boolean).map(escapeHtml).join(' &nbsp;·&nbsp; ');
 
-            return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>KPI Report — ' + data.from_label + ' to ' + data.to_label + '</title>' +
+            // ── KPI scorecard: the same three KPIs and statuses as the dashboard, for the whole range ──
+            function rangeTarget(pick, actualOf) {
+                var targeted = data.quarters.filter(function (q) { return pick(q).has_target; });
+                if (!targeted.length) return null;
+                return {
+                    actual: targeted.reduce(function (sum, q) { return sum + actualOf(q); }, 0),
+                    target: targeted.reduce(function (sum, q) { return sum + (pick(q).target || 0); }, 0),
+                    count:  targeted.length
+                };
+            }
+            var profitRange = rangeTarget(function (q) { return q.profit; },  function (q) { return q.profit.net_profit; });
+            // range target rate = average of the quarter target rates that were set; the actual rate is
+            // recomputed from the summed counts (never an average of quarterly rates)
+            var onTimeTargets = data.quarters.filter(function (q) { return q.on_time.has_target; }).map(function (q) { return q.on_time.target; });
+            var onTimeRangeTarget = onTimeTargets.length ? onTimeTargets.reduce(function (s2, v) { return s2 + v; }, 0) / onTimeTargets.length : null;
+            var onTimeRangeLvl = (onTimeRangeTarget !== null && totalProjects > 0) ? onTimeLevel(overallOnTimeRate, onTimeRangeTarget) : null;
+
+            function scoreCard(name, value, sub, pillHtml, foot) {
+                return '<div class="kpi">' +
+                    '<div class="kpi-top"><span class="kpi-name">' + name + '</span>' + pillHtml + '</div>' +
+                    '<div class="kpi-value">' + value + '</div>' +
+                    '<div class="kpi-sub">' + sub + '</div>' +
+                    (foot ? '<div class="kpi-foot">' + foot + '</div>' : '') +
+                '</div>';
+            }
+            function achievementFoot(range, fmt) {
+                if (!range) return 'No owner target was set in this range';
+                var lvl = achievementLevel(range.actual, range.target);
+                return 'Target ' + fmt(range.target) + ' &middot; ' + fmtPct(lvl.pct) + ' achieved';
+            }
+            var budgetOverall = budgetRangeStatus(overallAdherence);
+            var scorecardHtml = totalProjects === 0 && !profitRange && onTimeRangeTarget === null
+                ? '<div class="empty">No completed projects and no KPI targets in this range — nothing to score yet.</div>'
+                : '<div class="kpis">' +
+                    scoreCard('Project profit margin rate', overallMargin.toFixed(1) + '%', fmtPeso(totalProfit) + ' net profit',
+                        profitRange ? targetPill(true, profitRange.actual, profitRange.target) : targetPill(false),
+                        achievementFoot(profitRange, fmtPeso)) +
+                    scoreCard('On-time delivery rate', totalProjects ? overallOnTimeRate.toFixed(1) + '%' : 'No completed projects',
+                        totalProjects ? totalOnTime + ' of ' + totalProjects + ' project' + (totalProjects === 1 ? '' : 's') + ' on time' : 'The rate shows once a project is completed',
+                        onTimeRangeLvl ? reportPill(onTimeRangeLvl.label, onTimeRangeLvl.color, LEVEL_BG[onTimeRangeLvl.key]) : (onTimeRangeTarget === null ? targetPill(false) : ''),
+                        onTimeRangeTarget === null ? 'No owner target was set in this range'
+                            : 'Target rate ' + fmtPct(onTimeRangeTarget) + (onTimeRangeLvl ? ' &middot; ' + (onTimeRangeLvl.points >= 0 ? '+' : '−') + fmtPts(onTimeRangeLvl.points) : '')) +
+                    scoreCard('Budget adherence rate', totalProjects ? overallAdherence.toFixed(1) + '%' : '—',
+                        totalProjects ? fmtPeso(totalActualCost) + ' spent of ' + fmtPeso(totalEstBudget) + ' budget' : 'No completed projects',
+                        totalProjects ? reportPill(budgetOverall.label, budgetOverall.color, budgetOverall.bg) : '',
+                        'Healthy range 90% – 100%') +
+                  '</div>';
+
+            var periodText = data.from_label + (data.from_label !== data.to_label ? ' – ' + data.to_label : '');
+            var sectionNo = 0;
+            function section(title) { sectionNo++; return '<div class="section-title"><span>' + sectionNo + '</span>' + title + '</div>'; }
+
+            return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>KPI Report — ' + periodText + '</title>' +
                 '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"><\/script>' +
                 '<style>' +
-                    'body{font-family:Arial,Helvetica,sans-serif;color:#222;padding:32px;}' +
-                    'h1{font-size:20px;margin:0 0 4px;}' +
-                    '.sub{color:#666;font-size:13px;margin-bottom:18px;}' +
-                    '.narrative{background:#f5f5f5;border:1px solid #e0e0e0;border-radius:10px;padding:14px 16px;font-size:13px;line-height:1.6;margin-bottom:22px;}' +
-                    '.stats{display:flex;gap:14px;margin-bottom:24px;}' +
-                    '.stat{flex:1;border:1px solid #e0e0e0;border-radius:10px;padding:14px 16px;}' +
-                    '.stat-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#666;font-weight:700;margin-bottom:6px;}' +
-                    '.stat-value{font-size:22px;font-weight:900;color:#222;}' +
-                    '.stat-sub{font-size:11.5px;color:#666;margin-top:4px;}' +
-                    '.charts{display:flex;gap:14px;margin-bottom:26px;}' +
-                    '.chart-box{flex:1;border:1px solid #e0e0e0;border-radius:10px;padding:12px 14px;overflow:hidden;}' +
-                    '.chart-title{font-size:11.5px;font-weight:700;color:#333;margin-bottom:8px;}' +
+                    '*{box-sizing:border-box;}' +
+                    'body{font-family:"Segoe UI",Arial,Helvetica,sans-serif;color:#222;margin:0;padding:28px 34px;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;}' +
+                    '.toolbar{position:sticky;top:0;z-index:5;display:flex;justify-content:space-between;align-items:center;gap:12px;margin:-28px -34px 22px;padding:12px 34px;background:#222;color:#fff;font-size:13px;}' +
+                    '.toolbar button{font:inherit;font-weight:700;border:none;border-radius:999px;padding:8px 16px;cursor:pointer;background:#fff;color:#222;}' +
+                    '.report-head{display:flex;justify-content:space-between;align-items:center;gap:20px;border-bottom:3px solid #222;padding-bottom:14px;margin-bottom:22px;}' +
+                    '.brand{display:flex;align-items:center;gap:14px;}' +
+                    '.brand img{width:52px;height:52px;border-radius:50%;}' +
+                    'h1{font-size:19px;margin:0 0 2px;letter-spacing:-.2px;}' +
+                    '.report-name{font-size:14px;font-weight:800;color:#555;}' +
+                    '.company{font-size:11px;color:#777;margin-top:3px;}' +
+                    '.head-meta{text-align:right;font-size:11.5px;color:#666;line-height:1.7;white-space:nowrap;}' +
+                    '.head-meta strong{color:#222;}' +
+                    '.section{margin-bottom:24px;page-break-inside:avoid;}' +
+                    '.section-title{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#222;margin:0 0 10px;}' +
+                    '.section-title span{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#222;color:#fff;font-size:10.5px;letter-spacing:0;}' +
+                    '.narrative{background:#f6f6f6;border-left:4px solid #222;border-radius:0 10px 10px 0;padding:13px 16px;font-size:13px;line-height:1.65;}' +
+                    '.kpis{display:flex;gap:12px;}' +
+                    '.kpi{flex:1;border:1px solid #e2e2e2;border-radius:12px;padding:14px 16px;}' +
+                    '.kpi-top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;}' +
+                    '.kpi-name{font-size:11.5px;font-weight:800;color:#444;}' +
+                    '.kpi-value{font-size:30px;font-weight:900;letter-spacing:-.8px;line-height:1.1;}' +
+                    '.kpi-sub{font-size:11.5px;color:#666;margin-top:3px;}' +
+                    '.kpi-foot{font-size:11px;color:#555;margin-top:10px;padding-top:8px;border-top:1px dashed #ddd;}' +
+                    '.pill{display:inline-block;font-size:10px;font-weight:800;padding:3px 9px;border-radius:999px;white-space:nowrap;}' +
+                    '.cell-pill{margin-top:4px;}' +
+                    '.stats{display:flex;gap:12px;}' +
+                    '.stat{flex:1;border:1px solid #e2e2e2;border-radius:12px;padding:12px 14px;}' +
+                    '.stat-label{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#777;font-weight:800;margin-bottom:5px;}' +
+                    '.stat-value{font-size:20px;font-weight:900;color:#222;}' +
+                    '.stat-sub{font-size:11px;color:#777;margin-top:3px;}' +
+                    '.charts{display:flex;gap:12px;}' +
+                    '.chart-box{flex:1;border:1px solid #e2e2e2;border-radius:12px;padding:12px 14px;overflow:hidden;}' +
+                    '.chart-title{font-size:11.5px;font-weight:800;color:#333;margin-bottom:8px;}' +
                     '.chart-canvas{position:relative;height:170px;width:100%;}' +
                     '.chart-canvas canvas{position:absolute;top:0;left:0;width:100% !important;height:100% !important;}' +
                     '.chart-canvas img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain;}' +
-                    '.section-title{font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#666;margin-bottom:10px;}' +
-                    '.takeaways{background:#EAF0FF;border:1px solid rgba(42,78,170,.2);border-radius:10px;padding:16px 18px;margin-bottom:26px;}' +
-                    '.takeaways ul{margin:0 0 12px 18px;padding:0;font-size:13px;line-height:1.7;color:#222;}' +
-                    '.takeaways li{margin-bottom:3px;}' +
-                    '.recommendation{font-size:13px;font-weight:700;color:#2A4EAA;}' +
-                    'table{width:100%;border-collapse:collapse;font-size:12.5px;}' +
-                    'th,td{border:1px solid #ddd;padding:8px 10px;text-align:left;}' +
-                    'th{background:#f5f5f5;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:#666;}' +
+                    '.takeaways{background:#EAF0FF;border:1px solid rgba(42,78,170,.2);border-radius:12px;padding:14px 18px;}' +
+                    '.takeaways ul{margin:0 0 10px 18px;padding:0;font-size:12.5px;line-height:1.7;color:#222;}' +
+                    '.recommendation{font-size:12.5px;font-weight:800;color:#2A4EAA;padding-top:8px;border-top:1px solid rgba(42,78,170,.2);}' +
+                    'table{width:100%;border-collapse:collapse;font-size:12px;}' +
+                    'th,td{border-bottom:1px solid #e6e6e6;padding:8px 10px;text-align:left;vertical-align:top;}' +
+                    'th{background:#222;color:#fff;font-size:10px;text-transform:uppercase;letter-spacing:.05em;}' +
+                    'thead th:first-child{border-radius:8px 0 0 0;} thead th:last-child{border-radius:0 8px 0 0;}' +
                     '.r{text-align:right;} .c{text-align:center;}' +
-                    '.hit-y{color:#207A3A;font-weight:800;} .hit-n{color:#B42318;font-weight:800;}' +
+                    '.hit-y{color:#207A3A;font-weight:800;} .hit-t{color:#A16207;font-weight:800;} .hit-n{color:#B42318;font-weight:800;}' +
                     '.muted{color:#999;font-weight:400;}' +
                     'tbody tr:nth-child(even){background:#fafafa;}' +
-                    'tfoot td{font-weight:700;background:#f0f0f0;}' +
-                    '.report-head{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;border-bottom:3px solid #222;padding-bottom:12px;margin-bottom:18px;}' +
-                    '.company{font-size:11.5px;color:#666;margin-top:3px;}' +
-                    '.head-meta{text-align:right;font-size:11.5px;color:#666;line-height:1.6;white-space:nowrap;}' +
-                    '.head-meta strong{color:#222;}' +
-                    '.small{font-size:11px;margin-top:2px;}' +
-                    '.section{margin-bottom:26px;page-break-inside:avoid;}' +
-                    '.defs{display:grid;grid-template-columns:1fr 1fr;gap:8px 22px;font-size:11.5px;color:#444;line-height:1.55;}' +
-                    '.defs strong{color:#222;}' +
-                    '.signoff{display:flex;gap:60px;margin-top:40px;page-break-inside:avoid;}' +
-                    '.sign{flex:1;font-size:12px;color:#444;}' +
-                    '.sign-line{border-top:1px solid #222;margin-top:46px;padding-top:6px;font-weight:700;color:#222;}' +
+                    'tfoot td{font-weight:800;background:#f0f0f0;border-top:2px solid #222;}' +
+                    '.small{font-size:10.5px;margin-top:2px;}' +
                     '.empty{padding:18px;text-align:center;color:#999;font-size:12.5px;border:1px dashed #ddd;border-radius:10px;}' +
-                    '@page{margin:14mm;}' +
-                    '@media print{body{padding:0;} .charts,.stats{page-break-inside:avoid;} thead{display:table-header-group;} tr{page-break-inside:avoid;}}' +
+                    '.report-foot{margin-top:28px;padding-top:10px;border-top:1px solid #ddd;display:flex;justify-content:space-between;font-size:10.5px;color:#999;}' +
+                    '@page{margin:12mm;}' +
+                    '@media print{body{padding:0;} .toolbar{display:none;} .charts,.stats,.kpis{page-break-inside:avoid;} thead{display:table-header-group;} tr{page-break-inside:avoid;}}' +
                 '</style></head><body>' +
+                '<div class="toolbar"><span>KPI Report &middot; ' + periodText + '</span><button type="button" onclick="window.print()">Print / Save as PDF</button></div>' +
                 '<div class="report-head">' +
-                    '<div>' +
-                        '<h1>GMD South Phils Metal Fabrication Works</h1>' +
-                        '<div style="font-size:15px;font-weight:800;color:#444;">Quarterly KPI Report</div>' +
-                        (contactLine ? '<div class="company">' + contactLine + '</div>' : '') +
+                    '<div class="brand">' +
+                        '<img src="' + REPORT_LOGO_URL + '" alt="">' +
+                        '<div>' +
+                            '<h1>GMD South Phils Metal Fabrication Works</h1>' +
+                            '<div class="report-name">Quarterly KPI Report</div>' +
+                            (contactLine ? '<div class="company">' + contactLine + '</div>' : '') +
+                        '</div>' +
                     '</div>' +
                     '<div class="head-meta">' +
-                        'Period: <strong>' + data.from_label + (data.from_label !== data.to_label ? ' – ' + data.to_label : '') + '</strong><br>' +
+                        'Period: <strong>' + periodText + '</strong> (' + data.quarters.length + ' quarter' + (data.quarters.length === 1 ? '' : 's') + ')<br>' +
                         'Prepared by: <strong>' + escapeHtml(data.prepared_by || 'Administrator') + '</strong><br>' +
                         'Generated: ' + data.generated_at +
                     '</div>' +
                 '</div>' +
-                '<div class="section-title">Executive Summary</div>' +
-                '<div class="narrative">' + narrative + '</div>' +
-                '<div class="stats">' +
-                    '<div class="stat"><div class="stat-label">Total Net Profit</div><div class="stat-value">' + fmtPeso(totalProfit) + '</div><div class="stat-sub">Profit target hit: ' + hitSummary(function (q) { return q.profit; }) + '</div></div>' +
-                    '<div class="stat"><div class="stat-label">On-Time Delivery</div><div class="stat-value">' + overallOnTimeRate.toFixed(1) + '%</div><div class="stat-sub">On-time target hit: ' + hitSummary(function (q) { return q.on_time; }) + '</div></div>' +
-                    '<div class="stat"><div class="stat-label">Budget Adherence</div><div class="stat-value">' + overallAdherence.toFixed(1) + '%</div><div class="stat-sub">Not over budget: ' + budgetOkSummary() + '</div></div>' +
-                '</div>' +
-                '<div class="stats">' +
-                    '<div class="stat"><div class="stat-label">Projects Completed</div><div class="stat-value">' + totalProjects + '</div><div class="stat-sub">' + delayed.length + ' delivered late</div></div>' +
-                    '<div class="stat"><div class="stat-label">Profit Margin</div><div class="stat-value">' + overallMargin.toFixed(1) + '%</div><div class="stat-sub">Net profit ÷ revenue received</div></div>' +
-                    '<div class="stat"><div class="stat-label">Average Contract Value</div><div class="stat-value">' + (projects.length ? fmtPeso(avgProjectSize) : '—') + '</div><div class="stat-sub">Per completed project</div></div>' +
-                '</div>' +
-                '<div class="charts">' +
-                    '<div class="chart-box"><div class="chart-title">Net Profit (₱)</div><div class="chart-canvas"><canvas id="repChartProfit"></canvas></div></div>' +
-                    '<div class="chart-box"><div class="chart-title">On-Time Delivery (projects)</div><div class="chart-canvas"><canvas id="repChartOnTime"></canvas></div></div>' +
-                    '<div class="chart-box"><div class="chart-title">Budget Adherence (%)</div><div class="chart-canvas"><canvas id="repChartBudget"></canvas></div></div>' +
-                '</div>' +
-                '<div class="section-title">Key Takeaways</div>' +
-                '<div class="takeaways">' +
-                    '<ul>' + takeaways.map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ul>' +
-                    '<div class="recommendation">→ ' + recommendation + '</div>' +
-                '</div>' +
-                '<div class="section-title">Cost &amp; Revenue Breakdown</div>' +
-                '<div class="stats">' +
-                    '<div class="stat"><div class="stat-label">Total Revenue</div><div class="stat-value">' + fmtPeso(totalRevenueAll) + '</div></div>' +
-                    '<div class="stat"><div class="stat-label">Material Cost</div><div class="stat-value">' + fmtPeso(totalMatCostAll) + '</div><div class="stat-sub">' + pctOfRevenue(totalMatCostAll) + '</div></div>' +
-                    '<div class="stat"><div class="stat-label">Labor Cost</div><div class="stat-value">' + fmtPeso(totalLaborAll) + '</div><div class="stat-sub">' + pctOfRevenue(totalLaborAll) + '</div></div>' +
-                    '<div class="stat"><div class="stat-label">Overhead Cost</div><div class="stat-value">' + fmtPeso(totalOverheadAll) + '</div><div class="stat-sub">' + pctOfRevenue(totalOverheadAll) + '</div></div>' +
-                '</div>' +
-                '<div class="chart-box" style="margin-bottom:26px;"><div class="chart-title">Cost Composition vs Revenue by Quarter</div><div class="chart-canvas" style="height:220px;"><canvas id="repChartCost"></canvas></div></div>' +
-                '<table style="margin-bottom:26px;"><thead><tr>' +
-                    '<th>Quarter</th><th class="r">Revenue</th><th class="r">Material</th><th class="r">Labor</th><th class="r">Overhead</th><th class="r">Total Cost</th><th class="r">Net Profit</th>' +
-                '</tr></thead><tbody>' + costRows + '</tbody>' +
-                '<tfoot><tr><td>Total</td>' +
-                    '<td class="r">' + fmtPeso(totalRevenueAll) + '</td>' +
-                    '<td class="r">' + fmtPeso(totalMatCostAll) + '</td>' +
-                    '<td class="r">' + fmtPeso(totalLaborAll) + '</td>' +
-                    '<td class="r">' + fmtPeso(totalOverheadAll) + '</td>' +
-                    '<td class="r">' + fmtPeso(totalMatCostAll + totalLaborAll + totalOverheadAll) + '</td>' +
-                    '<td class="r">' + fmtPeso(totalProfit) + '</td>' +
-                '</tr></tfoot></table>' +
-                '<div class="section-title">Quarter-by-Quarter Detail</div>' +
-                '<table><thead><tr>' +
-                    '<th>Quarter</th><th class="r">Projects</th>' +
-                    '<th class="r">Net Profit (Actual / Target)</th>' +
-                    '<th class="r">Margin</th>' +
-                    '<th class="r">On-Time (Actual / Target)</th>' +
-                    '<th class="r">Budget Adherence</th>' +
-                '</tr></thead><tbody>' + rows + '</tbody>' +
-                '<tfoot><tr><td>Total / Overall</td><td class="r">' + totalProjects + '</td>' +
-                    '<td class="r">' + fmtPeso(totalProfit) + '</td>' +
-                    '<td class="r">' + overallMargin.toFixed(1) + '%</td>' +
-                    '<td class="r">' + totalOnTime + ' (' + overallOnTimeRate.toFixed(1) + '%)</td>' +
-                    '<td class="r">' + overallAdherence.toFixed(1) + '%</td>' +
-                '</tr></tfoot></table>' +
 
-                '<div class="section-title" style="margin-top:26px;">Completed Projects</div>' +
+                '<div class="section">' + section('Executive summary') + '<div class="narrative">' + narrative + '</div></div>' +
+
+                '<div class="section">' + section('KPI scorecard') + scorecardHtml + '</div>' +
+
+                '<div class="section">' +
+                    '<div class="stats">' +
+                        '<div class="stat"><div class="stat-label">Projects completed</div><div class="stat-value">' + totalProjects + '</div><div class="stat-sub">' + delayed.length + ' delivered late</div></div>' +
+                        '<div class="stat"><div class="stat-label">Profit target hit</div><div class="stat-value">' + hitSummary(function (q) { return q.profit; }) + '</div><div class="stat-sub">Quarters at 100% or more of target</div></div>' +
+                        '<div class="stat"><div class="stat-label">On-time target hit</div><div class="stat-value">' + hitSummary(function (q) { return q.on_time; }) + '</div><div class="stat-sub">Quarters at or above the target rate</div></div>' +
+                        '<div class="stat"><div class="stat-label">Average contract value</div><div class="stat-value">' + (projects.length ? fmtPeso(avgProjectSize) : '—') + '</div><div class="stat-sub">Per completed project</div></div>' +
+                    '</div>' +
+                '</div>' +
+
+                '<div class="section">' + section('Performance trends') +
+                    '<div class="charts">' +
+                        '<div class="chart-box"><div class="chart-title">Net profit (₱)</div><div class="chart-canvas"><canvas id="repChartProfit"></canvas></div></div>' +
+                        '<div class="chart-box"><div class="chart-title">On-time delivery rate (%)</div><div class="chart-canvas"><canvas id="repChartOnTime"></canvas></div></div>' +
+                        '<div class="chart-box"><div class="chart-title">Budget adherence (%)</div><div class="chart-canvas"><canvas id="repChartBudget"></canvas></div></div>' +
+                    '</div>' +
+                '</div>' +
+
+                '<div class="section">' + section('Key takeaways') +
+                    '<div class="takeaways">' +
+                        '<ul>' + takeaways.map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ul>' +
+                        '<div class="recommendation">→ ' + recommendation + '</div>' +
+                    '</div>' +
+                '</div>' +
+
+                '<div class="section">' + section('Cost &amp; revenue breakdown') +
+                    '<div class="stats" style="margin-bottom:12px;">' +
+                        '<div class="stat"><div class="stat-label">Total revenue</div><div class="stat-value">' + fmtPeso(totalRevenueAll) + '</div></div>' +
+                        '<div class="stat"><div class="stat-label">Material cost</div><div class="stat-value">' + fmtPeso(totalMatCostAll) + '</div><div class="stat-sub">' + pctOfRevenue(totalMatCostAll) + '</div></div>' +
+                        '<div class="stat"><div class="stat-label">Labor cost</div><div class="stat-value">' + fmtPeso(totalLaborAll) + '</div><div class="stat-sub">' + pctOfRevenue(totalLaborAll) + '</div></div>' +
+                        '<div class="stat"><div class="stat-label">Overhead cost</div><div class="stat-value">' + fmtPeso(totalOverheadAll) + '</div><div class="stat-sub">' + pctOfRevenue(totalOverheadAll) + '</div></div>' +
+                    '</div>' +
+                    '<div class="chart-box" style="margin-bottom:12px;"><div class="chart-title">Cost composition vs revenue by quarter</div><div class="chart-canvas" style="height:220px;"><canvas id="repChartCost"></canvas></div></div>' +
+                    '<table><thead><tr>' +
+                        '<th>Quarter</th><th class="r">Revenue</th><th class="r">Material</th><th class="r">Labor</th><th class="r">Overhead</th><th class="r">Total cost</th><th class="r">Net profit</th>' +
+                    '</tr></thead><tbody>' + costRows + '</tbody>' +
+                    '<tfoot><tr><td>Total</td>' +
+                        '<td class="r">' + fmtPeso(totalRevenueAll) + '</td>' +
+                        '<td class="r">' + fmtPeso(totalMatCostAll) + '</td>' +
+                        '<td class="r">' + fmtPeso(totalLaborAll) + '</td>' +
+                        '<td class="r">' + fmtPeso(totalOverheadAll) + '</td>' +
+                        '<td class="r">' + fmtPeso(totalMatCostAll + totalLaborAll + totalOverheadAll) + '</td>' +
+                        '<td class="r">' + fmtPeso(totalProfit) + '</td>' +
+                    '</tr></tfoot></table>' +
+                '</div>' +
+
+                '<div class="section">' + section('Quarter-by-quarter detail') +
+                    '<table><thead><tr>' +
+                        '<th>Quarter</th><th class="r">Projects</th>' +
+                        '<th class="r">Net profit (actual / target)</th>' +
+                        '<th class="r">Margin</th>' +
+                        '<th class="r">On-time (actual / target)</th>' +
+                        '<th class="r">Budget adherence</th>' +
+                    '</tr></thead><tbody>' + rows + '</tbody>' +
+                    '<tfoot><tr><td>Total / overall</td><td class="r">' + totalProjects + '</td>' +
+                        '<td class="r">' + fmtPeso(totalProfit) + '</td>' +
+                        '<td class="r">' + overallMargin.toFixed(1) + '%</td>' +
+                        '<td class="r">' + totalOnTime + ' (' + overallOnTimeRate.toFixed(1) + '%)</td>' +
+                        '<td class="r">' + overallAdherence.toFixed(1) + '%</td>' +
+                    '</tr></tfoot></table>' +
+                '</div>' +
+
+                '<div class="section">' + section('Completed projects') +
                 (projects.length
-                    ? '<table style="margin-bottom:26px;"><thead><tr>' +
-                        '<th>Project / Client</th><th>Completed</th><th>Delivery</th><th class="r">Revenue</th><th class="r">Total Cost</th><th class="r">Net Profit</th><th class="r">Margin</th><th class="r">Budget Used</th>' +
+                    ? '<table><thead><tr>' +
+                        '<th>Project / client</th><th>Completed</th><th>Delivery</th><th class="r">Revenue</th><th class="r">Total cost</th><th class="r">Net profit</th><th class="r">Margin</th><th class="r">Budget used</th>' +
                       '</tr></thead><tbody>' + projectRows + '</tbody>' +
                       '<tfoot><tr><td colspan="3">' + projects.length + ' project' + (projects.length === 1 ? '' : 's') + '</td>' +
                         '<td class="r">' + fmtPeso(totalRevenueP) + '</td>' +
@@ -1848,7 +2187,10 @@
                         '<td class="r">' + overallMargin.toFixed(1) + '%</td>' +
                         '<td class="r">' + overallAdherence.toFixed(1) + '%</td>' +
                       '</tr></tfoot></table>'
-                    : '<div class="empty" style="margin-bottom:26px;">No projects were completed in this period.</div>') +
+                    : '<div class="empty">No projects were completed in this period.</div>') +
+                '</div>' +
+
+                '<div class="report-foot"><span>GMD South Phils Project Management System &middot; Quarterly KPI Report</span><span>Generated ' + data.generated_at + '</span></div>' +
 
                 '<script>' +
                     'window.addEventListener("load", function () {' +
@@ -1873,7 +2215,7 @@
                         '};' +
                         'if (window.Chart) {' +
                             'freeze(new Chart(document.getElementById("repChartProfit"), { type:"line", data:{ labels:labels, datasets:[{ data:profitData, borderColor:"#207A3A", backgroundColor:"rgba(32,122,58,.12)", fill:true, tension:0, pointRadius:4, pointBackgroundColor:"#207A3A", borderWidth:2 }] }, options: opts(peso) }));' +
-                            'freeze(new Chart(document.getElementById("repChartOnTime"), { type:"line", data:{ labels:labels, datasets:[{ data:onTimeData, borderColor:"#2A4EAA", backgroundColor:"rgba(42,78,170,.12)", fill:true, tension:0, pointRadius:4, pointBackgroundColor:"#2A4EAA", borderWidth:2 }] }, options: opts(function (v) { return Number.isInteger(v) ? v : ""; }) }));' +
+                            'freeze(new Chart(document.getElementById("repChartOnTime"), { type:"line", data:{ labels:labels, datasets:[{ data:onTimeData, borderColor:"#2A4EAA", backgroundColor:"rgba(42,78,170,.12)", fill:true, tension:0, pointRadius:4, pointBackgroundColor:"#2A4EAA", borderWidth:2, spanGaps:true }] }, options: opts(function (v) { return v + "%"; }) }));' +
                             'freeze(new Chart(document.getElementById("repChartBudget"), { type:"line", data:{ labels:labels, datasets:[{ data:budgetData, borderColor:"#8A6100", backgroundColor:"rgba(138,97,0,.12)", fill:true, tension:0, pointRadius:4, pointBackgroundColor:"#8A6100", borderWidth:2 }] }, options: opts(function (v) { return v + "%"; }) }));' +
                             // Cost bars stack per quarter; revenue is its own line (not stacked), drawn on top and centred on each bar
                             'freeze(new Chart(document.getElementById("repChartCost"), { data:{ labels:labels, datasets:[' +

@@ -7,6 +7,95 @@
     <title>Payment Detail | GMD South Phils</title>
     <link href="{{ asset('css/client.css') }}" rel="stylesheet">
     <style>
+        /* Phones: the cards' 380px minimum is wider than the screen, so they spilled off the right
+           edge — stack them full width instead, and keep every field inside the card */
+        @media (max-width: 640px) {
+            .pd-two-col { grid-template-columns: minmax(0, 1fr) !important; }
+            .pd-two-col > .card { min-width: 0; }
+            .pd-two-col .form-grid { grid-template-columns: minmax(0, 1fr) !important; }
+            .pd-two-col .form-group { min-width: 0; }
+            .pd-two-col input, .pd-two-col select, .pd-two-col textarea { width: 100%; max-width: 100%; min-width: 0; }
+            .pd-two-col label > span[style*="font-weight:400"] { display: block; font-size: 11.5px; margin-top: 2px; }
+            #proofMopGroup { gap: 6px !important; }
+            #proofMopGroup .mop-option { padding: 10px 6px; gap: 5px; font-size: 11.5px; justify-content: center; text-align: center; min-width: 0; }
+
+            /* Submitted Proofs + Payment History: each entry is a small card —
+               stage (+ status) on top, the amount large, then a thin line and small labelled
+               columns split by vertical separators. No sideways scrolling. */
+            .pf-proofs-table, .pf-proofs-table tbody,
+            .ph-table, .ph-table tbody { display: block; width: 100%; min-width: 0 !important; }
+            .pf-proofs-table thead, .ph-table thead { display: none; }
+            .pf-proofs-table tr.pfm-row,
+            .ph-table tr.ph-row {
+                display: grid;
+                gap: 4px 0;
+                padding: 14px 18px 12px;
+                border-bottom: 1px solid var(--border);
+            }
+            .pf-proofs-table tr.pfm-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            .ph-table tr.ph-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .pf-proofs-table tr.pfm-row:last-child, .ph-table tr.ph-row:last-child { border-bottom: none; }
+            .pf-proofs-table tr.pfm-row td, .ph-table tr.ph-row td { display: block; padding: 0 !important; border: none !important; min-width: 0; white-space: normal; }
+
+            /* top: stage name (+ status badge for proofs) */
+            .pf-proofs-table td.pfm-stage { grid-column: 1 / 3; grid-row: 1; align-self: center; }
+            .ph-table td.ph-stage { grid-column: 1 / -1; grid-row: 1; align-self: center; }
+            .pf-proofs-table td.pfm-stage, .ph-table td.ph-stage { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+            .pf-proofs-table td.pfm-status { grid-column: 3; grid-row: 1 / 3; justify-self: end; align-self: center; }
+            .pf-proofs-table td.pfm-status .status-badge { font-size: 10.5px; padding: 4px 10px; white-space: nowrap; }
+
+            /* the amount, large */
+            .pf-proofs-table td.pfm-amount { grid-column: 1 / 3; grid-row: 2; }
+            .ph-table td.ph-amount { grid-column: 1 / -1; grid-row: 2; }
+            .pf-proofs-table td.pfm-amount strong, .ph-table td.ph-amount strong { font-size: 19px; font-weight: 900; letter-spacing: -.3px; white-space: nowrap; }
+
+            /* bottom: labelled details under a thin line, split by vertical separators */
+            .pf-proofs-table td.pfm-date, .pf-proofs-table td.pfm-mode, .pf-proofs-table td.pfm-file,
+            .ph-table td.ph-date, .ph-table td.ph-receipt {
+                grid-row: 3;
+                margin-top: 8px;
+                padding: 9px 10px 0 !important;
+                border-top: 1px dashed var(--border) !important;
+                font-size: 12px; font-weight: 800; color: var(--dark);
+                white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            }
+            .pf-proofs-table td.pfm-date, .ph-table td.ph-date { grid-column: 1; padding-left: 0 !important; }
+            .pf-proofs-table td.pfm-mode { grid-column: 2; border-left: 1px solid var(--border) !important; }
+            .pf-proofs-table td.pfm-file { grid-column: 3; border-left: 1px solid var(--border) !important; }
+            .ph-table td.ph-receipt { grid-column: 2; border-left: 1px solid var(--border) !important; }
+            .pf-proofs-table td[data-label]::before, .ph-table td[data-label]::before {
+                content: attr(data-label);
+                display: block;
+                margin-bottom: 2px;
+                font-size: 9px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--muted);
+            }
+            .pf-proofs-table td.pfm-file a, .ph-table td.ph-receipt a { font-size: 12px; }
+            .pf-proofs-table td.pfm-file svg, .ph-table td.ph-receipt svg { width: 13px !important; height: 13px !important; }
+            .pf-proofs-table .pfm-file-word { display: inline; }
+            .pf-proofs-table .pfm-nofile { font-weight: 700; }
+            .ph-table td.ph-receipt [data-receipt-set] { flex-direction: row !important; gap: 8px !important; }
+
+            /* payment notes: a soft box at the bottom, only when there are notes */
+            .ph-table td.ph-notes { grid-column: 1 / -1; grid-row: 4; margin-top: 10px; font-size: 12px; color: var(--dark);
+                                    background: var(--cream-soft); border-radius: 8px; padding: 7px 10px !important; }
+            .ph-table td.ph-notes.is-empty { display: none; }
+
+            /* room under the last card so the floating chat button doesn't cover it */
+            main { padding-bottom: 92px !important; }
+
+            /* the 4 summary cards sit 2 by 2 — icon on top, then the amount and label */
+            .pd-stats { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 12px !important; }
+            .pd-stats .stat-card { flex-direction: column; gap: 10px; padding: 16px 14px 16px 16px; border-radius: 18px; min-width: 0; }
+            .pd-stats .stat-card::before { top: 16px; height: 34px; }
+            .pd-stats .stat-icon { width: 36px; height: 36px; border-radius: 10px; }
+            .pd-stats .stat-icon svg { width: 18px; height: 18px; }
+            .pd-stats .stat-info { min-width: 0; width: 100%; }
+            .pd-stats .stat-value { font-size: clamp(16px, 5vw, 22px) !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .pd-stats .stat-label { font-size: 11.5px; line-height: 1.3; }
+        }
+
+        .pfm-file-word { display: none; }
+
         /* Mode of Payment picker — mirrors the admin Record Payment modal's icon buttons */
         .mop-option {
             display: flex;
@@ -111,7 +200,7 @@
             </div>
 
             <!-- Summary Cards -->
-            <div class="stats-grid">
+            <div class="stats-grid pd-stats">
                 <div class="stat-card teal">
                     <div class="stat-icon teal"><i data-lucide="file-text"></i></div>
                     <div class="stat-info">
@@ -142,7 +231,7 @@
                 </div>
             </div>
 
-            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(380px, 1fr));gap:20px;align-items:stretch;margin-bottom:20px;">
+            <div class="pd-two-col" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(380px, 1fr));gap:20px;align-items:stretch;margin-bottom:20px;">
             <!-- Upload Proof of Payment -->
             <div class="card">
                 <div class="card-header pf-header-dark">
@@ -266,27 +355,27 @@
                         <tbody>
                             @foreach($payment->proofs as $proof)
                             @php $proofSettled = $proof->status === 'confirmed' || in_array($proof->payment_stage, $paidStages); @endphp
-                            <tr>
-                                <td>
+                            <tr class="pfm-row">
+                                <td class="pfm-file" data-label="File">
                                     @if($proof->file_url)
                                     <a href="{{ $proof->file_url }}" target="_blank" data-receipt style="display:inline-flex;align-items:center;gap:6px;color:var(--accent);font-weight:700;text-decoration:none;">
                                         <i data-lucide="file-text" style="width:14px;height:14px;"></i> View
                                     </a>
                                     @else
-                                    <span style="color:var(--muted);">—</span>
+                                    <span class="pfm-nofile" style="color:var(--muted);">—<span class="pfm-file-word">&nbsp;None</span></span>
                                     @endif
                                 </td>
-                                <td>{{ \App\Models\PaymentTransaction::stageLabel($proof->payment_stage) }}</td>
-                                <td><strong>₱{{ number_format($proof->amount ?? 0, 2) }}</strong></td>
-                                <td>{{ $proof->modeOfPaymentLabel() }}</td>
-                                <td>
+                                <td class="pfm-stage">{{ \App\Models\PaymentTransaction::stageLabel($proof->payment_stage) }}</td>
+                                <td class="pfm-amount"><strong>₱{{ number_format($proof->amount ?? 0, 2) }}</strong></td>
+                                <td class="pfm-mode" data-label="Mode">{{ $proof->modeOfPaymentLabel() }}</td>
+                                <td class="pfm-status">
                                     @if($proofSettled)
                                         <span class="status-badge completed">Confirmed</span>
                                     @else
                                         <span class="status-badge pending">Pending Review</span>
                                     @endif
                                 </td>
-                                <td>{{ $proof->created_at->format('M d, Y') }}</td>
+                                <td class="pfm-date" data-label="Submitted">{{ $proof->created_at->format('M d, Y') }}</td>
                             </tr>
                             @endforeach
                         </tbody>
@@ -302,7 +391,7 @@
             @endif
             </div>
 
-            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));gap:20px;align-items:start;">
+            <div class="pd-two-col" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));gap:20px;align-items:start;">
             @if($payment->billingStatements->isNotEmpty())
             <!-- Billing Statements -->
             <div class="card" style="overflow:hidden;">
@@ -355,7 +444,7 @@
                     </div>
                 @else
                     <div class="table-wrap">
-                        <table>
+                        <table class="ph-table">
                             <thead>
                                 <tr>
                                     <th>Date</th>
@@ -367,12 +456,12 @@
                             </thead>
                             <tbody>
                                 @foreach($payment->transactions->sortByDesc('payment_date') as $tx)
-                                    <tr>
-                                        <td>{{ \Carbon\Carbon::parse($tx->payment_date)->format('M d, Y') }}</td>
-                                        <td>{{ \App\Models\PaymentTransaction::stageLabel($tx->payment_stage) }}</td>
-                                        <td><strong style="color:var(--success);">₱{{ number_format($tx->amount_paid, 2) }}</strong></td>
-                                        <td>{{ $tx->notes ?? '—' }}</td>
-                                        <td>
+                                    <tr class="ph-row">
+                                        <td class="ph-date" data-label="Date Paid">{{ \Carbon\Carbon::parse($tx->payment_date)->format('M d, Y') }}</td>
+                                        <td class="ph-stage">{{ \App\Models\PaymentTransaction::stageLabel($tx->payment_stage) }}</td>
+                                        <td class="ph-amount"><strong style="color:var(--success);">₱{{ number_format($tx->amount_paid, 2) }}</strong></td>
+                                        <td class="ph-notes{{ $tx->notes ? '' : ' is-empty' }}">{{ $tx->notes ?? '—' }}</td>
+                                        <td class="ph-receipt" data-label="Receipt">
                                             @php $receiptUrls = !empty($tx->receipt_urls) ? $tx->receipt_urls : array_filter([$tx->receipt_url]); @endphp
                                             @if(!empty($receiptUrls))
                                             <div style="display:flex;flex-direction:column;gap:3px;" data-receipt-set>

@@ -77,6 +77,7 @@
         }
         .su-form-group input.input-error { border-color: #fca5a5; }
         .field-error { font-size: 12px; color: var(--danger); margin-top: 6px; display: block; font-weight: 600; }
+        .email-check-ok { font-size: 12px; color: #15803d; margin-top: 6px; display: block; font-weight: 600; }
 
         .su-form-group select {
             width: 100%; height: 48px; padding: 0 40px 0 14px;
@@ -211,11 +212,14 @@
                     <div class="su-form-row" style="margin-top:16px;">
                         <div class="su-form-group">
                             <label>Email Address</label>
-                            <input type="email" name="email" required
+                            <input type="email" name="email" id="signupEmail" required
                                    value="{{ old('email') }}"
                                    placeholder="your@email.com"
                                    class="{{ $errors->has('email') ? 'input-error' : '' }}">
-                            @error('email')<span class="field-error">{{ $message }}</span>@enderror
+                            @error('email')<span class="field-error" id="emailServerError">{{ $message }}</span>@enderror
+                            {{-- Live check: format, common typos, and whether the email's domain really exists --}}
+                            <span class="field-error" id="emailCheckMsg" style="display:none;"></span>
+                            <span class="email-check-ok" id="emailCheckOk" style="display:none;">Email looks good</span>
                         </div>
                         <div class="su-form-group">
                             <label>Contact Number</label>
@@ -633,6 +637,63 @@
         el.classList.toggle('met',  pw === conf);
         el.classList.toggle('fail', pw !== conf);
     }
+
+    /* ── Email check: runs when the client leaves the email box (and shortly after they stop
+       typing). Flags a badly formatted email, a misspelled domain, a domain that doesn't exist,
+       or an email that's already registered. The server checks again on submit. ── */
+    (function () {
+        var input   = document.getElementById('signupEmail');
+        var msg     = document.getElementById('emailCheckMsg');
+        var okMsg   = document.getElementById('emailCheckOk');
+        var server  = document.getElementById('emailServerError');
+        var form    = document.getElementById('signupForm');
+        var state   = 'unchecked';   // unchecked | checking | ok | bad
+        var lastValue = null, timer = null;
+
+        function show(ok, text) {
+            if (server) server.style.display = 'none';
+            input.classList.toggle('input-error', !ok);
+            msg.style.display   = ok ? 'none' : 'block';
+            msg.textContent     = ok ? '' : text;
+            okMsg.style.display = ok ? 'block' : 'none';
+        }
+
+        function check() {
+            var value = input.value.trim();
+            if (!value) { state = 'unchecked'; msg.style.display = 'none'; okMsg.style.display = 'none'; return; }
+            if (value === lastValue && state !== 'unchecked') return;
+            lastValue = value;
+            state = 'checking';
+            fetch('{{ route('signup.check_email') }}?email=' + encodeURIComponent(value), { headers: { 'Accept': 'application/json' } })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (input.value.trim() !== value) return;   // they kept typing — a newer check will follow
+                    state = data.ok ? 'ok' : 'bad';
+                    show(data.ok, data.message);
+                })
+                .catch(function () { state = 'unchecked'; });   // can't reach the check — the server still validates on submit
+        }
+
+        input.addEventListener('blur', check);
+        input.addEventListener('input', function () {
+            state = 'unchecked';
+            okMsg.style.display = 'none';
+            clearTimeout(timer);
+            timer = setTimeout(check, 700);
+        });
+
+        // Runs before the "Creating account…" spinner: a known-bad email stops the submit
+        form.addEventListener('submit', function (e) {
+            if (state === 'bad') {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                input.focus();
+                input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }, true);
+
+        if (input.value.trim() && !server) check();
+    })();
 
     document.getElementById('signupForm').addEventListener('submit', function () {
         var btn = document.getElementById('submitBtn');
