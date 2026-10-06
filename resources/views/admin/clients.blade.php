@@ -87,6 +87,8 @@
                                     'name'             => $client->full_name,
                                     'username'         => $client->username ?? '—',
                                     'email'            => $client->email ?? '—',
+                                    'email_verified'   => $client->hasVerifiedEmail(),
+                                    'email_verified_at'=> $client->email_verified_at?->format('M d, Y h:i A'),
                                     'contact'          => $client->contact ?? '—',
                                     'status'           => $client->status,
                                     'region'           => $client->region,
@@ -107,7 +109,13 @@
                                         {{ $client->username ?? '—' }}
                                     </span>
                                 </td>
-                                <td>{{ $client->email ?? '—' }}</td>
+                                <td>
+                                    {{ $client->email ?? '—' }}
+                                    {{-- Email status is separate from approval: a sign-up only reaches this list once verified --}}
+                                    @if($client->email && $client->status === 'Pending' && $client->hasVerifiedEmail())
+                                    <div><span class="email-verified-pill" title="Verified {{ $client->email_verified_at->format('M d, Y h:i A') }}"><i data-lucide="badge-check"></i>Email verified</span></div>
+                                    @endif
+                                </td>
                                 <td>{{ $client->contact ?? '—' }}</td>
                                 <td style="text-align:center;">
                                     <span style="font-weight:600;color:var(--text-primary);">{{ $client->projects_count ?? 0 }}</span>
@@ -339,7 +347,7 @@
                         <input type="text" id="viewClientUsername" disabled>
                     </div>
                     <div class="form-group">
-                        <label>Email</label>
+                        <label>Email <span id="viewClientEmailStatus"></span></label>
                         <input type="text" id="viewClientEmail" disabled>
                     </div>
                     <div class="form-group">
@@ -513,6 +521,12 @@
                     document.getElementById('viewClientName').value     = c.name;
                     document.getElementById('viewClientUsername').value = c.username;
                     document.getElementById('viewClientEmail').value    = c.email;
+                    document.getElementById('viewClientEmailStatus').innerHTML = (c.email && c.email !== '—')
+                        ? (c.email_verified
+                            ? '<span class="email-verified-pill"' + (c.email_verified_at ? ' title="Verified ' + c.email_verified_at + '"' : '') + '><i data-lucide="badge-check"></i>Verified</span>'
+                            : '<span class="email-verified-pill unverified"><i data-lucide="mail-warning"></i>Unverified</span>')
+                        : '';
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
                     document.getElementById('viewClientContact').value  = c.contact;
                     document.getElementById('viewClientProjects').value = c.projects_count;
                     document.getElementById('viewClientCreated').value  = c.created_at || '—';

@@ -95,7 +95,7 @@
             <span>Employees</span>
         </a>
 
-        @php $pendingClientCount = \App\Models\Client::where('status', 'Pending')->count(); @endphp
+        @php $pendingClientCount = \App\Models\Client::awaitingApproval()->count(); /* email-verified sign-ups only */ @endphp
         <a href="{{ route('admin.clients') }}"
            class="{{ request()->routeIs('admin.clients') ? 'active' : '' }}"
            title="Clients">

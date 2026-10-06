@@ -45,7 +45,10 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::get('/signup', [ClientSignupController::class, 'show'])->name('signup');
 Route::post('/signup', [ClientSignupController::class, 'store'])->name('signup.post');
 Route::get('/signup/next-username', [ClientSignupController::class, 'nextUsername'])->name('signup.next_username');
-Route::get('/signup/check-email', [ClientSignupController::class, 'checkEmail'])->name('signup.check_email')->middleware('throttle:30,1');
+// Email verification — separate from admin approval (verifying does not log the client in)
+Route::get('/signup/verify-email', [ClientSignupController::class, 'verifyNotice'])->name('signup.verify_notice');
+Route::get('/signup/verify/{token}', [ClientSignupController::class, 'verify'])->name('signup.verify')->middleware('throttle:20,1');
+Route::post('/signup/resend-verification', [ClientSignupController::class, 'resend'])->name('signup.resend_verification')->middleware('throttle:3,1');
 
 // First-Login Credential Setup (client & employee, no profile.complete middleware here)
 Route::get('/setup/credentials', [FirstLoginController::class, 'show'])->name('setup.credentials');

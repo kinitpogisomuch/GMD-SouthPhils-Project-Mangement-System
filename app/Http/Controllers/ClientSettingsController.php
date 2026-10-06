@@ -20,7 +20,7 @@ class ClientSettingsController extends Controller
     public function pendingCount()
     {
         return response()->json([
-            'count' => Client::where('status', 'Pending')->count(),
+            'count' => Client::awaitingApproval()->count(),   // only email-verified sign-ups
         ]);
     }
 
@@ -62,6 +62,8 @@ class ClientSettingsController extends Controller
                 'password'    => bcrypt($pin),
                 'first_login' => true,
                 'status'      => 'Active',
+                // Created by the admin, not self sign-up — nothing to verify
+                'email_verified_at' => now(),
             ];
 
             $client = $hasEmail
@@ -137,9 +139,20 @@ class ClientSettingsController extends Controller
             ->with('success', $restore ? 'Client restored successfully.' : 'Client archived successfully.');
     }
 
+    /** Only email-verified sign-ups can be approved or rejected */
+    private function unverifiedRedirect(Client $client)
+    {
+        if ($client->status === 'Pending' && !$client->hasVerifiedEmail()) {
+            return redirect()->route('admin.clients')
+                ->with('error', $client->name . ' hasn\'t verified their email yet, so the account can\'t be reviewed.');
+        }
+        return null;
+    }
+
     public function approve(Request $request, $id)
     {
         $client = Client::findOrFail($id);
+        if ($blocked = $this->unverifiedRedirect($client)) return $blocked;
 
         $request->validate([
             'approved_date' => 'nullable|date',
@@ -180,6 +193,7 @@ class ClientSettingsController extends Controller
     public function reject(Request $request, $id)
     {
         $client = Client::findOrFail($id);
+        if ($blocked = $this->unverifiedRedirect($client)) return $blocked;
         $client->update([
             'status'            => 'Rejected',
             'rejection_reason'  => $request->input('reason'),

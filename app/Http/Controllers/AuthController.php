@@ -106,14 +106,24 @@ class AuthController extends Controller
             ->first();
 
         if ($client && $client->password && Hash::check($password, $client->password)) {
+            // Email verification comes first, and is separate from admin approval
+            if ($client->status === 'Pending' && $client->email_verified_at === null) {
+                return redirect()->route('login')
+                    ->with('error', 'Please verify your email address first. We sent a verification link to ' . $client->email . '.')
+                    ->with('resend_verification_email', $client->email)
+                    ->withInput(['email' => $username]);
+            }
             if ($client->status === 'Pending') {
                 return redirect()->route('login')
-                    ->with('error', 'Your account is pending admin approval. Please check back soon.')
+                    ->with('info', 'Your email has been verified. Your account is currently waiting for admin approval.')
                     ->withInput(['email' => $username]);
             }
             if ($client->status === 'Rejected') {
+                $reason = trim((string) ($client->rejection_reason ?? ''));
                 return redirect()->route('login')
-                    ->with('error', 'Your account application was not approved. Please contact us for details.')
+                    ->with('error', 'Your account application was rejected by GMD South Phils.' .
+                        ($reason !== '' ? ' Reason: ' . $reason : '') .
+                        ' Please contact us if you have questions.')
                     ->withInput(['email' => $username]);
             }
             if ($client->status !== 'Active') {

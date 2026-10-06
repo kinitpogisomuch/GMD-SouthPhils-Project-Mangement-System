@@ -43,6 +43,24 @@
                 </div>
                 @endif
 
+                @if(session('resend_verification_email'))
+                {{-- Unverified sign-up: let them get a fresh verification link right here --}}
+                <form method="POST" action="{{ route('signup.resend_verification') }}" style="margin:-6px 0 16px;text-align:center;">
+                    @csrf
+                    <input type="hidden" name="email" value="{{ session('resend_verification_email') }}">
+                    <button type="submit" class="forgot-link" style="background:none;border:none;cursor:pointer;font:inherit;font-size:12.5px;font-weight:700;color:var(--dark);text-decoration:underline;">
+                        Resend verification email
+                    </button>
+                </form>
+                @endif
+
+                @if(session('info'))
+                <div class="success-message" style="background:#EAF0FF;border-color:rgba(42,78,170,.25);color:#2A4EAA;">
+                    <i data-lucide="hourglass"></i>
+                    <span>{{ session('info') }}</span>
+                </div>
+                @endif
+
                 @if(session('success'))
                 <div class="success-message">
                     <i data-lucide="check-circle"></i>

@@ -6760,3 +6760,30 @@ body.page-enter .admin-content {
 .is-open .burger-lines span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
 .is-open .burger-lines span:nth-child(2) { opacity: 0; }
 .is-open .burger-lines span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+
+/* Admin → Clients: email status pill (separate from the account's approval status) */
+.email-verified-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 4px;
+    font-size: 10.5px;
+    font-weight: 800;
+    color: #207A3A;
+    background: #E7F6EC;
+    border-radius: 999px;
+    padding: 2px 8px;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.email-verified-pill svg {
+    width: 11px;
+    height: 11px;
+}
+
+.email-verified-pill.unverified {
+    color: #8A6100;
+    background: #FFF3D6;
+}

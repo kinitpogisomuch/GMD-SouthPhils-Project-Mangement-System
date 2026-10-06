@@ -1110,7 +1110,9 @@ class AdminController extends Controller
 
     public function clients()
     {
-        $clients = Client::orderBy('created_at', 'desc')->get();
+        // Sign-ups that haven't verified their email yet aren't shown — only verified accounts
+        // are available for approval.
+        $clients = Client::visibleToAdmin()->orderBy('created_at', 'desc')->get();
 
         // Counted by client_id (stable — survives a client rename or relink),
         // with a name-matching fallback for the rare project that predates

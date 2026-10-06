@@ -26,14 +26,40 @@ class Client extends Model
         'barangay',
         'street_address',
         'password_updated_at',
+        'rejection_reason',
+        'email_verified_at',
+        'email_verification_token',
+        'email_verification_sent_at',
     ];
 
-    protected $hidden = ['password'];
+    protected $hidden = ['password', 'email_verification_token'];
 
     protected $casts = [
-        'password'    => 'hashed',
-        'first_login' => PostgresBoolean::class,
+        'password'                   => 'hashed',
+        'first_login'                => PostgresBoolean::class,
+        'email_verified_at'          => 'datetime',
+        'email_verification_sent_at' => 'datetime',
     ];
+
+    /** Email status (separate from account approval): Unverified → Verified */
+    public function hasVerifiedEmail(): bool
+    {
+        return $this->email_verified_at !== null;
+    }
+
+    /** Clients the admin can act on: verified sign-ups awaiting approval, plus every non-pending account */
+    public function scopeVisibleToAdmin($query)
+    {
+        return $query->where(function ($q) {
+            $q->where('status', '!=', 'Pending')->orWhereNotNull('email_verified_at');
+        });
+    }
+
+    /** Pending Approval + email verified — what the admin's approval queue and badges count */
+    public function scopeAwaitingApproval($query)
+    {
+        return $query->where('status', 'Pending')->whereNotNull('email_verified_at');
+    }
 
     /** "Dela Cruz, Juan" — for table display */
     public function getFullNameAttribute(): string

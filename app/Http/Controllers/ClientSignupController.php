@@ -3,7 +3,10 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use App\Models\Client;
 use App\Services\NotificationService;
 use App\Http\Controllers\Concerns\BackdatesRecords;
@@ -28,90 +31,11 @@ class ClientSignupController extends Controller
         return response()->json(['username' => Client::nextAvailableUsername()]);
     }
 
-    /** Common misspellings of popular email domains → the domain the client most likely meant */
-    private const DOMAIN_TYPOS = [
-        'gmial.com' => 'gmail.com', 'gmai.com' => 'gmail.com', 'gmal.com' => 'gmail.com', 'gamil.com' => 'gmail.com',
-        'gmail.co' => 'gmail.com', 'gmail.con' => 'gmail.com', 'gmail.cm' => 'gmail.com', 'gnail.com' => 'gmail.com',
-        'yaho.com' => 'yahoo.com', 'yahooo.com' => 'yahoo.com', 'yahoo.con' => 'yahoo.com', 'yhoo.com' => 'yahoo.com',
-        'hotmial.com' => 'hotmail.com', 'hotmai.com' => 'hotmail.com', 'hotmail.con' => 'hotmail.com',
-        'outlok.com' => 'outlook.com', 'outloo.com' => 'outlook.com', 'outlook.con' => 'outlook.com',
-        'iclod.com' => 'icloud.com', 'icloud.con' => 'icloud.com',
-    ];
-
-    /** Disposable / temporary inbox services — not accepted for client accounts */
-    private const DISPOSABLE_DOMAINS = [
-        'mailinator.com', 'yopmail.com', '10minutemail.com', 'guerrillamail.com', 'guerrillamail.net', 'sharklasers.com',
-        'tempmail.com', 'temp-mail.org', 'tempmail.net', 'trashmail.com', 'getnada.com', 'dispostable.com', 'maildrop.cc',
-        'mailnesia.com', 'mintemail.com', 'throwawaymail.com', 'fakeinbox.com', 'emailondeck.com', 'mohmal.com',
-        'tempinbox.com', 'spamgourmet.com', 'mailcatch.com', 'moakt.com', 'tempr.email', 'discard.email', 'burnermail.io',
-        'mail.tm', 'inboxkitten.com', 'mytemp.email', 'tmail.ws', '1secmail.com', 'emailfake.com', 'luxusmail.org',
-    ];
-
-    /**
-     * Why an email can't be used to sign up, or null when it's fine. Checks the format, common
-     * domain typos, and that the domain really exists and can receive mail (MX / A record).
-     * A mailbox itself can't be confirmed without emailing it — mail servers don't reveal that.
-     */
-    private function emailProblem(string $email): ?string
-    {
-        $email = trim($email);
-
-        if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            return 'Please enter a valid email address (e.g. name@gmail.com).';
-        }
-
-        $domain = strtolower(substr(strrchr($email, '@'), 1));
-
-        if (isset(self::DOMAIN_TYPOS[$domain])) {
-            $local = substr($email, 0, strrpos($email, '@'));
-            return "This email doesn't exist. Did you mean {$local}@" . self::DOMAIN_TYPOS[$domain] . '?';
-        }
-
-        // Throwaway inboxes — real domains, but nobody keeps them
-        if (in_array($domain, self::DISPOSABLE_DOMAINS, true)) {
-            return 'Temporary or disposable email addresses can\'t be used. Please use your personal or company email.';
-        }
-
-        // The domain must have mail servers (MX records) to receive email. dns_get_record()
-        // returns false when the lookup itself fails — then the email can't be verified, so
-        // sign-up is blocked rather than let through unchecked.
-        $mx = @dns_get_record($domain, DNS_MX);
-        if ($mx === false) {
-            return 'This email address can\'t be verified right now. Please check your internet connection and try again.';
-        }
-        $mailServers = array_filter($mx, fn ($r) => !empty($r['target']) && $r['target'] !== '.');
-        if (empty($mailServers)) {
-            return checkdnsrr($domain, 'A') || checkdnsrr($domain, 'AAAA')
-                ? "This email can't receive messages — \"@{$domain}\" has no mail server. Please use a different email."
-                : "This email doesn't exist — \"@{$domain}\" is not a real email domain. Please check it and try again.";
-        }
-
-        if (Client::where('email', $email)->exists()) {
-            return 'An account with this email address already exists.';
-        }
-
-        return null;
-    }
-
-    /** Live check from the sign-up form (when the client leaves the email box) */
-    public function checkEmail(Request $request): \Illuminate\Http\JsonResponse
-    {
-        $problem = $this->emailProblem((string) $request->query('email', ''));
-
-        return response()->json(['ok' => $problem === null, 'message' => $problem]);
-    }
-
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'full_name'      => 'required|string|max:255',
-            'email'          => ['required', 'string', 'max:255',
-                function ($_, $value, $fail) {
-                    if ($problem = $this->emailProblem((string) $value)) {
-                        $fail($problem);
-                    }
-                },
-            ],
+            'email'          => 'required|email|unique:clients,email',
             'contact_number' => 'required|string|max:20',
             'region'         => 'required|string|max:255',
             'province'       => 'required|string|max:255',
@@ -164,17 +88,165 @@ class ClientSignupController extends Controller
             'city'           => $request->city,
             'barangay'       => $request->barangay,
             'street_address' => $request->street_address,
-            'status'         => 'Pending',
+            'status'         => 'Pending',          // Account: Pending Approval
             'username'       => $request->username,
             'password'       => $request->password,
             'first_login'    => false,
+            'email_verified_at' => null,            // Email: Unverified
         ]);
         $this->applyBackdate($client, $request->signup_date, $request->signup_time);
         $client->save();
 
-        NotificationService::clientSignupPending($client);
+        // The admin only hears about the sign-up once the email is verified (see verify()).
+        $sent = $this->sendVerificationEmail($client);
 
-        return redirect()->route('login')
-            ->with('success', 'Your account has been created. Please wait for GMD South Phils to review and approve it — we\'ll send you an email as soon as your account is approved so you can log in.');
+        session(['verify_email_address' => $client->email]);
+
+        return redirect()->route('signup.verify_notice')->with('verify_sent', $sent);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Email verification — separate from admin approval
+    |--------------------------------------------------------------------------
+    | Sign Up → Verify Email → Wait for Admin Approval → Admin Approves → Client can log in
+    */
+
+    /** Links stay valid for 48 hours */
+    private const VERIFY_LINK_HOURS = 48;
+
+    /** "Check your email" page shown right after signing up (and after a resend) */
+    public function verifyNotice()
+    {
+        return view('auth.verify_email', [
+            'state' => 'sent',
+            'email' => session('verify_email_address'),
+            'sent'  => session('verify_sent', true),
+        ]);
+    }
+
+    /**
+     * The link in the email. Marks the email Verified and tells the admin a client is waiting
+     * for approval. It does NOT approve the account and does NOT log the client in.
+     */
+    public function verify(string $token)
+    {
+        $client = Client::where('email_verification_token', hash('sha256', $token))->first();
+
+        if (!$client) {
+            return view('auth.verify_email', ['state' => 'invalid', 'email' => null, 'sent' => false]);
+        }
+
+        if ($client->email_verification_sent_at && $client->email_verification_sent_at->lt(now()->subHours(self::VERIFY_LINK_HOURS))) {
+            return view('auth.verify_email', ['state' => 'expired', 'email' => $client->email, 'sent' => false]);
+        }
+
+        $client->forceFill([
+            'email_verified_at'        => now(),
+            'email_verification_token' => null,
+        ])->save();
+
+        // Now that the email is real, the sign-up enters the admin's approval queue
+        if ($client->status === 'Pending') {
+            NotificationService::clientSignupPending($client);
+        }
+
+        return view('auth.verify_email', ['state' => 'verified', 'email' => $client->email, 'sent' => false]);
+    }
+
+    /** Send a fresh link (the old one stops working). Same reply whether or not the email is on file. */
+    public function resend(Request $request)
+    {
+        $request->validate(['email' => 'required|string|max:255']);
+        $value = trim($request->input('email'));
+
+        $client = Client::whereNull('email_verified_at')
+            ->where(function ($q) use ($value) {
+                $q->where('email', $value)->orWhere('username', $value);
+            })
+            ->first();
+
+        $sent = true;
+        if ($client) {
+            $sent = $this->sendVerificationEmail($client);
+            $value = $client->email;
+        }
+
+        session(['verify_email_address' => $value]);
+
+        return redirect()->route('signup.verify_notice')
+            ->with('verify_sent', $sent)
+            ->with('verify_resent', true);
+    }
+
+    /** New one-time token (only its hash is stored) + the email with the Verify Email button */
+    private function sendVerificationEmail(Client $client): bool
+    {
+        $token = Str::random(64);
+
+        $client->forceFill([
+            'email_verification_token'   => hash('sha256', $token),
+            'email_verification_sent_at' => now(),
+        ])->save();
+
+        $link = route('signup.verify', ['token' => $token]);
+
+        try {
+            Mail::html($this->buildVerificationEmailHtml($client->name, $link), function ($message) use ($client) {
+                $message->to($client->email, $client->name)
+                        ->from(config('mail.from.address'), config('mail.from.name'))
+                        ->replyTo(config('mail.from.address'), config('mail.from.name'))
+                        ->subject('Verify your email — GMD South Phils Client Portal');
+            });
+            return true;
+        } catch (\Exception $e) {
+            Log::error('ClientSignup: verification email failed', ['email' => $client->email, 'error' => $e->getMessage()]);
+            return false;
+        }
+    }
+
+    private function buildVerificationEmailHtml(string $name, string $link): string
+    {
+        $hours = self::VERIFY_LINK_HOURS;
+
+        return '
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 20px; }
+                .container { background: #fff; max-width: 520px; margin: 0 auto; border-radius: 12px; padding: 36px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+                .logo { font-size: 20px; font-weight: 900; color: #1a1a2e; margin-bottom: 24px; }
+                .logo span { color: #e8900a; }
+                .badge { display: inline-block; background: #EAF0FF; color: #2A4EAA; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; border-radius: 999px; padding: 6px 14px; margin-bottom: 18px; }
+                h2 { font-size: 18px; color: #1a1a2e; margin-bottom: 8px; }
+                p { font-size: 14px; color: #444; line-height: 1.6; }
+                .cta { display: inline-block; margin-top: 16px; background: #1a1a2e; color: #fff !important; text-decoration: none; font-weight: 700; font-size: 14px; padding: 12px 24px; border-radius: 8px; }
+                .link { word-break: break-all; font-size: 12px; color: #888; }
+                .footer { margin-top: 32px; font-size: 12px; color: #aaa; border-top: 1px solid #eee; padding-top: 16px; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="logo">GMD <span>South Phils</span></div>
+                <div class="badge">Verify your email</div>
+                <h2>Confirm your email address</h2>
+                <p>Hello <strong>' . htmlspecialchars($name) . '</strong>,</p>
+                <p>Thanks for signing up for the GMD South Phils client portal. Please confirm this is your email address by clicking the button below.</p>
+
+                <a href="' . htmlspecialchars($link) . '" class="cta">Verify Email</a>
+
+                <p style="margin-top:22px;">After you verify, our team will review your account. You\'ll get another email once it\'s approved and you can log in.</p>
+                <p class="link">If the button doesn\'t work, copy this link into your browser:<br>' . htmlspecialchars($link) . '</p>
+                <p style="font-size:12px;color:#888;">This link expires in ' . $hours . ' hours. If you didn\'t sign up, you can ignore this email.</p>
+
+                <div class="footer">
+                    Thank you,<br>
+                    <strong>GMD Construction Management Team</strong>
+                </div>
+            </div>
+        </body>
+        </html>';
     }
 }

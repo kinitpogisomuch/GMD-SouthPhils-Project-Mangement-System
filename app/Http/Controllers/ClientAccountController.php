@@ -62,6 +62,7 @@ class ClientAccountController extends Controller
                 'contact'     => $request->contact_number,
                 'address'     => $request->address,
                 'status'      => 'Active',
+                'email_verified_at' => now(),   // created by the admin, not self sign-up
                 'username'    => $username,
                 'password'    => $pin,
                 'first_login' => true,
