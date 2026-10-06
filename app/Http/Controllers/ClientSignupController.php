@@ -38,6 +38,15 @@ class ClientSignupController extends Controller
         'iclod.com' => 'icloud.com', 'icloud.con' => 'icloud.com',
     ];
 
+    /** Disposable / temporary inbox services — not accepted for client accounts */
+    private const DISPOSABLE_DOMAINS = [
+        'mailinator.com', 'yopmail.com', '10minutemail.com', 'guerrillamail.com', 'guerrillamail.net', 'sharklasers.com',
+        'tempmail.com', 'temp-mail.org', 'tempmail.net', 'trashmail.com', 'getnada.com', 'dispostable.com', 'maildrop.cc',
+        'mailnesia.com', 'mintemail.com', 'throwawaymail.com', 'fakeinbox.com', 'emailondeck.com', 'mohmal.com',
+        'tempinbox.com', 'spamgourmet.com', 'mailcatch.com', 'moakt.com', 'tempr.email', 'discard.email', 'burnermail.io',
+        'mail.tm', 'inboxkitten.com', 'mytemp.email', 'tmail.ws', '1secmail.com', 'emailfake.com', 'luxusmail.org',
+    ];
+
     /**
      * Why an email can't be used to sign up, or null when it's fine. Checks the format, common
      * domain typos, and that the domain really exists and can receive mail (MX / A record).
@@ -58,9 +67,23 @@ class ClientSignupController extends Controller
             return "This email doesn't exist. Did you mean {$local}@" . self::DOMAIN_TYPOS[$domain] . '?';
         }
 
-        $domainExists = checkdnsrr($domain, 'MX') || checkdnsrr($domain, 'A');
-        if (!$domainExists) {
-            return "This email doesn't exist — \"@{$domain}\" is not a real email domain. Please check it and try again.";
+        // Throwaway inboxes — real domains, but nobody keeps them
+        if (in_array($domain, self::DISPOSABLE_DOMAINS, true)) {
+            return 'Temporary or disposable email addresses can\'t be used. Please use your personal or company email.';
+        }
+
+        // The domain must have mail servers (MX records) to receive email. dns_get_record()
+        // returns false when the lookup itself fails — then the email can't be verified, so
+        // sign-up is blocked rather than let through unchecked.
+        $mx = @dns_get_record($domain, DNS_MX);
+        if ($mx === false) {
+            return 'This email address can\'t be verified right now. Please check your internet connection and try again.';
+        }
+        $mailServers = array_filter($mx, fn ($r) => !empty($r['target']) && $r['target'] !== '.');
+        if (empty($mailServers)) {
+            return checkdnsrr($domain, 'A') || checkdnsrr($domain, 'AAAA')
+                ? "This email can't receive messages — \"@{$domain}\" has no mail server. Please use a different email."
+                : "This email doesn't exist — \"@{$domain}\" is not a real email domain. Please check it and try again.";
         }
 
         if (Client::where('email', $email)->exists()) {
