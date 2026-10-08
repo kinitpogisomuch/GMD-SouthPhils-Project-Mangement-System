@@ -203,12 +203,6 @@
             </div>
         </div>
 
-        @if(session('success'))
-        <div class="alert-banner success" style="max-width:820px;margin:0 auto 18px;">
-            <i data-lucide="check-circle"></i>
-            {{ session('success') }}
-        </div>
-        @endif
 
         @if(session('error'))
         <div class="alert-banner" style="background:#fee2e2;border:1px solid #fca5a5;color:#dc2626;max-width:820px;margin:0 auto 18px;">
@@ -660,5 +654,23 @@
     </script>
     @include('partials.receipt_viewer')
 
+    @if(session('success'))
+    {{-- Request submitted / quotation approved / revision requested: small dark toast centered below
+         the header (same as the payments page). Longer messages stay a little longer. --}}
+    <div class="toast" id="clientQuotationToast" role="status">
+        <i data-lucide="check-circle"></i>
+        <span>{{ session('success') }}</span>
+    </div>
+    <script>
+        window.addEventListener('load', function () {
+            var t = document.getElementById('clientQuotationToast');
+            if (!t) return;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+            var ms = t.textContent.trim().length > 80 ? 5000 : 3000;
+            requestAnimationFrame(function () { requestAnimationFrame(function () { t.classList.add('show'); }); });
+            setTimeout(function () { t.classList.remove('show'); }, ms);
+        });
+    </script>
+    @endif
 </body>
 </html>

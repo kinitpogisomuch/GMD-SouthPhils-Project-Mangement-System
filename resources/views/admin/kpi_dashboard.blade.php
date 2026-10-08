@@ -1694,9 +1694,29 @@
                 renderPeriodOptions();
                 renderEverything();
                 closeModal();
+                showKpiToast('KPI targets saved for Q' + STATE.payload.quarter + ' ' + STATE.payload.year + '.');
             })
             .finally(function () { btn.disabled = false; });
         });
+
+        /* The small dark toast below the header (same as "Salary record saved."), 3 seconds */
+        function showKpiToast(msg) {
+            var t = document.getElementById('kpiToast');
+            if (!t) {
+                t = document.createElement('div');
+                t.className = 'toast';
+                t.id = 'kpiToast';
+                t.setAttribute('role', 'status');
+                t.innerHTML = '<i data-lucide="check-circle"></i><span></span>';
+                document.body.appendChild(t);
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }
+            t.querySelector('span').textContent = msg;
+            clearTimeout(t._hideTimer);
+            t.classList.remove('show');
+            requestAnimationFrame(function () { requestAnimationFrame(function () { t.classList.add('show'); }); });
+            t._hideTimer = setTimeout(function () { t.classList.remove('show'); }, 3000);
+        }
 
         /* ── Generate Report ── */
         var reportModal = document.getElementById('kdReportModal');

@@ -342,9 +342,134 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(r => r.json())
             .then(data => {
                 renderNotifications(data.notifications, data.unread_count);
+                toastNewNotifications(data.notifications);
             })
             .catch(() => {});
     }
+
+    /* ── Notification toasts ────────────────────────────────────────────────
+       Part of the same polling as the bell dropdown: any notification newer than the
+       last one this tab has seen pops up as a card just below the header for 10 seconds.
+       The last-seen id is kept per browser tab, so changing pages never replays old ones;
+       the very first load only records it (no burst of toasts for existing notifications). */
+    const TOAST_SEEN_KEY  = 'gmd_admin_notif_last_id';
+    const TOAST_MS        = 10000;   // each card stays 10 seconds (the bar drains over the same time)
+    const TOAST_MAX       = 3;   // more than this at once → the rest are summarised in one card
+
+    function readLastSeen() {
+        try { const v = sessionStorage.getItem(TOAST_SEEN_KEY); return v === null ? null : Number(v); } catch (e) { return null; }
+    }
+    function writeLastSeen(id) {
+        try { sessionStorage.setItem(TOAST_SEEN_KEY, String(id)); } catch (e) {}
+    }
+
+    function toastNewNotifications(list) {
+        if (!list || !list.length) return;
+        const newestId = Math.max.apply(null, list.map(n => Number(n.id)));
+        const lastSeen = readLastSeen();
+        writeLastSeen(Math.max(newestId, lastSeen || 0));
+        if (lastSeen === null) return;   // first load in this tab — just remember where we are
+
+        const fresh = list
+            .filter(n => Number(n.id) > lastSeen && !n.is_read)
+            .sort((a, b) => Number(a.id) - Number(b.id));   // oldest first, so the newest ends up on top
+        if (!fresh.length) return;
+
+        const shown = fresh.slice(-TOAST_MAX);
+        const extra = fresh.length - shown.length;
+        if (extra > 0) {
+            showNotifToast({ title: extra + ' more new notification' + (extra === 1 ? '' : 's'),
+                             message: 'Open the bell to see them all.', icon: 'bell', cls: 'notif-icon-info', summary: true });
+        }
+        shown.forEach(n => showNotifToast({
+            id: n.id,
+            title: n.title,
+            message: (n.message || '').split('\n')[0],
+            icon: iconMap[n.notification_type] || 'bell',
+            cls: priorityClass[n.priority] || 'notif-icon-info',
+            url: n.action_url || '',
+        }));
+    }
+
+    function toastContainer() {
+        let box = document.getElementById('notifToastStack');
+        if (!box) {
+            box = document.createElement('div');
+            box.id = 'notifToastStack';
+            box.className = 'notif-toast-stack';
+            box.setAttribute('aria-live', 'polite');
+            document.body.appendChild(box);
+        }
+        // Sits just below the header (whose height changes on phones) — fixed, so nothing shifts
+        const header = document.querySelector('.admin-header');
+        box.style.top = ((header ? header.getBoundingClientRect().bottom : 64) + 12) + 'px';
+        return box;
+    }
+
+    function showNotifToast(t) {
+        const box = toastContainer();
+
+        // Keep the stack tidy: drop the oldest card when one more would exceed the limit
+        const live = box.querySelectorAll('.notif-toast-item:not(.leaving)');
+        if (live.length >= TOAST_MAX + 1) dismissToast(live[live.length - 1]);
+
+        // The outer item animates its height open/closed (so the other cards glide instead of
+        // jumping); the card inside fades and slides.
+        const el = document.createElement('div');
+        el.className = 'notif-toast-item';
+        el.innerHTML =
+            '<div class="notif-toast-clip">' +
+                '<div class="notif-toast' + (t.url || t.summary ? ' has-link' : '') + '" role="status">' +
+                    '<div class="notification-icon ' + t.cls + '"><i data-lucide="' + t.icon + '"></i></div>' +
+                    '<div class="notif-toast-body">' +
+                        '<strong>' + escapeHtml(t.title || 'New notification') + '</strong>' +
+                        '<p>' + escapeHtml(t.message || '') + '</p>' +
+                    '</div>' +
+                    '<button type="button" class="notif-toast-close" aria-label="Dismiss notification"><i data-lucide="x"></i></button>' +
+                    '<div class="notif-toast-progress"><span style="animation-duration:' + TOAST_MS + 'ms"></span></div>' +
+                '</div>' +
+            '</div>';
+
+        box.prepend(el);   // newest on top
+        if (window.lucide) lucide.createIcons();
+        // two frames: the closed state is painted first, so the opening is animated
+        requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('show')));
+
+        // 10-second countdown: the bar drains 100% → 0%, then the card leaves
+        el.querySelector('.notif-toast-progress span').addEventListener('animationend', () => dismissToast(el));
+        setTimeout(() => dismissToast(el), TOAST_MS + 250);   // fallback if animations are switched off
+
+        el.querySelector('.notif-toast-close').addEventListener('click', function (e) {
+            e.stopPropagation();
+            dismissToast(el, true);
+        });
+
+        // Clicking the card opens the notification, same as in the bell dropdown
+        if (t.id) {
+            el.addEventListener('click', function () {
+                handleNotifClick({ dataset: { id: t.id, url: t.url || '#' } });
+                dismissToast(el, true);
+            });
+        } else if (t.summary) {
+            el.addEventListener('click', function () {
+                dismissToast(el, true);
+                document.getElementById('notificationDropdownBtn').click();
+            });
+        }
+    }
+
+    // Fades/slides the card out, then closes its space so the cards below glide up
+    function dismissToast(el) {
+        if (!el || el.classList.contains('leaving')) return;
+        el.classList.add('leaving');
+        el.classList.remove('show');
+        setTimeout(() => el.remove(), 520);
+    }
+
+    window.addEventListener('resize', function () {
+        const box = document.getElementById('notifToastStack');
+        if (box) toastContainer();
+    });
 
     function renderNotifications(list, unreadCount) {
         const badge     = document.getElementById('notificationCountBadge');
@@ -418,9 +543,9 @@ document.addEventListener('DOMContentLoaded', function () {
         return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
-    // Initial load + polling every 30s
+    // Initial load + polling every 15s (new ones also pop up as a toast below the header)
     loadNotifications();
-    setInterval(loadNotifications, 30000);
+    setInterval(loadNotifications, 15000);
 
     // Reload when dropdown opens
     document.getElementById('notificationDropdownBtn').addEventListener('click', function() {

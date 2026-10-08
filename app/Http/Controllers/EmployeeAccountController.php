@@ -162,8 +162,9 @@ class EmployeeAccountController extends Controller
             'daily_rate'     => $request->daily_rate,
         ]);
 
+        // Shown as the small dark toast at the bottom (same as "Salary record saved.")
         return redirect()->route('admin.employees')
-            ->with(['success' => 'Employee updated successfully!', 'active_tab' => 'employees']);
+            ->with(['emp_toast' => 'Employee info updated.', 'active_tab' => 'employees']);
     }
 
     public function archive($id)

@@ -21,13 +21,6 @@
                 </div>
             </div>
 
-            @if(session('success'))
-            <div class="alert-banner success">
-                <i data-lucide="check-circle"></i>
-                {{ session('success') }}
-            </div>
-            @endif
-
             <!-- Settings Tabs -->
             <div class="emp-tabs">
                 <button class="emp-tab active" data-tab="profile">
@@ -658,5 +651,21 @@
             });
         });
     </script>
+    @if(session('success'))
+    {{-- Profile / password / photo saved: small dark toast centered below the header, 3 seconds --}}
+    <div class="toast" id="clientSettingsToast" role="status">
+        <i data-lucide="check-circle"></i>
+        <span>{{ session('success') }}</span>
+    </div>
+    <script>
+        window.addEventListener('load', function () {
+            var t = document.getElementById('clientSettingsToast');
+            if (!t) return;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+            requestAnimationFrame(function () { requestAnimationFrame(function () { t.classList.add('show'); }); });
+            setTimeout(function () { t.classList.remove('show'); }, 3000);
+        });
+    </script>
+    @endif
 </body>
 </html>

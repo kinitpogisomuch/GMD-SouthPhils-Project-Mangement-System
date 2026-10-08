@@ -4058,3 +4058,248 @@ body:has(.modal-overlay.show) #chatPopupWrap {
 .is-open .burger-lines span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
 .is-open .burger-lines span:nth-child(2) { opacity: 0; }
 .is-open .burger-lines span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+
+/* ================= NOTIFICATION TOASTS =================
+   A new notification pops up as a card just below the header (fixed, so neither the header nor
+   the page moves). Each card's space opens smoothly (so the cards below glide down), the card
+   fades + slides in, a 10-second bar drains 100% → 0%, then the card fades out and its space
+   closes smoothly (so the cards below glide up). Below the header's dropdowns, above the page. */
+.notif-toast-stack {
+    position: fixed;
+    top: 76px;              /* set from the header's real height by the script */
+    right: 24px;
+    z-index: 190;
+    width: 360px;
+    max-width: calc(100vw - 32px);
+    display: flex;
+    flex-direction: column;
+    pointer-events: none;   /* only the cards themselves take clicks */
+}
+
+/* height animation: a one-row grid going 0fr → 1fr opens/closes to the card's exact height */
+.notif-toast-item {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.notif-toast-item.show {
+    grid-template-rows: 1fr;
+}
+
+.notif-toast-item.leaving {
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.34s cubic-bezier(0.4, 0, 0.2, 1) 0.16s;   /* close after the fade */
+}
+
+/* Clips the card while its space opens/closes. The padding gives the card's shadow room to show
+   (instead of being cut into a grey box); the matching negative margins cancel it out, so a
+   closed item takes no space and the spacing between cards is unchanged. */
+.notif-toast-clip {
+    min-height: 0;
+    overflow: hidden;
+    padding: 6px 28px 30px;
+    margin: -6px -28px -30px;
+}
+
+.notif-toast {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin: 4px 0 10px;      /* spacing between cards lives inside the animated height */
+    padding: 14px 14px 18px;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.12);
+    overflow: hidden;
+    pointer-events: auto;
+    opacity: 0;
+    transform: translateY(-14px) scale(0.98);
+    transition:
+        opacity 0.38s cubic-bezier(0.22, 1, 0.36, 1) 0.06s,
+        transform 0.46s cubic-bezier(0.22, 1, 0.36, 1) 0.06s,
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+    will-change: opacity, transform;
+}
+
+.notif-toast-item.show .notif-toast {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+
+.notif-toast-item.leaving .notif-toast {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.98);
+    transition:
+        opacity 0.22s cubic-bezier(0.4, 0, 1, 1),
+        transform 0.26s cubic-bezier(0.4, 0, 1, 1);
+}
+
+.notif-toast.has-link {
+    cursor: pointer;
+}
+
+.notif-toast.has-link:hover {
+    border-color: #cfcfcf;
+    box-shadow: 0 16px 34px rgba(0, 0, 0, 0.16);
+}
+
+.notif-toast .notification-icon {
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    border-radius: 12px;
+}
+
+.notif-toast-body {
+    flex: 1;
+    min-width: 0;
+    padding-top: 1px;
+}
+
+.notif-toast-body strong {
+    display: block;
+    font-size: 13.5px;
+    font-weight: 800;
+    color: var(--dark);
+    line-height: 1.3;
+}
+
+.notif-toast-body p {
+    margin: 3px 0 0;
+    font-size: 12.5px;
+    color: var(--muted);
+    line-height: 1.45;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.notif-toast-close {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    margin: -4px -4px 0 0;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+.notif-toast-close:hover {
+    background: var(--cream-soft);
+    color: var(--dark);
+}
+
+.notif-toast-close svg {
+    width: 15px;
+    height: 15px;
+}
+
+/* 10-second countdown bar along the bottom edge — a smooth, linear drain */
+.notif-toast-progress {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 4px;
+    background: var(--cream-deep);
+}
+
+.notif-toast-progress span {
+    display: block;
+    height: 100%;
+    width: 100%;
+    background: var(--dark);
+    border-radius: 0 999px 999px 0;
+    transform-origin: left center;
+    animation-name: notif-toast-countdown;
+    animation-timing-function: linear;
+    animation-fill-mode: forwards;
+    will-change: transform;
+}
+
+@keyframes notif-toast-countdown {
+    from { transform: scaleX(1); }
+    to   { transform: scaleX(0); }
+}
+
+@media (max-width: 640px) {
+    .notif-toast-stack {
+        left: 12px;
+        right: 12px;
+        width: auto;
+        max-width: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .notif-toast-item,
+    .notif-toast-item.leaving {
+        transition: grid-template-rows 0.01s linear;
+    }
+    .notif-toast,
+    .notif-toast-item.show .notif-toast,
+    .notif-toast-item.leaving .notif-toast {
+        transform: none;
+        transition: opacity 0.15s linear;
+    }
+}
+
+
+/* ================= CONFIRMATION TOAST =================
+   Small dark message ("Proof of payment submitted…") centered just below the header,
+   sliding down into place for 3 seconds — same as the admin side. */
+.toast {
+    position: fixed;
+    top: calc(var(--header-height) + 16px);
+    left: 50%;
+    max-width: calc(100vw - 32px);
+    background-color: var(--dark);
+    color: var(--white);
+    padding: 14px 20px;
+    border-radius: 16px;
+    font-size: 14px;
+    font-weight: 800;
+    line-height: 1.4;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.16);
+    transform: translate(-50%, -14px);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease;
+    z-index: 195;   /* above the page, below the header and its menus/dropdowns */
+}
+
+.toast.show {
+    transform: translate(-50%, 0);
+    opacity: 1;
+}
+
+.toast svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    color: #52C77A;
+}
+
+@media (max-width: 640px) {
+    .toast {
+        width: calc(100vw - 32px);
+        font-size: 13px;
+        padding: 12px 16px;
+    }
+}

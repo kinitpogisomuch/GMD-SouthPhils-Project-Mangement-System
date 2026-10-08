@@ -32,10 +32,23 @@
             </div>
 
             @if(session('success'))
-            <div class="alert-banner success">
+            {{-- Saved (e.g. quotation sent, request declined, materials saved): the small dark toast below the
+                 header (same as "Salary record saved."), shown for 3 seconds --}}
+            <div class="toast" id="quotationClientToast" role="status">
                 <i data-lucide="check-circle"></i>
-                {{ session('success') }}
+                <span>{{ session('success') }}</span>
             </div>
+            <script>
+                window.addEventListener('load', function () {
+                    var t = document.getElementById('quotationClientToast');
+                    if (!t) return;
+                    // the page-enter animation moves the content, which would carry a fixed toast with it —
+                    // living directly under <body> keeps it pinned below the header
+                    document.body.appendChild(t);
+                    requestAnimationFrame(function () { requestAnimationFrame(function () { t.classList.add('show'); }); });
+                    setTimeout(function () { t.classList.remove('show'); }, 3000);
+                });
+            </script>
             @endif
 
             @if(session('error'))

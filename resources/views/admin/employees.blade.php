@@ -2178,6 +2178,11 @@
     }
 
     document.addEventListener('DOMContentLoaded', function () {
+        @if(session('emp_toast'))
+        // After saving an employee's info — same toast as "Salary record saved."
+        showEmpToast(@json(session('emp_toast')));
+        @endif
+
         var editForm = document.getElementById('editEmpForm');
         if (editForm) {
             editForm.addEventListener('submit', function (e) {

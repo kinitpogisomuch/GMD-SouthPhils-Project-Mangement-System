@@ -25,10 +25,13 @@
             </div>
 
             @if(session('success'))
-            <div class="alert-banner success">
-                <i data-lucide="check-circle"></i>
-                {{ session('success') }}
-            </div>
+            {{-- Saved (profile, password, landing page, portfolio, users…): the small dark toast below
+                 the header (same as "Salary record saved."), shown for 3 seconds — see showToast() --}}
+            <script>
+                window.addEventListener('load', function () {
+                    if (typeof showToast === 'function') showToast(@json(session('success')));
+                });
+            </script>
             @endif
 
             @if($errors->hasBag('portfolioEdit'))
@@ -506,64 +509,41 @@
 
     <!-- ===== ADD PORTFOLIO ITEM MODAL ===== -->
     <div class="modal-overlay" id="addPortfolioModal">
-        <div class="modal-card" style="max-width:560px;">
+        <div class="modal-card pf-add-card" style="max-width:640px;">
             <div class="modal-header">
                 <div>
-                    <h2>Add Portfolio Item</h2>
-                    <p>Add a new project card to the "Our Work" section of the landing page.</p>
+                    <h2>Add Portfolio Items</h2>
+                    <p>Add one or more project cards to the "Our Work" section of the landing page, then save them all at once.</p>
                 </div>
                 <button class="modal-close" type="button" id="closeAddPortfolioModal">
                     <i data-lucide="x"></i>
                 </button>
             </div>
-            <form method="POST" action="{{ route('admin.portfolio.store') }}" enctype="multipart/form-data">
+            <form method="POST" action="{{ route('admin.portfolio.store') }}" enctype="multipart/form-data" id="addPortfolioForm" novalidate>
                 @csrf
-                <div class="form-grid">
-                    <div class="form-group form-group-full">
-                        <label>Image <span style="font-weight:400;color:var(--muted);">(required, up to 10MB)</span></label>
-                        <input type="file" name="image" accept="image/*" required onchange="validateFileSize(this, 10)">
-                    </div>
-                    <div class="form-group">
-                        <label>Capacity / Badge </label>
-                        <input type="text" name="spec" required value="{{ old('spec') }}" placeholder="e.g. 10,000 L">
-                    </div>
-                    <div class="form-group">
-                        <label>Category Tag</label>
-                        <select name="tag" id="addTagSelect" required onchange="toggleAddCustomTag(this)">
-                            <option value="" disabled selected hidden>Select category...</option>
-                            <option value="Water Storage">Water Storage</option>
-                            <option value="Oil Storage">Oil Storage</option>
-                            <option value="Pipe Line">Pipe Line</option>
-                            <option value="Tetrapod">Tetrapod</option>
-                            <option value="Fuel Storage Tank">Fuel Storage Tank</option>
-                            <option value="Cistern Tank">Cistern Tank</option>
-                            <option value="__other__">Others (type manually)</option>
-                        </select>
-                        <input type="text" id="addTagCustom" name="tag_custom" placeholder="Enter custom category" maxlength="100" style="display:none;margin-top:8px;">
-                    </div>
-                    <div class="form-group form-group-full">
-                        <label>Title </label>
-                        <input type="text" name="title" required value="{{ old('title') }}" placeholder="e.g. Diesel Storage Tank — Distribution Depot">
-                    </div>
-                    <div class="form-group form-group-full">
-                        <label>Description </label>
-                        <textarea name="description" rows="4" required style="resize:none;" placeholder="Short description of the project">{{ old('description') }}</textarea>
-                    </div>
-                </div>
 
                 @if($errors->hasBag('portfolio'))
-                <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:12px;margin-top:4px;color:#dc2626;font-size:13px;">
+                <div class="pf-errors">
                     @foreach($errors->getBag('portfolio')->all() as $error)
                         <div>• {{ $error }}</div>
                     @endforeach
+                    <div class="pf-errors-note">Please choose the images again — browsers don't keep picked files after a page reload.</div>
                 </div>
                 @endif
 
+                {{-- One card per item, built by the script below (so "Add another item" can add more) --}}
+                <div class="pf-items" id="pfItems"></div>
+
+                <button type="button" class="pf-add-another" id="pfAddAnother">
+                    <i data-lucide="plus"></i> Add another item
+                </button>
+                <div class="pf-size-note" id="pfSizeNote">Up to 10 items · each image up to 10MB · 40MB total per save</div>
+
                 <div class="modal-actions">
                     <button type="button" class="cancel-btn" id="cancelAddPortfolio">Cancel</button>
-                    <button type="submit" class="save-btn">
+                    <button type="submit" class="save-btn" id="pfSaveBtn">
                         <i data-lucide="check-circle" style="width:15px;height:15px;"></i>
-                        Add Item
+                        <span id="pfSaveLabel">Save Item</span>
                     </button>
                 </div>
             </form>
@@ -893,12 +873,6 @@
     // Category tag dropdown helpers
     var TAG_CATEGORIES = ['Water Storage','Oil Storage','Pipe Line','Tetrapod','Fuel Storage Tank','Cistern Tank'];
 
-    function toggleAddCustomTag(sel) {
-        var custom = document.getElementById('addTagCustom');
-        if (sel.value === '__other__') { custom.style.display=''; custom.required=true; custom.focus(); }
-        else { custom.style.display='none'; custom.required=false; custom.value=''; }
-    }
-
     function toggleEditCustomTag(sel) {
         var custom = document.getElementById('editTagCustom');
         if (sel.value === '__other__') { custom.style.display=''; custom.required=true; custom.focus(); }
@@ -906,14 +880,229 @@
     }
 
     // Before submitting add/edit forms, merge custom tag into hidden tag field
-    document.getElementById('addPortfolioModal')?.querySelector('form')?.addEventListener('submit', function() {
-        var sel = document.getElementById('addTagSelect');
-        if (sel && sel.value === '__other__') {
-            var custom = document.getElementById('addTagCustom');
-            sel.removeAttribute('name');
-            custom.name = 'tag';
+
+    /* ── Add Portfolio Items: several items, one save ─────────────────────────── */
+    (function () {
+        var form     = document.getElementById('addPortfolioForm');
+        var list     = document.getElementById('pfItems');
+        var addBtn   = document.getElementById('pfAddAnother');
+        var saveLbl  = document.getElementById('pfSaveLabel');
+        var sizeNote = document.getElementById('pfSizeNote');
+        if (!form || !list) return;
+
+        var MAX_ITEMS  = 10;
+        var MAX_FILE   = 10 * 1024 * 1024;   // per image
+        var MAX_TOTAL  = 38 * 1024 * 1024;   // all images in one save (server limit is 40MB incl. the form)
+        var TAGS = ['Water Storage', 'Oil Storage', 'Pipe Line', 'Tetrapod', 'Fuel Storage Tank', 'Cistern Tank'];
+        var seq  = 0;
+
+        // Text typed before a failed save comes back (picked files can't)
+        var oldItems = @json(array_values(old('items', [])));
+
+        function esc(v) {
+            return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
-    });
+
+        function addItem(data) {
+            if (list.children.length >= MAX_ITEMS) return;
+            data = data || {};
+            var key = seq++;
+            var tag = data.tag || '';
+            var isOther = tag === '__other__' || (tag && TAGS.indexOf(tag) === -1);
+
+            var options = '<option value="" disabled' + (tag ? '' : ' selected') + ' hidden>Select category...</option>' +
+                TAGS.map(function (t) { return '<option value="' + esc(t) + '"' + (t === tag ? ' selected' : '') + '>' + esc(t) + '</option>'; }).join('') +
+                '<option value="__other__"' + (isOther ? ' selected' : '') + '>Others (type manually)</option>';
+
+            var card = document.createElement('div');
+            card.className = 'pf-item';
+            card.innerHTML =
+                '<div class="pf-item-head">' +
+                    '<span class="pf-item-no">Item <b></b></span>' +
+                    '<button type="button" class="pf-item-remove" title="Remove this item"><i data-lucide="trash-2"></i></button>' +
+                '</div>' +
+                '<div class="form-grid">' +
+                    '<div class="form-group form-group-full">' +
+                        '<label>Image <span style="font-weight:400;color:var(--muted);">(required)</span></label>' +
+                        '<label class="pf-drop">' +
+                            '<input type="file" name="items[' + key + '][image]" accept="image/*" required class="pf-file">' +
+                            // empty state
+                            '<span class="pf-drop-empty">' +
+                                '<span class="pf-drop-icon"><i data-lucide="image-plus"></i></span>' +
+                                '<span class="pf-drop-text"><b>Click to upload</b> or drag an image here</span>' +
+                                '<span class="pf-drop-hint">JPG, PNG or WEBP · up to 10MB</span>' +
+                            '</span>' +
+                            // picked state
+                            '<span class="pf-drop-filled">' +
+                                '<span class="pf-thumb"></span>' +
+                                '<span class="pf-file-info">' +
+                                    '<span class="pf-file-name"></span>' +
+                                    '<span class="pf-file-size"></span>' +
+                                '</span>' +
+                                '<span class="pf-file-actions">' +
+                                    '<span class="pf-file-btn">Change</span>' +
+                                    '<button type="button" class="pf-file-btn pf-file-clear">Remove</button>' +
+                                '</span>' +
+                            '</span>' +
+                        '</label>' +
+                    '</div>' +
+                    '<div class="form-group">' +
+                        '<label>Capacity / Badge</label>' +
+                        '<input type="text" name="items[' + key + '][spec]" required maxlength="50" value="' + esc(data.spec) + '" placeholder="e.g. 10,000 L">' +
+                    '</div>' +
+                    '<div class="form-group">' +
+                        '<label>Category Tag</label>' +
+                        '<select name="items[' + key + '][tag]" required class="pf-tag">' + options + '</select>' +
+                        '<input type="text" name="items[' + key + '][tag_custom]" class="pf-tag-custom" maxlength="50" placeholder="Enter custom category"' +
+                            ' value="' + esc(isOther && tag !== '__other__' ? tag : (data.tag_custom || '')) + '" style="' + (isOther ? '' : 'display:none;') + 'margin-top:8px;">' +
+                    '</div>' +
+                    '<div class="form-group form-group-full">' +
+                        '<label>Title</label>' +
+                        '<input type="text" name="items[' + key + '][title]" required maxlength="255" value="' + esc(data.title) + '" placeholder="e.g. Diesel Storage Tank — Distribution Depot">' +
+                    '</div>' +
+                    '<div class="form-group form-group-full">' +
+                        '<label>Description</label>' +
+                        '<textarea name="items[' + key + '][description]" rows="3" required maxlength="1000" style="resize:none;" placeholder="Short description of the project">' + esc(data.description) + '</textarea>' +
+                    '</div>' +
+                '</div>';
+
+            list.appendChild(card);
+
+            // category "Others" → type it
+            var sel = card.querySelector('.pf-tag'), custom = card.querySelector('.pf-tag-custom');
+            sel.addEventListener('change', function () {
+                var other = sel.value === '__other__';
+                custom.style.display = other ? '' : 'none';
+                if (other) custom.focus(); else custom.value = '';
+            });
+
+            // image: drop zone with preview, file name/size, change/remove, drag & drop
+            var drop  = card.querySelector('.pf-drop');
+            var file  = card.querySelector('.pf-file');
+            var thumb = card.querySelector('.pf-thumb');
+
+            function fmtSize(b) { return b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB'; }
+
+            function showFile() {
+                var f = file.files[0];
+                if (!f) {
+                    drop.classList.remove('has-file');
+                    thumb.innerHTML = '';
+                    refresh();
+                    return;
+                }
+                var url = URL.createObjectURL(f);
+                thumb.innerHTML = '<img src="' + url + '" alt="">';
+                thumb.querySelector('img').onload = function () { URL.revokeObjectURL(url); };
+                card.querySelector('.pf-file-name').textContent = f.name;
+                card.querySelector('.pf-file-size').textContent = fmtSize(f.size);
+                drop.classList.add('has-file');
+                drop.classList.remove('is-invalid');
+                refresh();
+            }
+
+            file.addEventListener('change', function () {
+                if (typeof validateFileSize === 'function' && !validateFileSize(file, 10)) { file.value = ''; }
+                showFile();
+            });
+
+            card.querySelector('.pf-file-clear').addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                file.value = '';
+                showFile();
+            });
+
+            ['dragenter', 'dragover'].forEach(function (ev) {
+                drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('is-dragging'); });
+            });
+            ['dragleave', 'drop'].forEach(function (ev) {
+                drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('is-dragging'); });
+            });
+            drop.addEventListener('drop', function (e) {
+                var dropped = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+                if (!dropped) return;
+                if (!/^image\//.test(dropped.type)) { alert('Please drop an image file (JPG, PNG or WEBP).'); return; }
+                var dt = new DataTransfer();
+                dt.items.add(dropped);
+                file.files = dt.files;
+                file.dispatchEvent(new Event('change'));
+            });
+
+            card.querySelector('.pf-item-remove').addEventListener('click', function () {
+                card.remove();
+                if (!list.children.length) addItem();
+                refresh();
+            });
+
+            refresh();
+            return card;
+        }
+
+        function totalBytes() {
+            var t = 0;
+            list.querySelectorAll('input[type=file]').forEach(function (f) { if (f.files[0]) t += f.files[0].size; });
+            return t;
+        }
+
+        function refresh() {
+            var items = list.querySelectorAll('.pf-item');
+            items.forEach(function (c, i) {
+                c.querySelector('.pf-item-no b').textContent = i + 1;
+                c.querySelector('.pf-item-remove').style.visibility = items.length > 1 ? '' : 'hidden';
+            });
+            saveLbl.textContent = items.length > 1 ? 'Save ' + items.length + ' Items' : 'Save Item';
+            addBtn.disabled = items.length >= MAX_ITEMS;
+            addBtn.style.display = items.length >= MAX_ITEMS ? 'none' : '';
+            var mb = totalBytes() / 1024 / 1024;
+            sizeNote.textContent = 'Up to ' + MAX_ITEMS + ' items · each image up to 10MB · ' +
+                (mb > 0 ? mb.toFixed(1) + 'MB of 38MB used' : '38MB total per save');
+            sizeNote.classList.toggle('over', totalBytes() > MAX_TOTAL);
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        addBtn.addEventListener('click', function () {
+            var card = addItem();
+            if (card) card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        });
+
+        // Check everything before sending: missing fields get a red outline, and the save stops
+        // if the images together are too big for one upload
+        form.addEventListener('submit', function (e) {
+            var firstBad = null;
+            list.querySelectorAll('input, select, textarea').forEach(function (el) {
+                var needed = el.required || (el.classList.contains('pf-tag-custom') && el.style.display !== 'none');
+                var empty  = el.type === 'file' ? !el.files.length : !String(el.value || '').trim();
+                var bad = needed && empty;
+                (el.type === 'file' ? el.closest('.pf-drop') : el).classList.toggle('is-invalid', bad);
+                if (bad && !firstBad) firstBad = el;
+            });
+            if (totalBytes() > MAX_TOTAL) {
+                e.preventDefault();
+                sizeNote.classList.add('over');
+                sizeNote.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                alert('The images are too large to save together (' + (totalBytes() / 1024 / 1024).toFixed(1) + 'MB). Save fewer items at a time, or use smaller images.');
+                return;
+            }
+            if (firstBad) {
+                e.preventDefault();
+                (firstBad.type === 'file' ? firstBad.closest('.pf-drop') : firstBad).scrollIntoView({ behavior: 'smooth', block: 'center' });
+                if (firstBad.type !== 'file') firstBad.focus();
+                return;
+            }
+            var btn = document.getElementById('pfSaveBtn');
+            btn.disabled = true;
+            saveLbl.textContent = 'Saving...';
+        });
+        list.addEventListener('input', function (e) { e.target.classList.remove('is-invalid'); });
+
+        // Opening the window again starts from one empty item (unless a save just failed)
+        document.getElementById('openAddPortfolioModal')?.addEventListener('click', function () {
+            if (!document.querySelector('.pf-errors')) { list.innerHTML = ''; addItem(); }
+        });
+
+        (oldItems.length ? oldItems : [{}]).forEach(function (d) { addItem(d); });
+    })();
 
     document.getElementById('editPortfolioForm')?.addEventListener('submit', function() {
         var sel = document.getElementById('editTagSelect');
@@ -1210,6 +1399,59 @@
 
         /* A blank required password field gets a red outline instead of blocking on the
            server-side message list. */
+/* ── Add Portfolio Items (several at once) ── */
+        .pf-add-card { max-height: 90vh; overflow-y: auto; }
+        .pf-items { display: flex; flex-direction: column; gap: 14px; }
+        .pf-item { border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px 6px; background: var(--white); }
+        .pf-item-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+        .pf-item-no { font-size: 11px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+        .pf-item-no b { color: var(--dark); }
+        .pf-item-remove { width: 30px; height: 30px; border: 1px solid var(--border); border-radius: 9px; background: var(--white); color: var(--muted);
+                          display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .pf-item-remove:hover { color: #B42318; border-color: #fca5a5; background: #fff5f5; }
+        .pf-item-remove svg { width: 14px; height: 14px; }
+        /* image drop zone */
+        .pf-drop { position: relative; display: block; border: 1.5px dashed var(--border); border-radius: 14px; background: var(--cream-soft);
+                   cursor: pointer; transition: border-color .18s ease, background-color .18s ease, box-shadow .18s ease; }
+        .pf-drop:hover, .pf-drop.is-dragging { border-color: var(--dark); background: var(--white); }
+        .pf-drop.is-dragging { box-shadow: 0 0 0 4px rgba(0,0,0,.06); }
+        .pf-drop.is-invalid { border-color: #dc2626; background: #fff5f5; }
+        .pf-drop .pf-file { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+        .pf-drop-empty { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 18px 12px; text-align: center; }
+        .pf-drop-icon { width: 40px; height: 40px; border-radius: 12px; background: var(--white); border: 1px solid var(--border);
+                        display: flex; align-items: center; justify-content: center; color: var(--dark); margin-bottom: 2px; }
+        .pf-drop-icon svg { width: 19px; height: 19px; }
+        .pf-drop-text { font-size: 13px; color: var(--muted); font-weight: 600; }
+        .pf-drop-text b { color: var(--dark); font-weight: 800; }
+        .pf-drop-hint { font-size: 11.5px; color: var(--muted-light, #999); }
+        .pf-drop-filled { display: none; align-items: center; gap: 12px; padding: 10px 12px; }
+        .pf-drop.has-file { border-style: solid; background: var(--white); }
+        .pf-drop.has-file .pf-drop-empty { display: none; }
+        .pf-drop.has-file .pf-drop-filled { display: flex; }
+        .pf-thumb { width: 72px; height: 54px; flex-shrink: 0; border-radius: 10px; overflow: hidden; background: var(--cream-soft); border: 1px solid var(--border); }
+        .pf-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .pf-file-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+        .pf-file-name { font-size: 13px; font-weight: 800; color: var(--dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .pf-file-size { font-size: 11.5px; color: var(--muted); }
+        .pf-file-actions { display: flex; gap: 6px; flex-shrink: 0; }
+        .pf-file-btn { font: inherit; font-size: 12px; font-weight: 700; color: var(--dark); background: var(--cream-soft); border: 1px solid var(--border);
+                       border-radius: 999px; padding: 5px 11px; cursor: pointer; }
+        .pf-file-btn:hover { border-color: var(--dark); }
+        .pf-file-clear:hover { color: #B42318; border-color: #fca5a5; background: #fff5f5; }
+        @media (max-width: 480px) {
+            .pf-drop-filled { flex-wrap: wrap; }
+            .pf-file-actions { width: 100%; justify-content: flex-end; }
+        }
+        .pf-add-another { width: 100%; margin-top: 12px; padding: 11px; border: 1.5px dashed var(--border); border-radius: 14px; background: transparent;
+                          color: var(--dark); font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .pf-add-another:hover { border-color: var(--dark); background: var(--cream-soft); }
+        .pf-add-another svg { width: 15px; height: 15px; }
+        .pf-size-note { margin-top: 8px; font-size: 11.5px; color: var(--muted); text-align: center; }
+        .pf-size-note.over { color: #B42318; font-weight: 800; }
+        .pf-errors { background: #fee2e2; border: 1px solid #fca5a5; border-radius: 10px; padding: 12px; margin-bottom: 14px; color: #dc2626; font-size: 13px; }
+        .pf-errors-note { margin-top: 6px; font-size: 12px; color: #991b1b; font-weight: 600; }
+        #addPortfolioForm .is-invalid { border-color: #dc2626 !important; }
+
         #passwordForm input.is-invalid {
             border-color: #dc2626 !important;
         }

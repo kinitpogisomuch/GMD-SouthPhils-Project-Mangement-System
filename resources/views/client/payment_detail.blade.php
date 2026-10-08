@@ -684,5 +684,21 @@
     </script>
     @include('partials.receipt_viewer')
 
+    @if(session('success'))
+    {{-- Saved (e.g. proof of payment submitted): small dark toast centered below the header, 3 seconds --}}
+    <div class="toast" id="clientPaymentToast" role="status">
+        <i data-lucide="check-circle"></i>
+        <span>{{ session('success') }}</span>
+    </div>
+    <script>
+        window.addEventListener('load', function () {
+            var t = document.getElementById('clientPaymentToast');
+            if (!t) return;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+            requestAnimationFrame(function () { requestAnimationFrame(function () { t.classList.add('show'); }); });
+            setTimeout(function () { t.classList.remove('show'); }, 3000);
+        });
+    </script>
+    @endif
 </body>
 </html>
