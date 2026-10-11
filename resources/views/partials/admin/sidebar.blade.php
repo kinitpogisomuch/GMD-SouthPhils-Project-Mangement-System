@@ -58,7 +58,8 @@
 
         <div class="sidebar-section-label">Financial Management</div>
         @php
-            $pendingSettlementCount = \App\Models\Project::whereNotIn('status', ['completed', 'archived'])
+            // completed projects included — one awaiting delivery can still owe its final payment
+            $pendingSettlementCount = \App\Models\Project::where('status', '!=', 'archived')
                 ->get()
                 ->filter(fn ($p) => $p->awaitingPaymentStage() !== null)
                 ->count();

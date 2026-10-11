@@ -96,7 +96,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="table-wrapper">
+                    <div class="table-wrapper bom-scroll">
                         <table class="pm-table" style="table-layout:fixed;width:100%;">
                             <colgroup>
                                 <col style="width:26%;">
@@ -285,7 +285,7 @@
                      submission, so a whole supplier run can be logged at once instead
                      of one purchase at a time. --}}
                 <div class="modal-overlay" id="logPurchaseModal">
-                <div class="modal-card pm-card" style="max-width:760px;width:95%;max-height:88vh;margin-bottom:0;background:linear-gradient(180deg,#333333 0%,#2a2a2a 100%);border-color:transparent;display:flex;flex-direction:column;overflow:hidden;">
+                <div class="modal-card pm-card" style="max-width:900px;width:95%;max-height:88vh;margin-bottom:0;background:linear-gradient(180deg,#333333 0%,#2a2a2a 100%);border-color:transparent;display:flex;flex-direction:column;overflow:hidden;">
                     <div class="pm-card-header" style="padding-bottom:12px;border-bottom-color:rgba(255,255,255,.1);flex-shrink:0;">
                         <div>
                             <div class="pm-card-title" style="font-size:14px;color:#fff;">Log New Purchase</div>
@@ -303,8 +303,9 @@
                             </button>
                         </div>
 
-                        <div id="purchaseRowsHeader" style="display:none;grid-template-columns:2.2fr 0.9fr 0.8fr 1fr 1fr 26px;gap:8px;padding:0 4px 6px;margin-bottom:2px;">
+                        <div id="purchaseRowsHeader" style="display:none;grid-template-columns:2fr 1.4fr 0.7fr 0.7fr 1fr 1fr 26px;gap:8px;padding:0 4px 6px;margin-bottom:2px;">
                             <span style="font-size:10.5px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.04em;">Material</span>
+                            <span style="font-size:10.5px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.04em;">Supplier</span>
                             <span style="font-size:10.5px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.04em;">Unit</span>
                             <span style="font-size:10.5px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.04em;">Qty</span>
                             <span style="font-size:10.5px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.04em;">Unit Cost (₱)</span>
@@ -317,12 +318,13 @@
                             No materials added yet. Click <strong style="color:#fff;">Add Material</strong> to get started.
                         </div>
 
-                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:12px;align-items:end;">
+                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:12px;align-items:start;">
+                            {{-- General supplier: applies to every row whose Supplier is left on "Default" --}}
                             <div class="pm-add-field">
-                                <label>Supplier</label>
+                                <label>Supplier (default)</label>
                                 @if(isset($suppliers) && $suppliers->isNotEmpty())
                                 <select id="supplierDropdown" onchange="onSupplierChange(this)">
-                                    <option value="" disabled selected hidden>Select supplier...</option>
+                                    <option value="" selected>Select supplier...</option>
                                     @foreach($suppliers as $sup)
                                     <option value="{{ $sup->name }}">{{ $sup->name }}{{ $sup->company ? ' — '.$sup->company : '' }}</option>
                                     @endforeach
@@ -330,9 +332,11 @@
                                 </select>
                                 <input type="text" name="supplier" id="supplierCustom"
                                        placeholder="Type supplier name" maxlength="255"
+                                       oninput="refreshRowSupplierDefaults()"
                                        style="display:none;margin-top:6px;">
                                 @else
-                                <input type="text" name="supplier" placeholder="Supplier name" maxlength="255">
+                                <input type="text" name="supplier" id="supplierCustom" placeholder="Supplier name" maxlength="255"
+                                       oninput="refreshRowSupplierDefaults()">
                                 @endif
                             </div>
                             <div class="pm-add-field">
@@ -355,7 +359,7 @@
 
                 {{-- Hidden template for one purchase row — cloned by JS via addPurchaseRow() --}}
                 <template id="purchaseRowTemplate">
-                    <div class="purchase-row" style="display:grid;grid-template-columns:2.2fr 0.9fr 0.8fr 1fr 1fr 26px;gap:8px;align-items:start;padding:6px 4px;margin-bottom:6px;">
+                    <div class="purchase-row" style="display:grid;grid-template-columns:2fr 1.4fr 0.7fr 0.7fr 1fr 1fr 26px;gap:8px;align-items:start;padding:6px 4px;margin-bottom:6px;">
                         <div class="pm-add-field">
                             <select name="project_material_id[]" class="purchase-row-bom-select" onchange="prefillPurchaseRow(this)">
                                 <option value="" disabled selected hidden>Select material...</option>
@@ -372,6 +376,19 @@
                             <input type="hidden" name="material_name[]" class="purchase-row-name-hidden">
                             <input type="text" class="purchase-row-name-custom"
                                    placeholder="Type material name" maxlength="255"
+                                   style="display:none;margin-top:6px;">
+                        </div>
+                        {{-- Per-row override: blank row_supplier[] = use the general supplier --}}
+                        <div class="pm-add-field">
+                            <select class="purchase-row-supplier-select" onchange="onRowSupplierChange(this)">
+                                <option value="" selected>Default</option>
+                                @foreach($suppliers ?? [] as $sup)
+                                <option value="{{ $sup->name }}">{{ $sup->name }}</option>
+                                @endforeach
+                                <option value="__other__">Other (type manually)</option>
+                            </select>
+                            <input type="text" name="row_supplier[]" class="purchase-row-supplier"
+                                   placeholder="Type supplier name" maxlength="255"
                                    style="display:none;margin-top:6px;">
                         </div>
                         <div class="pm-add-field">
@@ -1076,6 +1093,7 @@
             var container = document.getElementById('purchaseRowsContainer');
             var row       = tpl.content.cloneNode(true).firstElementChild;
             container.appendChild(row);
+            refreshRowSupplierDefaults();
 
             if (prefill) {
                 var sel = row.querySelector('.purchase-row-bom-select');
@@ -1362,9 +1380,24 @@
             }
         }
 
+        // ---- Supplier: one general supplier for the log, overridable per row ----
+        // General dropdown mirrors into the supplier input (shown only for "Other").
         function onSupplierChange(sel) {
             var custom = document.getElementById('supplierCustom');
-            if (!custom) return;
+            if (sel.value === '__other__') {
+                custom.style.display = '';
+                custom.value = '';
+                custom.focus();
+            } else {
+                custom.style.display = 'none';
+                custom.value = sel.value;
+            }
+            refreshRowSupplierDefaults();
+        }
+
+        // Row dropdown mirrors into row_supplier[]; blank means "use the general supplier".
+        function onRowSupplierChange(sel) {
+            var custom = sel.closest('.purchase-row').querySelector('.purchase-row-supplier');
             if (sel.value === '__other__') {
                 custom.style.display = '';
                 custom.value = '';
@@ -1375,11 +1408,14 @@
             }
         }
 
-        // On page load, sync hidden supplier input if a dropdown exists
-        document.addEventListener('DOMContentLoaded', function() {
-            var dd = document.getElementById('supplierDropdown');
-            if (dd) onSupplierChange(dd);
-        });
+        // Show which supplier "Default" currently means, e.g. "Default (Emc7 Hardware)".
+        function refreshRowSupplierDefaults() {
+            var name  = (document.getElementById('supplierCustom').value || '').trim();
+            var label = name ? 'Default (' + name + ')' : 'Default';
+            document.querySelectorAll('#purchaseRowsContainer .purchase-row-supplier-select').forEach(function (sel) {
+                sel.options[0].textContent = label;
+            });
+        }
 
     </script>
 
@@ -1391,7 +1427,10 @@
         .pm-tab-content { display:none; }
         .pm-tab-content.active { display:block; }
         .pm-card { background:var(--white);border:1px solid var(--border);border-radius:14px;overflow:visible; }
-        .pm-card .table-wrapper { border-radius:0 0 14px 14px;overflow:auto; }
+        .pm-card .table-wrapper { border-radius:0 0 14px 14px;overflow:auto; }        /* BOM: scroll inside the card, keep header + subtotal pinned */
+        .pm-card .table-wrapper.bom-scroll { max-height:520px;overflow-y:auto; }
+        .bom-scroll thead th { position:sticky;top:0;z-index:2;background:var(--cream-soft); }
+        .bom-scroll tfoot td { position:sticky;bottom:0;z-index:2;background:var(--cream-soft);box-shadow:inset 0 2px 0 var(--border); }
         .pm-card-header { display:flex;justify-content:space-between;align-items:flex-start;padding:16px 20px;border-bottom:1px solid var(--border); }
         .pm-card-title { font-size:14px;font-weight:800;color:var(--dark); }
         .pm-card-sub   { font-size:12px;color:var(--muted-light);margin-top:2px;font-weight:500; }

@@ -217,7 +217,7 @@
                             <div class="manual-topic-icon"><i data-lucide="gauge"></i></div>
                             <h2>KPI Dashboard</h2>
                         </div>
-                        <p class="manual-tagline">Shows how the business is performing — profit, on-time delivery, and budget — compared to the goals you set.</p>
+                        <p class="manual-tagline">Shows how the business is performing — profit, on-time completion rate, and budget — compared to the goals you set.</p>
                         <div class="manual-content">
                             <ul>
                                 <li>Switch between Month, Quarter, and Year view using the picker at the top.</li>
@@ -233,7 +233,7 @@
                             <div class="manual-topic-icon"><i data-lucide="target"></i></div>
                             <h2>Set KPI Targets</h2>
                         </div>
-                        <p class="manual-tagline">Tell the system what profit and delivery goals to measure each quarter against.</p>
+                        <p class="manual-tagline">Tell the system what profit and on-time completion goals to measure each quarter against.</p>
                         <div class="manual-content">
                             <div class="manual-guide-badge"><i data-lucide="list-ordered"></i> 5-step guide</div>
                             <div class="manual-steps">
@@ -266,7 +266,7 @@
                                     <div class="manual-step-num">4</div>
                                     <div class="manual-step-body">
                                         <h3>Fill in your monthly goals</h3>
-                                        <p>Enter a peso profit goal and an on-time-delivery number for each of the quarter's three months. The totals below add these up for you automatically — you don't need to calculate them yourself.</p>
+                                        <p>Enter a peso profit goal and an on-time completion rate for each of the quarter's three months. The totals below add these up for you automatically — you don't need to calculate them yourself.</p>
                                     </div>
                                 </div>
                                 <div class="manual-step">
@@ -454,8 +454,8 @@
                                                 <tr><td>Fabrication</td><td>Check off Cutting, Assembly, Welding</td><td>"Save Progress Update"</td></tr>
                                                 <tr><td>Inspection</td><td>Check off Pressure Test & Soap Test</td><td>"Save Progress Update"</td></tr>
                                                 <tr><td>Painting</td><td>Upload photos + optional notes</td><td>"Save Progress Update"</td></tr>
-                                                <tr><td>Completion</td><td>Upload final photos + optional notes</td><td>"Save Progress Update"</td></tr>
-                                                <tr><td>Delivery</td><td>Confirm final payment, upload delivery photos</td><td>"Mark as Delivered & Complete"</td></tr>
+                                                <tr><td>Completion</td><td>Upload final photos + optional notes — this marks the project <strong>Completed</strong> (100%)</td><td>"Mark as Completed"</td></tr>
+                                                <tr><td>Delivery</td><td>Confirm final payment, upload delivery photos — delivery is tracked separately from completion</td><td>"Mark as Delivered"</td></tr>
                                             </tbody>
                                         </table>
                                         <div class="manual-note alert-banner warning">

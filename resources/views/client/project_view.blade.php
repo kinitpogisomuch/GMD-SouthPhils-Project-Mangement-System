@@ -44,7 +44,8 @@
                     default     => 'planning',
                 };
                 $statusLabel = match($project->status) {
-                    'completed' => 'Completed',
+                    // completion and delivery are separate — say which one the client is waiting on
+                    'completed' => $project->isDelivered() ? 'Completed · Delivered' : 'Completed · Awaiting Delivery',
                     'ongoing'   => 'In Progress',
                     'archived'  => 'Archived',
                     default     => 'Planning',
@@ -604,6 +605,8 @@
     <script>
         const PROJECT_CURRENT_PHASE = "{{ $project->current_phase }}";
         const PROJECT_STATUS = "{{ $project->status }}";
+        // delivery is separate from completion — the Delivery step is only "done" once delivered
+        const PROJECT_DELIVERED = {{ $project->isDelivered() ? 'true' : 'false' }};
         const UPDATES_DATA = @json($updatesData);
     </script>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -652,7 +655,7 @@
             if (typeof lucide !== "undefined") lucide.createIcons();
         }
 
-        buildPhaseSteps(getPhaseStatuses(PROJECT_CURRENT_PHASE, PROJECT_STATUS === 'completed'));
+        buildPhaseSteps(getPhaseStatuses(PROJECT_CURRENT_PHASE, PROJECT_DELIVERED));
 
         /* ── Read more / less toggle ─────────────────────────────────────── */
         function toggleWorkText(btn) {

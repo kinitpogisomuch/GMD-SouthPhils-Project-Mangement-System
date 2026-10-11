@@ -851,7 +851,10 @@ class NotificationService
         );
     }
 
-    /** Project fully delivered and marked completed → notify client and employees */
+    /**
+     * Project completed (its Completion phase is done) → notify client and employees.
+     * Delivery is separate — see projectDelivered().
+     */
     public static function projectCompleted(Project $project, $occurredAt = null): void
     {
         self::notifyProjectClient(
@@ -867,8 +870,34 @@ class NotificationService
 
         self::notifyAllEmployees(
             'Project Completed',
-            "Project {$project->name} has been completed and delivered.",
+            "Project {$project->name} has been completed and is awaiting delivery.",
             self::TYPE_PROJECT_COMPLETED,
+            'success',
+            $project->id,
+            null,
+            "/employee/project-view/{$project->id}",
+            $occurredAt
+        );
+    }
+
+    /** Completed project delivered to the client → notify client and employees */
+    public static function projectDelivered(Project $project, $occurredAt = null): void
+    {
+        self::notifyProjectClient(
+            $project,
+            'Project Delivered',
+            "Your project \"{$project->name}\" has been delivered.",
+            self::TYPE_PHASE_ADVANCED,
+            'success',
+            null,
+            "/client/project-view/{$project->id}",
+            $occurredAt
+        );
+
+        self::notifyAllEmployees(
+            'Project Delivered',
+            "Project {$project->name} has been delivered to the client.",
+            self::TYPE_PHASE_ADVANCED,
             'success',
             $project->id,
             null,

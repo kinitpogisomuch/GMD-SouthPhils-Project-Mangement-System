@@ -36,14 +36,23 @@ class ProjectSeeder extends Seeder
             return json_encode($status);
         };
 
-        // Completed phase_data (planning sub-phases all approved)
-        $buildPhaseData = function (Carbon $start): string {
+        // When the Completion phase was approved — the project's completion date (completed_at),
+        // which the On-Time Completion Rate KPI judges. Same spacing as $buildPhaseStatus.
+        $completionDate = function (Carbon $start, Carbon $end) use ($phaseKeys): Carbon {
+            $step = (int) floor(max($start->diffInDays($end), 8) / count($phaseKeys));
+            return $start->copy()->addDays($step * (array_search('completion', $phaseKeys) + 1));
+        };
+
+        // Completed phase_data (planning sub-phases all approved). These historical projects
+        // were all delivered — delivery is tracked separately from completion.
+        $buildPhaseData = function (Carbon $start, Carbon $end): string {
             return json_encode([
                 'planning' => [
                     'shop_drawing' => ['status' => 'approved', 'approved_at' => $start->toDateTimeString()],
                     'quotation'    => ['status' => 'approved', 'approved_at' => $start->copy()->addDays(3)->toDateTimeString()],
                     'payment'      => ['status' => 'approved', 'approved_at' => $start->copy()->addDays(5)->toDateTimeString()],
                 ],
+                'delivery' => ['delivered_at' => $end->toDateString()],
             ]);
         };
 
@@ -171,6 +180,7 @@ class ProjectSeeder extends Seeder
                 'end_date'               => $p['end'],
                 'payment_status'         => 'Paid',
                 'status'                 => 'completed',
+                'completed_at'           => $completionDate($start, $end)->setTime(12, 0)->toDateTimeString(),
                 'progress'               => 100,
                 'duration'               => $p['days'] . ' days',
                 'estimated_working_days' => $p['days'],
@@ -182,7 +192,7 @@ class ProjectSeeder extends Seeder
                 'total_phases'           => 8,
                 'completion_percentage'  => 100,
                 'phase_completion_status'=> $buildPhaseStatus($start, $end),
-                'phase_data'             => $buildPhaseData($start),
+                'phase_data'             => $buildPhaseData($start, $end),
                 'last_phase_update_at'   => $end->toDateTimeString(),
                 'last_phase_updated_by'  => 1,
                 'created_at'             => $start->toDateTimeString(),

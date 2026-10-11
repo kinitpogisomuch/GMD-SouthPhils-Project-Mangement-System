@@ -153,7 +153,7 @@ class KpiDashboardController extends Controller
             'profit_target_m1'    => 'required|numeric|min:0',
             'profit_target_m2'    => 'required|numeric|min:0',
             'profit_target_m3'    => 'required|numeric|min:0',
-            // On-time delivery target is a RATE in percent (e.g. 90), one for the whole quarter
+            // On-Time Completion Rate target is a RATE in percent (e.g. 90), one for the whole quarter
             'on_time_target'      => 'required|numeric|min:0|max:100',
         ]);
 
@@ -303,6 +303,52 @@ class KpiDashboardController extends Controller
             'quarter_scorecard' => $quarterScorecard,
             'trend'             => $trend,
             'forecast'          => $this->computeForecast($year, $quarter, $trend),
+            'period'            => $this->periodStatus($year, $quarter, $month),
+        ];
+    }
+
+    /**
+     * Where the selected period stands in time, and the active projects due in it — so a
+     * period that is still running (or hasn't started) is described as in progress rather
+     * than judged as a miss just because nothing has been completed in it yet.
+     */
+    private function periodStatus(int $year, int $quarter, ?int $month): array
+    {
+        if ($month) {
+            $start = Carbon::create($year, $month, 1)->startOfDay();
+            $end   = (clone $start)->endOfMonth()->endOfDay();
+            $label = $start->format('F Y');
+        } else {
+            [$start, $end] = $this->quarterRange($year, $quarter);
+            $label = 'Q' . $quarter . ' ' . $year;
+        }
+
+        $today  = Carbon::today();
+        $state  = $today->lt($start) ? 'upcoming' : ($today->gt($end) ? 'finalized' : 'in_progress');
+
+        // Active (not yet completed) projects whose planned end date falls in this period —
+        // completing them is what will count toward this period's KPIs.
+        $due = Project::whereNotIn('status', ['completed', 'archived'])
+            ->whereBetween('end_date', [$start->toDateString(), $end->toDateString()])
+            ->orderBy('end_date')
+            ->get()
+            ->map(fn (Project $p) => [
+                'code'     => $p->code,
+                'name'     => $p->name,
+                'end_date' => $p->end_date->format('M d, Y'),
+                'phase'    => ucwords(str_replace('_', ' ', $p->current_phase ?? 'planning')),
+                'overdue'  => $p->end_date->lt($today),
+            ])
+            ->values();
+
+        return [
+            'label'      => $label,
+            'state'      => $state,
+            'start'      => $start->format('M d, Y'),
+            'end'        => $end->format('M d, Y'),
+            'days_total' => (int) $start->diffInDays($end->copy()->startOfDay()) + 1,
+            'days_left'  => $state === 'in_progress' ? (int) $today->diffInDays($end->copy()->startOfDay()) + 1 : null,
+            'due_projects' => $due,
         ];
     }
 
@@ -443,7 +489,7 @@ class KpiDashboardController extends Controller
     }
 
     /**
-     * One completed project's money and delivery figures — the single place they're worked out,
+     * One completed project's money and on-time completion figures — the single place they're worked out,
      * shared by the period totals and the per-project table in the generated report.
      */
     private function projectFigures(Project $project): array
@@ -472,6 +518,8 @@ class KpiDashboardController extends Controller
             ? (float) $payment->project_budget
             : $bomMatCost + $bomLaborCost;
 
+        // On time = completed (Completion phase finished — completed_at, NOT the delivery date)
+        // on or before the planned end date; completed after it is late.
         $onTime = $project->end_date && $project->completed_at->copy()->startOfDay()->lte($project->end_date);
 
         return compact('payment', 'received', 'actualMatSpend', 'actualLaborCost', 'totalActualSpend', 'overheadCost', 'bomBudget', 'onTime');
@@ -589,7 +637,7 @@ class KpiDashboardController extends Controller
                 'progress_pct' => $hasTarget ? ($profitTarget > 0 ? min(100, round(($netProfit / $profitTarget) * 100, 1)) : ($netProfit > 0 ? 100 : 0)) : null,
                 'scale'        => $this->profitMarginScale($avgMargin),
             ],
-            // On-time delivery RATE = projects finished on or before the deadline ÷ completed
+            // On-Time Completion RATE = projects completed on or before their planned end date ÷ completed
             // projects × 100, recomputed from the period's own counts (never an average of
             // monthly rates). Judged against the owner's target rate in percentage points.
             'on_time' => [
@@ -733,7 +781,7 @@ class KpiDashboardController extends Controller
     }
 
     /**
-     * Net profit + on-time delivery actuals for a single calendar month — a lighter
+     * Net profit + on-time completion actuals for a single calendar month — a lighter
      * subset of computeMonthKpis() (no target comparison, no budget), used only to
      * populate the Monthly Breakdown table's rows.
      */
@@ -754,16 +802,19 @@ class KpiDashboardController extends Controller
     }
 
     /**
-     * On-time status: Target hit when the rate is at or above the target rate; Tolerable when it
-     * is below but within 10 percentage points; Below target when more than 10 points below.
+     * On-Time Completion Rate status, from achievement = rate ÷ target rate × 100:
+     * 100% or above Target hit · 80%–99% Tolerable · below 80% Below target.
+     * (Mirrors onTimeLevel() in the KPI dashboard's JS.)
      */
     private function onTimeLevel(float $rate, float $target): string
     {
-        if ($rate >= $target) {
-            return 'hit';
-        }
+        $achievement = $target > 0 ? ($rate / $target) * 100 : 100;
 
-        return ($target - $rate) <= 10 ? 'tolerable' : 'below';
+        return match (true) {
+            $achievement >= 100 => 'hit',
+            $achievement >= 80  => 'tolerable',
+            default             => 'below',
+        };
     }
 
     /** Source: Tangle Research 2026 FMA Survey. */

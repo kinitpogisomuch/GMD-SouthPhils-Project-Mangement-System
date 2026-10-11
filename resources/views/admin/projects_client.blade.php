@@ -57,7 +57,7 @@
                             <span class="filter-count">{{ $projects->whereNotIn('status', ['completed', 'archived'])->count() }}</span>
                         </button>
                         <button type="button" class="filter-tab" data-filter="completed">
-                            Completed
+                            Completed Projects
                             <span class="filter-count">{{ $projects->where('status', 'completed')->count() }}</span>
                         </button>
                         <button type="button" class="filter-tab" data-filter="archived">
@@ -70,13 +70,14 @@
                 <div class="table-wrapper">
                     <table class="data-table" id="projectsTable">
                         <colgroup>
-                            <col style="width:22%;">  {{-- Project Name --}}
-                            <col style="width:8%;">   {{-- Capacity --}}
-                            <col style="width:11%;">  {{-- Start Date --}}
-                            <col style="width:11%;">  {{-- End Date --}}
-                            <col style="width:11%;">  {{-- Status --}}
-                            <col style="width:14%;">  {{-- Payment --}}
-                            <col style="width:9%;">   {{-- Progress --}}
+                            <col style="width:19%;">  {{-- Project Name --}}
+                            <col style="width:7%;">   {{-- Capacity --}}
+                            <col style="width:9%;">  {{-- Start Date --}}
+                            <col style="width:9%;">  {{-- End Date --}}
+                            <col style="width:11%;">  {{-- Project Status --}}
+                            <col id="deliveryStatusCol" style="width:11%;">  {{-- Delivery Status --}}
+                            <col style="width:12%;">  {{-- Payment --}}
+                            <col style="width:8%;">   {{-- Progress --}}
                             <col style="width:14%;">  {{-- Action --}}
                         </colgroup>
                         <thead>
@@ -85,7 +86,8 @@
                                 <th style="text-align:center;">Capacity</th>
                                 <th style="text-align:center;">Start Date</th>
                                 <th style="text-align:center;">End Date</th>
-                                <th style="text-align:center;">Status</th>
+                                <th style="text-align:center;">Project Status</th>
+                                <th class="delivery-status-col" style="text-align:center;">Delivery Status</th>
                                 <th style="text-align:center;">Payment</th>
                                 <th style="text-align:center;">Progress</th>
                                 <th style="text-align:center;">Action</th>
@@ -94,7 +96,7 @@
                         <tbody>
                             @forelse($projects as $project)
                             @php $needsReview = in_array($project->id, $pendingUpdateProjectIds); @endphp
-                            <tr data-status="{{ $project->status }}" class="{{ $needsReview ? 'row-needs-action' : '' }}">
+                            <tr data-status="{{ $project->status }}" data-delivery="{{ $project->deliveryStatus() }}" class="{{ $needsReview ? 'row-needs-action' : '' }}">
                                 @php
                                     $namePrefix = '';
                                     $nameMain   = $project->name;
@@ -137,14 +139,32 @@
                                         'delivery'    => ['bg'=>'#059669','color'=>'#fff','shadow'=>'rgba(5,150,105,.3)'],
                                         'delayed'     => ['bg'=>'#EF4444','color'=>'#fff','shadow'=>'rgba(239,68,68,.3)'],
                                         'completed'   => ['bg'=>'#E7F6EC','color'=>'#207A3A','shadow'=>'rgba(32,122,58,.15)'],
+                                        'awaiting_delivery' => ['bg'=>'#FFF4E0','color'=>'#B45309','shadow'=>'rgba(245,158,11,.2)'],
+                                        'delivered'   => ['bg'=>'#207A3A','color'=>'#fff','shadow'=>'rgba(32,122,58,.3)'],
                                     ];
                                     $pc = $phaseColors[$phase] ?? ['bg'=>'#F3F4F6','color'=>'#6B7280','shadow'=>'rgba(0,0,0,.1)'];
                                     $phaseLabel = ucwords(str_replace('_', ' ', $phase));
                                 @endphp
+                                {{-- Project Status: the current phase, or "Completed" once the Completion phase is done --}}
                                 <td style="text-align:center;">
                                     <span class="status-badge" style="background:{{ $pc['bg'] }};color:{{ $pc['color'] }};box-shadow:0 0 0 1px {{ $pc['shadow'] }},0 2px 8px {{ $pc['shadow'] }};">
                                         {{ $phaseLabel }}
                                     </span>
+                                </td>
+                                {{-- Delivery Status: tracked separately from completion, and only shown once the
+                                     project is completed (Awaiting Delivery → Delivered) --}}
+                                <td class="delivery-status-col" style="text-align:center;">
+                                    @if($project->status === 'completed')
+                                    @php
+                                        $deliveryKey = $project->deliveryStatus();
+                                        $dc = $phaseColors[$deliveryKey];
+                                    @endphp
+                                    <span class="status-badge" style="background:{{ $dc['bg'] }};color:{{ $dc['color'] }};box-shadow:0 0 0 1px {{ $dc['shadow'] }},0 2px 8px {{ $dc['shadow'] }};">
+                                        {{ $project->deliveryStatusLabel() }}
+                                    </span>
+                                    @else
+                                    <span style="color:var(--muted);">—</span>
+                                    @endif
                                 </td>
                                 @php
                                     $projPayment = $project->getPaymentRecord();
@@ -222,14 +242,14 @@
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="8" style="text-align:center; padding:40px; color:var(--muted);">
+                                <td colspan="9" style="text-align:center; padding:40px; color:var(--muted);">
                                     No projects found for this client.
                                 </td>
                             </tr>
                             @endforelse
                             @if($projects->isNotEmpty())
                             <tr id="noProjectsRow" style="display:none;">
-                                <td colspan="8" style="text-align:center;padding:60px 20px;color:var(--muted);">
+                                <td colspan="9" style="text-align:center;padding:60px 20px;color:var(--muted);">
                                     <i data-lucide="folder-open" style="width:36px;height:36px;opacity:.35;display:block;margin:0 auto 12px;"></i>
                                     <div style="font-size:14px;font-weight:700;" id="noProjectsMsg">No projects in this category.</div>
                                     <div style="font-size:13px;margin-top:4px;">Try switching to a different tab.</div>
@@ -286,6 +306,10 @@
                             <input type="date" name="end_date" id="editProjectEndDate" required>
                         </div>
                     </div>
+                    <p style="display:flex;align-items:flex-start;gap:6px;margin:8px 0 0;font-size:12px;color:var(--muted);line-height:1.5;">
+                        <i data-lucide="info" style="width:13px;height:13px;flex-shrink:0;margin-top:2px;"></i>
+                        <span>This schedule covers the project from <strong>Planning to Completion</strong> — delivery isn't included. The End Date is the planned completion date used for the On-Time Completion Rate.</span>
+                    </p>
                 </div>
 
                 {{-- Fixed action buttons --}}
@@ -809,6 +833,10 @@
             'archived':  'No archived projects.'
         };
 
+        // Delivery Status <col>, and the <col> right after it (where it's re-inserted)
+        var deliveryColEl     = document.getElementById('deliveryStatusCol');
+        var deliveryColAnchor = deliveryColEl ? deliveryColEl.nextElementSibling : null;
+
         function applyProjectFilters() {
             var q            = (document.getElementById('projectSearch').value || '').toLowerCase();
             var visibleCount = 0;
@@ -817,12 +845,32 @@
                 if (row.id === 'noProjectsRow' || !row.dataset.status) return;
                 var status      = (row.dataset.status || '').toLowerCase();
                 var matchSearch = row.textContent.toLowerCase().indexOf(q) !== -1;
+                // A project moves to Completed Projects as soon as it's completed (Completion phase
+                // done); its delivery is then tracked there in the Delivery Status column
                 var matchFilter = (currentArchiveFilter === 'archived'  && status === 'archived')
                     || (currentArchiveFilter === 'completed' && status === 'completed')
                     || (currentArchiveFilter === 'active'    && status !== 'archived' && status !== 'completed');
                 var show = matchSearch && matchFilter;
                 row.style.display = show ? '' : 'none';
                 if (show) visibleCount++;
+            });
+
+            // The Delivery Status column belongs to the Completed Projects tab (even when it's empty)
+            var showDeliveryCol = currentArchiveFilter === 'completed';
+            document.querySelectorAll('#projectsTable .delivery-status-col').forEach(function (cell) {
+                cell.style.display = showDeliveryCol ? '' : 'none';
+            });
+            // The column's <col> has to leave the colgroup too — otherwise the cells after it slide
+            // into its slot (Payment would land in the hidden Delivery column)
+            if (deliveryColEl) {
+                if (showDeliveryCol && !deliveryColEl.parentNode) {
+                    deliveryColAnchor.parentNode.insertBefore(deliveryColEl, deliveryColAnchor);
+                } else if (!showDeliveryCol && deliveryColEl.parentNode) {
+                    deliveryColEl.parentNode.removeChild(deliveryColEl);
+                }
+            }
+            document.querySelectorAll('#projectsTable td[colspan]').forEach(function (cell) {
+                cell.colSpan = showDeliveryCol ? 9 : 8;
             });
 
             var noRow = document.getElementById('noProjectsRow');

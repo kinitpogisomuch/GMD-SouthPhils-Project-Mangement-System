@@ -283,7 +283,14 @@
                                         $rcStageClass = str_contains(strtolower($r['stage']), 'down') ? 'down'
                                             : (str_contains(strtolower($r['stage']), 'progress') ? 'progress' : 'final');
                                     @endphp
-                                    <td><span class="rc-or"><span class="rc-or-tag">OR</span>{{ $r['or_number'] }}</span></td>
+                                    <td>
+                                        @if($r['or_number'])
+                                        <span class="rc-or"><span class="rc-or-tag">OR</span>{{ $r['or_number'] }}</span>
+                                        @else
+                                        {{-- historical payment — no OR number on record --}}
+                                        <span style="color:var(--muted);">—</span>
+                                        @endif
+                                    </td>
                                     <td><span class="client-pill">{{ $r['client'] }}</span></td>
                                     <td>
                                         <div class="rc-project">

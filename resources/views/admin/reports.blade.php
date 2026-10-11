@@ -92,7 +92,7 @@
                     Defaults are research-backed - see resources/views/admin/settings.blade.php
                     for the basis/citations shown next to each field:
                     - Profit Margin: PH COA contractor margin benchmark (8-10% of Estimated Direct Cost)
-                    - On-Time Delivery: industry benchmark range (80-90% for effective contractors)
+                    - On-Time Completion Rate: industry benchmark range (80-90% for effective contractors)
                     - Budget Adherence: PMI Cost Performance Index standard (CPI = 1.0 / 100% = on budget)
                 */
                 $pmTarget  = (float) $kpiTargets->kpi_profit_margin_target;
@@ -113,7 +113,7 @@
                         ['label'=>'Total Net Profit',  'value'=>'₱'.number_format($totalNetProfit), 'icon'=>'banknote'],
                         ['label'=>'Avg Profit Margin', 'value'=>$overallMargin.'%',                 'icon'=>'percent'],
                         ['label'=>'Completed Projects','value'=>$count.' projects',                 'icon'=>'check-circle-2'],
-                        ['label'=>'On-Time Delivery',  'value'=>$onTimeRate.'%',                    'icon'=>'clock'],
+                        ['label'=>'On-Time Completion Rate', 'value'=>$onTimeRate.'%',                    'icon'=>'clock'],
                     ];
                 @endphp
                 @foreach($strips as $s)
@@ -150,7 +150,7 @@
                         <strong>₱{{ number_format($totalRevenue) }}</strong> in revenue and retained
                         <strong>₱{{ number_format($totalNetProfit) }}</strong> as net profit, an average margin of
                         <strong>{{ $overallMargin }}%</strong> — {{ $pmStatusWord }} the {{ $pmTarget }}% target.
-                        On-time delivery stands at <strong>{{ $onTimeRate }}%</strong>, {{ $otStatusWord }} the {{ $otTarget }}% target
+                        On-time completion rate stands at <strong>{{ $onTimeRate }}%</strong>, {{ $otStatusWord }} the {{ $otTarget }}% target
                         @if($delayedCount > 0)
                             ({{ $delayedCount }} project{{ $delayedCount !== 1 ? 's' : '' }} delayed{{ $avgDelayDays > 0 ? ', averaging ~'.$avgDelayDays.' days late' : '' }}),
                         @else
@@ -212,12 +212,12 @@
                     </div>
                 </div>
 
-                {{-- On-Time Delivery --}}
+                {{-- On-Time Completion Rate --}}
                 @php $otChip = $otDiff >= 0 ? 'icon-chip-success' : 'icon-chip-danger'; $otColor = $otDiff >= 0 ? 'var(--success)' : 'var(--danger)'; @endphp
                 <div class="card" style="margin-bottom:0;overflow:hidden;">
                     <div style="background:var(--cream-soft);padding:16px 18px;border-bottom:1px solid var(--border);">
                         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-                            <span style="font-size:13px;font-weight:800;color:var(--dark);">On-Time Delivery</span>
+                            <span style="font-size:13px;font-weight:800;color:var(--dark);">On-Time Completion Rate</span>
                             @php
                                 $otLabel = $otDiff < 0 ? 'Below target' : ($otDiff <= 5 ? 'On target' : 'Excellent');
                             @endphp
@@ -238,7 +238,7 @@
                     <div style="padding:14px 18px;display:flex;flex-direction:column;gap:8px;">
                         @foreach([
                             ['Total projects',  $count.' projects', null],
-                            ['Delivered on time', $onTimeCount.' projects', 'var(--success)'],
+                            ['Completed on time', $onTimeCount.' projects', 'var(--success)'],
                             ['Delayed',         $delayedCount.' project'.($delayedCount!==1?'s':''), $delayedCount>0?'var(--danger)':null],
                             ['Avg delay (delayed)', $avgDelayDays > 0 ? '~'.$avgDelayDays.' days' : '—', $avgDelayDays>0?'var(--warning)':null],
                         ] as $row)
@@ -446,11 +446,11 @@
                     @php
                         $insights = [];
 
-                        // On-Time Delivery
+                        // On-Time Completion Rate
                         if ($onTimeRate >= $otTarget) {
-                            $insights[] = ['kpi'=>'otd', 'icon'=>'✓', 'chip'=>'icon-chip-success', 'text'=>'OTD at '.$onTimeRate.'% — delivery schedule is well-managed.'];
+                            $insights[] = ['kpi'=>'otd', 'icon'=>'✓', 'chip'=>'icon-chip-success', 'text'=>'On-time completion at '.$onTimeRate.'% — project schedules are well-managed.'];
                         } else {
-                            $insights[] = ['kpi'=>'otd', 'icon'=>'!', 'chip'=>'icon-chip-danger', 'text'=>'OTD at '.$onTimeRate.'%. '.$delayedCount.' project'.($delayedCount!==1?'s':'').' delayed'.($avgDelayDays>0?' (~'.$avgDelayDays.' days avg)':'').'.'];
+                            $insights[] = ['kpi'=>'otd', 'icon'=>'!', 'chip'=>'icon-chip-danger', 'text'=>'On-time completion at '.$onTimeRate.'%. '.$delayedCount.' project'.($delayedCount!==1?'s':'').' delayed'.($avgDelayDays>0?' (~'.$avgDelayDays.' days avg)':'').'.'];
                         }
 
                         // Profit Margin

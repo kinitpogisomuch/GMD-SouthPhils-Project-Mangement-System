@@ -843,7 +843,7 @@ class AdminController extends Controller
                 ? min(100, round(($bomTotalBudget / max(1, $totalActualSpend ?: $bomTotalBudget)) * 100, 1))
                 : ($contractValue > 0 ? min(100, round(($received / $contractValue) * 100, 1)) : 0);
 
-            // ── On-time delivery ──
+            // ── On-Time Completion Rate (completed_at = Completion phase date, not delivery) ──
             $onTime = $project->end_date
                 && $project->completed_at->copy()->startOfDay()->lte($project->end_date);
 

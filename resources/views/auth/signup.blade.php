@@ -142,14 +142,72 @@
             display: flex; align-items: center;
         }
 
-        .pw-req-list { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; }
+        /* sized so all five requirements fit on one line in the form; they still wrap on narrow screens */
+        .pw-req-list { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 5px; }
         .pw-req {
-            font-size: 11.5px; padding: 4px 10px; border-radius: 999px;
+            font-size: 10.5px; padding: 3px 8px; border-radius: 999px; white-space: nowrap;
             border: 1px solid var(--border); color: var(--muted); background: var(--cream);
             display: flex; align-items: center; gap: 4px; transition: all 0.2s; font-weight: 600;
         }
         .pw-req.met  { background: #E7F6EC; border-color: #86efac; color: #207A3A; }
         .pw-req.fail { background: var(--danger-bg); border-color: #fca5a5; color: var(--danger); }
+
+        /* Terms and Conditions checkbox */
+        .terms-row {
+            display: flex; align-items: flex-start; gap: 10px;
+            margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border);
+            font-size: 13px; color: var(--dark); line-height: 1.5; cursor: pointer;
+        }
+        .terms-row input[type="checkbox"] {
+            width: 18px; height: 18px; margin: 1px 0 0; flex-shrink: 0;
+            accent-color: var(--dark); cursor: pointer;
+        }
+        .terms-link {
+            background: none; border: none; padding: 0; font: inherit; cursor: pointer;
+            color: var(--accent-dark, #2A4EAA); font-weight: 800; text-decoration: underline; text-underline-offset: 2px;
+        }
+        .terms-row.input-error { color: var(--danger); }
+
+        /* Terms and Conditions modal */
+        .terms-overlay {
+            position: fixed; inset: 0; z-index: 1000; background: rgba(0, 0, 0, 0.45);
+            display: none; align-items: center; justify-content: center; padding: 16px;
+        }
+        .terms-overlay.show { display: flex; }
+        .terms-modal {
+            width: 100%; max-width: 640px; max-height: 88vh; background: var(--white);
+            border-radius: 22px; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25);
+            display: flex; flex-direction: column; overflow: hidden;
+            animation: slideUpFadeIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+        .terms-head {
+            display: flex; align-items: center; justify-content: space-between; gap: 12px;
+            padding: 18px 22px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+        }
+        .terms-head h2 { font-size: 17px; font-weight: 900; color: var(--dark); margin: 0; }
+        .terms-head p { font-size: 12px; color: var(--muted); margin: 2px 0 0; }
+        .terms-close {
+            width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--border); background: var(--cream);
+            display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--muted); flex-shrink: 0;
+        }
+        .terms-body { padding: 18px 22px; overflow-y: auto; font-size: 13px; line-height: 1.65; color: #333; }
+        .terms-body h3 { font-size: 13.5px; font-weight: 900; color: var(--dark); margin: 18px 0 6px; }
+        .terms-body h3:first-child { margin-top: 0; }
+        .terms-body p { margin: 0 0 8px; }
+        .terms-body ul { margin: 0 0 8px; padding-left: 20px; }
+        .terms-body li { margin-bottom: 4px; }
+        .terms-foot {
+            display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap;
+            padding: 14px 22px; border-top: 1px solid var(--border); background: var(--cream); flex-shrink: 0;
+        }
+        .terms-btn {
+            height: 42px; padding: 0 18px; border-radius: 12px; font-size: 13.5px; font-weight: 800; cursor: pointer;
+            border: 1px solid var(--border); background: var(--white); color: var(--dark);
+        }
+        .terms-btn.primary { background: var(--dark); border-color: var(--dark); color: var(--white); }
+        @media (max-width: 560px) {
+            .terms-foot .terms-btn { flex: 1; }
+        }
 
         .signup-submit {
             width: 100%; height: 54px; border: none;
@@ -345,6 +403,19 @@
                         <span class="pw-req" id="req-match">Passwords match</span>
                     </div>
 
+                    <label class="terms-row {{ $errors->has('terms') ? 'input-error' : '' }}" for="termsCheck">
+                        <input type="checkbox" name="terms" id="termsCheck" value="1" required {{ old('terms') ? 'checked' : '' }}>
+                        <span>
+                            I have read and agree to the
+                            <button type="button" class="terms-link" id="openTerms">Terms and Conditions</button>
+                            of GMD South Phils.
+                        </span>
+                    </label>
+                    {{-- shown by the server (failed submit) or right away by the browser check below --}}
+                    <span class="field-error" id="termsError" style="{{ $errors->has('terms') ? '' : 'display:none;' }}">
+                        {{ $errors->first('terms') ?: 'Please agree to the Terms and Conditions to create an account.' }}
+                    </span>
+
                 </div>
             </div>
 
@@ -359,6 +430,77 @@
 
         </form>
 
+    </div>
+
+    {{-- ── Terms and Conditions modal ── --}}
+    <div class="terms-overlay" id="termsModal" role="dialog" aria-modal="true" aria-labelledby="termsTitle">
+        <div class="terms-modal">
+            <div class="terms-head">
+                <div>
+                    <h2 id="termsTitle">Terms and Conditions</h2>
+                    <p>GMD South Phils Metal Fabrication Works · Client Portal</p>
+                </div>
+                <button type="button" class="terms-close" id="closeTerms" aria-label="Close">
+                    <i data-lucide="x" style="width:16px;height:16px;"></i>
+                </button>
+            </div>
+
+            <div class="terms-body">
+                <h3>1. Acceptance of Terms</h3>
+                <p>By creating an account on the GMD South Phils Client Portal, you agree to these Terms and Conditions. If you do not agree, please do not create an account or use the portal.</p>
+
+                <h3>2. Your Account</h3>
+                <ul>
+                    <li>You must give accurate and complete information when signing up, including your name or company name, contact number, email address and address.</li>
+                    <li>Your account is reviewed and approved by GMD South Phils before you can use it. We may decline or deactivate an account that contains false or incomplete information.</li>
+                    <li>You are responsible for keeping your username and password confidential, and for all activity under your account. Tell us right away if you suspect unauthorized access.</li>
+                </ul>
+
+                <h3>3. Quotation Requests</h3>
+                <ul>
+                    <li>You may request quotations for storage tank fabrication through the portal. A quotation request is not a confirmed order.</li>
+                    <li>Quotations are based on the specifications you provide. Prices may change if the specifications, materials or scope change after the quotation is issued.</li>
+                    <li>A project starts only after you approve the quotation and the required down payment is received.</li>
+                </ul>
+
+                <h3>4. Payment Terms</h3>
+                <ul>
+                    <li>Payments follow the terms stated in your approved quotation, such as 50% down payment and 50% final payment, or 50% down payment, 30% progress billing and 20% final payment.</li>
+                    <li>Some project phases cannot begin until the related payment is recorded.</li>
+                    <li>Proof of payment uploaded through the portal is reviewed and confirmed by GMD South Phils. A payment is considered received only once it is confirmed.</li>
+                </ul>
+
+                <h3>5. Project Schedule, Completion and Delivery</h3>
+                <ul>
+                    <li>Start and end dates are planned estimates covering the project from planning to completion. They may be adjusted because of material availability, specification changes, delayed payments, weather or other events outside our control.</li>
+                    <li>A project is completed once fabrication, inspection, painting and final output are done. Delivery or pick-up is arranged separately after completion.</li>
+                    <li>You can follow your project's phases, updates and photos through the portal.</li>
+                </ul>
+
+                <h3>6. Changes and Cancellations</h3>
+                <p>Requests to change specifications or cancel a project must be made in writing through the portal or directly with GMD South Phils. Work already done and materials already purchased for your project may be charged even if the project is cancelled.</p>
+
+                <h3>7. Data Privacy</h3>
+                <p>We collect and use your personal information only to manage your account, quotations, projects, payments and communications with you, in line with the Data Privacy Act of 2012 (Republic Act No. 10173). We do not sell your personal information. You may ask to access or correct the information we hold about you.</p>
+
+                <h3>8. Communications</h3>
+                <p>By signing up, you agree to receive notifications about your account, quotations, project progress and payments through the portal and by email.</p>
+
+                <h3>9. Use of the Portal</h3>
+                <p>You agree not to misuse the portal, including attempting to access other clients' information, uploading harmful files, or interfering with the system.</p>
+
+                <h3>10. Changes to These Terms</h3>
+                <p>GMD South Phils may update these Terms and Conditions from time to time. Continued use of the portal after an update means you accept the updated terms.</p>
+
+                <h3>11. Contact Us</h3>
+                <p>For questions about these Terms and Conditions, please contact GMD South Phils Metal Fabrication Works through the portal or our official contact details.</p>
+            </div>
+
+            <div class="terms-foot">
+                <button type="button" class="terms-btn" id="declineTerms">Close</button>
+                <button type="button" class="terms-btn primary" id="agreeTerms">I Agree</button>
+            </div>
+        </div>
     </div>
 
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -633,6 +775,60 @@
         el.classList.toggle('met',  pw === conf);
         el.classList.toggle('fail', pw !== conf);
     }
+
+    // ── Terms and Conditions modal ──
+    (function setupTerms() {
+        var modal    = document.getElementById('termsModal');
+        var checkbox = document.getElementById('termsCheck');
+        var errorEl  = document.getElementById('termsError');
+
+        // Required: show a clear inline message (not just the browser's small bubble) and bring it into view
+        function showTermsError() {
+            checkbox.closest('.terms-row').classList.add('input-error');
+            errorEl.style.display = 'block';
+            checkbox.closest('.terms-row').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        function clearTermsError() {
+            checkbox.closest('.terms-row').classList.remove('input-error');
+            errorEl.style.display = 'none';
+        }
+        checkbox.addEventListener('invalid', showTermsError);
+
+        function openTerms(e) {
+            if (e) { e.preventDefault(); e.stopPropagation(); }   // the link sits inside the checkbox label
+            modal.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+        function closeTerms() {
+            modal.classList.remove('show');
+            document.body.style.overflow = '';
+        }
+
+        document.getElementById('openTerms').addEventListener('click', openTerms);
+        document.getElementById('closeTerms').addEventListener('click', closeTerms);
+        document.getElementById('declineTerms').addEventListener('click', closeTerms);
+        document.getElementById('agreeTerms').addEventListener('click', function () {
+            checkbox.checked = true;
+            clearTermsError();
+            closeTerms();
+        });
+        modal.addEventListener('click', function (e) { if (e.target === modal) closeTerms(); });
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && modal.classList.contains('show')) closeTerms();
+        });
+        checkbox.addEventListener('change', function () {
+            if (checkbox.checked) clearTermsError();
+        });
+
+        // Final guard before the form is sent (also covers browsers that skip the required check)
+        document.getElementById('signupForm').addEventListener('submit', function (e) {
+            if (!checkbox.checked) {
+                e.preventDefault();
+                e.stopImmediatePropagation();   // keep the "Create Account" button from switching to its spinner
+                showTermsError();
+            }
+        });
+    })();
 
     document.getElementById('signupForm').addEventListener('submit', function () {
         var btn = document.getElementById('submitBtn');

@@ -46,7 +46,9 @@ class PaymentController extends Controller
     /** GET /admin/payments/pending-count — powers the sidebar nav badge */
     public function pendingSettlementCount()
     {
-        $count = Project::whereNotIn('status', ['completed', 'archived'])
+        // Completed projects stay in: a completed project can still be awaiting delivery,
+        // and its final payment gate (see Project::awaitingPaymentStage()) applies until then.
+        $count = Project::where('status', '!=', 'archived')
             ->get()
             ->filter(fn (Project $p) => $p->awaitingPaymentStage() !== null)
             ->count();
@@ -86,7 +88,8 @@ class PaymentController extends Controller
 
         // Projects currently stalled waiting on a payment stage, grouped by
         // client, so the list can flag exactly who admin needs to chase.
-        $activeProjectsByClient = Project::whereNotIn('status', ['completed', 'archived'])
+        // (completed-but-undelivered projects included — their final payment can still be pending)
+        $activeProjectsByClient = Project::where('status', '!=', 'archived')
             ->get()
             ->groupBy($groupKey);
 
@@ -119,9 +122,10 @@ class PaymentController extends Controller
             ];
         })->sortBy(fn ($group) => ($group['needs_settlement'] ? '0_' : '1_') . strtolower($group['client']))->values();
 
+        // Payments with an OR number, plus historical (imported) payments, which have none
         $receipts = PaymentTransaction::with('payment.project')
-            ->whereNotNull('reference_number')
-            ->where('reference_number', '!=', '')
+            ->where(fn ($q) => $q->where(fn ($q) => $q->whereNotNull('reference_number')->where('reference_number', '!=', ''))
+                ->orWhere('notes', 'like', 'Historical record%'))   // tag set by HistoricalProjectSeeder
             ->orderByDesc('payment_date')
             ->get()
             ->map(function (PaymentTransaction $tx) {

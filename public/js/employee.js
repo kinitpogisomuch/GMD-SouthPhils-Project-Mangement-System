@@ -356,7 +356,7 @@ function showLogSuccess(message) {
     var statuses = phaseIdx === -1
         ? empGetStatuses(PROJECT_PROGRESS)
         : EMP_PHASES.map(function(p, i) { return i < phaseIdx ? 'done' : (i === phaseIdx ? 'active' : 'pending'); });
-    if (PROJECT_STATUS === 'completed') {
+    if (typeof PROJECT_DELIVERED !== 'undefined' ? PROJECT_DELIVERED : PROJECT_STATUS === 'completed') {
         statuses = statuses.map(function() { return 'done'; });
     }
     var activeIndex = empGetActiveIndex(statuses);

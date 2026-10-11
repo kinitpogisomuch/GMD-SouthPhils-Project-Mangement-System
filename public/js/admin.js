@@ -479,7 +479,7 @@ function updateProgressBadge(progress) {
 
     let statuses;
     if (typeof PROJECT_CURRENT_PHASE !== 'undefined' && PROJECT_CURRENT_PHASE) {
-        statuses = getPhaseStatusFromCurrentPhase(PROJECT_CURRENT_PHASE, PROJECT_STATUS === 'completed');
+        statuses = getPhaseStatusFromCurrentPhase(PROJECT_CURRENT_PHASE, typeof PROJECT_DELIVERED !== 'undefined' ? PROJECT_DELIVERED : PROJECT_STATUS === 'completed');
     } else {
         statuses = getPhaseStatusFromProgress(PROJECT_PROGRESS);
     }

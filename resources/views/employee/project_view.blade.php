@@ -771,6 +771,8 @@
     <script>
         const PROJECT_PROGRESS      = {{ $progress }};
         const PROJECT_STATUS        = "{{ $status }}";
+        // delivery is separate from completion — the Delivery step is only "done" once delivered
+        const PROJECT_DELIVERED     = {{ $project->isDelivered() ? 'true' : 'false' }};
         const PROJECT_DURATION      = "{{ $duration }}";
         const START_DATE_STR        = "{{ $startDate }}";
         const PROJECT_CURRENT_PHASE = "{{ $currentPhase }}";

@@ -1339,9 +1339,16 @@ class ProjectController extends Controller
 
         $newProgress = Project::PHASE_PROGRESS['completion'];
 
+        // Finishing the Completion phase completes the project — every required phase is
+        // done. Delivery is tracked separately (it moves on to the Delivery phase, but
+        // isn't part of completion). Completed on this update's Date of Work (may be
+        // backdated) — that's the date the On-Time Completion Rate KPI judges.
+        $completedOn = $request->filled('date_of_work') ? $request->date_of_work : now()->toDateString();
         $project->update([
             'current_phase' => 'delivery',
             'progress'      => $newProgress,
+            'status'        => 'completed',
+            'completed_at'  => \Carbon\Carbon::parse($completedOn)->isToday() ? now() : \Carbon\Carbon::parse($completedOn)->setTimeFrom(now()),
         ]);
 
         $this->createAdminUpdate($project, [
@@ -1353,15 +1360,10 @@ class ProjectController extends Controller
             'date_of_work' => $request->filled('date_of_work') ? $request->date_of_work : now()->toDateString(),
         ]);
 
-        NotificationService::phaseAdvanced(
-            $project,
-            'delivery',
-            'Project completion update.',
-            NotificationService::occurredOn($request->date_of_work)
-        );
+        NotificationService::projectCompleted($project, NotificationService::occurredOn($request->date_of_work));
 
         return redirect()->route('admin.project_view', $project->id)
-            ->with('success', "Final output recorded! Project advanced to Delivery ({$newProgress}% complete).");
+            ->with('success', "Final output recorded! Project marked as completed ({$newProgress}%) and is now awaiting delivery.");
     }
 
     /*
@@ -1386,19 +1388,24 @@ class ProjectController extends Controller
                 ->withErrors(['photos' => 'Photo upload failed. Please check your connection and try again.']);
         }
 
+        // Delivery is tracked separately from completion: the project was already marked
+        // completed when its Completion phase finished, so this only records the delivery
+        // (and never moves completed_at, which the On-Time Completion Rate KPI uses).
+        $deliveredOn = $request->filled('date_of_work') ? $request->date_of_work : now()->toDateString();
         $project->setPhaseData('delivery', [
-            'photos' => $photoUrls,
-            'notes'  => $request->delivery_notes,
+            'photos'       => $photoUrls,
+            'notes'        => $request->delivery_notes,
+            'delivered_at' => $deliveredOn,
         ]);
 
         $newProgress = Project::PHASE_PROGRESS['delivery'];
 
-        // Completed on the delivery's Date of Work (may be backdated) — that's the date the KPI uses
-        $deliveredOn = $request->filled('date_of_work') ? $request->date_of_work : now()->toDateString();
+        // status 'completed' is normally already set; it's kept here for any project that
+        // reached Delivery before completion-based tracking (the saving hook stamps
+        // completed_at only if it's missing).
         $project->update([
-            'progress'     => $newProgress,
-            'status'       => 'completed',
-            'completed_at' => \Carbon\Carbon::parse($deliveredOn)->isToday() ? now() : \Carbon\Carbon::parse($deliveredOn)->setTimeFrom(now()),
+            'progress' => $newProgress,
+            'status'   => 'completed',
         ]);
 
         $this->createAdminUpdate($project, [
@@ -1410,10 +1417,10 @@ class ProjectController extends Controller
             'date_of_work' => $request->filled('date_of_work') ? $request->date_of_work : now()->toDateString(),
         ]);
 
-        NotificationService::projectCompleted($project, NotificationService::occurredOn($request->date_of_work));
+        NotificationService::projectDelivered($project, NotificationService::occurredOn($request->date_of_work));
 
         return redirect()->route('admin.project_view', $project->id)
-            ->with('success', 'Project delivered! Marked as completed (100%).');
+            ->with('success', 'Project delivered to the client!');
     }
 
     /*
@@ -1828,19 +1835,36 @@ class ProjectController extends Controller
                 ->with('success', 'Update approved! Project advanced to ' . ucfirst(str_replace('_', ' ', $nextPhase)) . ' phase (' . $newProgress . '% complete).');
         }
 
+        // Approving an update in the final (Delivery) phase records the delivery. The project
+        // was already completed when it finished the Completion phase, so completed_at (the
+        // On-Time Completion Rate date) is left alone; delivery is tracked separately.
         $update->update(['status' => 'approved']);
+        $project->setPhaseData('delivery', [
+            'photos'       => $update->photos ?? [],
+            'notes'        => $update->work_done,
+            'delivered_at' => ($update->date_of_work ?? now())->toDateString(),
+        ]);
         $project->update([
-            'progress'     => 100,
-            'status'       => 'completed',
-            // completed on the approved update's Date of Work (may be backdated)
-            'completed_at' => $update->date_of_work && !$update->date_of_work->isToday() ? $update->date_of_work->copy()->setTimeFrom(now()) : now(),
+            'progress' => 100,
+            'status'   => 'completed',
         ]);
 
         $project->refresh();
-        NotificationService::progressApproved($project, 'delivery', $update->submitted_by, $update->id, NotificationService::occurredOn($update->date_of_work));
+        NotificationService::notifyEmployee(
+            $update->submitted_by,
+            'Progress Update Approved',
+            "Your progress update has been approved.\nProject: {$project->name}",
+            NotificationService::TYPE_PROGRESS_APPROVED,
+            'success',
+            $project->id,
+            $update->id,
+            "/employee/project-view/{$project->id}",
+            NotificationService::occurredOn($update->date_of_work)
+        );
+        NotificationService::projectDelivered($project, NotificationService::occurredOn($update->date_of_work));
 
         return redirect()->route('admin.project_view', $project->id)
-            ->with('success', 'Update approved! Project is now complete.');
+            ->with('success', 'Update approved! Project has been delivered.');
     }
 
     /*

@@ -40,6 +40,12 @@
                     </h1>
                     <p>
                         <span class="client-pill">{{ $clientName }}</span>
+                        @if($project->status === 'completed')
+                        {{-- Completion and delivery are separate: a completed project can still be awaiting delivery --}}
+                        <span class="client-pill" style="background:{{ $project->isDelivered() ? '#E7F6EC' : '#FFF4E0' }};color:{{ $project->isDelivered() ? '#207A3A' : '#B45309' }};border-color:transparent;">
+                            {{ $project->deliveryStatusLabel() }}@if($project->deliveredAt()) · {{ $project->deliveredAt()->format('M d, Y') }}@endif
+                        </span>
+                        @endif
                         @if($project->tankItems->isNotEmpty())
                             @foreach($project->tankItems as $ti)
                             &nbsp;·&nbsp;
@@ -54,7 +60,7 @@
                      Progress Update" — but that form (and footer) doesn't render at all once
                      the delivery phase is either fully done or still waiting on final payment,
                      so it needs a fallback home here for just those two cases. --}}
-                @if($showPTRButton && $project->current_phase === 'delivery' && ($project->progress === 100 || !$project->isPaymentStageSettled('final_payment')))
+                @if($showPTRButton && $project->current_phase === 'delivery' && ($project->isDelivered() || !$project->isPaymentStageSettled('final_payment')))
                 <button class="cancel-btn" type="button" id="openPTRModal">
                     <i data-lucide="clipboard-check"></i>
                     Performance Test Report
@@ -465,14 +471,14 @@
                                           || ($showConfirmGate && !$revealFormFields);
                     @endphp
 
-                    @if($project->current_phase === 'delivery' && $project->progress === 100)
+                    @if($project->current_phase === 'delivery' && $project->isDelivered())
                     <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:16px;padding:30px 20px;">
                         <div style="width:72px;height:72px;border-radius:50%;background:#dcfce7;display:flex;align-items:center;justify-content:center;">
                             <i data-lucide="check-circle-2" style="width:38px;height:38px;color:#16a34a;"></i>
                         </div>
                         <div>
-                            <p style="font-size:17px;font-weight:900;color:var(--dark);margin-bottom:6px;">Project Fully Completed</p>
-                            <p style="font-size:13.5px;color:var(--muted);max-width:320px;line-height:1.6;">All phases have been finished. No further progress updates are required.</p>
+                            <p style="font-size:17px;font-weight:900;color:var(--dark);margin-bottom:6px;">Project Completed &amp; Delivered</p>
+                            <p style="font-size:13.5px;color:var(--muted);max-width:320px;line-height:1.6;">All phases are completed and the project has been delivered. No further progress updates are required.</p>
                         </div>
                     </div>
                     @else
@@ -833,7 +839,8 @@
                                           placeholder="Any notes about the final output..."></textarea>
                             </div>
 
-                            @php $submitLabel = 'Save Progress Update'; @endphp
+                            {{-- Finishing this phase completes the project; delivery is recorded next, separately --}}
+                            @php $submitLabel = 'Mark as Completed'; @endphp
 
                         @elseif($project->current_phase === 'delivery')
 
@@ -888,7 +895,7 @@
 
                             </div>
 
-                            @php $submitLabel = 'Mark as Delivered & Complete'; @endphp
+                            @php $submitLabel = 'Mark as Delivered'; @endphp
 
                         @endif
 
@@ -1535,7 +1542,7 @@
                 <div class="delete-confirm-icon" style="background:#fef3c7;color:#b45309;"><i data-lucide="alert-triangle"></i></div>
                 <p>Are you sure you want to record the delivery now?</p>
                 <div style="margin-top:8px;font-size:13px;color:var(--muted);line-height:1.6;padding:0 12px;">
-                    The project will be marked as delivered and completed. The final payment stays open in the Payment module and can be settled after delivery.
+                    The project will be marked as delivered. The final payment stays open in the Payment module and can be settled after delivery.
                 </div>
             </div>
             <div class="modal-actions">
@@ -1716,6 +1723,8 @@
     <script>
         const PROJECT_PROGRESS      = {{ $progress }};
         const PROJECT_STATUS        = "{{ $status }}";
+        // delivery is separate from completion — the Delivery step is only "done" once delivered
+        const PROJECT_DELIVERED     = {{ $project->isDelivered() ? 'true' : 'false' }};
         const PROJECT_DURATION      = "{{ $duration }}";
         const PROJECT_CURRENT_PHASE = "{{ $currentPhase }}";
         const UPDATES_DATA          = @json($updatesData);

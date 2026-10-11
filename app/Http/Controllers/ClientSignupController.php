@@ -58,7 +58,9 @@ class ClientSignupController extends Controller
                     }
                 },
             ],
+            'terms'          => 'accepted',
         ], [
+            'terms.accepted'  => 'Please agree to the Terms and Conditions to create an account.',
             'email.unique'    => 'An account with this email address already exists.',
             'username.unique' => 'That username is already taken. Please choose another.',
             'username.alpha_dash' => 'Username may only contain letters, numbers, dashes, and underscores.',

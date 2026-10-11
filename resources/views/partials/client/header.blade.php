@@ -865,7 +865,9 @@
     window.filterChatContacts = function(q) {
         q = (q || '').toLowerCase();
         document.querySelectorAll('#chatContactList [data-name]').forEach(function(el) {
-            el.style.display = (!q || el.dataset.name.includes(q)) ? '' : 'none';
+            // Must restore 'flex' — '' would wipe the row's inline display:flex
+            // and stack the avatar above the name.
+            el.style.display = (!q || el.dataset.name.includes(q)) ? 'flex' : 'none';
         });
     };
 

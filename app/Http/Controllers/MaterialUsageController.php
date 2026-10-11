@@ -174,7 +174,9 @@ class MaterialUsageController extends Controller
     /**
      * Logs one or more material purchases in a single submission — a whole
      * supplier run can be entered at once instead of one purchase at a time.
-     * Supplier/date/notes are shared across every row in the batch.
+     * Supplier is the log's general supplier, overridable per row (row_supplier[])
+     * when a run spans several shops — each purchase still stores ONE supplier,
+     * which keeps the dashboard's Top Supplier accurate. Date/notes are shared.
      */
     public function storePurchase(Request $request, $projectId)
     {
@@ -198,6 +200,8 @@ class MaterialUsageController extends Controller
             'actual_unit_cost'      => 'required|array|min:1',
             'actual_unit_cost.*'    => 'required|numeric|min:0',
             'supplier'              => 'nullable|string|max:255',
+            'row_supplier'          => 'nullable|array',
+            'row_supplier.*'        => 'nullable|string|max:255',
             'purchase_date'         => 'required|date',
             'notes'                 => 'nullable|string|max:500',
         ]);
@@ -216,7 +220,8 @@ class MaterialUsageController extends Controller
                 'qty_bought'          => $qty,
                 'actual_unit_cost'    => $cost,
                 'total_paid'          => round($qty * $cost, 2),
-                'supplier'            => $validated['supplier'] ?? null,
+                // a row's own supplier wins; otherwise the log's general supplier
+                'supplier'            => ($validated['row_supplier'][$i] ?? null) ?: ($validated['supplier'] ?? null),
                 'purchase_date'       => $validated['purchase_date'],
                 'notes'               => $validated['notes'] ?? null,
             ]);

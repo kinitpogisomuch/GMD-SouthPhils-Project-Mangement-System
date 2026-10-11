@@ -340,6 +340,10 @@
                             <input type="date" name="end_date" id="addProjectEndDate" required>
                         </div>
                     </div>
+                    <p style="display:flex;align-items:flex-start;gap:6px;margin:8px 0 0;font-size:12px;color:var(--muted);line-height:1.5;">
+                        <i data-lucide="info" style="width:13px;height:13px;flex-shrink:0;margin-top:2px;"></i>
+                        <span>This schedule covers the project from <strong>Planning to Completion</strong> — delivery isn't included. The End Date is the planned completion date used for the On-Time Completion Rate.</span>
+                    </p>
 
                     <div class="form-section-label" style="margin-top:18px;">Record Entry</div>
                     <div class="form-grid">

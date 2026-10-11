@@ -757,7 +757,9 @@ document.addEventListener('DOMContentLoaded', function () {
         // compress together with no gaps between them.
         document.querySelectorAll('#chatContactList [data-name]').forEach(function(el) {
             var show = !q || el.dataset.name.includes(q);
-            el.style.display = show ? '' : 'none';
+            // Must restore 'flex' — '' would wipe the row's inline display:flex
+            // and stack the avatar above the name.
+            el.style.display = show ? 'flex' : 'none';
             if (show) visible++;
         });
         var noMatch = document.getElementById('chatContactNoMatch');

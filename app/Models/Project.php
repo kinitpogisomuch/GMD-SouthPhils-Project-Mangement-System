@@ -122,7 +122,10 @@ class Project extends Model
     ];
 
     // Progress percentage reached once a given phase's requirements are
-    // fully satisfied and the project advances to the next phase
+    // fully satisfied and the project advances to the next phase.
+    // Progress measures COMPLETION, not delivery: finishing the Completion
+    // phase means every production phase is done, so the project is 100%
+    // complete. Delivery is tracked separately (see deliveryStatus()).
     const PHASE_PROGRESS = [
         'planning'    => 20,
         'procurement' => 30,
@@ -130,8 +133,19 @@ class Project extends Model
         'fabrication' => 70,
         'inspection'  => 80,
         'painting'    => 90,
-        'completion'  => 95,
+        'completion'  => 100,
         'delivery'    => 100,
+    ];
+
+    // Delivery status — tracked separately from project completion and derived
+    // from the existing phase data (no separate column):
+    //   in_production     — the project's phases aren't all completed yet
+    //   awaiting_delivery — completed, but the Delivery phase isn't recorded yet
+    //   delivered         — the Delivery phase has been recorded
+    const DELIVERY_STATUSES = [
+        'in_production'     => 'In Production',
+        'awaiting_delivery' => 'Awaiting Delivery',
+        'delivered'         => 'Delivered',
     ];
 
     // Progress percentage reached once a given Planning sub-phase is completed
@@ -496,6 +510,39 @@ class Project extends Model
         return $this->payments()->first();
     }
 
+    /**
+     * Whether the project has been delivered to the client. Delivery is separate
+     * from completion: a project is completed once its Completion phase is done,
+     * and delivered once the Delivery phase is recorded (phase_data.delivery).
+     */
+    public function isDelivered(): bool
+    {
+        return !empty($this->phaseData('delivery'));
+    }
+
+    /** in_production / awaiting_delivery / delivered — see DELIVERY_STATUSES */
+    public function deliveryStatus(): string
+    {
+        if ($this->isDelivered()) {
+            return 'delivered';
+        }
+
+        return $this->status === 'completed' ? 'awaiting_delivery' : 'in_production';
+    }
+
+    public function deliveryStatusLabel(): string
+    {
+        return self::DELIVERY_STATUSES[$this->deliveryStatus()];
+    }
+
+    /** When the project was delivered (the Delivery phase's Date of Work), if it has been */
+    public function deliveredAt(): ?\Carbon\Carbon
+    {
+        $date = $this->phaseData('delivery.delivered_at');
+
+        return $date ? \Carbon\Carbon::parse($date) : null;
+    }
+
     /** Whether a given payment stage (down_payment, progress_payment, final_payment) has been paid */
     public function isPaymentStageSettled(string $stage): bool
     {
@@ -522,7 +569,9 @@ class Project extends Model
         if ($this->current_phase === 'fabrication' && $isBigProject && !$this->hasAnyPaymentTowardStage($payment, 'progress_payment')) {
             return 'progress_payment';
         }
-        if ($this->current_phase === 'delivery' && !$this->hasAnyPaymentTowardStage($payment, 'final_payment')) {
+        // Once delivered ("Proceed Anyway"), the final payment no longer gates anything —
+        // it stays open in the Payment module but the project has nothing left to unlock.
+        if ($this->current_phase === 'delivery' && !$this->isDelivered() && !$this->hasAnyPaymentTowardStage($payment, 'final_payment')) {
             return 'final_payment';
         }
 
