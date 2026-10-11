@@ -180,37 +180,127 @@
         }
         .terms-overlay.show { display: flex; }
         .terms-modal {
-            width: 100%; max-width: 640px; max-height: 88vh; background: var(--white);
-            border-radius: 22px; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25);
+            width: 100%; max-width: 680px; max-height: 88vh; background: var(--white);
+            border-radius: 24px; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25);
             display: flex; flex-direction: column; overflow: hidden;
             animation: slideUpFadeIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
         }
         .terms-head {
-            display: flex; align-items: center; justify-content: space-between; gap: 12px;
-            padding: 18px 22px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+            position: relative;
+            display: flex; align-items: center; gap: 14px;
+            padding: 20px 24px; border-bottom: 1px solid var(--border); flex-shrink: 0;
         }
-        .terms-head h2 { font-size: 17px; font-weight: 900; color: var(--dark); margin: 0; }
-        .terms-head p { font-size: 12px; color: var(--muted); margin: 2px 0 0; }
+        .terms-head-icon {
+            width: 44px; height: 44px; border-radius: 14px; flex-shrink: 0;
+            background: var(--dark); color: var(--white);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .terms-head-text { flex: 1; min-width: 0; }
+        .terms-head h2 { font-size: 18px; font-weight: 900; color: var(--dark); margin: 0; letter-spacing: -0.2px; }
+        .terms-head p { font-size: 12px; color: var(--muted); margin: 3px 0 0; }
+        .terms-updated {
+            display: inline-flex; align-items: center; gap: 5px; margin-top: 8px;
+            font-size: 11px; font-weight: 700; color: var(--muted);
+            background: var(--cream); border: 1px solid var(--border); border-radius: 999px; padding: 3px 9px;
+        }
         .terms-close {
-            width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--border); background: var(--cream);
+            width: 36px; height: 36px; border-radius: 12px; border: 1px solid var(--border); background: var(--cream);
             display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--muted); flex-shrink: 0;
+            align-self: flex-start; transition: 0.18s ease;
         }
-        .terms-body { padding: 18px 22px; overflow-y: auto; font-size: 13px; line-height: 1.65; color: #333; }
-        .terms-body h3 { font-size: 13.5px; font-weight: 900; color: var(--dark); margin: 18px 0 6px; }
-        .terms-body h3:first-child { margin-top: 0; }
+        .terms-close:hover { background: var(--dark); border-color: var(--dark); color: var(--white); }
+        /* reading progress along the bottom edge of the header */
+        .terms-progress { position: absolute; left: 0; right: 0; bottom: -1px; height: 3px; background: transparent; }
+        .terms-progress span { display: block; height: 100%; width: 0; background: var(--dark); transition: width 0.12s linear; }
+
+        .terms-body { padding: 8px 24px 20px; overflow-y: auto; font-size: 13px; line-height: 1.65; color: #444; }
+        .terms-sec { display: grid; grid-template-columns: 30px 1fr; gap: 0 12px; padding: 16px 0; border-bottom: 1px dashed var(--border); }
+        .terms-sec:last-child { border-bottom: 0; }
+        .terms-num {
+            width: 30px; height: 30px; border-radius: 10px; background: var(--cream); border: 1px solid var(--border);
+            font-size: 12px; font-weight: 900; color: var(--dark);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .terms-sec-body { min-width: 0; }
+        .terms-sec h3 { font-size: 14px; font-weight: 900; color: var(--dark); margin: 4px 0 8px; }
         .terms-body p { margin: 0 0 8px; }
-        .terms-body ul { margin: 0 0 8px; padding-left: 20px; }
-        .terms-body li { margin-bottom: 4px; }
+        .terms-body p:last-child { margin-bottom: 0; }
+        .terms-body ul { margin: 0; padding-left: 18px; }
+        .terms-body li { margin-bottom: 5px; }
+        .terms-body li:last-child { margin-bottom: 0; }
+        .terms-body li::marker { color: var(--muted-light, #999); }
+        .terms-body strong { color: var(--dark); }
+
+        /* registration steps as a small timeline */
+        .terms-steps { list-style: none; margin: 10px 0 !important; padding: 0 !important; }
+        .terms-steps li { position: relative; display: flex; gap: 12px; padding-bottom: 12px; margin: 0 !important; }
+        .terms-steps li:last-child { padding-bottom: 0; }
+        .terms-steps li::before {
+            content: ''; position: absolute; left: 15px; top: 32px; bottom: 0; width: 2px; background: var(--border);
+        }
+        .terms-steps li:last-child::before { display: none; }
+        .terms-step-icon {
+            width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; position: relative; z-index: 1;
+            background: var(--white); border: 2px solid var(--dark); color: var(--dark);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .terms-step-icon.done { background: var(--dark); color: var(--white); }
+        .terms-step-title { font-weight: 800; color: var(--dark); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .terms-tag {
+            font-size: 10.5px; font-weight: 800; padding: 1px 8px; border-radius: 999px;
+            background: var(--cream-deep, #ebebeb); color: var(--dark); white-space: nowrap;
+        }
+        .terms-step-text { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+
+        /* payment schemes */
+        .terms-plans { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 4px 0 12px; }
+        .terms-plan { border: 1px solid var(--border); border-radius: 14px; padding: 12px; background: var(--cream-soft, #fafafa); }
+        .terms-plan-name { font-size: 15px; font-weight: 900; color: var(--dark); letter-spacing: -0.2px; }
+        .terms-plan-sub { font-size: 11px; color: var(--muted); font-weight: 700; }
+        .terms-split { display: flex; gap: 3px; height: 8px; margin: 10px 0 8px; }
+        .terms-split span { border-radius: 999px; background: var(--dark); }
+        .terms-split span:nth-child(2) { background: #777; }
+        .terms-split span:nth-child(3) { background: #b5b5b5; }
+        .terms-plan ul { list-style: none; padding: 0 !important; font-size: 12px; }
+        .terms-plan li { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 3px !important; }
+        .terms-plan li b { color: var(--dark); font-weight: 900; font-variant-numeric: tabular-nums; }
+
+        .terms-callout {
+            display: flex; gap: 10px; align-items: flex-start; margin-top: 10px;
+            background: var(--cream); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px;
+            font-size: 12.5px; color: var(--dark);
+        }
+        .terms-callout i { flex-shrink: 0; margin-top: 2px; }
+
         .terms-foot {
-            display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap;
-            padding: 14px 22px; border-top: 1px solid var(--border); background: var(--cream); flex-shrink: 0;
+            display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+            padding: 14px 24px; border-top: 1px solid var(--border); background: var(--cream); flex-shrink: 0;
         }
+        .terms-foot-hint { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+        .terms-foot-btns { display: flex; gap: 10px; }
         .terms-btn {
-            height: 42px; padding: 0 18px; border-radius: 12px; font-size: 13.5px; font-weight: 800; cursor: pointer;
+            height: 42px; padding: 0 20px; border-radius: 12px; font-size: 13.5px; font-weight: 800; cursor: pointer;
             border: 1px solid var(--border); background: var(--white); color: var(--dark);
+            display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: 0.18s ease;
         }
+        .terms-btn:hover { border-color: var(--dark); }
         .terms-btn.primary { background: var(--dark); border-color: var(--dark); color: var(--white); }
+        .terms-btn.primary:hover { background: var(--dark-deep, #1a1a1a); }
+        .terms-btn:focus-visible, .terms-close:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.12); }
+
         @media (max-width: 560px) {
+            .terms-overlay { align-items: flex-end; padding: 0; }
+            .terms-modal { max-height: 92vh; border-radius: 22px 22px 0 0; }
+            .terms-head { padding: 16px 18px; gap: 12px; }
+            .terms-head-icon { width: 38px; height: 38px; border-radius: 12px; }
+            .terms-head h2 { font-size: 16px; }
+            .terms-body { padding: 4px 18px 16px; }
+            .terms-sec { grid-template-columns: 1fr; }
+            .terms-num { margin-bottom: 6px; }
+            .terms-plans { grid-template-columns: 1fr; }
+            .terms-foot { padding: 12px 18px calc(12px + env(safe-area-inset-bottom, 0px)); }
+            .terms-foot-hint { display: none; }
+            .terms-foot-btns { width: 100%; }
             .terms-foot .terms-btn { flex: 1; }
         }
 
@@ -390,69 +480,194 @@
     <div class="terms-overlay" id="termsModal" role="dialog" aria-modal="true" aria-labelledby="termsTitle">
         <div class="terms-modal">
             <div class="terms-head">
-                <div>
+                <div class="terms-head-icon"><i data-lucide="file-text" style="width:20px;height:20px;"></i></div>
+                <div class="terms-head-text">
                     <h2 id="termsTitle">Terms and Conditions</h2>
                     <p>GMD South Phils Metal Fabrication Works · Client Portal</p>
+                    <span class="terms-updated"><i data-lucide="calendar-check" style="width:12px;height:12px;"></i>Last updated October 11, 2026</span>
                 </div>
                 <button type="button" class="terms-close" id="closeTerms" aria-label="Close">
                     <i data-lucide="x" style="width:16px;height:16px;"></i>
                 </button>
+                <div class="terms-progress" aria-hidden="true"><span id="termsProgress"></span></div>
             </div>
 
-            <div class="terms-body">
-                <h3>1. Acceptance of Terms</h3>
-                <p>By creating an account on the GMD South Phils Client Portal, you agree to these Terms and Conditions. If you do not agree, please do not create an account or use the portal.</p>
+            <div class="terms-body" id="termsBody">
+                <section class="terms-sec">
+                    <span class="terms-num">1</span>
+                    <div class="terms-sec-body">
+                        <h3>Acceptance of Terms</h3>
+                        <p>By creating an account on the GMD South Phils Client Portal, you agree to these Terms and Conditions. If you do not agree, please do not create an account or use the portal.</p>
+                    </div>
+                </section>
 
-                <h3>2. Your Account</h3>
-                <ul>
-                    <li>You must give accurate and complete information when signing up, including your name or company name, contact number, email address and address.</li>
-                    <li>Your account is reviewed and approved by GMD South Phils before you can use it. We may decline or deactivate an account that contains false or incomplete information.</li>
-                    <li>You are responsible for keeping your username and password confidential, and for all activity under your account. Tell us right away if you suspect unauthorized access.</li>
-                </ul>
+                <section class="terms-sec">
+                    <span class="terms-num">2</span>
+                    <div class="terms-sec-body">
+                        <h3>Registration and Account Approval</h3>
+                        <p>You must give accurate and complete information when registering, including your name or company name, mobile number, email address and address. Each email address and mobile number can be used for only one account.</p>
+                        <ol class="terms-steps">
+                            <li>
+                                <span class="terms-step-icon done"><i data-lucide="send" style="width:14px;height:14px;"></i></span>
+                                <div>
+                                    <div class="terms-step-title">Submit your registration</div>
+                                    <div class="terms-step-text">Fill out this form and agree to these terms.</div>
+                                </div>
+                            </li>
+                            <li>
+                                <span class="terms-step-icon"><i data-lucide="mail-check" style="width:14px;height:14px;"></i></span>
+                                <div>
+                                    <div class="terms-step-title">Verify your email <span class="terms-tag">Link expires in 10 minutes</span></div>
+                                    <div class="terms-step-text">We send a verification link to your email address. You can request a new link if it expires.</div>
+                                </div>
+                            </li>
+                            <li>
+                                <span class="terms-step-icon"><i data-lucide="user-check" style="width:14px;height:14px;"></i></span>
+                                <div>
+                                    <div class="terms-step-title">Review and approval</div>
+                                    <div class="terms-step-text">GMD South Phils reviews your registration. We may decline it if the information is false, incomplete or cannot be confirmed. You are notified of the result by email.</div>
+                                </div>
+                            </li>
+                            <li>
+                                <span class="terms-step-icon"><i data-lucide="key-round" style="width:14px;height:14px;"></i></span>
+                                <div>
+                                    <div class="terms-step-title">Set up your account <span class="terms-tag">Link valid for 48 hours</span></div>
+                                    <div class="terms-step-text">Once approved, we email you a setup link. Your username (CGMD-XXXX) is assigned automatically, and you create your own password.</div>
+                                </div>
+                            </li>
+                        </ol>
+                        <p>You can log in to the Client Portal only after you finish setting up your account.</p>
+                    </div>
+                </section>
 
-                <h3>3. Quotation Requests</h3>
-                <ul>
-                    <li>You may request quotations for storage tank fabrication through the portal. A quotation request is not a confirmed order.</li>
-                    <li>Quotations are based on the specifications you provide. Prices may change if the specifications, materials or scope change after the quotation is issued.</li>
-                    <li>A project starts only after you approve the quotation and the required down payment is received.</li>
-                </ul>
+                <section class="terms-sec">
+                    <span class="terms-num">3</span>
+                    <div class="terms-sec-body">
+                        <h3>Account Security</h3>
+                        <ul>
+                            <li>You are responsible for keeping your username and password confidential, and for all activity under your account.</li>
+                            <li>Do not share your verification or account setup links with anyone. Each link works only for your registration.</li>
+                            <li>Tell us right away if you suspect unauthorized access to your account. We may deactivate an account to protect it or to stop misuse of the portal.</li>
+                        </ul>
+                    </div>
+                </section>
 
-                <h3>4. Payment Terms</h3>
-                <ul>
-                    <li>Payments follow the terms stated in your approved quotation, such as 50% down payment and 50% final payment, or 50% down payment, 30% progress billing and 20% final payment.</li>
-                    <li>Some project phases cannot begin until the related payment is recorded.</li>
-                    <li>Proof of payment uploaded through the portal is reviewed and confirmed by GMD South Phils. A payment is considered received only once it is confirmed.</li>
-                </ul>
+                <section class="terms-sec">
+                    <span class="terms-num">4</span>
+                    <div class="terms-sec-body">
+                        <h3>Quotation Requests</h3>
+                        <ul>
+                            <li>You may request quotations for storage tank fabrication through the portal. A quotation request is not a confirmed order.</li>
+                            <li>Quotations are based on the specifications you provide. Prices may change if the specifications, materials or scope change after the quotation is issued.</li>
+                            <li>A project starts only after you approve the quotation and the required down payment is received.</li>
+                        </ul>
+                    </div>
+                </section>
 
-                <h3>5. Project Schedule, Completion and Delivery</h3>
-                <ul>
-                    <li>Start and end dates are planned estimates covering the project from planning to completion. They may be adjusted because of material availability, specification changes, delayed payments, weather or other events outside our control.</li>
-                    <li>A project is completed once fabrication, inspection, painting and final output are done. Delivery or pick-up is arranged separately after completion.</li>
-                    <li>You can follow your project's phases, updates and photos through the portal.</li>
-                </ul>
+                <section class="terms-sec">
+                    <span class="terms-num">5</span>
+                    <div class="terms-sec-body">
+                        <h3>Payment Terms</h3>
+                        <p>Payments follow the scheme stated in your approved quotation:</p>
+                        <div class="terms-plans">
+                            <div class="terms-plan">
+                                <div class="terms-plan-name">50 / 50</div>
+                                <div class="terms-plan-sub">Two payments</div>
+                                <div class="terms-split"><span style="flex:50"></span><span style="flex:50"></span></div>
+                                <ul>
+                                    <li><span>Down payment, before work starts</span><b>50%</b></li>
+                                    <li><span>Final payment, before delivery</span><b>50%</b></li>
+                                </ul>
+                            </div>
+                            <div class="terms-plan">
+                                <div class="terms-plan-name">50 / 30 / 20</div>
+                                <div class="terms-plan-sub">Three payments</div>
+                                <div class="terms-split"><span style="flex:50"></span><span style="flex:30"></span><span style="flex:20"></span></div>
+                                <ul>
+                                    <li><span>Down payment, before work starts</span><b>50%</b></li>
+                                    <li><span>Progress payment, during fabrication</span><b>30%</b></li>
+                                    <li><span>Final payment, before delivery</span><b>20%</b></li>
+                                </ul>
+                            </div>
+                        </div>
+                        <ul>
+                            <li>A project phase that requires a payment cannot begin until that payment is recorded. Delayed payments may also delay the project schedule.</li>
+                            <li>Proof of payment uploaded through the portal is reviewed and confirmed by GMD South Phils. A payment is considered received only once it is confirmed.</li>
+                        </ul>
+                    </div>
+                </section>
 
-                <h3>6. Changes and Cancellations</h3>
-                <p>Requests to change specifications or cancel a project must be made in writing through the portal or directly with GMD South Phils. Work already done and materials already purchased for your project may be charged even if the project is cancelled.</p>
+                <section class="terms-sec">
+                    <span class="terms-num">6</span>
+                    <div class="terms-sec-body">
+                        <h3>Project Schedule, Completion and Delivery</h3>
+                        <ul>
+                            <li>Start and end dates are planned estimates covering the project from planning to completion. They may be adjusted because of material availability, specification changes, delayed payments, weather or other events outside our control.</li>
+                            <li>A project is completed once fabrication, inspection, painting and final output are done. Delivery or pick-up is arranged separately after completion and after the final payment is recorded.</li>
+                            <li>You can follow your project's phases, updates, photos and delivery status through the portal.</li>
+                        </ul>
+                    </div>
+                </section>
 
-                <h3>7. Data Privacy</h3>
-                <p>We collect and use your personal information only to manage your account, quotations, projects, payments and communications with you, in line with the Data Privacy Act of 2012 (Republic Act No. 10173). We do not sell your personal information. You may ask to access or correct the information we hold about you.</p>
+                <section class="terms-sec">
+                    <span class="terms-num">7</span>
+                    <div class="terms-sec-body">
+                        <h3>Changes and Cancellations</h3>
+                        <p>Requests to change specifications or cancel a project must be made in writing through the portal or directly with GMD South Phils. Work already done and materials already purchased for your project may be charged even if the project is cancelled.</p>
+                    </div>
+                </section>
 
-                <h3>8. Communications</h3>
-                <p>By signing up, you agree to receive notifications about your account, quotations, project progress and payments through the portal and by email.</p>
+                <section class="terms-sec">
+                    <span class="terms-num">8</span>
+                    <div class="terms-sec-body">
+                        <h3>Data Privacy</h3>
+                        <p>We collect and use your personal information only to review your registration and to manage your account, quotations, projects, payments and communications with you. We do not sell your personal information. You may ask to access or correct the information we hold about you. If your registration is declined, we keep your information only as long as needed for our records.</p>
+                        <div class="terms-callout">
+                            <i data-lucide="shield-check" style="width:16px;height:16px;"></i>
+                            <span>Your information is handled in line with the Data Privacy Act of 2012 (Republic Act No. 10173).</span>
+                        </div>
+                    </div>
+                </section>
 
-                <h3>9. Use of the Portal</h3>
-                <p>You agree not to misuse the portal, including attempting to access other clients' information, uploading harmful files, or interfering with the system.</p>
+                <section class="terms-sec">
+                    <span class="terms-num">9</span>
+                    <div class="terms-sec-body">
+                        <h3>Communications</h3>
+                        <p>By registering, you agree to receive emails and portal notifications about your registration status, account setup, quotations, project progress, delivery and payments.</p>
+                    </div>
+                </section>
 
-                <h3>10. Changes to These Terms</h3>
-                <p>GMD South Phils may update these Terms and Conditions from time to time. Continued use of the portal after an update means you accept the updated terms.</p>
+                <section class="terms-sec">
+                    <span class="terms-num">10</span>
+                    <div class="terms-sec-body">
+                        <h3>Use of the Portal</h3>
+                        <p>You agree not to misuse the portal, including attempting to access other clients' information, uploading harmful files, or interfering with the system.</p>
+                    </div>
+                </section>
 
-                <h3>11. Contact Us</h3>
-                <p>For questions about these Terms and Conditions, please contact GMD South Phils Metal Fabrication Works through the portal or our official contact details.</p>
+                <section class="terms-sec">
+                    <span class="terms-num">11</span>
+                    <div class="terms-sec-body">
+                        <h3>Changes to These Terms</h3>
+                        <p>GMD South Phils may update these Terms and Conditions from time to time. Continued use of the portal after an update means you accept the updated terms.</p>
+                    </div>
+                </section>
+
+                <section class="terms-sec">
+                    <span class="terms-num">12</span>
+                    <div class="terms-sec-body">
+                        <h3>Contact Us</h3>
+                        <p>For questions about these Terms and Conditions, please contact GMD South Phils Metal Fabrication Works through the portal or our official contact details.</p>
+                    </div>
+                </section>
             </div>
 
             <div class="terms-foot">
-                <button type="button" class="terms-btn" id="declineTerms">Close</button>
-                <button type="button" class="terms-btn primary" id="agreeTerms">I Agree</button>
+                <span class="terms-foot-hint"><i data-lucide="info" style="width:14px;height:14px;"></i>Clicking "I Agree" ticks the checkbox for you.</span>
+                <div class="terms-foot-btns">
+                    <button type="button" class="terms-btn" id="declineTerms">Close</button>
+                    <button type="button" class="terms-btn primary" id="agreeTerms"><i data-lucide="check" style="width:16px;height:16px;"></i>I Agree</button>
+                </div>
             </div>
         </div>
     </div>
@@ -749,10 +964,20 @@
         }
         checkbox.addEventListener('invalid', showTermsError);
 
+        var body     = document.getElementById('termsBody');
+        var progress = document.getElementById('termsProgress');
+        function updateProgress() {
+            var max = body.scrollHeight - body.clientHeight;
+            progress.style.width = (max > 0 ? Math.min(100, body.scrollTop / max * 100) : 100) + '%';
+        }
+        body.addEventListener('scroll', updateProgress);
+
         function openTerms(e) {
             if (e) { e.preventDefault(); e.stopPropagation(); }   // the link sits inside the checkbox label
             modal.classList.add('show');
             document.body.style.overflow = 'hidden';
+            body.scrollTop = 0;
+            updateProgress();
         }
         function closeTerms() {
             modal.classList.remove('show');
