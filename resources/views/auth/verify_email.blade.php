@@ -26,6 +26,9 @@
         .ve-resend { margin-top: 6px; padding-top: 16px; border-top: 1px solid var(--border); }
         .ve-resend p { font-size: 12.5px; color: var(--muted); margin: 0 0 10px; text-align: center; }
         .ve-link-btn { display: flex; align-items: center; justify-content: center; text-decoration: none; }
+        /* status switching to "Email Verified" while the page is open */
+        .ve-pop { animation: vePop .45s cubic-bezier(.34, 1.56, .64, 1) both; }
+        @keyframes vePop { from { opacity: 0; transform: scale(.6); } to { opacity: 1; transform: scale(1); } }
     </style>
 </head>
 <body>
@@ -54,15 +57,19 @@
         <div class="login-right">
             <div class="login-card">
 
+                {{-- The "Email Verified" status — rendered for a verified email, and also kept as a template so
+                     an open "Check your email" page can switch to it in place once the link is clicked --}}
+                @php
+                    $verifiedStatusHtml =
+                        '<div class="ve-icon verified ve-pop"><i data-lucide="badge-check"></i></div>' .
+                        '<div class="login-header" style="text-align:center;"><h2>Email Verified</h2></div>' .
+                        '<p class="ve-text">Your email has been verified. Your account is currently <strong>waiting for admin approval</strong>. ' .
+                        'We\'ll email you at <strong>' . e($email ?: 'your email address') . '</strong> once it\'s approved so you can log in.</p>';
+                @endphp
+
+                <div id="veStatus">
                 @if($state === 'verified')
-                    <div class="ve-icon verified"><i data-lucide="badge-check"></i></div>
-                    <div class="login-header" style="text-align:center;">
-                        <h2>Email Verified</h2>
-                    </div>
-                    <p class="ve-text">
-                        Your email has been verified. Your account is currently <strong>waiting for admin approval</strong>.
-                        We'll email you at <strong>{{ $email }}</strong> once it's approved so you can log in.
-                    </p>
+                    {!! $verifiedStatusHtml !!}
 
                 @elseif($state === 'expired')
                     <div class="ve-icon warn"><i data-lucide="clock-alert"></i></div>
@@ -96,19 +103,21 @@
                     @endif
                     <p class="ve-text">
                         We sent a verification link to <strong>{{ $email ?: 'your email address' }}</strong>.
-                        Open it and click <strong>Verify Email</strong> to continue. Check your spam folder if you don't see it.
+                        Open it and click <strong>Verify Email</strong> to continue — the link expires in <strong>10 minutes</strong>. Check your spam folder if you don't see it.
                     </p>
                 @endif
+                </div>
+                <template id="veVerifiedTpl">{!! $verifiedStatusHtml !!}</template>
 
                 <ul class="ve-steps">
                     <li class="done"><span class="dot"><i data-lucide="check" style="width:12px;height:12px;"></i></span>Sign up</li>
-                    <li class="{{ $step > 2 ? 'done' : 'current' }}"><span class="dot">@if($step > 2)<i data-lucide="check" style="width:12px;height:12px;"></i>@else 2 @endif</span>Verify your email</li>
-                    <li class="{{ $step === 3 ? 'current' : '' }}"><span class="dot">3</span>Wait for admin approval</li>
-                    <li><span class="dot">4</span>Log in to the client portal</li>
+                    <li id="veStepVerify" class="{{ $step > 2 ? 'done' : 'current' }}"><span class="dot">@if($step > 2)<i data-lucide="check" style="width:12px;height:12px;"></i>@else 2 @endif</span>Verify your email</li>
+                    <li id="veStepApproval" class="{{ $step === 3 ? 'current' : '' }}"><span class="dot">3</span>Wait for admin approval</li>
+                    <li><span class="dot">4</span>Set up your account from the approval email, then log in</li>
                 </ul>
 
                 @if($state !== 'verified')
-                <div class="ve-resend">
+                <div class="ve-resend" id="veResend">
                     <p>Didn't get the email or the link stopped working?</p>
                     <form method="POST" action="{{ route('signup.resend_verification') }}">
                         @csrf
@@ -124,7 +133,7 @@
                 </div>
                 @endif
 
-                <a href="{{ route('login') }}" class="login-btn ve-link-btn" style="margin-top:12px;{{ $state !== 'verified' ? 'background:transparent;color:var(--dark);border:1px solid var(--border);box-shadow:none;' : '' }}">
+                <a href="{{ route('login') }}" id="veLoginBtn" class="login-btn ve-link-btn" style="margin-top:12px;{{ $state !== 'verified' ? 'background:transparent;color:var(--dark);border:1px solid var(--border);box-shadow:none;' : '' }}">
                     <span>Back to Login</span>
                 </a>
 
@@ -140,5 +149,50 @@
 
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>if (typeof lucide !== "undefined") lucide.createIcons();</script>
+    @if($state === 'sent')
+    <script>
+        // When the email gets verified — link opened in another tab, or on another device — this page
+        // updates its own status in place (no reload, no navigation): "Email Verified", the verify step
+        // ticked, approval as the current step, and the resend form removed.
+        (function () {
+            var done = false, timer;
+
+            function markVerified() {
+                if (done) return;
+                done = true;
+                clearInterval(timer);
+
+                document.getElementById('veStatus').innerHTML = document.getElementById('veVerifiedTpl').innerHTML;
+
+                var verifyStep = document.getElementById('veStepVerify');
+                verifyStep.className = 'done';
+                verifyStep.querySelector('.dot').innerHTML = '<i data-lucide="check" style="width:12px;height:12px;"></i>';
+                document.getElementById('veStepApproval').className = 'current';
+
+                var resend = document.getElementById('veResend');
+                if (resend) resend.remove();
+                document.getElementById('veLoginBtn').removeAttribute('style');
+                document.getElementById('veLoginBtn').style.marginTop = '12px';
+
+                document.title = 'Email Verified | GMD South Phils';
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }
+
+            // same browser: the verification page sets this key the moment it opens
+            window.addEventListener('storage', function (e) { if (e.key === 'gmd_email_verified') markVerified(); });
+
+            // any device: ask the server every few seconds (and as soon as the tab is looked at again)
+            function check() {
+                if (document.hidden || done) return;
+                fetch(@json(route('signup.verify_status')), { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
+                    .then(function (r) { return r.ok ? r.json() : null; })
+                    .then(function (d) { if (d && d.verified) markVerified(); })
+                    .catch(function () {});
+            }
+            timer = setInterval(check, 5000);
+            document.addEventListener('visibilitychange', check);
+        })();
+    </script>
+    @endif
 </body>
 </html>

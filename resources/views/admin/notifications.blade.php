@@ -67,8 +67,15 @@
                                 <i data-lucide="{{ $n->icon }}"></i>
                             </div>
                             <div class="notif-page-body">
+                                @if($n->notification_type === \App\Services\LowStockService::TYPE)
+                                    {{-- consolidated Low Stock Alert: count badge + out/low breakdown --}}
+                                    @php [$stockHeadline, $stockBreakdown] = array_pad(explode("\n", $n->message, 2), 2, ''); @endphp
+                                    <div class="notif-page-title">{{ $n->title }} <span class="notif-count-pill">{{ (int) $stockHeadline }}</span></div>
+                                    <div class="notif-page-msg">{{ $stockHeadline }}@if($stockBreakdown) <span style="color:#B45309;font-weight:700;">· {{ $stockBreakdown }}</span>@endif</div>
+                                @else
                                 <div class="notif-page-title">{{ $n->title }}</div>
                                 <div class="notif-page-msg">{{ $n->message }}</div>
+                                @endif
                                 <span class="notif-time" title="{{ $n->created_at->format('M d, Y g:i A') }}">{{ $n->created_at->diffForHumans() }}</span>
                             </div>
                             <div class="notif-page-right">

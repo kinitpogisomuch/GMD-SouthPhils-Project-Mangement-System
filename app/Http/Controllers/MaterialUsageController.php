@@ -229,6 +229,8 @@ class MaterialUsageController extends Controller
 
         $message = $count === 1 ? 'Purchase logged successfully.' : "{$count} purchases logged successfully.";
 
+        \App\Services\LowStockService::sync();   // replenished materials drop off the low-stock alert
+
         return redirect()->route('admin.material_usage.detail', $projectId)
             ->with('success', $message)
             ->with('active_tab', 'purchased');
@@ -237,6 +239,7 @@ class MaterialUsageController extends Controller
     public function destroyPurchase($projectId, $purchaseId)
     {
         MaterialPurchase::where('project_id', $projectId)->findOrFail($purchaseId)->delete();
+        \App\Services\LowStockService::sync();
 
         return redirect()->route('admin.material_usage.detail', $projectId)
             ->with('success', 'Purchase record deleted.')
@@ -248,6 +251,7 @@ class MaterialUsageController extends Controller
         $entry = MaterialUsage::where('project_id', $projectId)->findOrFail($usageId);
         $entry->status = $entry->status === 'archived' ? 'active' : 'archived';
         $entry->save();
+        \App\Services\LowStockService::sync();   // archiving/restoring usage changes the stock left
 
         $label = $entry->status === 'archived' ? 'archived' : 'restored';
 
@@ -477,49 +481,14 @@ class MaterialUsageController extends Controller
     }
 
     /**
-     * Low stock alert: based on ACTUAL purchased stock remaining, not the BOM
-     * planned quantity. Shared by both the single-entry (employee) and
-     * batch (admin) usage-logging paths.
+     * Low stock alert: based on ACTUAL purchased stock remaining, not the BOM planned quantity.
+     * Shared by both the single-entry (employee) and batch (admin) usage-logging paths. Refreshes
+     * the single consolidated Low Stock Alert instead of sending one notification per material.
      */
     private function checkLowStock(Project $project, ?int $bomId): void
     {
-        if (!$bomId) {
-            return;
-        }
-
-        $bomMaterial = \App\Models\ProjectMaterial::find($bomId);
-        if (!$bomMaterial) {
-            return;
-        }
-
-        $stockBought = MaterialPurchase::where('project_id', $project->id)
-            ->where('project_material_id', $bomId)
-            ->sum('qty_bought');
-
-        if ($stockBought <= 0) {
-            return;
-        }
-
-        $totalUsed = MaterialUsage::where('project_id', $project->id)
-            ->where('project_material_id', $bomId)
-            ->where('status', 'active')
-            ->sum('quantity_used');
-
-        $usagePct = ($totalUsed / $stockBought) * 100;
-
-        // Alert once remaining stock drops to 25% (half of half) of what was actually purchased
-        if ($usagePct >= 75 && $usagePct < 100) {
-            NotificationService::lowStockAlert($project, $bomMaterial, $stockBought - $totalUsed);
-        } elseif ($usagePct >= 100) {
-            NotificationService::notifyAdmins(
-                'Material Stock Depleted',
-                "\"{$bomMaterial->material_name}\" in {$project->name} has been fully consumed ({$stockBought} units bought, " . number_format($totalUsed, 2) . " used).",
-                'warning',
-                'red',
-                $project->id,
-                null,
-                "/admin/material-usage/{$project->id}"
-            );
+        if ($bomId) {
+            \App\Services\LowStockService::sync();
         }
     }
 }

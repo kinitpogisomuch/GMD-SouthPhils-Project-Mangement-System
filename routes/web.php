@@ -44,11 +44,17 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 // Client Self-Registration
 Route::get('/signup', [ClientSignupController::class, 'show'])->name('signup');
 Route::post('/signup', [ClientSignupController::class, 'store'])->name('signup.post');
-Route::get('/signup/next-username', [ClientSignupController::class, 'nextUsername'])->name('signup.next_username');
+Route::get('/signup/check-availability', [ClientSignupController::class, 'checkAvailability'])->name('signup.check_availability')->middleware('throttle:40,1');
 // Email verification — separate from admin approval (verifying does not log the client in)
 Route::get('/signup/verify-email', [ClientSignupController::class, 'verifyNotice'])->name('signup.verify_notice');
+Route::get('/signup/verify-status', [ClientSignupController::class, 'verifyStatus'])->name('signup.verify_status')->middleware('throttle:30,1');
 Route::get('/signup/verify/{token}', [ClientSignupController::class, 'verify'])->name('signup.verify')->middleware('throttle:20,1');
 Route::post('/signup/resend-verification', [ClientSignupController::class, 'resend'])->name('signup.resend_verification')->middleware('throttle:3,1');
+// Account setup — the one-time link emailed when the admin approves a registration
+Route::get('/account/setup/done', [\App\Http\Controllers\AccountSetupController::class, 'done'])->name('account.setup.done');
+Route::post('/account/setup/resend', [\App\Http\Controllers\AccountSetupController::class, 'resend'])->name('account.setup.resend')->middleware('throttle:3,1');
+Route::get('/account/setup/{token}', [\App\Http\Controllers\AccountSetupController::class, 'show'])->name('account.setup')->middleware('throttle:20,1');
+Route::post('/account/setup/{token}', [\App\Http\Controllers\AccountSetupController::class, 'complete'])->name('account.setup.complete')->middleware('throttle:10,1');
 
 // First-Login Credential Setup (client & employee, no profile.complete middleware here)
 Route::get('/setup/credentials', [FirstLoginController::class, 'show'])->name('setup.credentials');
@@ -211,6 +217,7 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::patch('/clients/{id}/archive', [ClientSettingsController::class, 'archive'])->name('client.archive');
     Route::patch('/clients/{id}/approve', [ClientSettingsController::class, 'approve'])->name('client.approve');
     Route::patch('/clients/{id}/reject', [ClientSettingsController::class, 'reject'])->name('client.reject');
+    Route::post('/clients/{id}/resend-setup', [ClientSettingsController::class, 'resendSetupLink'])->name('client.resend_setup');
 
     // Client List API
     Route::get('/clients/list', [ClientSettingsController::class, 'list'])->name('client.list');
@@ -248,6 +255,9 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::delete('/settings/photo',      [ProfileController::class, 'removeAdminPhoto'])->name('settings.photo.remove');
     Route::put('/settings/contact-info',  [AdminController::class, 'updateContactInfo'])->name('settings.contact_info');
     Route::put('/settings/kpi-targets',   [AdminController::class, 'updateKpiTargets'])->name('settings.kpi_targets');
+
+    // Consolidated low-stock alert → list of materials needing attention
+    Route::get('/low-stock', [\App\Http\Controllers\LowStockController::class, 'index'])->name('low_stock');
 
     // Notifications
     Route::get('/notifications', [NotificationController::class, 'page'])->name('notifications');

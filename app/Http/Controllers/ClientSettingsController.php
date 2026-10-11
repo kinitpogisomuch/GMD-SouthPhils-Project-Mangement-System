@@ -149,10 +149,21 @@ class ClientSettingsController extends Controller
         return null;
     }
 
+    /**
+     * Approve a verified registration request → status Approved (Account Setup Required) and email
+     * the client a one-time Set Up Account link. They become Active only once they've set their
+     * password on that page — approval itself never lets anyone log in.
+     */
     public function approve(Request $request, $id)
     {
         $client = Client::findOrFail($id);
         if ($blocked = $this->unverifiedRedirect($client)) return $blocked;
+
+        // Only a request that's pending admin approval can be approved (not active/rejected/archived ones)
+        if ($client->status !== 'Pending') {
+            return redirect()->route('admin.clients')
+                ->with('error', $client->name . ' is not awaiting approval (status: ' . $client->registrationStatusLabel() . ').');
+        }
 
         $request->validate([
             'approved_date' => 'nullable|date',
@@ -165,29 +176,37 @@ class ClientSettingsController extends Controller
             : now();
 
         $client->updated_at = $approvedAt;
-        $client->update(['status' => 'Active']);
+        $client->update(['status' => 'Approved']);   // Approved – Account Setup Required
 
         \App\Services\NotificationService::clientApproved($client, $approvedAt);
 
-        if ($client->email) {
-            try {
-                Mail::html(
-                    $this->buildApprovalEmailHtml($client->name, $client->username),
-                    function ($message) use ($client) {
-                        $message->to($client->email, $client->name)
-                                ->from(config('mail.from.address'), config('mail.from.name'))
-                                ->replyTo(config('mail.from.address'), config('mail.from.name'))
-                                ->subject('Your GMD South Phils Account Has Been Approved');
-                    }
-                );
-                Log::info('ClientSettings: approval email sent', ['email' => $client->email]);
-            } catch (\Exception $e) {
-                Log::error('ClientSettings: approval email failed', ['error' => $e->getMessage()]);
-            }
+        // Sent only after the approval is saved
+        $sent = AccountSetupController::sendSetupEmail($client);
+
+        return redirect()->route('admin.clients')->with(
+            $sent ? 'success' : 'error',
+            $sent
+                ? 'Registration approved. ' . $client->name . ' has been emailed a link to set up their account.'
+                : 'Registration approved, but the setup email could not be sent. Use "Resend setup link" to try again.'
+        );
+    }
+
+    /** Re-send the Set Up Account link to an approved client (e.g. their link expired or the email failed) */
+    public function resendSetupLink($id)
+    {
+        $client = Client::findOrFail($id);
+
+        if ($client->status !== 'Approved') {
+            return redirect()->route('admin.clients')
+                ->with('error', $client->name . ' is not waiting for account setup.');
         }
 
-        return redirect()->route('admin.clients')
-            ->with('success', 'Client approved. They can now log in.');
+        $sent = AccountSetupController::sendSetupEmail($client);
+
+        return redirect()->route('admin.clients')->with(
+            $sent ? 'success' : 'error',
+            $sent ? 'A new account setup link has been emailed to ' . $client->email . '.' : 'The setup email could not be sent. Please try again.'
+        );
     }
 
     public function reject(Request $request, $id)
@@ -317,45 +336,6 @@ class ClientSettingsController extends Controller
                     You may now log in to the Client Portal at:<br>
                     <a href="' . url('/login') . '" style="color:#6366f1;font-weight:700;">' . url('/login') . '</a>
                 </p>
-
-                <div class="footer">
-                    Thank you,<br>
-                    <strong>GMD Construction Management Team</strong>
-                </div>
-            </div>
-        </body>
-        </html>';
-    }
-
-    private function buildApprovalEmailHtml(string $name, string $username): string
-    {
-        return '
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <style>
-                body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 20px; }
-                .container { background: #fff; max-width: 520px; margin: 0 auto; border-radius: 12px; padding: 36px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
-                .logo { font-size: 20px; font-weight: 900; color: #1a1a2e; margin-bottom: 24px; }
-                .logo span { color: #e8900a; }
-                .badge { display: inline-block; background: #dcfce7; color: #15803d; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; border-radius: 999px; padding: 6px 14px; margin-bottom: 18px; }
-                h2 { font-size: 18px; color: #1a1a2e; margin-bottom: 8px; }
-                p { font-size: 14px; color: #444; line-height: 1.6; }
-                .cta { display: inline-block; margin-top: 20px; background: #1a1a2e; color: #fff !important; text-decoration: none; font-weight: 700; font-size: 14px; padding: 12px 24px; border-radius: 8px; }
-                .footer { margin-top: 32px; font-size: 12px; color: #aaa; border-top: 1px solid #eee; padding-top: 16px; }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="logo">GMD <span>South Phils</span></div>
-                <div class="badge">&#10003; Account Approved</div>
-                <h2>Your account has been approved</h2>
-                <p>Hello <strong>' . htmlspecialchars($name) . '</strong>,</p>
-                <p>Good news — your GMD South Phils client portal account has been reviewed and approved. You can now log in using the username and password you created during sign-up.</p>
-                <p style="margin-top:4px;color:#888;font-size:13px;">Username: <strong>' . htmlspecialchars($username) . '</strong></p>
-
-                <a href="' . url('/login') . '" class="cta">Log In to the Client Portal</a>
 
                 <div class="footer">
                     Thank you,<br>

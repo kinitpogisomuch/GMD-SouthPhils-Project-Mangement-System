@@ -53,6 +53,10 @@
                             Pending Approval
                             <span class="filter-count">{{ $clients->where('status', 'Pending')->count() }}</span>
                         </button>
+                        <button type="button" class="filter-tab" data-filter="Approved">
+                            Setup Required
+                            <span class="filter-count">{{ $clients->where('status', 'Approved')->count() }}</span>
+                        </button>
                         <button type="button" class="filter-tab" data-filter="Rejected">
                             Rejected
                             <span class="filter-count">{{ $clients->where('status', 'Rejected')->count() }}</span>
@@ -125,6 +129,9 @@
                                     <span class="status-badge active">Active</span>
                                     @elseif($client->status === 'Pending')
                                     <span class="status-badge pending">Pending Approval</span>
+                                    @elseif($client->status === 'Approved')
+                                    {{-- approved, waiting for the client to set their password via the emailed link --}}
+                                    <span class="status-badge ongoing" title="Approved{{ $client->account_setup_sent_at ? ' — setup link sent ' . $client->account_setup_sent_at->format('M d, Y h:i A') : '' }}">Account Setup Required</span>
                                     @elseif($client->status === 'Rejected')
                                     <span class="status-badge revision">Rejected</span>
                                     @else
@@ -148,6 +155,14 @@
                                             data-name="{{ $client->full_name }}">
                                         <i data-lucide="x"></i>
                                     </button>
+                                    @elseif($client->status === 'Approved')
+                                    {{-- send a fresh Set Up Account link (e.g. the first one expired or didn't arrive) --}}
+                                    <form method="POST" action="{{ route('admin.client.resend_setup', $client->id) }}" style="display:inline;">
+                                        @csrf
+                                        <button class="action-btn view" type="submit" title="Resend account setup link">
+                                            <i data-lucide="mail"></i>
+                                        </button>
+                                    </form>
                                     @else
                                     <button class="action-btn view archive-client-btn" type="button"
                                             title="{{ $client->status === 'Inactive' ? 'Restore Client' : 'Archive Client' }}"
@@ -509,6 +524,7 @@
             var clientStatusMeta = {
                 Active:   { label: 'Active',          cls: 'active'   },
                 Pending:  { label: 'Pending Approval', cls: 'pending'  },
+                Approved: { label: 'Account Setup Required', cls: 'ongoing' },
                 Rejected: { label: 'Rejected',        cls: 'revision' },
                 Inactive: { label: 'Archived',        cls: 'archived' },
             };
@@ -586,7 +602,7 @@
             document.querySelectorAll('.approve-client-btn').forEach(function (btn) {
                 btn.addEventListener('click', function () {
                     document.getElementById('approveClientMsg').textContent =
-                        'Are you sure you want to approve "' + this.dataset.name + '"? They will be able to log in immediately.';
+                        'Approve "' + this.dataset.name + '"? They\'ll be emailed a secure link to set up their account password before they can log in.';
                     document.getElementById('approveClientForm').action = '/admin/clients/' + this.dataset.id + '/approve';
                     openModal('approveClientModal');
                 });
@@ -643,6 +659,7 @@
                             status === 'Inactive' ? 'No archived clients.' :
                             status === 'Active'   ? 'No active clients.' :
                             status === 'Pending'  ? 'No clients pending approval.' :
+                            status === 'Approved' ? 'No approved clients waiting to set up their account.' :
                             status === 'Rejected' ? 'No rejected clients.' :
                                                    'No clients match your search.';
                         emptyRow.style.display = '';

@@ -666,25 +666,8 @@ class ProjectMaterialController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        // Notify admin if any material's remaining stock (actual purchased stock - used) has dropped to 25% (half of half) or less
-        foreach ($materials as $item) {
-            $stockBought = MaterialPurchase::where('project_id', $projectId)
-                ->where('project_material_id', $item->id)
-                ->sum('qty_bought');
-
-            if ($stockBought <= 0) continue;
-
-            $totalUsed = \App\Models\MaterialUsage::where('project_id', $projectId)
-                ->where('project_material_id', $item->id)
-                ->where('status', 'active')
-                ->sum('quantity_used');
-
-            $remainingPct = (($stockBought - $totalUsed) / $stockBought) * 100;
-
-            if ($remainingPct <= 25 && $remainingPct > 0) {
-                NotificationService::lowStockAlert($project, $item, $stockBought - $totalUsed);
-            }
-        }
+        // Keep the admins' single Low Stock Alert current (remaining stock ≤ 25% of what was purchased)
+        \App\Services\LowStockService::syncThrottled();
 
         return view('employee.project_materials_detail', compact(
             'project', 'materials', 'totalMaterials', 'totalQuantity', 'estimatedCost', 'myRequests'

@@ -329,6 +329,7 @@ document.addEventListener('DOMContentLoaded', function () {
         quotation_request_declined:      'x-circle',
         quotation_request_quotation_sent: 'file-text',
         quotation_request_approved:       'thumbs-up',
+        low_stock_summary:                'package-search',
     };
 
     const priorityClass = {
@@ -500,13 +501,18 @@ document.addEventListener('DOMContentLoaded', function () {
             const cls   = priorityClass[n.priority] || 'notif-icon-info';
             const unread = !n.is_read ? ' unread' : '';
             const url   = n.action_url || '#';
+            const lines = n.message.split('\n');
+            // Consolidated Low Stock Alert: one card with a count badge and the out/low breakdown
+            const isStock    = n.notification_type === 'low_stock_summary';
+            const stockCount = isStock ? parseInt(lines[0], 10) : 0;
             return `<div class="notification-item${unread}" data-id="${n.id}" data-url="${url}" onclick="handleNotifClick(this)">
                 <div class="notification-icon ${cls}">
                     <i data-lucide="${icon}"></i>
                 </div>
                 <div class="notification-text">
-                    <strong>${escapeHtml(n.title)}</strong>
-                    <p>${escapeHtml(n.message.split('\n')[0])}</p>
+                    <strong>${escapeHtml(n.title)}${isStock && stockCount ? ` <span class="notif-count-pill">${stockCount}</span>` : ''}</strong>
+                    <p>${escapeHtml(lines[0])}</p>
+                    ${isStock && lines[1] ? `<p class="notif-subline">${escapeHtml(lines[1])}</p>` : ''}
                     <span class="notif-time">${escapeHtml(n.created_at)}</span>
                 </div>
                 ${!n.is_read ? '<span class="notif-unread-dot"></span>' : ''}

@@ -307,33 +307,13 @@ class NotificationService
         );
     }
 
-    /** Material stock is running low (≤25% of purchased stock remaining) → alert admins once per material, no spam */
+    /**
+     * Material stock is running low → refresh the single consolidated "Low Stock Alert" for admins
+     * (see LowStockService) rather than sending one notification per material.
+     */
     public static function lowStockAlert(\App\Models\Project $project, \App\Models\ProjectMaterial $material, ?float $remainingQty = null): void
     {
-        // Skip if an unread low-stock alert for this exact material on this project already exists
-        $alreadyAlerted = \App\Models\Notification::where('user_type', 'admin')
-            ->where('related_project_id', $project->id)
-            ->where('title', 'Low Material Stock')
-            ->where('message', 'like', '%"' . $material->material_name . '"%')
-            ->unread()
-            ->exists();
-
-        if ($alreadyAlerted) {
-            return;
-        }
-
-        $remainingText = $remainingQty !== null ? rtrim(rtrim(number_format($remainingQty, 2), '0'), '.') : $material->quantity;
-        $message = "Low stock alert: \"{$material->material_name}\" has only {$remainingText} unit(s) remaining in Project: {$project->name}.";
-
-        self::notifyAdmins(
-            'Low Material Stock',
-            $message,
-            self::TYPE_MATERIAL_REQUESTED,
-            'warning',
-            $project->id,
-            null,
-            "/admin/project-materials/{$project->id}"
-        );
+        \App\Services\LowStockService::sync();
     }
 
     /** Employee flags a material as short and requests more → activity log for admins */
@@ -650,8 +630,8 @@ class NotificationService
     {
         self::notifyClient(
             $client->id,
-            'Account Approved',
-            'Your GMD South Phils client account has been approved. You can now log in.',
+            'Registration Approved',
+            'Your GMD South Phils registration has been approved. Check your email for the link to set up your account.',
             self::TYPE_CLIENT_APPROVED,
             'success',
             null,

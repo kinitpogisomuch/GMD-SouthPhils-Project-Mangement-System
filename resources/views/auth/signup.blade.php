@@ -76,7 +76,7 @@
             box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.08);
         }
         .su-form-group input.input-error { border-color: #fca5a5; }
-        .field-error { font-size: 12px; color: var(--danger); margin-top: 6px; display: block; font-weight: 600; }
+        .field-error { font-size: 11px; color: var(--danger); margin-top: 5px; display: block; font-weight: 500; line-height: 1.45; }
 
         .su-form-group select {
             width: 100%; height: 48px; padding: 0 40px 0 14px;
@@ -151,6 +151,11 @@
         }
         .pw-req.met  { background: #E7F6EC; border-color: #86efac; color: #207A3A; }
         .pw-req.fail { background: var(--danger-bg); border-color: #fca5a5; color: var(--danger); }
+
+        /* What happens after submitting — username/password come later, after approval */
+        .su-next-steps { margin: 0; padding-left: 20px; font-size: 13px; line-height: 1.6; color: var(--muted); }
+        .su-next-steps li { margin-bottom: 6px; }
+        .su-next-steps strong { color: var(--dark); }
 
         /* Terms and Conditions checkbox */
         .terms-row {
@@ -269,19 +274,26 @@
                     <div class="su-form-row" style="margin-top:16px;">
                         <div class="su-form-group">
                             <label>Email Address</label>
-                            <input type="email" name="email" required
+                            <input type="email" name="email" id="signupEmail" required
                                    value="{{ old('email') }}"
                                    placeholder="your@email.com"
                                    class="{{ $errors->has('email') ? 'input-error' : '' }}">
-                            @error('email')<span class="field-error">{{ $message }}</span>@enderror
+                            {{-- filled by the server on submit, or live as soon as an already-registered email is typed --}}
+                            <span class="field-error" id="emailError" style="{{ $errors->has('email') ? '' : 'display:none;' }}">{{ $errors->first('email') }}</span>
                         </div>
                         <div class="su-form-group">
                             <label>Contact Number</label>
-                            <input type="text" name="contact_number" required
+                            {{-- digits only: PH mobile number 09XXXXXXXXX --}}
+                            <input type="tel" name="contact_number" id="contactNumber" required
+                                   inputmode="numeric" maxlength="11" autocomplete="tel"
+                                   pattern="09[0-9]{9}"
+                                   title="Mobile number — 11 digits starting with 09 (09XXXXXXXXX)"
                                    value="{{ old('contact_number') }}"
-                                   placeholder="09XX XXX XXXX"
+                                   placeholder="09XXXXXXXXX"
                                    class="{{ $errors->has('contact_number') ? 'input-error' : '' }}">
-                            @error('contact_number')<span class="field-error">{{ $message }}</span>@enderror
+                            <span class="field-error" id="contactError" style="{{ $errors->has('contact_number') ? '' : 'display:none;' }}">
+                                {{ $errors->first('contact_number') }}
+                            </span>
                         </div>
                     </div>
 
@@ -331,77 +343,19 @@
                 </div>
             </div>
 
-            {{-- ── Account Credentials ── --}}
+            {{-- ── Terms & next steps ── (username and password are set up after the admin approves) --}}
             <div class="signup-card">
                 <div class="signup-section-head">
-                    <i data-lucide="lock" style="width:14px;height:14px;"></i>
-                    Account Credentials
+                    <i data-lucide="shield-check" style="width:14px;height:14px;"></i>
+                    Terms &amp; Next Steps
                 </div>
                 <div class="signup-body-pad">
 
-                    <div class="su-form-group">
-                        <label>Username</label>
-                        <div class="username-group {{ $errors->has('username') ? 'input-error' : '' }}">
-                            <span class="username-prefix">CGMD-</span>
-                            <input type="text" id="usernameSuffix" required
-                                   inputmode="numeric" placeholder="0000" maxlength="4">
-                        </div>
-                        <input type="hidden" name="username" id="usernameInput" value="{{ old('username') }}">
-                        <span style="font-size:12px;color:var(--muted);display:block;margin-top:6px;">
-                            We've suggested a number — feel free to change it.
-                        </span>
-                        @error('username')<span class="field-error">{{ $message }}</span>@enderror
-                    </div>
-
-                    <div class="su-form-row" style="margin-top:16px;">
-                        <div class="su-form-group">
-                            <label>Signup Date <span style="font-size:11px;color:var(--muted);font-weight:400;">(optional — leave blank for today)</span></label>
-                            <input type="date" name="signup_date" value="{{ old('signup_date') }}"
-                                   class="{{ $errors->has('signup_date') ? 'input-error' : '' }}">
-                            @error('signup_date')<span class="field-error">{{ $message }}</span>@enderror
-                        </div>
-                        <div class="su-form-group">
-                            <label>Signup Time <span style="font-size:11px;color:var(--muted);font-weight:400;">(optional)</span></label>
-                            <input type="time" name="signup_time" value="{{ old('signup_time') }}"
-                                   class="{{ $errors->has('signup_time') ? 'input-error' : '' }}">
-                            @error('signup_time')<span class="field-error">{{ $message }}</span>@enderror
-                        </div>
-                    </div>
-
-                    <div class="su-form-row" style="margin-top:16px;">
-                        <div class="su-form-group">
-                            <label>Password</label>
-                            <div class="pw-wrap">
-                                <input type="password" name="password" id="signupPassword"
-                                       placeholder="Min 8 characters"
-                                       class="{{ $errors->has('password') ? 'input-error' : '' }}"
-                                       oninput="checkPwReqs()" required>
-                                <button type="button" class="pw-toggle" onclick="togglePw('signupPassword',this)">
-                                    <i data-lucide="eye" style="width:15px;height:15px;"></i>
-                                </button>
-                            </div>
-                            @error('password')<span class="field-error">{{ $message }}</span>@enderror
-                        </div>
-                        <div class="su-form-group">
-                            <label>Confirm Password</label>
-                            <div class="pw-wrap">
-                                <input type="password" name="password_confirmation" id="signupPasswordConfirm"
-                                       placeholder="Repeat password"
-                                       oninput="checkConfirm()" required>
-                                <button type="button" class="pw-toggle" onclick="togglePw('signupPasswordConfirm',this)">
-                                    <i data-lucide="eye" style="width:15px;height:15px;"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="pw-req-list" id="pwReqList">
-                        <span class="pw-req" id="req-len">Min 8 characters</span>
-                        <span class="pw-req" id="req-upper">1 uppercase letter</span>
-                        <span class="pw-req" id="req-lower">1 lowercase letter</span>
-                        <span class="pw-req" id="req-num">1 number</span>
-                        <span class="pw-req" id="req-match">Passwords match</span>
-                    </div>
+                    <ol class="su-next-steps">
+                        <li><strong>Verify your email</strong> — we'll send a verification link to the address above.</li>
+                        <li><strong>Wait for approval</strong> — our team reviews your registration.</li>
+                        <li><strong>Set up your account</strong> — once approved, we'll email you a link to create your password. Your username is assigned automatically.</li>
+                    </ol>
 
                     <label class="terms-row {{ $errors->has('terms') ? 'input-error' : '' }}" for="termsCheck">
                         <input type="checkbox" name="terms" id="termsCheck" value="1" required {{ old('terms') ? 'checked' : '' }}>
@@ -420,8 +374,8 @@
             </div>
 
             <button type="submit" class="signup-submit" id="submitBtn">
-                <i data-lucide="user-plus" style="width:18px;height:18px;"></i>
-                Create Account
+                <i data-lucide="send" style="width:18px;height:18px;"></i>
+                Submit Registration
             </button>
 
             <div class="signup-footer-link">
@@ -697,84 +651,85 @@
 
     loadRegions();
 
-    // ── Username: fixed "CGMD-" prefix, only the number is editable ──
-    (function setupUsername() {
-        var suffixInput = document.getElementById('usernameSuffix');
-        var hiddenInput = document.getElementById('usernameInput');
-        if (!suffixInput || !hiddenInput) return;
 
-        function syncHidden() {
-            var digits = suffixInput.value.replace(/[^0-9]/g, '');
-            hiddenInput.value = digits ? ('CGMD-' + digits) : '';
+    /* Live "already registered?" check for a sign-up field — asks the server shortly after typing
+       stops; only the latest answer counts. Submitting still runs the real check on the server. */
+    function liveAvailability(field, onResult) {
+        var timer = null, seq = 0;
+        return function (value) {
+            clearTimeout(timer);
+            var mine = ++seq;
+            timer = setTimeout(function () {
+                fetch(@json(route('signup.check_availability')) + '?field=' + field + '&value=' + encodeURIComponent(value),
+                      { headers: { 'Accept': 'application/json' } })
+                    .then(function (r) { return r.ok ? r.json() : null; })
+                    .then(function (d) { if (d && mine === seq) onResult(!!d.taken, value); })
+                    .catch(function () {});
+            }, 400);
+        };
+    }
+
+    // ── Contact number: digits only, PH mobile number (09XXXXXXXXX), not already registered ──
+    (function setupContactNumber() {
+        var input = document.getElementById('contactNumber');
+        var error = document.getElementById('contactError');
+        if (!input) return;
+        var MOBILE = /^09\d{9}$/;   // 11 digits
+        var TAKEN  = 'This contact number is already registered to another account. Please use a different number.';
+        var taken  = {{ $errors->has('contact_number') && str_contains($errors->first('contact_number'), 'already registered') ? 'true' : 'false' }};
+
+        function message(v) {
+            if (!v) return '';
+            if (!/^09/.test(v)) return 'Mobile numbers start with 09 (09XXXXXXXXX).';
+            if (!MOBILE.test(v)) return 'Mobile numbers have 11 digits (09XXXXXXXXX).';
+            return taken ? TAKEN : '';
+        }
+        function show(msg) {
+            error.textContent = msg;
+            error.style.display = msg ? 'block' : 'none';
+            input.classList.toggle('input-error', !!msg);
         }
 
-        function extractDigits(fullUsername) {
-            var m = /^CGMD-(\d+)$/.exec(fullUsername || '');
-            return m ? m[1].slice(0, 4) : '';
-        }
-
-        suffixInput.addEventListener('input', function () {
-            suffixInput.value = suffixInput.value.replace(/[^0-9]/g, '').slice(0, 4);
-            syncHidden();
+        var check = liveAvailability('contact_number', function (isTaken, value) {
+            if (value !== input.value) return;   // the number changed while we were asking
+            taken = isTaken;
+            show(isTaken ? TAKEN : '');
         });
 
-        var form = document.getElementById('signupForm');
-        if (form) form.addEventListener('submit', syncHidden);
-
-        var oldDigits = extractDigits(hiddenInput.value);
-        if (oldDigits) {
-            suffixInput.value = oldDigits;
-            syncHidden();
-            return;
-        }
-
-        fetch('{{ route('signup.next_username') }}')
-            .then(function (res) { return res.json(); })
-            .then(function (data) {
-                var digits = extractDigits(data.username);
-                if (digits) {
-                    suffixInput.value = digits;
-                    syncHidden();
-                }
-            })
-            .catch(function () {});
+        // strip anything that isn't a digit as it's typed or pasted (e.g. "0917-123 4567" → "09171234567")
+        input.addEventListener('input', function () {
+            var digits = input.value.replace(/\D/g, '').slice(0, 11);
+            if (input.value !== digits) input.value = digits;
+            taken = false;
+            if (MOBILE.test(digits)) { show(''); check(digits); }   // complete number → is it already registered?
+        });
+        input.addEventListener('blur', function () { show(message(input.value)); });
+        input.addEventListener('invalid', function () { show(message(input.value) || 'Please enter your contact number.'); });
     })();
 
-    function togglePw(id, btn) {
-        var input = document.getElementById(id);
+    // ── Email: same live "already registered" check once a complete address is typed ──
+    (function setupEmail() {
+        var input = document.getElementById('signupEmail');
+        var error = document.getElementById('emailError');
         if (!input) return;
-        var isText = input.type === 'text';
-        input.type = isText ? 'password' : 'text';
-        btn.innerHTML = '<i data-lucide="' + (isText ? 'eye' : 'eye-off') + '" style="width:15px;height:15px;"></i>';
-        if (typeof lucide !== 'undefined') lucide.createIcons();
-    }
+        var TAKEN = 'An account with this email address already exists.';
+        var LOOKS_COMPLETE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
-    function setReq(id, met) {
-        var el  = document.getElementById(id);
-        var val = document.getElementById('signupPassword').value;
-        if (!el) return;
-        el.classList.toggle('met',  met);
-        el.classList.toggle('fail', !met && val.length > 0);
-    }
-
-    function checkPwReqs() {
-        var val = document.getElementById('signupPassword').value;
-        setReq('req-len',   val.length >= 8);
-        setReq('req-upper', /[A-Z]/.test(val));
-        setReq('req-lower', /[a-z]/.test(val));
-        setReq('req-num',   /[0-9]/.test(val));
-        checkConfirm();
-    }
-
-    function checkConfirm() {
-        var pw   = document.getElementById('signupPassword').value;
-        var conf = document.getElementById('signupPasswordConfirm').value;
-        var el   = document.getElementById('req-match');
-        if (!el) return;
-        if (!conf.length) { el.classList.remove('met','fail'); return; }
-        el.classList.toggle('met',  pw === conf);
-        el.classList.toggle('fail', pw !== conf);
-    }
+        function show(msg) {
+            error.textContent = msg;
+            error.style.display = msg ? 'block' : 'none';
+            input.classList.toggle('input-error', !!msg);
+        }
+        var check = liveAvailability('email', function (isTaken, value) {
+            if (value !== input.value.trim()) return;
+            show(isTaken ? TAKEN : '');
+        });
+        input.addEventListener('input', function () {
+            var v = input.value.trim();
+            if (error.textContent) show('');            // clear the old message as soon as they edit
+            if (LOOKS_COMPLETE.test(v)) check(v);
+        });
+    })();
 
     // ── Terms and Conditions modal ──
     (function setupTerms() {
@@ -834,7 +789,7 @@
         var btn = document.getElementById('submitBtn');
         if (btn) {
             btn.disabled = true;
-            btn.innerHTML = '<div class="btn-spinner"></div><span>Creating account...</span>';
+            btn.innerHTML = '<div class="btn-spinner"></div><span>Submitting registration...</span>';
         }
     });
     </script>

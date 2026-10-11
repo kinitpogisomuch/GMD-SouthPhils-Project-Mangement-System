@@ -355,6 +355,29 @@ input[type="number"] {
     margin-top: 3px;
 }
 
+/* Consolidated Low Stock Alert: count badge next to the title + out/low breakdown line */
+.notif-count-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 6px;
+    margin-left: 4px;
+    border-radius: 999px;
+    background: #FEF3C7;
+    color: #92400E;
+    font-size: 10.5px;
+    font-weight: 900;
+    vertical-align: 1px;
+}
+.notification-text p.notif-subline {
+    font-size: 11px;
+    font-weight: 700;
+    color: #B45309;
+    margin-top: 1px;
+}
+
 .notification-empty {
     text-align: center;
     padding: 24px 16px;
@@ -6989,3 +7012,9 @@ body.page-enter .admin-content {
         transition: opacity 0.15s linear;
     }
 }
+
+/* Profile card meta rows: a long value (e.g. "Zamboanga del Sur, Labangan") wraps left-aligned
+   under its own text, with the icon kept on the first line — lined up with the rows above */
+.settings-meta-item { align-items: flex-start; }
+.settings-meta-item svg { flex-shrink: 0; margin-top: 2px; }
+.settings-meta-item span { text-align: left; }

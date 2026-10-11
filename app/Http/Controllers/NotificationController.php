@@ -51,6 +51,12 @@ class NotificationController extends Controller
             return response()->json(['notifications' => [], 'unread_count' => 0]);
         }
 
+        // The admin bell is polled — keep the consolidated Low Stock Alert matching current stock
+        // (e.g. after a project is completed), at most every 30 seconds
+        if ($userType === 'admin') {
+            \App\Services\LowStockService::syncThrottled();
+        }
+
         $notifications = Notification::forUser($userId)
             ->where('user_type', $userType)
             ->orderBy('created_at', 'desc')

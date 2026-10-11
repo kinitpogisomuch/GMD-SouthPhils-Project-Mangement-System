@@ -105,6 +105,29 @@ class AuthController extends Controller
             })
             ->first();
 
+        // Self-registered clients have no password until they finish account setup, so tell them
+        // where their registration stands instead of "invalid credentials". (No rejection reason
+        // here — without a password there's nothing proving who is asking.)
+        if ($client && !$client->password) {
+            $status = match (true) {
+                $client->status === 'Pending' && $client->email_verified_at === null
+                    => ['error', 'Please verify your email address first. We sent a verification link to ' . $client->email . '.'],
+                $client->status === 'Pending'
+                    => ['info', 'Your email has been verified. Your registration is waiting for administrator approval.'],
+                $client->status === 'Approved'
+                    => ['info', 'Your registration has been approved. Please set up your account using the "Set Up Account" link we emailed to ' . $client->email . ' before logging in.'],
+                $client->status === 'Rejected'
+                    => ['error', 'Your registration was not approved by GMD South Phils. Please contact us if you have questions.'],
+                default => null,
+            };
+            if ($status) {
+                $redirect = redirect()->route('login')->with($status[0], $status[1])->withInput(['email' => $username]);
+                return $client->status === 'Pending' && $client->email_verified_at === null
+                    ? $redirect->with('resend_verification_email', $client->email)
+                    : $redirect;
+            }
+        }
+
         if ($client && $client->password && Hash::check($password, $client->password)) {
             // Email verification comes first, and is separate from admin approval
             if ($client->status === 'Pending' && $client->email_verified_at === null) {

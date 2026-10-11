@@ -82,6 +82,7 @@ class Notification extends Model
         'material_logging_reminder'        => 'clipboard-x',
         'salary_recording_reminder'        => 'wallet',
         'billing_statement_sent'           => 'file-text',
+        'low_stock_summary'                => 'package-search',
     ];
 
     public function getIconAttribute(): string

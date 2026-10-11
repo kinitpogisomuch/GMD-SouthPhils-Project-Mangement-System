@@ -4303,3 +4303,9 @@ body:has(.modal-overlay.show) #chatPopupWrap {
         padding: 12px 16px;
     }
 }
+
+/* Profile card meta rows: a long value (e.g. "Zamboanga del Sur, Labangan") wraps left-aligned
+   under its own text, with the icon kept on the first line — lined up with the rows above */
+.settings-meta-item { align-items: flex-start; }
+.settings-meta-item svg { flex-shrink: 0; margin-top: 2px; }
+.settings-meta-item span { text-align: left; }
