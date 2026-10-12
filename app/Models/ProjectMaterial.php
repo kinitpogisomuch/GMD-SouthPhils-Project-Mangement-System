@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class ProjectMaterial extends Model
 {
+    // Waste/handling allowance added on top of every material line (%), used when a line has none set.
+    const DEFAULT_FACTOR = 10;
+
     protected $fillable = [
         'project_id',
         'quotation_batch_id',
@@ -49,7 +52,7 @@ class ProjectMaterial extends Model
 
     public function getBudgetedCostAttribute(): float
     {
-        $factor = $this->factor ?? 0;
+        $factor = $this->factor ?? self::DEFAULT_FACTOR;
         return round($this->total_cost * (1 + $factor / 100), 2);
     }
 

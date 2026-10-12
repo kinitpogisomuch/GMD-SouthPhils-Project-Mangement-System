@@ -15,14 +15,6 @@
         .ve-icon.error    { background: #FEE4E2; color: #B42318; }
         .ve-text { text-align: center; font-size: 14px; line-height: 1.6; color: var(--muted); margin: 0 0 18px; }
         .ve-text strong { color: var(--dark); }
-        .ve-steps { list-style: none; margin: 0 0 20px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 14px; background: #fafafa; }
-        .ve-steps li { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 700; color: var(--muted); padding: 5px 0; }
-        .ve-steps li .dot { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-                            font-size: 11px; font-weight: 900; background: #eee; color: #888; }
-        .ve-steps li.done { color: #207A3A; }
-        .ve-steps li.done .dot { background: #207A3A; color: #fff; }
-        .ve-steps li.current { color: var(--dark); }
-        .ve-steps li.current .dot { background: var(--dark); color: #fff; }
         .ve-resend { margin-top: 6px; padding-top: 16px; border-top: 1px solid var(--border); }
         .ve-resend p { font-size: 12.5px; color: var(--muted); margin: 0 0 10px; text-align: center; }
         .ve-link-btn { display: flex; align-items: center; justify-content: center; text-decoration: none; }
@@ -35,8 +27,6 @@
     @php
         $loginBgPath = public_path('images/login.jpg');
         $hasLoginBg  = file_exists($loginBgPath);
-        // Sign Up → Verify Email → Admin Approval → Log in
-        $step = $state === 'verified' ? 3 : 2;
     @endphp
     <div class="login-page @if($hasLoginBg) has-bg-photo @endif"
          @if($hasLoginBg) style="--login-bg-photo: url('{{ asset('images/login.jpg') }}')" @endif>
@@ -109,13 +99,6 @@
                 </div>
                 <template id="veVerifiedTpl">{!! $verifiedStatusHtml !!}</template>
 
-                <ul class="ve-steps">
-                    <li class="done"><span class="dot"><i data-lucide="check" style="width:12px;height:12px;"></i></span>Sign up</li>
-                    <li id="veStepVerify" class="{{ $step > 2 ? 'done' : 'current' }}"><span class="dot">@if($step > 2)<i data-lucide="check" style="width:12px;height:12px;"></i>@else 2 @endif</span>Verify your email</li>
-                    <li id="veStepApproval" class="{{ $step === 3 ? 'current' : '' }}"><span class="dot">3</span>Wait for admin approval</li>
-                    <li><span class="dot">4</span>Set up your account from the approval email, then log in</li>
-                </ul>
-
                 @if($state !== 'verified')
                 <div class="ve-resend" id="veResend">
                     <p>Didn't get the email or the link stopped working?</p>
@@ -152,8 +135,8 @@
     @if($state === 'sent')
     <script>
         // When the email gets verified — link opened in another tab, or on another device — this page
-        // updates its own status in place (no reload, no navigation): "Email Verified", the verify step
-        // ticked, approval as the current step, and the resend form removed.
+        // updates its own status in place (no reload, no navigation): "Email Verified" and the resend
+        // form removed.
         (function () {
             var done = false, timer;
 
@@ -163,11 +146,6 @@
                 clearInterval(timer);
 
                 document.getElementById('veStatus').innerHTML = document.getElementById('veVerifiedTpl').innerHTML;
-
-                var verifyStep = document.getElementById('veStepVerify');
-                verifyStep.className = 'done';
-                verifyStep.querySelector('.dot').innerHTML = '<i data-lucide="check" style="width:12px;height:12px;"></i>';
-                document.getElementById('veStepApproval').className = 'current';
 
                 var resend = document.getElementById('veResend');
                 if (resend) resend.remove();

@@ -15,6 +15,23 @@ class MonthlyExpenseController extends Controller
     {
         $month = $request->query('month', now()->format('Y-m'));
 
+        // Came here from a project's "Settle Monthly Expenses" (completion step): remember the project
+        // while the admin moves between months and saves, so the page can show what's still unsettled
+        // and link straight back to the completion phase.
+        if ($request->filled('from_project')) {
+            session(['expense_return_project' => (int) $request->query('from_project')]);
+        }
+        if ($request->boolean('done_settling')) {
+            session()->forget('expense_return_project');
+        }
+        $returnProject = session('expense_return_project')
+            ? Project::whereKey(session('expense_return_project'))->where('status', '!=', 'completed')->first()
+            : null;
+        if (session('expense_return_project') && !$returnProject) {
+            session()->forget('expense_return_project');   // completed or removed meanwhile
+        }
+        $returnProjectMissing = $returnProject ? $returnProject->unsettledExpenseMonths() : [];
+
         // Expense line items for selected month
         $expenses = MonthlyExpense::where('month_year', $month)
             ->orderBy('category')
@@ -74,7 +91,7 @@ class MonthlyExpenseController extends Controller
         return view('admin.monthly_expenses', compact(
             'month', 'expenses', 'total', 'allocated',
             'projects', 'perProject', 'months', 'history', 'customCategories',
-            'projectFunds', 'currentShares'
+            'projectFunds', 'currentShares', 'returnProject', 'returnProjectMissing'
         ));
     }
 

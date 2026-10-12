@@ -196,6 +196,18 @@
         .qb-sum-op { align-self: center; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--white); border: 1px solid var(--border); font-size: 15px; font-weight: 800; color: var(--muted); }
         .qb-foot .save-btn { padding: 14px 32px; font-size: 14.5px; }
 
+        /* Price / Unit and Daily Rate show thousands separators — right-aligned like the totals */
+        .qb-num-input { text-align: right; font-variant-numeric: tabular-nums; }
+
+        /* Tank section: type · capacity · quantity */
+        .qb-grid-tank { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.2fr) minmax(0, .7fr); }
+        .qb-capacity-custom { margin-top: 8px; }
+        .qb-tank-note { display: flex; align-items: flex-start; gap: 8px; margin-top: 14px; padding: 10px 12px; border-radius: 12px; background: #EFF6FF; border: 1px solid #BFDBFE; font-size: 12.5px; line-height: 1.5; color: #1E3A8A; }
+        .qb-tank-note svg { width: 15px; height: 15px; flex-shrink: 0; margin-top: 2px; }
+        .qb-per-tank { font-size: 11px; font-weight: 800; color: var(--muted); background: var(--cream-soft); border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; margin-left: 6px; vertical-align: middle; text-transform: none; letter-spacing: 0; }
+        .qb-tpl-tag { display: inline-flex; align-items: center; font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 999px; margin: 0 6px 4px 0; white-space: nowrap; background: #F5F3FF; color: #6D28D9; border: 1px solid #DDD6FE; }
+        .qb-tpl-filter { font-size: 12.5px; color: var(--muted); margin: -4px 0 12px; }
+        .qb-tpl-filter strong { color: var(--dark); }
         @media (max-width: 900px) { .qb-grid { grid-template-columns: 1fr; } }
         @media (max-width: 600px) {
             .qb-head, .qb-section, .qb-foot { padding-left: 16px; padding-right: 16px; }
@@ -422,7 +434,7 @@
                     </div>
                     <div class="fd-ov-item">
                         <span class="fd-ov-label">Material Cost</span>
-                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Total material cost</span>
+                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Per tank, before factor</span>
                         <span class="fd-ov-val">{{ $estimatedCost > 0 ? '₱' . number_format($estimatedCost, 2) : '—' }}</span>
                     </div>
                     <div class="fd-ov-item">
@@ -432,17 +444,17 @@
                     </div>
                     <div class="fd-ov-item">
                         <span class="fd-ov-label">Estimated Working Days</span>
-                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Applies to all labor rows</span>
+                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Per tank, all labor rows</span>
                         <span class="fd-ov-val">@if(($batch->estimated_working_days ?? 0) > 0){{ number_format($batch->estimated_working_days, 0) }} <small style="font-size:13px;">Days</small>@else—@endif</span>
                     </div>
                     <div class="fd-ov-item">
                         <span class="fd-ov-label">Labor Cost</span>
-                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Total labor cost</span>
+                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Per tank</span>
                         <span class="fd-ov-val">{{ $totalLaborCost > 0 ? '₱' . number_format($totalLaborCost, 2) : '—' }}</span>
                     </div>
                     <div class="fd-ov-item fd-ov-highlight">
                         <span class="fd-ov-label">Project Budget</span>
-                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Est. materials + labor</span>
+                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Per tank × {{ $estimatedBudget['quantity'] }} tank{{ $estimatedBudget['quantity'] === 1 ? '' : 's' }}</span>
                         <span class="fd-ov-val" style="color:{{ $estimatedBudget['total'] > 0 ? '#4ade80' : 'rgba(255,255,255,0.35)' }};font-size:17px;">{{ $estimatedBudget['total'] > 0 ? '₱' . number_format(round($estimatedBudget['total']), 0) : '—' }}</span>
                     </div>
                 </div>
@@ -467,10 +479,6 @@
                         </button>
                         @endif
                         <span class="qb-dirty" id="qbDirty" hidden><i data-lucide="circle-dot"></i> Unsaved changes</span>
-                        <label class="qb-chip" for="entryDateInput" title="Applies to everything added when you save. Leave blank for today; set an earlier date when backfilling history.">
-                            Entry Date <span class="qb-optional">(optional)</span>
-                            <input type="date" name="entry_date" id="entryDateInput" style="width:auto;text-align:left;">
-                        </label>
                     </div>
                 </div>
 
@@ -483,11 +491,53 @@
                 </div>
                 @endif
 
-                {{-- 1 · Pricing --}}
+                {{-- 1 · Tank — what is being priced; it also decides which templates are offered --}}
                 <section class="qb-section">
                     <div class="qb-section-head">
                         <div class="qb-section-title">
                             <span class="qb-step">1</span>
+                            <div>
+                                <h3>Tank</h3>
+                                <p>The tank being quoted — templates and capacities follow the tank type.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="qb-grid qb-grid-tank">
+                        <div class="qb-field">
+                            <label for="tankTypeInput">Tank Type <span class="qb-req">*</span></label>
+                            <select name="tank_type" id="tankTypeInput" class="qb-input" required>
+                                <option value="" disabled hidden {{ !$builderTank['tank_type'] ? 'selected' : '' }}>Select tank type</option>
+                                @foreach(array_keys($tankTypeOptions) as $type)
+                                <option value="{{ $type }}" {{ $builderTank['tank_type'] === $type ? 'selected' : '' }}>{{ $type }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="qb-field">
+                            <label for="capacitySelect">Capacity <span class="qb-req">*</span></label>
+                            {{-- the capacities built before for the chosen type, or "Other" to type one --}}
+                            <select id="capacitySelect" class="qb-input"></select>
+                            <input type="text" id="capacityCustom" class="qb-input qb-capacity-custom" maxlength="255" placeholder="e.g. 18,000 liters" autocomplete="off" hidden>
+                            <input type="hidden" name="capacity" id="capacityInput" value="{{ $builderTank['capacity'] }}">
+                            <small id="capacityHint"></small>
+                        </div>
+                        <div class="qb-field">
+                            <label for="tankQtyInput">Tank Quantity <span class="qb-req">*</span></label>
+                            <input type="number" name="tank_quantity" id="tankQtyInput" class="qb-input" min="1" step="1" inputmode="numeric"
+                                   value="{{ $builderTank['quantity'] }}" required>
+                            <small>Identical tanks</small>
+                        </div>
+                    </div>
+                    <div class="qb-tank-note">
+                        <i data-lucide="info"></i>
+                        <span>Enter the materials and labor for <strong>one tank</strong>. The quotation total is that unit cost × the tank quantity — prices per unit are never multiplied.</span>
+                    </div>
+                </section>
+
+                {{-- 2 · Pricing --}}
+                <section class="qb-section">
+                    <div class="qb-section-head">
+                        <div class="qb-section-title">
+                            <span class="qb-step">2</span>
                             <div>
                                 <h3>Pricing</h3>
                                 <p>Markup and payment terms — not shown to the client.</p>
@@ -497,9 +547,10 @@
                     <div class="qb-grid">
                         <div class="qb-field">
                             <label for="markupInput">Markup / Profit (%) <span class="qb-req">*</span></label>
-                            <input type="number" name="markup_percent" id="markupInput" class="qb-input" min="0" max="100" step="0.01"
-                                   value="{{ $batch->markup_percent ?? '' }}" placeholder="e.g. 10" required>
-                            <small class="qb-value-note">Markup value: <strong id="markupValueNote">₱0</strong> <span id="markupBudgetNote">of ₱0 Project Budget</span></small>
+                            <input type="number" name="markup_percent" id="markupInput" class="qb-input"
+                                   min="{{ \App\Models\QuotationBatch::MARKUP_MIN }}" max="{{ \App\Models\QuotationBatch::MARKUP_MAX }}" step="0.01"
+                                   value="{{ $batch->markup_percent ?? '' }}" placeholder="{{ \App\Models\QuotationBatch::MARKUP_MIN }}–{{ \App\Models\QuotationBatch::MARKUP_MAX }}" required>
+                            <small class="qb-value-note">Between {{ \App\Models\QuotationBatch::MARKUP_MIN }}% and {{ \App\Models\QuotationBatch::MARKUP_MAX }}% of the Project Budget · <strong id="markupValueNote">₱0</strong> <span id="markupBudgetNote">of ₱0 Project Budget</span></small>
                         </div>
                         <div class="qb-field">
                             <label for="paymentTermsInput">Payment Terms <span class="qb-req">*</span></label>
@@ -512,20 +563,20 @@
                     </div>
                 </section>
 
-                {{-- 2 · Materials --}}
+                {{-- 3 · Materials --}}
                 <section class="qb-section">
                     <div class="qb-section-head">
                         <div class="qb-section-title">
-                            <span class="qb-step">2</span>
+                            <span class="qb-step">3</span>
                             <div>
-                                <h3>Materials</h3>
-                                <p>Everything the build needs, priced per unit.</p>
+                                <h3>Materials <span class="qb-per-tank">per tank</span></h3>
+                                <p>Everything one tank needs, priced per unit.</p>
                             </div>
                         </div>
                         <div class="qb-section-tools">
-                            <label class="qb-chip" for="materialFactorInput">
+                            <label class="qb-chip" for="materialFactorInput" title="Waste and handling allowance added on top of the material cost (standard: {{ \App\Models\ProjectMaterial::DEFAULT_FACTOR }}%)">
                                 Material Factor <span class="qb-req">*</span>
-                                <input type="number" name="factor" id="materialFactorInput" min="0" max="100" step="0.1" value="{{ $materials->isNotEmpty() ? $materialFactor : '' }}" placeholder="0" required>
+                                <input type="number" name="factor" id="materialFactorInput" min="0" max="100" step="0.1" value="{{ $materialFactor }}" placeholder="{{ \App\Models\ProjectMaterial::DEFAULT_FACTOR }}" required>
                                 <span>%</span>
                             </label>
                             <button type="button" class="add-btn" id="addMaterialRowBtn">
@@ -568,14 +619,14 @@
                     </div>
                 </section>
 
-                {{-- 3 · Labor --}}
+                {{-- 4 · Labor --}}
                 <section class="qb-section">
                     <div class="qb-section-head">
                         <div class="qb-section-title">
-                            <span class="qb-step">3</span>
+                            <span class="qb-step">4</span>
                             <div>
-                                <h3>Labor</h3>
-                                <p>Crew and daily rates — the working days apply to every row.</p>
+                                <h3>Labor <span class="qb-per-tank">per tank</span></h3>
+                                <p>Crew and daily rates — the working days (for one tank) apply to every row.</p>
                             </div>
                         </div>
                         <div class="qb-section-tools">
@@ -622,20 +673,21 @@
                 <div class="qb-foot">
                     <div class="qb-summary">
                         <div class="qb-sum-item">
-                            <span class="qb-sum-label">Project Budget</span>
-                            <strong id="sumBudget">₱0</strong>
-                            <small>Materials + Labor</small>
+                            <span class="qb-sum-label">Unit Price</span>
+                            <strong id="sumUnitPrice">₱0</strong>
+                            <small>per tank, incl. markup</small>
                         </div>
-                        <div class="qb-sum-op">+</div>
+                        <div class="qb-sum-op">×</div>
                         <div class="qb-sum-item">
-                            <span class="qb-sum-label">Markup</span>
-                            <strong id="sumMarkup">₱0</strong>
-                            <small id="sumMarkupPct">0% of budget</small>
+                            <span class="qb-sum-label">Quantity</span>
+                            <strong id="sumQty">1</strong>
+                            <small id="sumQtyLabel">tank</small>
                         </div>
                         <div class="qb-sum-op">=</div>
                         <div class="qb-sum-item qb-sum-total">
                             <span class="qb-sum-label">Contract Value</span>
                             <strong id="sumContract">₱0</strong>
+                            <small>Budget <span id="sumBudget">₱0</span> + Markup <span id="sumMarkup">₱0</span> (<span id="sumMarkupPct">0%</span>)</small>
                         </div>
                     </div>
                     <button type="submit" class="save-btn" id="qbSaveBtn">
@@ -760,16 +812,17 @@
             <div class="modal-header" style="flex-shrink:0;">
                 <div>
                     <h2>Choose a Starting Point</h2>
-                    <p>Copy the materials, labor and pricing of a completed project, or start with a blank quotation.</p>
+                    <p>Copy the materials, labor and pricing of a completed project of the same tank type (scaled to one tank), or start with a blank quotation.</p>
                 </div>
                 <button class="modal-close" type="button" id="closeQuoteTemplate">
                     <i data-lucide="x"></i>
                 </button>
             </div>
 
+            <p class="qb-tpl-filter" id="quoteTplFilter" style="flex-shrink:0;"></p>
             <div class="search-box" style="margin:0 auto 14px;max-width:100%;flex-shrink:0;">
                 <i data-lucide="search"></i>
-                <input type="text" id="quoteTemplateSearch" placeholder="Search completed projects or clients...">
+                <input type="text" id="quoteTemplateSearch" placeholder="Search projects, clients or capacities...">
             </div>
 
             <div style="overflow-y:auto;flex:1;">
@@ -815,11 +868,22 @@
             <form method="POST" action="{{ route('admin.quotation_requests.batch_send_quotation', $batch->id) }}" enctype="multipart/form-data">
                 @csrf
 
+                @php
+                    $sendQty      = $estimatedBudget['quantity'];
+                    $sendContract = $estimatedBudget['total'] + (float) ($batch->markup ?? 0);
+                @endphp
                 <div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border);">
                         <div>
+                            <span style="display:block;font-size:13px;color:var(--muted);">Tank</span>
+                            <span style="display:block;margin-top:3px;font-size:12px;color:var(--muted);">{{ $batch->tank_type ?: '—' }}{{ $batch->capacity ? ' · ' . $batch->capacity : '' }}</span>
+                        </div>
+                        <strong style="font-size:13px;">× {{ $sendQty }}</strong>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border);">
+                        <div>
                             <span style="display:block;font-size:13px;color:var(--muted);">Project Budget</span>
-                            <span style="display:block;margin-top:3px;font-size:12px;color:var(--muted);">Est. Materials ₱{{ number_format($estimatedBudget['materials'], 0) }} + Est. Labor ₱{{ number_format($estimatedBudget['labor'], 0) }}</span>
+                            <span style="display:block;margin-top:3px;font-size:12px;color:var(--muted);">(Est. Materials ₱{{ number_format($estimatedBudget['unit_materials'], 0) }} + Est. Labor ₱{{ number_format($estimatedBudget['unit_labor'], 0) }}) × {{ $sendQty }}</span>
                         </div>
                         <strong style="font-size:13px;">₱{{ number_format($estimatedBudget['total'], 0) }}</strong>
                     </div>
@@ -829,9 +893,11 @@
                     </div>
                 </div>
 
-                <div style="background:var(--dark);border-radius:10px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-                    <span style="font-size:12px;font-weight:700;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.05em;">Contract Value</span>
-                    <span style="font-size:20px;font-weight:900;color:#fff;">₱{{ number_format($estimatedBudget['total'] + (float) ($batch->markup ?? 0), 0) }}</span>
+                <div style="background:var(--dark);border-radius:10px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px;">
+                    <span style="font-size:12px;font-weight:700;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.05em;">Contract Value
+                        <span style="display:block;margin-top:3px;font-size:11.5px;font-weight:600;text-transform:none;letter-spacing:0;color:rgba(255,255,255,.45);">₱{{ number_format($sendContract / max(1, $sendQty), 0) }} per tank × {{ $sendQty }}</span>
+                    </span>
+                    <span style="font-size:20px;font-weight:900;color:#fff;">₱{{ number_format($sendContract, 0) }}</span>
                 </div>
 
                 <div class="form-group" style="margin-bottom:20px;">
@@ -846,17 +912,6 @@
                     <div id="quotationFilesPreview" class="pv-file-grid"></div>
                     <div id="quotationFilesError" role="alert" style="display:none;margin-top:8px;font-size:12.5px;font-weight:700;color:#b91c1c;"></div>
                     <p style="font-size:12px;color:var(--muted);margin-top:8px;">This is what the client will see as the quotation.</p>
-                </div>
-
-                <div class="form-grid" style="margin-bottom:20px;">
-                    <div class="form-group">
-                        <label>Sent Date <span style="font-size:11px;color:var(--muted);font-weight:400;">(optional — leave blank for today)</span></label>
-                        <input type="date" name="sent_date">
-                    </div>
-                    <div class="form-group">
-                        <label>Sent Time <span style="font-size:11px;color:var(--muted);font-weight:400;">(optional)</span></label>
-                        <input type="time" name="sent_time">
-                    </div>
                 </div>
 
                 <div class="modal-actions">
@@ -878,6 +933,8 @@
 
     var BATCH_MATERIALS = @json($materials->where('status', 'active')->values());
     var BATCH_LABOR     = @json($laborEntries->values());
+    var MARKUP_MIN      = {{ \App\Models\QuotationBatch::MARKUP_MIN }};
+    var MARKUP_MAX      = {{ \App\Models\QuotationBatch::MARKUP_MAX }};
 
     var quotationForm = document.getElementById('quotationForm');
 
@@ -909,10 +966,37 @@
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;');
     }
-    function toNum(v) { var n = parseFloat(v); return isNaN(n) ? 0 : n; }
+    // Amounts may be typed or shown with thousands separators ("15,000.00") — ignore them when reading
+    function toNum(v) { var n = parseFloat(String(v == null ? '' : v).replace(/,/g, '')); return isNaN(n) ? 0 : n; }
     function peso(n, decimals) {
         decimals = decimals || 0;
         return '₱' + n.toLocaleString('en-PH', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    }
+
+    // ---- Price / Unit and Daily Rate: shown as 15,000.00, typed as a plain number ----
+    // The field holds the formatted text while it isn't being edited; focusing it shows the bare number
+    // for editing, and the separators are taken out again right before the form is submitted.
+    function fmtMoney(v) {
+        var raw = String(v == null ? '' : v).replace(/,/g, '').trim();
+        if (raw === '' || isNaN(raw)) return raw;
+        return Number(raw).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    function unfmtMoney(v) { return String(v == null ? '' : v).replace(/,/g, '').trim(); }
+    var MONEY_FIELDS = '.row-price, .row-labor-rate';
+    quotationForm.addEventListener('focusin', function (e) {
+        if (e.target.matches && e.target.matches(MONEY_FIELDS) && !e.target.readOnly) e.target.value = unfmtMoney(e.target.value);
+    });
+    quotationForm.addEventListener('focusout', function (e) {
+        if (e.target.matches && e.target.matches(MONEY_FIELDS)) e.target.value = fmtMoney(e.target.value);
+    });
+    // only digits and one decimal point can be typed into a money field
+    quotationForm.addEventListener('input', function (e) {
+        if (!e.target.matches || !e.target.matches(MONEY_FIELDS) || e.target.readOnly) return;
+        var cleaned = e.target.value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1');
+        if (cleaned !== e.target.value) e.target.value = cleaned;
+    }, true);
+    function unformatMoneyFields() {
+        quotationForm.querySelectorAll(MONEY_FIELDS).forEach(function (el) { el.value = unfmtMoney(el.value); });
     }
 
     // Scrolling the mouse wheel over a focused number field would otherwise nudge its value.
@@ -1091,7 +1175,7 @@
             '</td>' +
             '<td><input type="text" name="unit[]" class="qb-cell-input row-unit" autocomplete="off" placeholder="pcs" value="' + escapeHtml(data.unit || '') + '"></td>' +
             '<td><input type="number" name="quantity[]" class="qb-cell-input row-qty" min="0.01" step="0.01" placeholder="0" value="' + (data.qty != null ? data.qty : '') + '" oninput="recalc()"></td>' +
-            '<td><input type="number" name="price_per_unit[]" class="qb-cell-input row-price" min="0" step="0.01" placeholder="0.00" value="' + (data.price != null ? data.price : '') + '" oninput="recalc()"></td>' +
+            '<td><input type="text" inputmode="decimal" name="price_per_unit[]" class="qb-cell-input row-price qb-num-input" autocomplete="off" placeholder="0.00" value="' + (data.price != null && data.price !== '' ? fmtMoney(data.price) : '') + '" oninput="recalc()"></td>' +
             '<td><input type="text" class="qb-cell-total row-total-display" readonly tabindex="-1" placeholder="—"></td>' +
             '<td style="text-align:center;">' +
                 '<button type="button" class="qb-icon-btn" onclick="removeMaterialRow(this)" title="' + (data.id ? 'Delete material' : 'Remove row') + '">' +
@@ -1354,7 +1438,7 @@
                 '</select>' +
                 '<input type="text" class="qb-cell-input row-labor-role-custom" name="_role_unused" placeholder="Role" style="display:none;margin-top:6px;">' +
             '</td>' +
-            '<td><input type="number" name="daily_rate[]" class="qb-cell-input row-labor-rate" min="0" step="0.01" readonly placeholder="0.00" oninput="recalc()"></td>' +
+            '<td><input type="text" inputmode="decimal" name="daily_rate[]" class="qb-cell-input row-labor-rate qb-num-input" autocomplete="off" readonly placeholder="0.00" oninput="recalc()"></td>' +
             '<td><input type="text" class="qb-cell-total row-labor-total-display" readonly tabindex="-1" placeholder="—"></td>' +
             '<td style="text-align:center;">' +
                 '<button type="button" class="qb-icon-btn" onclick="removeLaborRow(this)" title="Remove row"><i data-lucide="trash-2"></i></button>' +
@@ -1409,7 +1493,7 @@
         }
 
         rateInput.readOnly = true;
-        rateInput.value = rate;
+        rateInput.value = fmtMoney(rate);
         recalc();
         refreshAllLaborEmployeeOptions();
     }
@@ -1576,7 +1660,9 @@
 
     function quoteTplSummary(tpl) {
         var pill = 'display:inline-flex;align-items:center;font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;margin:0 6px 4px 0;white-space:nowrap;';
-        return '<span style="' + pill + 'background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;">' + tpl.materials.length + ' material' + (tpl.materials.length === 1 ? '' : 's') + '</span>' +
+        return (tpl.capacity ? '<span class="qb-tpl-tag">' + escapeHtml(tpl.capacity) + '</span>' : '') +
+            (tpl.tank_qty > 1 ? '<span class="qb-tpl-tag" title="That project built ' + tpl.tank_qty + ' tanks — its quantities are divided by ' + tpl.tank_qty + ' for one tank">Built ' + tpl.tank_qty + ' · scaled to 1 tank</span>' : '') +
+            '<span style="' + pill + 'background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;">' + tpl.materials.length + ' material' + (tpl.materials.length === 1 ? '' : 's') + '</span>' +
             '<span style="' + pill + 'background:#F0FDF4;color:#15803D;border:1px solid #BBF7D0;">' + tpl.labor.length + ' labor</span>' +
             (tpl.estimated_working_days ? '<span style="' + pill + 'background:#FEF9C3;color:#A16207;border:1px solid #FDE68A;">' + tpl.estimated_working_days + ' working days</span>' : '');
     }
@@ -1587,16 +1673,35 @@
         opt.querySelector('.cs-check').style.display = isSelected ? 'flex' : 'none';
     }
 
+    // Only templates of the tank type being quoted are offered; ones with the same capacity come first.
+    function templatesForTank() {
+        var type     = document.getElementById('tankTypeInput').value;
+        var capacity = document.getElementById('capacityInput').value;
+        if (!type) return [];
+        return QUOTE_TEMPLATES
+            .filter(function (t) { return t.tank_type === type; })
+            .sort(function (a, b) { return (b.capacity === capacity) - (a.capacity === capacity); });
+    }
+
     function renderQuoteTemplateList() {
-        var list = document.getElementById('quoteTemplateList');
-        var q    = document.getElementById('quoteTemplateSearch').value.toLowerCase().trim();
-        var shown = QUOTE_TEMPLATES.filter(function (t) {
-            return !q || (t.name + ' ' + (t.client || '')).toLowerCase().indexOf(q) !== -1;
+        var list     = document.getElementById('quoteTemplateList');
+        var filterEl = document.getElementById('quoteTplFilter');
+        var type     = document.getElementById('tankTypeInput').value;
+        var q        = document.getElementById('quoteTemplateSearch').value.toLowerCase().trim();
+        var forTank  = templatesForTank();
+        var shown    = forTank.filter(function (t) {
+            return !q || (t.name + ' ' + (t.client || '') + ' ' + (t.capacity || '')).toLowerCase().indexOf(q) !== -1;
         });
+
+        filterEl.innerHTML = type
+            ? 'Showing completed <strong>' + escapeHtml(type) + '</strong> projects' + (forTank.length ? ' (' + forTank.length + ')' : '') + '.'
+            : 'Choose the <strong>tank type</strong> in the builder first — templates are matched to it.';
 
         if (!shown.length) {
             list.innerHTML = '<p style="text-align:center;color:var(--muted);padding:20px 0;font-size:13px;">' +
-                (QUOTE_TEMPLATES.length ? 'No past projects match your search.' : 'No templates yet — a project becomes a template here once it is completed.') + '</p>';
+                (!type ? 'No tank type selected yet.'
+                    : forTank.length ? 'No ' + escapeHtml(type) + ' templates match your search.'
+                    : 'No completed ' + escapeHtml(type) + ' projects yet — start from scratch, or pick a different tank type.') + '</p>';
             return;
         }
 
@@ -1722,13 +1827,18 @@
                 toggleRowLaborRole(roleSelect);
                 row.querySelector('.row-labor-role-custom').value = l.role;
             }
-            row.querySelector('.row-labor-rate').value = l.rate;
+            row.querySelector('.row-labor-rate').value = fmtMoney(l.rate);
         });
 
         setFieldValue('markupInput', tpl.markup_percent);
         setFieldValue('paymentTermsInput', tpl.payment_term_type);
         setFieldValue('materialFactorInput', tpl.factor);
         setFieldValue('estDaysInput', tpl.estimated_working_days);
+        // no capacity chosen yet → take the template's
+        if (!document.getElementById('capacityInput').value && tpl.capacity) {
+            document.getElementById('capacityInput').value = tpl.capacity;
+            renderCapacityOptions();
+        }
 
         if (typeof lucide !== 'undefined') lucide.createIcons();
         renumberRows();
@@ -1755,13 +1865,23 @@
         if (tpl) applyQuoteTemplate(tpl);
     });
 
+    // Changing the tank type: a template of the old type no longer applies, so the rows it added are
+    // taken out again, and the picker opens with the new type's templates (when it has any).
+    function onTankTypeChangedForTemplates() {
+        var hadOtherType = appliedQuoteTpl && appliedQuoteTpl.tank_type !== document.getElementById('tankTypeInput').value;
+        if (hadOtherType) clearAppliedQuoteTemplate();
+        var isEmpty = !document.querySelector('#materialRowsContainer .material-add-row, #laborRowsContainer tr');
+        if ((hadOtherType || isEmpty) && templatesForTank().length) openQuoteTemplateModal();
+    }
+
     // Opening the builder on a quotation that has nothing in it yet asks where to start
     // (once per browser session, so a reload after choosing Start from Scratch doesn't ask again).
+    // Only when there are templates for this tank type — otherwise there is nothing to choose from.
     @if($materials->isEmpty() && $laborEntries->isEmpty())
     (function () {
         var dismissed = false;
         try { dismissed = sessionStorage.getItem(quoteTplDismissedKey) === '1'; } catch (e) {}
-        if (!dismissed) openQuoteTemplateModal();
+        if (!dismissed && templatesForTank().length) openQuoteTemplateModal();
     })();
     @endif
     @endunless
@@ -1815,21 +1935,110 @@
         });
         document.getElementById('laborTotal').textContent = peso(Math.round(laborTotal));
 
-        // Summary bar
-        var budget   = withFactor + laborTotal;
-        var markup   = budget * toNum(document.getElementById('markupInput').value) / 100;
-        document.getElementById('sumBudget').textContent   = peso(Math.round(budget));
-        document.getElementById('sumMarkup').textContent   = peso(Math.round(markup));
-        document.getElementById('sumMarkupPct').textContent = String(toNum(document.getElementById('markupInput').value)) + '% of budget';
+        // Summary bar — the rows above are for ONE tank; the quantity multiplies the totals, once
+        var qty        = tankQuantity();
+        var pct        = toNum(document.getElementById('markupInput').value);
+        var unitBudget = withFactor + laborTotal;
+        var unitPrice  = unitBudget * (1 + pct / 100);
+        var budget     = unitBudget * qty;
+        var markup     = budget * pct / 100;
+        document.getElementById('sumUnitPrice').textContent = peso(Math.round(unitPrice));
+        document.getElementById('sumQty').textContent       = qty;
+        document.getElementById('sumQtyLabel').textContent  = qty === 1 ? 'tank' : 'identical tanks';
+        document.getElementById('sumBudget').textContent    = peso(Math.round(budget));
+        document.getElementById('sumMarkup').textContent    = peso(Math.round(markup));
+        document.getElementById('sumMarkupPct').textContent = pct + '%';
         // the same value, spelled out under the Markup / Profit field
         document.getElementById('markupValueNote').textContent  = peso(Math.round(markup));
-        document.getElementById('markupBudgetNote').textContent = 'of ' + peso(Math.round(budget)) + ' Project Budget';
+        document.getElementById('markupBudgetNote').textContent = 'of ' + peso(Math.round(budget)) + ' Project Budget' + (qty > 1 ? ' (' + qty + ' tanks)' : '');
         document.getElementById('sumContract').textContent = peso(Math.round(budget + markup));
     }
 
-    ['markupInput', 'materialFactorInput', 'estDaysInput'].forEach(function (id) {
+    ['markupInput', 'materialFactorInput', 'estDaysInput', 'tankQtyInput'].forEach(function (id) {
         document.getElementById(id).addEventListener('input', recalc);
     });
+
+    // ---- Tank: type → capacities (and templates); quantity multiplies the totals ----
+    var TANK_OPTIONS    = @json($tankTypeOptions);   // type => capacities GMD has built for it
+    var tankTypeInput   = document.getElementById('tankTypeInput');
+    var capacitySelect  = document.getElementById('capacitySelect');
+    var capacityCustom  = document.getElementById('capacityCustom');
+    var capacityInput   = document.getElementById('capacityInput');
+    var tankQtyInput    = document.getElementById('tankQtyInput');
+    var CAPACITY_OTHER  = '__other';
+
+    // a positive whole number; anything else counts as 1 until it is corrected
+    function tankQuantity() {
+        var v = String(tankQtyInput.value).trim();
+        return /^\d+$/.test(v) && +v >= 1 ? +v : 1;
+    }
+    tankQtyInput.addEventListener('blur', function () {
+        var v = String(tankQtyInput.value).trim();
+        if (v !== '' && !/^\d+$/.test(v)) tankQtyInput.value = Math.max(1, Math.round(toNum(v)) || 1);
+        recalc();
+    });
+
+    function capacitiesForType() { return TANK_OPTIONS[tankTypeInput.value] || []; }
+
+    // Only the capacities of the chosen type are offered, plus "Other" to type a new one.
+    // A type with no past projects goes straight to the text box.
+    function renderCapacityOptions() {
+        var caps    = capacitiesForType();
+        var current = capacityInput.value;
+        var hint    = document.getElementById('capacityHint');
+
+        if (!tankTypeInput.value) {
+            capacitySelect.innerHTML = '<option value="" selected disabled hidden>Select a tank type first</option>';
+            capacitySelect.disabled = true;
+            capacitySelect.hidden = false;
+            capacityCustom.hidden = true;
+            hint.textContent = '';
+            return;
+        }
+        capacitySelect.disabled = false;
+
+        if (!caps.length) {
+            capacitySelect.hidden = true;
+            capacityCustom.hidden = false;
+            capacityCustom.value  = current;
+            hint.textContent = 'No completed ' + tankTypeInput.value + ' projects yet — type the capacity.';
+            return;
+        }
+
+        var inList = caps.indexOf(current) !== -1;
+        capacitySelect.innerHTML =
+            '<option value="" disabled hidden' + (current ? '' : ' selected') + '>Select capacity</option>' +
+            caps.map(function (c) { return '<option value="' + escapeHtml(c) + '"' + (c === current ? ' selected' : '') + '>' + escapeHtml(c) + '</option>'; }).join('') +
+            '<option value="' + CAPACITY_OTHER + '"' + (current && !inList ? ' selected' : '') + '>Other capacity…</option>';
+        capacitySelect.hidden = false;
+        capacityCustom.hidden = !(current && !inList);
+        if (current && !inList) capacityCustom.value = current;
+        hint.textContent = 'Capacities GMD has built as ' + tankTypeInput.value + '.';
+    }
+
+    capacitySelect.addEventListener('change', function () {
+        if (capacitySelect.value === CAPACITY_OTHER) {
+            capacityCustom.hidden = false;
+            capacityInput.value   = capacityCustom.value.trim();
+            capacityCustom.focus();
+        } else {
+            capacityCustom.hidden = true;
+            capacityInput.value   = capacitySelect.value;
+        }
+        if (typeof renderQuoteTemplateList === 'function') renderQuoteTemplateList();
+    });
+    capacityCustom.addEventListener('input', function () { capacityInput.value = capacityCustom.value.trim(); });
+
+    tankTypeInput.addEventListener('change', function () {
+        // a capacity that belongs to another tank type is cleared, never carried over
+        if (capacityInput.value && capacitiesForType().length && capacitiesForType().indexOf(capacityInput.value) === -1) {
+            capacityInput.value = '';
+            capacityCustom.value = '';
+        }
+        renderCapacityOptions();
+        if (typeof onTankTypeChangedForTemplates === 'function') onTankTypeChangedForTemplates();
+    });
+    renderCapacityOptions();
 
     // ---- validate + submit ----
     // Nothing is saved until the whole quotation is complete: every field marked * is filled,
@@ -1917,16 +2126,23 @@
         updateEmptyStates();
         recalc();
 
-        // 1 · Pricing
+        // 1 · Tank
+        if (!tankTypeInput.value) flag(tankTypeInput, 'Tank Type');
+        if (!capacityInput.value.trim()) flag(capacitySelect.hidden || capacitySelect.value === CAPACITY_OTHER ? capacityCustom : capacitySelect, 'Capacity');
+        var qtyRaw = String(tankQtyInput.value).trim();
+        if (qtyRaw === '') flag(tankQtyInput, 'Tank Quantity');
+        else if (!/^\d+$/.test(qtyRaw) || +qtyRaw < 1) flag(tankQtyInput, 'Tank Quantity (a whole number, 1 or more)');
+
+        // 2 · Pricing
         var markupEl = document.getElementById('markupInput');
         var pct = markupEl.value.trim();
         if (pct === '') flag(markupEl, 'Markup / Profit');
-        else if (isNaN(pct) || +pct < 0 || +pct > 100) flag(markupEl, 'Markup / Profit (0–100)');
+        else if (isNaN(pct) || +pct < MARKUP_MIN || +pct > MARKUP_MAX) flag(markupEl, 'Markup / Profit (' + MARKUP_MIN + '–' + MARKUP_MAX + '%)');
 
         var termsEl = document.getElementById('paymentTermsInput');
         if (!termsEl.value) flag(termsEl, 'Payment Terms');
 
-        // 2 · Materials
+        // 3 · Materials
         var factorEl = document.getElementById('materialFactorInput');
         var factor = factorEl.value.trim();
         if (factor === '') flag(factorEl, 'Material Factor');
@@ -1962,7 +2178,7 @@
             }
         });
 
-        // 3 · Labor
+        // 4 · Labor
         var daysEl = document.getElementById('estDaysInput');
         if (daysEl.value.trim() === '') flag(daysEl, 'Estimated Working Days');
         else if (!(toNum(daysEl.value) > 0)) flag(daysEl, 'Estimated Working Days (above 0)');
@@ -2002,17 +2218,23 @@
         if (!qbSaveConfirmed && document.getElementById('openSendModalFlag').value !== '1') {
             e.preventDefault();
             var laborCount = newLaborRows.length + activeSavedLabor;
+            var qtyNow     = tankQuantity();
             document.getElementById('confirmSaveSummary').innerHTML =
-                matRows.length + ' material' + (matRows.length === 1 ? '' : 's') + ' &middot; ' +
+                escapeHtml(tankTypeInput.value) + ' &middot; ' + escapeHtml(capacityInput.value) + ' &middot; ' +
+                '<strong style="color:var(--dark);">' + qtyNow + ' tank' + (qtyNow === 1 ? '' : 's') + '</strong><br>' +
+                'Per tank: ' + matRows.length + ' material' + (matRows.length === 1 ? '' : 's') + ' &middot; ' +
                 laborCount + ' labor entr' + (laborCount === 1 ? 'y' : 'ies') + ' &middot; ' +
                 escapeHtml(daysEl.value.trim()) + ' working days<br>' +
-                'Contract Value: <strong style="color:var(--dark);">' + escapeHtml(document.getElementById('sumContract').textContent) + '</strong>';
+                'Contract Value: <strong style="color:var(--dark);">' + escapeHtml(document.getElementById('sumUnitPrice').textContent) +
+                ' × ' + qtyNow + ' = ' + escapeHtml(document.getElementById('sumContract').textContent) + '</strong>';
             openModal('confirmSaveQuotationModal');
             if (typeof lucide !== 'undefined') lucide.createIcons();
             return;
         }
         qbSaveConfirmed = false;
 
+        // the server gets plain numbers — "15,000.00" goes out as 15000.00
+        unformatMoneyFields();
         qbSubmitting = true;
         var saveBtn = document.getElementById('qbSaveBtn');
         saveBtn.disabled = true;
@@ -2024,8 +2246,10 @@
     function builderIsComplete() {
         var val = function (id) { return document.getElementById(id).value.trim(); };
 
+        if (!val('tankTypeInput') || !val('capacityInput')) return false;
+        if (!/^\d+$/.test(val('tankQtyInput')) || +val('tankQtyInput') < 1) return false;
         var pct = val('markupInput');
-        if (pct === '' || isNaN(pct) || +pct < 0 || +pct > 100) return false;
+        if (pct === '' || isNaN(pct) || +pct < MARKUP_MIN || +pct > MARKUP_MAX) return false;
         if (!document.getElementById('paymentTermsInput').value) return false;
         var factor = val('materialFactorInput');
         if (factor === '' || isNaN(factor) || +factor < 0 || +factor > 100) return false;

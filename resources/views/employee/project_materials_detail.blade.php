@@ -64,7 +64,7 @@
             </div>
 
             {{-- Summary Cards --}}
-            <div class="page-grid" style="margin-bottom:24px;">
+            <div class="page-grid emp-compact-stats" style="margin-bottom:24px;">
                 <div class="info-card blue">
                     <div class="info-card-icon blue"><i data-lucide="package"></i></div>
                     <h3>Total Materials</h3>
@@ -96,7 +96,7 @@
                 </div>
 
                 <div class="table-wrapper">
-                    <table class="data-table" id="materialsTable">
+                    <table class="data-table emp-mat-table" id="materialsTable">
                         <thead>
                             <tr>
                                 <th>Material</th>
@@ -108,10 +108,10 @@
                         <tbody>
                             @forelse($materials as $mat)
                             <tr>
-                                <td><strong>{{ $mat->material_name }}</strong></td>
-                                <td>{{ rtrim(rtrim(number_format($mat->quantity, 2), '0'), '.') }}</td>
-                                <td>{{ $mat->unit ?: '—' }}</td>
-                                <td>{{ $mat->notes ? Str::limit($mat->notes, 60) : '—' }}</td>
+                                <td class="emp-mat-name"><strong>{{ $mat->material_name }}</strong></td>
+                                <td class="emp-mat-qty">{{ rtrim(rtrim(number_format($mat->quantity, 2), '0'), '.') }}</td>
+                                <td class="emp-mat-unit">{{ $mat->unit ?: '—' }}</td>
+                                <td class="emp-mat-notes {{ $mat->notes ? '' : 'is-empty' }}">{{ $mat->notes ? Str::limit($mat->notes, 60) : '—' }}</td>
                             </tr>
                             @empty
                             <tr>

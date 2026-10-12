@@ -81,7 +81,7 @@ class MaterialUsageController extends Controller
 
         $data['purchases']      = $purchases;
         $data['totalPurchased'] = $purchases->sum('total_paid');
-        $data['materialFactor'] = $data['project']->activeMaterials->first()?->factor ?? 7;
+        $data['materialFactor'] = $data['project']->activeMaterials->first()?->factor ?? \App\Models\ProjectMaterial::DEFAULT_FACTOR;
         $data['suppliers']      = SupplierContact::orderBy('name')->get();
 
         // What the project has to spend (Total Received, plus/minus the revolving fund) — the Log New

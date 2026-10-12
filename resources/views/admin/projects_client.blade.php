@@ -289,11 +289,14 @@
                         </div>
                     </div>
 
-                    <div style="margin-top:18px;margin-bottom:10px;display:flex;align-items:center;gap:10px;">
-                        <div style="background:linear-gradient(180deg,#333 0%,#2a2a2a 100%);color:#fff;font-size:10px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;padding:4px 12px;border-radius:999px;">Project Specifications</div>
-                        <div style="flex:1;height:1px;background:linear-gradient(90deg,#333,transparent);"></div>
+                    {{-- Tank specifications are not editable here: the approved quotation is their source of truth --}}
+                    <div id="editSpecsNote" style="margin-top:16px;padding:12px 14px;border:1px solid var(--border);border-radius:12px;background:var(--cream-soft);">
+                        <div style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);">
+                            <i data-lucide="lock" style="width:13px;height:13px;"></i> Tank Specifications
+                        </div>
+                        <div id="editSpecsList" style="margin-top:6px;font-size:13px;font-weight:700;color:var(--dark);line-height:1.6;"></div>
+                        <div style="margin-top:4px;font-size:12px;color:var(--muted);line-height:1.5;">Set by the approved quotation — tank type, capacity, dimensions and quantity can't be changed here.</div>
                     </div>
-                    <div id="editTankItemsContainer"></div>
 
                     <div class="form-section-label" style="margin-top:18px;">Schedule</div>
                     <div class="form-grid">
@@ -578,253 +581,6 @@
             });
         }
 
-        /* ── Tank type options (mirrors Add Project's builder — Edit only needs tank items, no materials) ── */
-        var TANK_TYPES = [
-            'Underground Fuel Storage Tanks',
-            'Cooking Oil Storage Tank',
-            'Chemical Tank',
-            'Polymer Tank',
-            'Aboveground Water Storage Tanks',
-            'Tetrapod',
-            'Fuel Pipe Line Installation',
-            'Re-piping of Fuel Pipe Line',
-            'Aboveground Fuel Storage Tanks',
-            'Fuel Day Tanks',
-            'Others'
-        ];
-
-        // Per tank type: allowed shapes and dimension mode
-        var TANK_META = {
-            'Underground Fuel Storage Tanks':   { shapes: ['Cylindrical'],                       dims: 'cyl-dl' },
-            'Cooking Oil Storage Tank':          { shapes: ['Rectangular', 'Modular'],            dims: 'rect' },
-            'Chemical Tank':                     { shapes: ['Cylindrical'],                       dims: 'cyl-dl' },
-            'Polymer Tank':                      { shapes: ['Rectangular', 'Modular'],            dims: 'rect' },
-            'Aboveground Water Storage Tanks':   { shapes: ['Cylindrical'],                       dims: 'cyl-dl' },
-            'Tetrapod':                          { shapes: ['3-Legged Pod'],                      dims: 'pod' },
-            'Fuel Pipe Line Installation':       { shapes: ['N/A'],                              dims: 'linear' },
-            'Re-piping of Fuel Pipe Line':       { shapes: ['N/A'],                              dims: 'linear' },
-            'Aboveground Fuel Storage Tanks':    { shapes: ['Cylindrical'],                       dims: 'cyl-dl' },
-            'Fuel Day Tanks':                    { shapes: ['Cylindrical', 'Rectangular'],        dims: 'auto' },
-            'Others':                            { shapes: ['Cylindrical', 'Rectangular', 'Modular', '3-Legged Pod', 'N/A'], dims: 'auto' },
-        };
-
-        function tankTypeOptions(selected) {
-            return '<option value="" disabled' + (!selected ? ' selected' : '') + ' hidden>Select tank type</option>' +
-                TANK_TYPES.map(function(t) {
-                    return '<option value="' + t + '"' + (t === selected ? ' selected' : '') + '>' + t + '</option>';
-                }).join('');
-        }
-
-        function tankShapeOptions(type, selected) {
-            var meta   = TANK_META[type];
-            var shapes = meta ? meta.shapes : ['Cylindrical', 'Rectangular'];
-            return shapes.map(function(s) {
-                return '<option value="' + s + '"' + (s === selected ? ' selected' : '') + '>' + s + '</option>';
-            }).join('');
-        }
-
-        function onTankTypeChange(sel) {
-            var row    = sel.closest('.tank-item-row');
-            var type   = sel.value;
-            var meta   = TANK_META[type] || { shapes: ['Cylindrical', 'Rectangular'], dims: 'auto' };
-            // Show dimensions section
-            var dimsSection = row.querySelector('.ti-dims-section');
-            if (dimsSection) dimsSection.style.display = type ? '' : 'none';
-            // Update shape dropdown
-            var shapeSel = row.querySelector('.ti-shape');
-            shapeSel.innerHTML = tankShapeOptions(type, meta.shapes[0]);
-            shapeSel.value = meta.shapes[0];
-            updateDimFields(row, meta.shapes[0], meta.dims);
-        }
-
-        function updateDimFields(row, shape, dimMode) {
-            var isCyl    = shape === 'Cylindrical';
-            var isRect   = shape === 'Rectangular' || shape === 'Modular';
-            var isPod    = shape === '3-Legged Pod';
-            var isLinear = shape === 'N/A' || dimMode === 'linear';
-
-            // dim mode overrides
-            if (dimMode === 'cyl-dl')  { isCyl = true;   isRect = false; isPod = false; isLinear = false; }
-            if (dimMode === 'rect')    { isCyl = false;  isRect = true;  isPod = false; isLinear = false; }
-            if (dimMode === 'pod')     { isCyl = false;  isRect = false; isPod = true;  isLinear = false; }
-            if (dimMode === 'linear')  { isCyl = false;  isRect = false; isPod = false; isLinear = true;  }
-
-            // Update label for cylindrical: Diameter+Length vs Diameter+Height
-            var cylLabel2 = row.querySelector('.ti-cyl-label2');
-            if (cylLabel2) cylLabel2.textContent = (dimMode === 'cyl-dl' || !isRect) ? 'Length (m)' : 'Height (m)';
-
-            row.querySelectorAll('.ti-cyl').forEach(function(el)    { el.style.display = isCyl    ? '' : 'none'; });
-            row.querySelectorAll('.ti-rect').forEach(function(el)   { el.style.display = isRect   ? '' : 'none'; });
-            row.querySelectorAll('.ti-pod').forEach(function(el)    { el.style.display = isPod    ? '' : 'none'; });
-            row.querySelectorAll('.ti-linear').forEach(function(el) { el.style.display = isLinear ? '' : 'none'; });
-            row.querySelectorAll('.ti-dim-input').forEach(function(el) { el.value = ''; });
-            computeRowCapacity(row);
-        }
-
-        function onTankShapeChange(sel) {
-            var row  = sel.closest('.tank-item-row');
-            var type = row.querySelector('select[name$="[tank_type]"]').value;
-            var meta = TANK_META[type] || { dims: 'auto' };
-            updateDimFields(row, sel.value, meta.dims);
-        }
-
-        function computeRowCapacity(row) {
-            var shape      = row.querySelector('.ti-shape') ? row.querySelector('.ti-shape').value : '';
-            var capHidden  = row.querySelector('.ti-cap-hidden');
-            var dimHidden  = row.querySelector('.ti-dim-hidden');
-            var capacity = 0, dimsStr = '';
-
-            if (shape === 'Cylindrical') {
-                var d  = parseFloat(row.querySelector('[data-dim="d"]')  ? row.querySelector('[data-dim="d"]').value  : 0) || 0;
-                var h  = parseFloat(row.querySelector('[data-dim="h"]')  ? row.querySelector('[data-dim="h"]').value  : 0) || 0;
-                if (d > 0 && h > 0) {
-                    capacity = Math.PI * Math.pow(d / 2, 2) * h * 1000;
-                    dimsStr  = 'Ø' + d + 'm × L' + h + 'm';
-                }
-            } else if (shape === 'Rectangular' || shape === 'Modular') {
-                var l  = parseFloat(row.querySelector('[data-dim="l"]')  ? row.querySelector('[data-dim="l"]').value  : 0) || 0;
-                var w  = parseFloat(row.querySelector('[data-dim="w"]')  ? row.querySelector('[data-dim="w"]').value  : 0) || 0;
-                var rh = parseFloat(row.querySelector('[data-dim="rh"]') ? row.querySelector('[data-dim="rh"]').value : 0) || 0;
-                if (l > 0 && w > 0 && rh > 0) {
-                    capacity = l * w * rh * 1000;
-                    dimsStr  = 'L' + l + 'm × W' + w + 'm × H' + rh + 'm';
-                }
-            } else if (shape === '3-Legged Pod') {
-                var ph = parseFloat(row.querySelector('[data-dim="ph"]') ? row.querySelector('[data-dim="ph"]').value : 0) || 0;
-                var pw = parseFloat(row.querySelector('[data-dim="pw"]') ? row.querySelector('[data-dim="pw"]').value : 0) || 0;
-                if (ph > 0 || pw > 0) dimsStr = 'H' + ph + 'm × W' + pw + 'm';
-            } else if (shape === 'N/A') {
-                var lm = parseFloat(row.querySelector('[data-dim="lm"]') ? row.querySelector('[data-dim="lm"]').value : 0) || 0;
-                if (lm > 0) dimsStr = lm + ' linear m';
-            }
-
-            if (dimHidden) dimHidden.value = dimsStr;
-            // Capacity is entered manually by the admin — no longer auto-computed from dimensions.
-        }
-
-        function buildTankRow(prefix, item, removable) {
-            item = item || {};
-            var type  = item.tank_type || '';
-            var meta  = TANK_META[type] || { shapes: ['Cylindrical', 'Rectangular'], dims: 'auto' };
-            var dims  = item.dimensions || '';
-
-            // Parse stored dimensions
-            var dVal='', hVal='', lVal='', wVal='', rhVal='', phVal='', pwVal='', lmVal='';
-            var cylMatch  = dims.match(/Ø([\d.]+)m × L([\d.]+)m/);
-            var rectMatch = dims.match(/L([\d.]+)m × W([\d.]+)m × H([\d.]+)m/);
-            var podMatch  = dims.match(/H([\d.]+)m × W([\d.]+)m/);
-            var linMatch  = dims.match(/([\d.]+) linear m/);
-            if (cylMatch)  { dVal = cylMatch[1]; hVal = cylMatch[2]; }
-            if (rectMatch) { lVal = rectMatch[1]; wVal = rectMatch[2]; rhVal = rectMatch[3]; }
-            if (podMatch)  { phVal = podMatch[1]; pwVal = podMatch[2]; }
-            if (linMatch)  { lmVal = linMatch[1]; }
-
-            // Determine initial shape
-            var initShape = meta.shapes[0];
-            if (item.tank_shape) initShape = item.tank_shape;
-            else if (cylMatch)  initShape = 'Cylindrical';
-            else if (rectMatch) initShape = 'Rectangular';
-            else if (podMatch)  initShape = '3-Legged Pod';
-            else if (linMatch)  initShape = 'N/A';
-
-            var isCyl    = initShape === 'Cylindrical';
-            var isRect   = initShape === 'Rectangular' || initShape === 'Modular';
-            var isPod    = initShape === '3-Legged Pod';
-            var isLinear = initShape === 'N/A';
-
-            var row = document.createElement('div');
-            row.className = 'tank-item-row';
-            row.style.cssText = 'background:#fff;border:1.5px solid #333;border-radius:14px;padding:16px;margin-bottom:12px;position:relative;box-shadow:0 2px 8px rgba(0,0,0,.10);';
-
-            row.innerHTML =
-                (removable ? '<button type="button" onclick="this.closest(\'.tank-item-row\').remove()" title="Remove tank" style="position:absolute;top:12px;right:12px;background:none;border:none;cursor:pointer;color:var(--muted);line-height:1;"><i data-lucide="x" style="width:15px;height:15px;"></i></button>' : '') +
-
-                '<div class="ti-top-row" style="display:flex;gap:12px;align-items:flex-end;">' +
-                    '<div class="form-group" style="flex:2;">' +
-                        '<label>Project Type</label>' +
-                        '<select name="' + prefix + '[tank_type]" required onchange="onTankTypeChange(this)">' + tankTypeOptions(type) + '</select>' +
-                    '</div>' +
-                    '<div class="form-group" style="flex:1.5;">' +
-                        '<label>Project Shape</label>' +
-                        '<select name="' + prefix + '[shape]" class="ti-shape" required onchange="onTankShapeChange(this)">' +
-                            (!type ? '<option value="" disabled selected hidden>—</option>' : tankShapeOptions(type, initShape)) +
-                        '</select>' +
-                    '</div>' +
-                    '<div class="form-group" style="width:90px;flex-shrink:0;">' +
-                        '<label>Quantity</label>' +
-                        '<input type="number" name="' + prefix + '[quantity]" value="' + (item.quantity || 1) + '" min="1" onwheel="this.blur()">' +
-                    '</div>' +
-                '</div>' +
-
-                '<div class="ti-dims-section" style="' + (!type ? 'display:none;' : '') + '">' +
-                '<div style="margin-top:12px;margin-bottom:8px;display:flex;align-items:center;gap:8px;">' +
-                    '<span style="font-size:10px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:.08em;background:linear-gradient(180deg,#333 0%,#2a2a2a 100%);padding:3px 10px;border-radius:999px;">Dimensions</span>' +
-                    '<div style="flex:1;height:1px;background:linear-gradient(90deg,#555,transparent);"></div>' +
-                '</div>' +
-                '<div class="form-grid">' +
-
-                    // Cylindrical: Diameter + Length
-                    '<div class="form-group ti-cyl"' + (!isCyl ? ' style="display:none;"' : '') + '>' +
-                        '<label>Diameter (m)</label>' +
-                        '<input type="number" class="ti-dim-input" data-dim="d" min="0" step="0.01" value="' + dVal + '" placeholder="e.g. 2.00" oninput="computeRowCapacity(this.closest(\'.tank-item-row\'))">' +
-                    '</div>' +
-                    '<div class="form-group ti-cyl"' + (!isCyl ? ' style="display:none;"' : '') + '>' +
-                        '<label class="ti-cyl-label2">Length (m)</label>' +
-                        '<input type="number" class="ti-dim-input" data-dim="h" min="0" step="0.01" value="' + hVal + '" placeholder="e.g. 3.00" oninput="computeRowCapacity(this.closest(\'.tank-item-row\'))">' +
-                    '</div>' +
-
-                    // Rectangular / Modular: L + W + H
-                    '<div class="form-group ti-rect"' + (!isRect ? ' style="display:none;"' : '') + '>' +
-                        '<label>Length (m)</label>' +
-                        '<input type="number" class="ti-dim-input" data-dim="l" min="0" step="0.01" value="' + lVal + '" placeholder="e.g. 4.00" oninput="computeRowCapacity(this.closest(\'.tank-item-row\'))">' +
-                    '</div>' +
-                    '<div class="form-group ti-rect"' + (!isRect ? ' style="display:none;"' : '') + '>' +
-                        '<label>Width (m)</label>' +
-                        '<input type="number" class="ti-dim-input" data-dim="w" min="0" step="0.01" value="' + wVal + '" placeholder="e.g. 2.00" oninput="computeRowCapacity(this.closest(\'.tank-item-row\'))">' +
-                    '</div>' +
-                    '<div class="form-group ti-rect"' + (!isRect ? ' style="display:none;"' : '') + '>' +
-                        '<label>Height (m)</label>' +
-                        '<input type="number" class="ti-dim-input" data-dim="rh" min="0" step="0.01" value="' + rhVal + '" placeholder="e.g. 2.00" oninput="computeRowCapacity(this.closest(\'.tank-item-row\'))">' +
-                    '</div>' +
-
-                    // 3-Legged Pod: Height + Width
-                    '<div class="form-group ti-pod"' + (!isPod ? ' style="display:none;"' : '') + '>' +
-                        '<label>Height (m)</label>' +
-                        '<input type="number" class="ti-dim-input" data-dim="ph" min="0" step="0.01" value="' + phVal + '" placeholder="e.g. 1.50" oninput="computeRowCapacity(this.closest(\'.tank-item-row\'))">' +
-                    '</div>' +
-                    '<div class="form-group ti-pod"' + (!isPod ? ' style="display:none;"' : '') + '>' +
-                        '<label>Width (m)</label>' +
-                        '<input type="number" class="ti-dim-input" data-dim="pw" min="0" step="0.01" value="' + pwVal + '" placeholder="e.g. 0.80" oninput="computeRowCapacity(this.closest(\'.tank-item-row\'))">' +
-                    '</div>' +
-
-                    // Pipe: linear meter
-                    '<div class="form-group ti-linear"' + (!isLinear ? ' style="display:none;"' : '') + '>' +
-                        '<label>Linear Meter (m)</label>' +
-                        '<input type="number" class="ti-dim-input" data-dim="lm" min="0" step="0.01" value="' + lmVal + '" placeholder="e.g. 120" oninput="computeRowCapacity(this.closest(\'.tank-item-row\'))">' +
-                    '</div>' +
-
-                    // Capacity
-                    '<div class="form-group">' +
-                        '<label>Capacity</label>' +
-                        '<input type="text" name="' + prefix + '[capacity]" class="ti-cap-hidden" placeholder="e.g. 5000 L" value="' + escapeHtml(item.capacity || '') + '">' +
-                        '<input type="hidden" name="' + prefix + '[dimensions]" class="ti-dim-hidden" value="' + escapeHtml(item.dimensions || '') + '">' +
-                    '</div>' +
-                '</div>' +
-                '</div>'; // close ti-dims-section
-
-            return row;
-        }
-
-        var editTankIndex = 0;
-        function addEditTankRow(item) {
-            var container = document.getElementById('editTankItemsContainer');
-            var prefix = 'tank_items[' + editTankIndex + ']';
-            var removable = container.children.length > 0;
-            container.appendChild(buildTankRow(prefix, item, removable));
-            editTankIndex++;
-            if (typeof lucide !== 'undefined') lucide.createIcons();
-        }
-
         var currentArchiveFilter = 'active';
 
         var projectFilterMessages = {
@@ -925,13 +681,15 @@
                     document.getElementById('editProjectSubtitle').textContent = 'Editing: ' + this.dataset.name;
                     document.getElementById('editProjectForm').action = '/admin/projects/' + this.dataset.id;
 
-                    // Load tank items
-                    var container = document.getElementById('editTankItemsContainer');
-                    container.innerHTML = '';
+                    // Tank specifications — shown read-only (they come from the approved quotation)
                     var items = [];
                     try { items = JSON.parse(this.dataset.tankItems || '[]'); } catch(e) {}
-                    if (!items.length) items = [{ tank_type: '', capacity: '', dimensions: '', quantity: 1 }];
-                    items.forEach(function(item) { addEditTankRow(item); });
+                    document.getElementById('editSpecsList').innerHTML = items.length
+                        ? items.map(function (item) {
+                            return escapeHtml((item.quantity > 1 ? item.quantity + '× ' : '') + (item.tank_type || 'Tank')) +
+                                [item.capacity, item.dimensions].filter(Boolean).map(function (v) { return ' · ' + escapeHtml(v); }).join('');
+                        }).join('<br>')
+                        : '<span style="color:var(--muted);font-weight:600;">No tank specifications on record.</span>';
 
                     openModal('editProjectModal');
                     if (typeof lucide !== 'undefined') lucide.createIcons();

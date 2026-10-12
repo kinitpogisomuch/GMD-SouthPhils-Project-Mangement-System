@@ -7,6 +7,24 @@
     <title>Payment Detail | GMD South Phils</title>
     <link href="{{ asset('css/client.css') }}" rel="stylesheet">
     <style>
+        /* Resubmitting a proof of payment */
+        .pfm-reason { margin-top: 5px; max-width: 220px; font-size: 11.5px; line-height: 1.4; color: #92400e; white-space: normal; }
+        .pfm-action { display: none; }
+        .pfm-status-action { margin-top: 8px; }
+        .pfm-resubmit-btn { display: inline-flex; align-items: center; gap: 5px; min-height: 34px; padding: 6px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--white); font-size: 12px; font-weight: 800; color: var(--dark); cursor: pointer; }
+        .pfm-resubmit-btn:hover { border-color: var(--dark); }
+        .pfm-resubmit-btn.is-urgent { background: #b45309; border-color: #b45309; color: #fff; }
+        .rs-reason { margin-bottom: 14px; padding: 10px 12px; border-radius: 12px; background: #fffbeb; border: 1px solid #fde68a; font-size: 12.5px; line-height: 1.5; color: #92400e; }
+        .rs-fixed { padding: 11px 14px; border-radius: 12px; background: var(--cream-soft, #f6f6f6); border: 1px solid var(--border); font-weight: 800; color: var(--dark); }
+        .rs-file-note { margin-top: 6px; font-size: 11.5px; color: var(--muted); }
+        @media (max-width: 640px) {
+            .pf-proofs-table td.pfm-action { display: block; grid-column: 1 / -1; text-align: left; padding-top: 4px !important; }
+            .pfm-status-action { display: none; }
+            .pf-proofs-table td.pfm-action.is-empty { display: none !important; }
+            .pfm-resubmit-btn { width: 100%; justify-content: center; min-height: 40px; }
+            .pfm-reason { max-width: 150px; }
+        }
+
         /* Phones: the cards' 380px minimum is wider than the screen, so they spilled off the right
            edge — stack them full width instead, and keep every field inside the card */
         @media (max-width: 640px) {
@@ -251,9 +269,33 @@
                         $amountsDue       = $payment->stageAmountsDue();
                         // Unpaid progress payment that has rolled into the final payment
                         $finalCarryOver   = max(0, round(($amountsDue['final_payment'] ?? 0) - ($stageAmounts['final_payment'] ?? 0), 2));
+                        // The next stage is only payable once GMD has sent its billing statement
+                        $openStageNow     = $selectableStages->first();
+                        $awaitingBilling  = $openStageNow && !$payment->isStageBilled($openStageNow);
+                        $returnedProofs   = $payment->proofs->filter(fn ($p) => $p->needsCorrection());
                     @endphp
 
-                    @if($selectableStages->isEmpty())
+                    @if($returnedProofs->isNotEmpty())
+                    <div class="alert-banner" style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;align-items:flex-start;">
+                        <i data-lucide="file-warning" style="margin-top:2px;"></i>
+                        <div>
+                            <strong>{{ $returnedProofs->count() === 1 ? 'A submission needs' : $returnedProofs->count() . ' submissions need' }} your correction.</strong>
+                            See the reason under Submitted Proofs and press <strong>Resubmit</strong> to send the corrected details.
+                        </div>
+                    </div>
+                    @endif
+
+                    @if($selectableStages->isNotEmpty() && $awaitingBilling)
+                    {{-- Due, but not billed yet: the client isn't asked to pay until the statement is sent --}}
+                    <div style="text-align:center;padding:24px 16px;color:var(--muted);">
+                        <i data-lucide="file-clock" style="width:28px;height:28px;opacity:.45;display:block;margin:0 auto 10px;"></i>
+                        <p style="font-size:13.5px;font-weight:700;color:var(--dark);margin-bottom:4px;">Waiting for GMD's billing statement</p>
+                        <p style="font-size:12.5px;line-height:1.6;max-width:360px;margin:0 auto;">
+                            The next payment is the <strong>{{ \App\Models\PaymentTransaction::stageLabel($openStageNow) }}</strong>.
+                            You'll be notified with the amount due as soon as the billing statement is sent — you can submit your proof of payment then.
+                        </p>
+                    </div>
+                    @elseif($selectableStages->isEmpty())
                     <div style="text-align:center;padding:24px 16px;color:var(--muted);">
                         <i data-lucide="check-circle-2" style="width:28px;height:28px;opacity:.4;display:block;margin:0 auto 10px;"></i>
                         <p style="font-size:13.5px;font-weight:700;color:var(--dark);margin-bottom:4px;">All payment stages are settled</p>
@@ -282,13 +324,6 @@
                                 <input type="text" inputmode="decimal" name="amount_paid" id="proofAmountInput"
                                        placeholder="e.g. 50,000" value="{{ old('amount_paid') }}">
                                 <small id="proofAmountHint" style="display:none;margin-top:6px;font-size:10.5px;line-height:1.45;color:var(--muted);"></small>
-                            </div>
-                            <div class="form-group form-group-full">
-                                <label>Date Paid <span style="color:#dc2626;">*</span>
-                                    <span style="font-weight:400;color:var(--muted);">(set an earlier date for a past payment)</span>
-                                </label>
-                                <input type="date" name="submitted_date" required max="{{ now()->format('Y-m-d') }}"
-                                       value="{{ old('submitted_date', now()->format('Y-m-d')) }}">
                             </div>
                             <div class="form-group form-group-full">
                                 <label>Mode of Payment <span style="color:#dc2626;">*</span></label>
@@ -371,11 +406,24 @@
                                 <td class="pfm-status">
                                     @if($proofSettled)
                                         <span class="status-badge completed">Confirmed</span>
+                                    @elseif($proof->needsCorrection())
+                                        <span class="status-badge" style="background:#fef3c7;color:#92400e;">Needs Correction</span>
+                                        <div class="pfm-reason">{{ $proof->correction_reason }}</div>
                                     @else
-                                        <span class="status-badge pending">Pending Review</span>
+                                        <span class="status-badge pending">{{ $proof->resubmitted_at ? 'Resubmitted' : 'Pending Review' }}</span>
+                                    @endif
+                                    @php $canResubmit = !$proofSettled && $proof->canBeResubmitted(); @endphp
+                                    {{-- desktop: under the status (phones get a full-width button below the card instead) --}}
+                                    @if($canResubmit)
+                                    <div class="pfm-status-action">@include('partials.client.resubmit_proof_button')</div>
                                     @endif
                                 </td>
-                                <td class="pfm-date" data-label="Submitted">{{ $proof->created_at->format('M d, Y') }}</td>
+                                <td class="pfm-date" data-label="Submitted">{{ $proof->submittedAt()->format('M d, Y') }}</td>
+                                <td class="pfm-action {{ $canResubmit ? '' : 'is-empty' }}">
+                                    @if($canResubmit)
+                                    @include('partials.client.resubmit_proof_button')
+                                    @endif
+                                </td>
                             </tr>
                             @endforeach
                         </tbody>
@@ -486,8 +534,141 @@
 
     </main>
 
+    {{-- ===== RESUBMIT A PROOF OF PAYMENT — corrects the same submission (no new payment record) ===== --}}
+    <div class="modal-overlay" id="resubmitProofModal" role="dialog" aria-modal="true" aria-labelledby="resubmitProofTitle">
+        <div class="modal-card" style="max-width:500px;max-height:92vh;overflow-y:auto;">
+            <div class="modal-header">
+                <div>
+                    <h2 id="resubmitProofTitle">Resubmit Proof of Payment</h2>
+                    <p id="resubmitProofStage">Correct the details below and send them again.</p>
+                </div>
+                <button class="modal-close" type="button" data-close-resubmit><i data-lucide="x"></i></button>
+            </div>
+            <form method="POST" id="resubmitProofForm" enctype="multipart/form-data" action="{{ old('_resubmit_action') }}">
+                @csrf
+                <input type="hidden" name="_resubmit_action" id="resubmitActionInput" value="{{ old('_resubmit_action') }}">
+                <div class="rs-reason" id="resubmitReason" hidden></div>
+
+                @if($errors->resubmit->any())
+                <div class="alert-banner error" style="align-items:flex-start;margin-bottom:12px;">
+                    <i data-lucide="alert-circle" style="margin-top:2px;"></i>
+                    <div>@foreach($errors->resubmit->all() as $message)<div>{{ $message }}</div>@endforeach</div>
+                </div>
+                @endif
+
+                <div class="form-group">
+                    <label>Amount Paid (₱) <span style="color:#dc2626;">*</span></label>
+                    <div class="rs-fixed" id="resubmitFixedAmount" hidden></div>
+                    <input type="text" inputmode="decimal" name="amount_paid" id="resubmitAmount" placeholder="e.g. 50,000" value="{{ old('amount_paid') }}" autocomplete="off">
+                    <small id="resubmitAmountHint" style="display:block;margin-top:6px;font-size:11.5px;color:var(--muted);"></small>
+                </div>
+                <div class="form-group">
+                    <label>Mode of Payment <span style="color:#dc2626;">*</span></label>
+                    <select name="mode_of_payment" id="resubmitMode" required>
+                        <option value="bank_transfer" {{ old('mode_of_payment') === 'bank_transfer' ? 'selected' : '' }}>Bank Transfer</option>
+                        <option value="cheque" {{ old('mode_of_payment') === 'cheque' ? 'selected' : '' }}>Cheque</option>
+                        <option value="cash" {{ old('mode_of_payment') === 'cash' ? 'selected' : '' }}>Cash</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Replace Image / File <span id="resubmitFileReq" style="color:#dc2626;" hidden>*</span></label>
+                    <input type="file" name="proof_file" id="resubmitFile" accept=".pdf,.jpg,.jpeg,.png,image/jpeg,image/png">
+                    <div class="rs-file-note" id="resubmitFileNote"></div>
+                </div>
+                <div class="form-group">
+                    <label>Note <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
+                    <textarea name="notes" id="resubmitNotes" rows="2" style="resize:none;" placeholder="e.g. corrected reference number">{{ old('notes') }}</textarea>
+                </div>
+                <p style="font-size:12px;color:var(--muted);margin:0 0 14px;line-height:1.5;">Your earlier submission is kept on record. GMD reviews the corrected one before it counts as paid.</p>
+                <div class="modal-actions">
+                    <button type="button" class="cancel-btn" data-close-resubmit>Cancel</button>
+                    <button type="submit" class="save-btn"><i data-lucide="send" style="width:14px;height:14px;"></i> Resubmit</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="{{ asset('js/client.js') }}"></script>
+    <script>
+    (function () {
+        var modal  = document.getElementById('resubmitProofModal');
+        var form   = document.getElementById('resubmitProofForm');
+        if (!modal || !form) return;
+        var amount = document.getElementById('resubmitAmount');
+        var fixed  = document.getElementById('resubmitFixedAmount');
+        var hint   = document.getElementById('resubmitAmountHint');
+        var mode   = document.getElementById('resubmitMode');
+        var file   = document.getElementById('resubmitFile');
+        var hasFile = false;
+
+        function peso(n) { return '₱' + Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+        function show() { modal.classList.add('show'); document.body.style.overflow = 'hidden'; if (typeof lucide !== 'undefined') lucide.createIcons(); }
+        function hide() { modal.classList.remove('show'); document.body.style.overflow = ''; }
+
+        // a bank transfer needs a screenshot — required only when this submission has no file yet
+        function syncFileRule() {
+            var needs = mode.value === 'bank_transfer' && !hasFile;
+            document.getElementById('resubmitFileReq').hidden = !needs;
+            document.getElementById('resubmitFileNote').textContent = hasFile
+                ? 'Leave empty to keep the file you sent before.'
+                : (needs ? 'Attach the transfer screenshot or receipt (PDF, JPG or PNG, max 10MB).' : 'Optional for cheque and cash.');
+        }
+        mode.addEventListener('change', syncFileRule);
+
+        // the amount shows thousands separators while typing
+        amount.addEventListener('input', function () {
+            var raw = amount.value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1');
+            var parts = raw.split('.');
+            parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            amount.value = parts.join('.');
+        });
+
+        function open(btn, keepTyped) {
+            var d = btn.dataset;
+            form.action = d.action;
+            document.getElementById('resubmitActionInput').value = d.action;
+            document.getElementById('resubmitProofStage').textContent = d.stageLabel + ' — correct the details below and send them again.';
+            var reason = document.getElementById('resubmitReason');
+            reason.hidden = !d.reason;
+            reason.textContent = d.reason ? 'GMD asked you to correct this: ' + d.reason : '';
+
+            // Down and final payments are fixed amounts; only the progress payment is typed in
+            if (d.fixed) {
+                fixed.hidden = false; fixed.textContent = peso(d.fixed);
+                amount.type = 'hidden'; amount.value = d.fixed;
+                hint.textContent = 'This payment phase has a fixed amount.';
+            } else {
+                fixed.hidden = true; amount.type = 'text';
+                if (!keepTyped) amount.value = Number(d.amount || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
+                hint.textContent = 'Up to ' + peso(d.max) + ' (your remaining balance).';
+            }
+            if (!keepTyped) {
+                mode.value = d.mode || 'bank_transfer';
+                document.getElementById('resubmitNotes').value = d.notes || '';
+            }
+            file.value = '';
+            hasFile = d.hasFile === '1';
+            syncFileRule();
+            show();
+        }
+
+        document.querySelectorAll('[data-resubmit]').forEach(function (btn) {
+            btn.addEventListener('click', function () { open(btn, false); });
+        });
+        modal.querySelectorAll('[data-close-resubmit]').forEach(function (b) { b.addEventListener('click', hide); });
+        modal.addEventListener('click', function (e) { if (e.target === modal) hide(); });
+
+        // separators out before sending
+        form.addEventListener('submit', function () { amount.value = amount.value.replace(/,/g, ''); });
+
+        // the server sent the correction back with errors — reopen it with what was typed
+        @if($errors->resubmit->any() && old('_resubmit_action'))
+        var again = document.querySelector('[data-resubmit][data-action="{{ old('_resubmit_action') }}"]');
+        if (again) open(again, true);
+        @endif
+    })();
+    </script>
     <script>
         lucide.createIcons();
 

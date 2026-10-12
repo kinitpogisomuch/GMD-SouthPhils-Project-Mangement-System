@@ -232,23 +232,53 @@ class Payment extends Model
      */
     public function currentBilledStage(): ?string
     {
+        $currentStage = $this->openStage();
+
+        return $currentStage && $this->isStageBilled($currentStage) ? $currentStage : null;
+    }
+
+    /** The earliest unpaid stage, billed or not. A progress payment that closed unpaid rides on the final payment. */
+    public function openStage(): ?string
+    {
         $paidStages   = $this->paidStages();
-        // A progress payment that closed unpaid is no longer billed on its own — it rides on the final payment.
         $skipProgress = $this->progressPaymentClosed();
-        $currentStage = collect($this->stages())->first(
+
+        return collect($this->stages())->first(
             fn ($s) => !in_array($s, $paidStages) && !($s === 'progress_payment' && $skipProgress)
         );
+    }
 
-        if (!$currentStage) {
+    /** GMD has SENT a billing statement for this stage (or a full statement covering everything). */
+    public function isStageBilled(string $stage): bool
+    {
+        return $this->billingStatements()
+            ->whereNotNull('sent_at')
+            ->get()
+            ->contains(fn ($s) => is_null($s->billing_stage) || $s->billing_stage === $stage);
+    }
+
+    /**
+     * The stage waiting on GMD: due for payment, but no billing statement has been sent for it yet,
+     * so the client hasn't been asked to pay. Null when nothing is waiting (fully paid, or billed).
+     */
+    public function billingPendingStage(): ?string
+    {
+        $stage = $this->openStage();
+        if (!$stage || !$this->payment_term_type || ($this->stageAmountsDue()[$stage] ?? 0) <= 0) {
             return null;
         }
 
-        $isBilled = $this->billingStatements()
-            ->whereNotNull('sent_at')
-            ->get()
-            ->contains(fn ($s) => is_null($s->billing_stage) || $s->billing_stage === $currentStage);
+        return $this->isStageBilled($stage) ? null : $stage;
+    }
 
-        return $isBilled ? $currentStage : null;
+    /** A statement already prepared for this stage but not sent to the client yet (newest first). */
+    public function unsentStatementFor(string $stage): ?BillingStatement
+    {
+        return $this->billingStatements()
+            ->whereNull('sent_at')
+            ->where(fn ($q) => $q->whereNull('billing_stage')->orWhere('billing_stage', $stage))
+            ->latest('id')
+            ->first();
     }
 
     /**
@@ -261,8 +291,13 @@ class Payment extends Model
     public function needsClientAction(): bool
     {
         $stage = $this->currentBilledStage();
+        if ($stage === null) {
+            return false;
+        }
 
-        return $stage !== null && !$this->proofs()->where('payment_stage', $stage)->exists();
+        // nothing submitted for the billed stage yet, or a submission was returned for correction
+        return !$this->proofs()->where('payment_stage', $stage)->exists()
+            || $this->proofs()->where('payment_stage', $stage)->where('status', PaymentProof::STATUS_NEEDS_CORRECTION)->exists();
     }
 
     /** Compute status from recorded transactions */

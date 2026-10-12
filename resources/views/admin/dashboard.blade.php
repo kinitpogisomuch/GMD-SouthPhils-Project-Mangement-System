@@ -112,8 +112,9 @@
                 </div>
             </div>
 
-            {{-- ── Needs Attention ── --}}
-            <div class="table-card" style="margin-bottom:20px;">
+            {{-- ── Needs Attention + live Project Status, side by side ── --}}
+            <div class="db-attn-row">
+            <div class="table-card" style="margin-bottom:0;">
                 <div style="display:flex;align-items:center;gap:10px;padding:20px 24px 16px;border-bottom:1px solid var(--border);">
                     <div style="width:36px;height:36px;background:#FFF3D6;color:#8A6100;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                         <i data-lucide="alert-triangle" style="width:18px;height:18px;"></i>
@@ -181,21 +182,41 @@
                 @endif
             </div>
 
-            {{-- ── Project Status Snapshot ── --}}
-            <div class="table-card" style="margin:0 auto 20px;padding:16px 24px;display:flex;align-items:center;flex-wrap:wrap;gap:18px;width:fit-content;max-width:100%;">
-                <div style="display:flex;align-items:center;gap:8px;font-size:11px;font-weight:800;color:var(--muted-light);text-transform:uppercase;letter-spacing:.4px;flex-shrink:0;">
-                    <i data-lucide="layers" style="width:14px;height:14px;"></i>
-                    Project Status
+            {{-- ── Project Status — where every project stands right now (not filtered by year) ── --}}
+            @php
+                $statusTotal  = collect($statusSnapshot)->sum('count');
+                $statusColors = ['planning' => '#d97706', 'ongoing' => '#2563eb', 'shortage' => '#dc2626', 'completed' => '#16a34a'];
+            @endphp
+            <div class="table-card db-status-card" style="margin-bottom:0;">
+                <div class="db-status-head">
+                    <div style="width:36px;height:36px;background:#EAF0FF;color:#2A4EAA;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        <i data-lucide="layers" style="width:18px;height:18px;"></i>
+                    </div>
+                    <div style="min-width:0;">
+                        <div style="font-size:15px;font-weight:800;color:var(--dark);">Project Status</div>
+                        <div style="font-size:12px;color:var(--muted);margin-top:2px;">All projects, as of today</div>
+                    </div>
+                    <div class="db-status-total">{{ $statusTotal }}<span>projects</span></div>
                 </div>
-                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                <div class="db-status-body">
+                    <div class="db-status-bar" role="img" aria-label="Project status breakdown">
+                        @foreach($statusSnapshot as $item)
+                            @if($item['count'] > 0)
+                            <span style="flex:{{ $item['count'] }};background:{{ $statusColors[$item['badge']] ?? '#999' }};" title="{{ $item['label'] }}: {{ $item['count'] }}"></span>
+                            @endif
+                        @endforeach
+                    </div>
                     @foreach($statusSnapshot as $item)
-                    <a href="{{ route('admin.projects') }}" style="display:flex;align-items:center;gap:7px;text-decoration:none;">
-                        <span class="status-badge {{ $item['badge'] }}">{{ $item['label'] }}</span>
-                        <span style="font-size:13px;font-weight:800;color:var(--dark);">{{ $item['count'] }}</span>
+                    <a href="{{ route('admin.projects') }}" class="db-status-row">
+                        <span class="db-status-dot" style="background:{{ $statusColors[$item['badge']] ?? '#999' }};"></span>
+                        <span class="db-status-label">{{ $item['label'] }}</span>
+                        <span class="db-status-pct">{{ $statusTotal > 0 ? round($item['count'] / $statusTotal * 100) : 0 }}%</span>
+                        <span class="db-status-count">{{ $item['count'] }}</span>
                     </a>
                     @endforeach
                 </div>
             </div>
+            </div>{{-- /.db-attn-row --}}
 
             {{-- ── Top Client + Top Supplier ── --}}
             <div class="db-top-cards-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
@@ -547,6 +568,14 @@
                 return prefix === '₱' ? ('₱' + v.toLocaleString()) : v.toLocaleString();
             }
 
+            function fmtCompact(prefix, v) {
+                var a = Math.abs(v), s;
+                if (a >= 1e6)      s = (v / 1e6).toFixed(a % 1e6 === 0 ? 0 : 1).replace(/\.0$/, '') + 'M';
+                else if (a >= 1e3) s = Math.round(v / 1e3) + 'k';
+                else               s = String(Math.round(v));
+                return (prefix === '₱' ? '₱' : '') + s;
+            }
+
             function hexToRgba(hex, alpha) {
                 var r = parseInt(hex.slice(1, 3), 16);
                 var g = parseInt(hex.slice(3, 5), 16);
@@ -565,7 +594,8 @@
                         borderColor: card.color,
                         backgroundColor: hexToRgba(card.color, 0.10),
                         fill: true,
-                        tension: 0.35,
+                        // passes through every point without overshooting (no false peaks or dips below ₱0)
+                        cubicInterpolationMode: 'monotone',
                         pointRadius: 3,
                         pointBackgroundColor: card.color,
                         borderWidth: 2.5,
@@ -603,13 +633,17 @@
                             }
                         },
                         scales: {
-                            x: { grid: { display: false }, ticks: { color: '#666666', font: { size: 11 } } },
+                            x: { grid: { display: false }, ticks: { color: '#666666', font: { size: 11 }, maxRotation: 0, autoSkip: true, autoSkipPadding: 8 } },
                             y: {
+                                beginAtZero: true,
                                 grid: { color: 'rgba(0,0,0,.05)' },
+                                border: { display: false },
                                 ticks: {
                                     color: '#666666',
                                     font: { size: 11 },
-                                    callback: function(v) { return fmtValue(cfg.prefix, v); }
+                                    maxTicksLimit: 6,
+                                    // short axis labels (₱1.6M, ₱400k); the tooltip still shows the exact amount
+                                    callback: function(v) { return fmtCompact(cfg.prefix, v); }
                                 }
                             }
                         }
@@ -1546,6 +1580,23 @@
         .db-three-panel-row > *,
         .db-kpi-row > * { min-width: 0; }
 
+        /* ── Needs Attention (2/3) + Project Status (1/3) ── */
+        .db-attn-row { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 20px; margin-bottom: 20px; align-items: stretch; }
+        .db-attn-row > * { min-width: 0; }
+        .db-status-card { display: flex; flex-direction: column; }
+        .db-status-head { display: flex; align-items: center; gap: 10px; padding: 20px 24px 16px; border-bottom: 1px solid var(--border); }
+        .db-status-total { margin-left: auto; font-size: 24px; font-weight: 900; color: var(--dark); line-height: 1; text-align: right; font-variant-numeric: tabular-nums; }
+        .db-status-total span { display: block; margin-top: 3px; font-size: 10.5px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+        .db-status-body { padding: 16px 24px 18px; display: flex; flex-direction: column; gap: 4px; }
+        .db-status-bar { display: flex; gap: 3px; height: 10px; margin-bottom: 10px; border-radius: 999px; overflow: hidden; background: var(--cream-soft); }
+        .db-status-bar span { min-width: 6px; }
+        .db-status-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; margin: 0 -10px; border-radius: 10px; text-decoration: none; color: var(--dark); transition: background .15s; }
+        .db-status-row:hover { background: var(--cream-soft); }
+        .db-status-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+        .db-status-label { flex: 1; font-size: 13px; font-weight: 700; }
+        .db-status-pct { font-size: 12px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+        .db-status-count { min-width: 32px; text-align: right; font-size: 15px; font-weight: 900; font-variant-numeric: tabular-nums; }
+
         /* Prevent page-level horizontal bleed */
         .admin-content { overflow-x: hidden; }
 
@@ -1560,6 +1611,7 @@
             .db-chart-head         { flex-wrap: wrap; gap: 10px; }
             .db-chart-total        { align-items: flex-start; }
             .db-chart-filters      { order: 3; flex: 1 1 100%; }
+            .db-attn-row           { grid-template-columns: 1fr; }
         }
 
         /* Small tablet (≤768px): hero stacks, 3-panel → 1-col, hide table columns */
@@ -1600,7 +1652,15 @@
             .db-hero-date          { font-size: 11px; padding: 5px 10px; }
             .db-greeting           { font-size: 18px; }
             .db-subgreeting        { font-size: 12px; }
-            .db-kpi-value          { font-size: 22px; }
+            /* two cards per row: icon above the figure so a ₱ amount stays on one line */
+            .db-kpi-card           { flex-direction: column; gap: 10px; padding: 14px; }
+            .db-kpi-icon           { width: 34px; height: 34px; border-radius: 10px; }
+            .db-kpi-icon i         { width: 17px; height: 17px; }
+            .db-kpi-body           { width: 100%; }
+            .db-kpi-value          { font-size: clamp(17px, 5.4vw, 22px); white-space: nowrap; overflow-wrap: normal; }
+            .db-kpi-label          { font-size: 10.5px; }
+            .db-kpi-sub            { font-size: 11px; }
+            .db-status-head, .db-status-body { padding-left: 16px; padding-right: 16px; }
             .db-chart-card         { padding: 14px 14px 18px; }
             .db-chart-wrap         { height: 170px; }
             .db-panel-card         { padding: 16px; }

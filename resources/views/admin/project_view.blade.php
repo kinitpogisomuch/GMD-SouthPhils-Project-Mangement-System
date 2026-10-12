@@ -1430,12 +1430,6 @@
                     </p>
                 </div>
                 <div class="form-group">
-                    <label>Request Date
-                        <span style="font-weight:400;color:var(--muted);">(defaults to today — set an earlier date when backfilling history)</span>
-                    </label>
-                    <input type="date" name="request_date" value="{{ now()->format('Y-m-d') }}" max="{{ now()->format('Y-m-d') }}">
-                </div>
-                <div class="form-group">
                     <label>Message
                         <span style="font-weight:400;color:var(--muted);">(optional)</span>
                     </label>
@@ -1585,6 +1579,89 @@
         <input type="hidden" name="proceed_without_final_payment" value="1">
         @endunless
     </form>
+    @endif
+
+    {{-- ===== COMPLETION: MONTHLY EXPENSES NOT YET SETTLED =====
+         "Mark as Completed" stops here (nothing is submitted) while months the project was active in have no
+         overhead allocated. The admin must pick one: settle them first, or proceed anyway (recorded). --}}
+    @if(!empty($unsettledExpenseMonths))
+    <div class="modal-overlay" id="unsettledExpensesModal" role="dialog" aria-modal="true" aria-labelledby="unsettledExpensesTitle">
+        <div class="modal-card" style="max-width:480px;">
+            <div class="modal-header">
+                <div>
+                    <h2 id="unsettledExpensesTitle">Monthly Expenses Not Yet Settled</h2>
+                    <p>The completion phase has not been submitted.</p>
+                </div>
+                <button class="modal-close" type="button" data-close-unsettled>
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="delete-confirm-body">
+                <div class="delete-confirm-icon" style="background:#fef3c7;color:#b45309;"><i data-lucide="receipt-text"></i></div>
+                <p>Some monthly expenses have not been recorded for this project. Please review and settle the outstanding monthly expenses before submitting the completion phase.</p>
+                <div style="margin:12px 12px 0;padding:10px 12px;border:1px solid #fde68a;background:#fffbeb;border-radius:10px;text-align:left;">
+                    <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#92400e;margin-bottom:6px;">
+                        No overhead allocated for {{ count($unsettledExpenseMonths) === 1 ? '1 month' : count($unsettledExpenseMonths) . ' months' }}
+                    </div>
+                    <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                        @foreach($unsettledExpenseMonths as $um)
+                        <span style="font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;background:#fff;border:1px solid #fcd34d;color:#78350f;">{{ $um['label'] }}</span>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions" style="flex-wrap:wrap;">
+                <button type="button" class="cancel-btn" id="proceedWithoutExpensesBtn">
+                    Proceed Anyway
+                </button>
+                <a class="save-btn" style="text-decoration:none;"
+                   href="{{ route('admin.monthly-expenses.index', ['month' => $unsettledExpenseMonths[0]['month'], 'from_project' => $project->id]) }}">
+                    <i data-lucide="receipt-text"></i>
+                    Settle Monthly Expenses
+                </a>
+            </div>
+        </div>
+    </div>
+    <script>
+    (function () {
+        var form  = document.getElementById('addUpdateForm');
+        var modal = document.getElementById('unsettledExpensesModal');
+        if (!form || !modal) return;
+
+        function openModal()  { modal.classList.add('show'); document.body.style.overflow = 'hidden'; }
+        function closeModal() { modal.classList.remove('show'); document.body.style.overflow = ''; }
+
+        // Runs after the form's own checks (photos etc.): only a submission that would otherwise go
+        // through is held back, and it is never sent until the admin picks one of the two options.
+        form.addEventListener('submit', function (e) {
+            if (e.defaultPrevented || form.dataset.expensesAcknowledged === '1') return;
+            e.preventDefault();
+            openModal();
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        });
+
+        document.getElementById('proceedWithoutExpensesBtn').addEventListener('click', function () {
+            var flag = form.querySelector('input[name="proceed_without_expenses"]');
+            if (!flag) {
+                flag = document.createElement('input');
+                flag.type = 'hidden';
+                flag.name = 'proceed_without_expenses';
+                form.appendChild(flag);
+            }
+            flag.value = '1';
+            form.dataset.expensesAcknowledged = '1';
+            closeModal();
+            form.requestSubmit();
+        });
+        modal.querySelectorAll('[data-close-unsettled]').forEach(function (b) { b.addEventListener('click', closeModal); });
+        modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
+
+        // the server stopped a submission (e.g. sent without this page's script) — ask again
+        @if(session('expense_gate'))
+        openModal();
+        @endif
+    })();
+    </script>
     @endif
 
     <!-- ===== DELIVERY: PROCEED WITHOUT FINAL PAYMENT CONFIRM MODAL ===== -->

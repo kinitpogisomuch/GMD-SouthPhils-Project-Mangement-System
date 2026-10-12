@@ -46,6 +46,54 @@
                 </div>
             </div>
 
+            {{-- Settling a project's monthly expenses before its completion (from the project's completion step) --}}
+            @if($returnProject)
+            <div class="me-settle-banner {{ $returnProjectMissing ? '' : 'is-done' }}">
+                <div class="me-settle-icon"><i data-lucide="{{ $returnProjectMissing ? 'receipt-text' : 'check-circle-2' }}"></i></div>
+                <div class="me-settle-body">
+                    <div class="me-settle-title">
+                        {{ $returnProjectMissing ? 'Settling monthly expenses for' : 'All monthly expenses are settled for' }} <strong>{{ $returnProject->name }}</strong>
+                    </div>
+                    @if($returnProjectMissing)
+                    <div class="me-settle-months">
+                        Still without overhead:
+                        @foreach($returnProjectMissing as $rm)
+                        <a href="{{ route('admin.monthly-expenses.index', ['month' => $rm['month']]) }}" class="{{ $rm['month'] === $month ? 'is-current' : '' }}">{{ $rm['label'] }}</a>
+                        @endforeach
+                    </div>
+                    <div class="me-settle-hint">Add the month's expense items, then tick this project under Select Projects and save the allocation.</div>
+                    @else
+                    <div class="me-settle-hint">You can go back and submit the completion phase.</div>
+                    @endif
+                </div>
+                <div class="me-settle-actions">
+                    <a href="{{ route('admin.project_view', $returnProject->id) }}#addUpdateForm" class="save-btn" style="text-decoration:none;">
+                        <i data-lucide="arrow-left"></i> Back to Completion
+                    </a>
+                    <a href="{{ route('admin.monthly-expenses.index', ['month' => $month, 'done_settling' => 1]) }}" class="me-settle-dismiss" title="Stop showing this">Dismiss</a>
+                </div>
+            </div>
+            <style>
+                .me-settle-banner { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; padding: 14px 18px; border-radius: 16px; background: #fffbeb; border: 1px solid #fde68a; }
+                .me-settle-banner.is-done { background: #f0fdf4; border-color: #bbf7d0; }
+                .me-settle-icon { width: 38px; height: 38px; border-radius: 12px; background: #fef3c7; color: #b45309; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+                .me-settle-banner.is-done .me-settle-icon { background: #dcfce7; color: #15803d; }
+                .me-settle-icon svg { width: 18px; height: 18px; }
+                .me-settle-body { flex: 1; min-width: 0; }
+                .me-settle-title { font-size: 14px; color: var(--dark); }
+                .me-settle-months { margin-top: 6px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12.5px; color: #92400e; font-weight: 700; }
+                .me-settle-months a { padding: 2px 9px; border-radius: 999px; background: #fff; border: 1px solid #fcd34d; color: #78350f; text-decoration: none; }
+                .me-settle-months a.is-current { background: #78350f; border-color: #78350f; color: #fff; }
+                .me-settle-hint { margin-top: 4px; font-size: 12px; color: var(--muted); }
+                .me-settle-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
+                .me-settle-dismiss { font-size: 12px; font-weight: 700; color: var(--muted); }
+                @media (max-width: 640px) {
+                    .me-settle-banner { flex-wrap: wrap; align-items: flex-start; }
+                    .me-settle-actions { width: 100%; flex-direction: row; align-items: center; justify-content: space-between; }
+                }
+            </style>
+            @endif
+
             {{-- Alerts --}}
             @if(session('success'))
             {{-- Expense added / deleted / allocation saved: the small dark toast below the header

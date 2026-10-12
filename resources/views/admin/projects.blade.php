@@ -345,18 +345,6 @@
                         <span>This schedule covers the project from <strong>Planning to Completion</strong> — delivery isn't included. The End Date is the planned completion date used for the On-Time Completion Rate.</span>
                     </p>
 
-                    <div class="form-section-label" style="margin-top:18px;">Record Entry</div>
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label>Created Date <span style="font-weight:400;color:var(--muted);">(optional — leave blank for today)</span></label>
-                            <input type="date" name="created_date">
-                        </div>
-                        <div class="form-group">
-                            <label>Created Time <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
-                            <input type="time" name="created_time">
-                        </div>
-                    </div>
-
                 </div>
 
                 {{-- Fixed action buttons --}}

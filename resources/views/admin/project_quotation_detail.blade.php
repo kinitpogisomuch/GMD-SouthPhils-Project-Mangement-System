@@ -144,6 +144,10 @@
         .qb-step { width: 28px; height: 28px; flex-shrink: 0; border-radius: 50%; background: var(--dark); color: #fff; font-size: 12.5px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; }
         .qb-section-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
+        /* Price / Unit and Daily Rate show thousands separators — right-aligned like the totals */
+
+        .qb-num-input { text-align: right; font-variant-numeric: tabular-nums; }
+
         .qb-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
         .qb-field label { display: block; font-size: 12px; font-weight: 800; color: var(--muted); margin-bottom: 6px; }
         .qb-field small { display: block; margin-top: 5px; font-size: 11.5px; color: var(--muted); }
@@ -381,10 +385,6 @@
                     </div>
                     <div class="qb-head-right">
                         <span class="qb-dirty" id="qbDirty" hidden><i data-lucide="circle-dot"></i> Unsaved changes</span>
-                        <label class="qb-chip" for="entryDateInput" title="Leave blank for today; set an earlier date when backfilling history">
-                            Entry Date <span class="qb-optional">(optional)</span>
-                            <input type="date" name="entry_date" id="entryDateInput" style="width:auto;text-align:left;">
-                        </label>
                     </div>
                 </div>
 
@@ -834,7 +834,34 @@
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;');
     }
-    function toNum(v) { var n = parseFloat(v); return isNaN(n) ? 0 : n; }
+    // Amounts may be typed or shown with thousands separators ("15,000.00") — ignore them when reading
+    function toNum(v) { var n = parseFloat(String(v == null ? '' : v).replace(/,/g, '')); return isNaN(n) ? 0 : n; }
+
+    // ---- Price / Unit and Daily Rate: shown as 15,000.00, typed as a plain number ----
+    // The field holds the formatted text while it isn't being edited; focusing it shows the bare number
+    // for editing, and the separators are taken out again right before the form is submitted.
+    function fmtMoney(v) {
+        var raw = String(v == null ? '' : v).replace(/,/g, '').trim();
+        if (raw === '' || isNaN(raw)) return raw;
+        return Number(raw).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    function unfmtMoney(v) { return String(v == null ? '' : v).replace(/,/g, '').trim(); }
+    var MONEY_FIELDS = '.row-price, .row-labor-rate';
+    quotationForm.addEventListener('focusin', function (e) {
+        if (e.target.matches && e.target.matches(MONEY_FIELDS) && !e.target.readOnly) e.target.value = unfmtMoney(e.target.value);
+    });
+    quotationForm.addEventListener('focusout', function (e) {
+        if (e.target.matches && e.target.matches(MONEY_FIELDS)) e.target.value = fmtMoney(e.target.value);
+    });
+    // only digits and one decimal point can be typed into a money field
+    quotationForm.addEventListener('input', function (e) {
+        if (!e.target.matches || !e.target.matches(MONEY_FIELDS) || e.target.readOnly) return;
+        var cleaned = e.target.value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1');
+        if (cleaned !== e.target.value) e.target.value = cleaned;
+    }, true);
+    function unformatMoneyFields() {
+        quotationForm.querySelectorAll(MONEY_FIELDS).forEach(function (el) { el.value = unfmtMoney(el.value); });
+    }
     function peso(n, decimals) {
         decimals = decimals || 0;
         return '₱' + n.toLocaleString('en-PH', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
@@ -1015,7 +1042,7 @@
             '</td>' +
             '<td><input type="text" name="unit[]" class="qb-cell-input row-unit" autocomplete="off" placeholder="pcs" value="' + escapeHtml(data.unit || '') + '"></td>' +
             '<td><input type="number" name="quantity[]" class="qb-cell-input row-qty" min="0.01" step="0.01" placeholder="0" value="' + (data.qty != null ? data.qty : '') + '" oninput="recalc()"></td>' +
-            '<td><input type="number" name="price_per_unit[]" class="qb-cell-input row-price" min="0" step="0.01" placeholder="0.00" value="' + (data.price != null ? data.price : '') + '" oninput="recalc()"></td>' +
+            '<td><input type="text" inputmode="decimal" name="price_per_unit[]" class="qb-cell-input row-price qb-num-input" autocomplete="off" placeholder="0.00" value="' + (data.price != null && data.price !== '' ? fmtMoney(data.price) : '') + '" oninput="recalc()"></td>' +
             '<td><input type="text" class="qb-cell-total row-total-display" readonly tabindex="-1" placeholder="—"></td>' +
             '<td style="text-align:center;">' +
                 '<button type="button" class="qb-icon-btn" onclick="removeMaterialRow(this)" title="' + (data.id ? 'Delete material' : 'Remove row') + '">' +
@@ -1278,7 +1305,7 @@
                 '</select>' +
                 '<input type="text" class="qb-cell-input row-labor-role-custom" name="_role_unused" placeholder="Role" style="display:none;margin-top:6px;">' +
             '</td>' +
-            '<td><input type="number" name="daily_rate[]" class="qb-cell-input row-labor-rate" min="0" step="0.01" readonly placeholder="0.00" oninput="recalc()"></td>' +
+            '<td><input type="text" inputmode="decimal" name="daily_rate[]" class="qb-cell-input row-labor-rate qb-num-input" autocomplete="off" readonly placeholder="0.00" oninput="recalc()"></td>' +
             '<td><input type="text" class="qb-cell-total row-labor-total-display" readonly tabindex="-1" placeholder="—"></td>' +
             '<td style="text-align:center;">' +
                 '<button type="button" class="qb-icon-btn" onclick="removeLaborRow(this)" title="Remove row"><i data-lucide="trash-2"></i></button>' +
@@ -1333,7 +1360,7 @@
         }
 
         rateInput.readOnly = true;
-        rateInput.value = rate;
+        rateInput.value = fmtMoney(rate);
         recalc();
         refreshAllLaborEmployeeOptions();
     }
@@ -1718,6 +1745,8 @@
         }
 
         document.getElementById('qbErrors').hidden = true;
+        // the server gets plain numbers — "15,000.00" goes out as 15000.00
+        unformatMoneyFields();
         qbSubmitting = true;
         var saveBtn = document.getElementById('qbSaveBtn');
         saveBtn.disabled = true;

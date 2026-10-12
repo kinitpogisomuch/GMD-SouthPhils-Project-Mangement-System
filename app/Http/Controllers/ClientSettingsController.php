@@ -165,17 +165,8 @@ class ClientSettingsController extends Controller
                 ->with('error', $client->name . ' is not awaiting approval (status: ' . $client->registrationStatusLabel() . ').');
         }
 
-        $request->validate([
-            'approved_date' => 'nullable|date',
-            'approved_time' => 'nullable|date_format:H:i',
-        ]);
+        $approvedAt = now();
 
-        // Backdated when logging an approval that actually happened in the past.
-        $approvedAt = $request->filled('approved_date')
-            ? \Carbon\Carbon::parse($request->approved_date . ' ' . ($request->approved_time ?: '00:00'))
-            : now();
-
-        $client->updated_at = $approvedAt;
         $client->update(['status' => 'Approved']);   // Approved – Account Setup Required
 
         \App\Services\NotificationService::clientApproved($client, $approvedAt);

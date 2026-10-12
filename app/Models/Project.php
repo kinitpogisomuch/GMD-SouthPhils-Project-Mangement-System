@@ -77,6 +77,39 @@ class Project extends Model
      *
      * @return string[]
      */
+    /**
+     * Months this project was active in that have no overhead (monthly expenses) allocated to it yet —
+     * from the month it started up to now. The current month only counts once expense items have been
+     * logged for it, since its bills may not have arrived yet. Used to warn (not block) before the
+     * project is completed; nothing is recorded or settled here.
+     *
+     * @return array<int, array{month: string, label: string}>
+     */
+    public function unsettledExpenseMonths(): array
+    {
+        $start = $this->start_date ? \Carbon\Carbon::parse($this->start_date) : $this->created_at;
+        if (!$this->exists || !$start || $start->isFuture()) {
+            return [];
+        }
+
+        $allocated = \DB::table('monthly_expense_projects')->where('project_id', $this->id)->pluck('month_year')->all();
+        $thisMonth = now()->format('Y-m');
+        $missing   = [];
+
+        for ($m = $start->copy()->startOfMonth(); $m->format('Y-m') <= $thisMonth; $m->addMonth()) {
+            $key = $m->format('Y-m');
+            if (in_array($key, $allocated, true)) {
+                continue;
+            }
+            if ($key === $thisMonth && !MonthlyExpense::where('month_year', $key)->exists()) {
+                continue;   // this month's bills aren't in yet — nothing to settle
+            }
+            $missing[] = ['month' => $key, 'label' => $m->format('F Y')];
+        }
+
+        return $missing;
+    }
+
     public function financialCompletionGaps(): array
     {
         if (!$this->exists) {
@@ -331,7 +364,7 @@ class Project extends Model
     public function estimatedBudget(): array
     {
         $materials = round($this->activeMaterials()->get()->sum(function ($material) {
-            $factor = $material->factor ?? 7;
+            $factor = $material->factor ?? ProjectMaterial::DEFAULT_FACTOR;
             return (float) $material->total_cost * (1 + $factor / 100);
         }), 2);
 

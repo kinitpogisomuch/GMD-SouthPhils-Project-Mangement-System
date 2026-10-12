@@ -51,6 +51,8 @@ class NotificationService
     const TYPE_PAYMENT_DUE                      = 'payment_due';
     const TYPE_PAYMENT_RECEIVED                 = 'payment_received';
     const TYPE_PAYMENT_PROOF_SUBMITTED          = 'payment_proof_submitted';
+    const TYPE_PAYMENT_PROOF_RETURNED           = 'payment_proof_returned';
+    const TYPE_PAYMENT_PROOF_RESUBMITTED        = 'payment_proof_resubmitted';
 
     // -------------------------------------------------------------------------
     // Core send — accepts any model with an id, or a raw integer ID + type
@@ -610,13 +612,26 @@ class NotificationService
         );
     }
 
-    /** Owner sent a billing statement to the client — once per statement, even if "Send" is clicked again. */
+    /**
+     * Owner sent a billing statement to the client — once per statement, even if "Send" is clicked again.
+     * Says which project and payment phase it is for and, when that phase is still unpaid, how much is
+     * due and what to do next.
+     */
     public static function billingStatementSent(Project $project, int $paymentId, int $statementId): void
     {
+        $payment   = Payment::find($paymentId);
+        $statement = $payment?->billingStatements()->find($statementId);
+        $stage     = $statement?->billing_stage ?? $payment?->openStage();
+        $due       = $payment && $stage ? (float) ($payment->stageAmountsDue()[$stage] ?? 0) : 0;
+
+        $message = "Project: {$project->name}"
+            . ($stage ? "\nPayment phase: " . PaymentTransaction::stageLabel($stage) : "\nStatement: Full statement")
+            . ($due > 0 ? "\nAmount due: " . self::peso($due) . "\nPlease review the statement, settle the amount and upload your proof of payment." : "\nPlease review the statement.");
+
         self::notifyProjectClient(
             $project,
             'Billing Statement Sent',
-            "A new billing statement for project \"{$project->name}\" is ready for your review.",
+            $message,
             self::TYPE_BILLING_STATEMENT_SENT,
             'info',
             null,
@@ -727,6 +742,54 @@ class NotificationService
             "/admin/payments/{$payment->id}",
             null,
             "payment_proof_submitted:{$proof->id}"
+        );
+    }
+
+    /** GMD returned a proof of payment for correction → the client sees why and resubmits it (once per return). */
+    public static function paymentProofReturned(Payment $payment, PaymentProof $proof): void
+    {
+        $payment->loadMissing('project');
+        if (!$payment->project) {
+            return;
+        }
+
+        $label = PaymentTransaction::stageLabel($proof->payment_stage);
+
+        self::notifyProjectClient(
+            $payment->project,
+            'Payment Submission Needs Correction',
+            "Project: {$payment->project->name}\nPayment phase: {$label}\nSubmitted amount: " . self::peso((float) $proof->amount)
+                . "\nReason: {$proof->correction_reason}\nPlease correct it and press Resubmit on your payment page.",
+            self::TYPE_PAYMENT_PROOF_RETURNED,
+            'warning',
+            null,
+            "/client/payments/{$payment->id}",
+            null,
+            'payment_proof_returned:' . $proof->id . ':' . $proof->returned_at?->timestamp
+        );
+    }
+
+    /** The client corrected and resubmitted a proof of payment → admins review it again (once per resubmission). */
+    public static function paymentProofResubmitted(Payment $payment, PaymentProof $proof): void
+    {
+        $payment->loadMissing('project');
+        if (!$payment->project) {
+            return;
+        }
+
+        $label = PaymentTransaction::stageLabel($proof->payment_stage);
+
+        self::notifyAdmins(
+            'Corrected Proof of Payment Received',
+            "{$payment->project->live_client_name} resubmitted their proof of payment.\nProject: {$payment->project->name}\nPayment phase: {$label}\nAmount: "
+                . self::peso((float) $proof->amount) . "\nReview the corrected submission and record the payment.",
+            self::TYPE_PAYMENT_PROOF_RESUBMITTED,
+            'warning',
+            $payment->project->id,
+            null,
+            "/admin/payments/{$payment->id}",
+            null,
+            'payment_proof_resubmitted:' . $proof->id . ':' . count($proof->revisions ?? [])
         );
     }
 

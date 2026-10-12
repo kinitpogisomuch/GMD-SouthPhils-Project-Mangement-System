@@ -226,16 +226,6 @@
             </div>
             <form method="POST" action="{{ route('client.quotation.approve', $first->batch_id) }}">
                 @csrf
-                <div class="form-grid" style="margin-bottom:18px;">
-                    <div class="form-group">
-                        <label>Approved Date <span style="font-size:11px;color:var(--muted);font-weight:400;">(optional — leave blank for today)</span></label>
-                        <input type="date" name="approved_date">
-                    </div>
-                    <div class="form-group">
-                        <label>Approved Time <span style="font-size:11px;color:var(--muted);font-weight:400;">(optional)</span></label>
-                        <input type="time" name="approved_time">
-                    </div>
-                </div>
                 <div class="modal-actions">
                     <button type="button" class="cancel-btn" onclick="closeModal('approveQuotationModal-{{ $first->batch_id }}')">Cancel</button>
                     <button type="submit" class="save-btn">

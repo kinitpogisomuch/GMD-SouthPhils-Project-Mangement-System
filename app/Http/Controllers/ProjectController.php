@@ -17,12 +17,9 @@ use App\Models\FundTransaction;
 use App\Models\PaymentTransaction;
 use App\Services\SupabaseStorageService;
 use App\Services\NotificationService;
-use App\Http\Controllers\Concerns\BackdatesRecords;
 
 class ProjectController extends Controller
 {
-    use BackdatesRecords;
-
     protected $storage;
 
     public function __construct(SupabaseStorageService $storage)
@@ -211,6 +208,11 @@ class ProjectController extends Controller
 
         // What the Financial Overview still needs before the project can be completed — shown from
         // the Completion phase on, so the admin can fill it in before recording the final output.
+        // months with no overhead allocated — the completion step asks about these before submitting
+        $unsettledExpenseMonths = $project->status !== 'completed' && $project->current_phase === 'completion'
+            ? $project->unsettledExpenseMonths()
+            : [];
+
         $completionGaps = $project->status !== 'completed' && $project->current_phase === 'completion'
             ? $project->financialCompletionGaps()
             : [];
@@ -219,7 +221,7 @@ class ProjectController extends Controller
         $projectFunds = \App\Services\ProjectFunds::summary($project->id);
 
         return view('admin.project_view', compact(
-            'completionGaps', 'projectFunds',
+            'completionGaps', 'projectFunds', 'unsettledExpenseMonths',
             'project', 'updates', 'activeRequestEmployeeIds', 'pendingUpdates', 'progressRequests', 'nextPhase',
             'clientName', 'clientAddress', 'clientContact', 'clientEmail',
             // financial
@@ -464,9 +466,18 @@ class ProjectController extends Controller
             'end_date'   => 'required|date|after_or_equal:start_date',
             'client'     => 'required|string',
             'quotation_batch_id' => 'nullable|string|exists:quotation_batches,id',
-            'created_date' => 'nullable|date',
-            'created_time' => 'nullable|date_format:H:i',
         ]);
+
+        // A quotation priced per tank was approved for a set number of tanks — the project must build that many
+        $quotedBatch = $request->filled('quotation_batch_id') ? \App\Models\QuotationBatch::find($request->quotation_batch_id) : null;
+        if ($quotedBatch && $quotedBatch->tank_type) {
+            $tankCount = collect($request->tank_items)->sum(fn ($t) => (int) ($t['quantity'] ?? 0));
+            if ($tankCount !== $quotedBatch->tankQuantity()) {
+                return redirect()->back()->withInput()->with('error',
+                    'The approved quotation is for ' . $quotedBatch->tankQuantity() . ' tank' . ($quotedBatch->tankQuantity() === 1 ? '' : 's')
+                    . ' — set the tank quantity to match it (it is ' . $tankCount . ' now).');
+            }
+        }
 
         $start    = \Carbon\Carbon::parse($request->start_date);
         $end      = \Carbon\Carbon::parse($request->end_date);
@@ -517,8 +528,6 @@ class ProjectController extends Controller
             'duration'          => $duration,
             'notes'             => $request->notes,
         ]);
-        // Backdated when logging a project that was actually created in the past.
-        $this->applyBackdate($project, $request->created_date, $request->created_time);
         $project->save();
 
         $convertedFromBatch = $request->filled('quotation_batch_id');
@@ -559,8 +568,22 @@ class ProjectController extends Controller
                 }
             }
 
+            // The builder priced ONE tank; the project builds all of them. Its BOM and labor are for the
+            // whole job (like every other project), so the per-tank rows are multiplied by the tank
+            // quantity here, exactly once — the Project Budget then equals the quotation's total.
+            $tankQty = $batch ? $batch->tankQuantity() : 1;
             if ($batch && $batch->estimated_working_days) {
-                $project->update(['estimated_working_days' => $batch->estimated_working_days]);
+                $project->update(['estimated_working_days' => $batch->estimated_working_days * $tankQty]);
+            }
+            if ($tankQty > 1) {
+                \DB::statement(
+                    'UPDATE project_materials SET quantity = quantity * ?, total_cost = ROUND((total_cost * ?)::numeric, 2) WHERE project_id = ?',
+                    [$tankQty, $tankQty, $project->id]
+                );
+                \DB::statement(
+                    'UPDATE project_labor SET total_cost = ROUND((daily_rate * ?)::numeric, 2) WHERE project_id = ?',
+                    [(float) $project->estimated_working_days, $project->id]
+                );
             }
 
             // The client already approved this quotation — that approval settled the shop drawing /
@@ -643,6 +666,12 @@ class ProjectController extends Controller
     | Update Project Details
     |--------------------------------------------------------------------------
     */
+    /**
+     * Project details that stay editable after conversion: the name and the schedule (and notes, when
+     * sent). Tank type, capacity, dimensions, quantity and the other quotation-based specifications are
+     * never read from this request — the approved quotation is their source of truth, so they can't be
+     * changed (or wiped) through the edit form.
+     */
     public function update(Request $request, $id)
     {
         $request->validate([
@@ -650,12 +679,6 @@ class ProjectController extends Controller
             'start_date' => 'required|date',
             'end_date'   => 'required|date|after_or_equal:start_date',
             'notes'      => 'nullable|string',
-            'tank_items'              => 'required|array|min:1',
-            'tank_items.*.tank_type'  => 'required|string',
-            'tank_items.*.shape'      => 'required|string',
-            'tank_items.*.capacity'   => 'required|string',
-            'tank_items.*.dimensions' => 'required|string',
-            'tank_items.*.quantity'   => 'required|integer|min:1',
         ]);
 
         $project  = Project::findOrFail($id);
@@ -663,33 +686,12 @@ class ProjectController extends Controller
         $end      = \Carbon\Carbon::parse($request->end_date);
         $duration = $start->diffInDays($end) . ' days';
 
-        $firstTank = $request->tank_items[0];
-
-        $project->update([
+        $project->update(array_merge([
             'name'       => $request->name,
-            'tank_type'  => $firstTank['tank_type'],
-            'capacity'   => $firstTank['capacity'] ?? $project->capacity,
-            'dimensions' => $firstTank['dimensions'] ?? $project->dimensions,
             'start_date' => $request->start_date,
             'end_date'   => $request->end_date,
             'duration'   => $duration,
-            'notes'      => $request->notes,
-        ]);
-
-        // Replace all tank items
-        $project->tankItems()->delete();
-        foreach ($request->tank_items as $i => $item) {
-            ProjectTankItem::create([
-                'project_id'  => $project->id,
-                'tank_type'   => $item['tank_type'],
-                'shape'       => $item['shape'] ?? null,
-                'capacity'    => $item['capacity'] ?? null,
-                'dimensions'  => $item['dimensions'] ?? null,
-                'quantity'    => $item['quantity'] ?? 1,
-                'notes'       => $item['notes'] ?? null,
-                'sort_order'  => $i,
-            ]);
-        }
+        ], $request->has('notes') ? ['notes' => $request->notes] : []));
 
         return redirect()->route('admin.projects.client', $project->client)->with('success', 'Project updated successfully!');
     }
@@ -879,6 +881,40 @@ class ProjectController extends Controller
 
         return redirect()->route('admin.project_view', $project->id)
             ->with('error', (new \App\Exceptions\ProjectCompletionBlockedException($project->name, $missing))->getMessage());
+    }
+
+    /**
+     * Completing a project with months that have no overhead allocated is allowed, but only on purpose:
+     * without `proceed_without_expenses` the submission is stopped (nothing is saved or uploaded) and the
+     * page shows the "Monthly Expenses Not Yet Settled" modal again. When the admin chose Proceed Anyway,
+     * the decision — who, when, and which months were still unsettled — is kept on the project's
+     * Completion phase data and in the application log. Expenses are never marked settled or created here.
+     */
+    private function gateUnsettledExpenses(Request $request, Project $project, ?int $updateId = null)
+    {
+        $missing = $project->unsettledExpenseMonths();
+        if (!$missing) {
+            return null;
+        }
+
+        if (!$request->boolean('proceed_without_expenses')) {
+            return redirect()->route('admin.project_view', $project->id)
+                ->with('expense_gate', ['update_id' => $updateId])
+                ->with('error', 'Some monthly expenses have not been recorded for this project — settle them first, or choose Proceed Anyway.');
+        }
+
+        // the signed-in admin (this app keeps the user in the session rather than Laravel's auth guard)
+        $admin    = auth()->user() ?? \App\Models\User::find(session('user_id'));
+        $decision = [
+            'missing_months' => array_column($missing, 'month'),
+            'proceeded_by'   => $admin->name ?? 'Admin',
+            'user_id'        => $admin->id ?? session('user_id'),
+            'proceeded_at'   => now()->toDateTimeString(),
+        ];
+        $project->setPhaseData('completion_overrides.unsettled_expenses', $decision);   // its own key — the completion step rewrites 'completion'
+        \Log::info('Project completed with unsettled monthly expenses', ['project_id' => $project->id, 'project' => $project->name] + $decision);
+
+        return null;
     }
 
     /**
@@ -1403,6 +1439,11 @@ class ProjectController extends Controller
             'completion_notes' => 'nullable|string',
         ]);
 
+        // Unsettled monthly expenses: stop here unless the admin chose Proceed Anyway (unrelated checks above still apply)
+        if ($gate = $this->gateUnsettledExpenses($request, $project)) {
+            return $gate;
+        }
+
         $photoUrls = $this->storage->uploadMultiple($request->file('photos'), 'projects/' . $project->id . '/completion');
 
         if (empty($photoUrls)) {
@@ -1514,9 +1555,6 @@ class ProjectController extends Controller
             'message'               => 'nullable|string',
             'target_employee_id'    => 'required|array|min:1',
             'target_employee_id.*'  => 'integer|exists:employees,id',
-            'request_date'          => 'nullable|date|before_or_equal:today',
-        ], [
-            'request_date.before_or_equal' => 'The request date cannot be in the future.',
         ]);
 
         $project = Project::findOrFail($id);
@@ -1568,16 +1606,9 @@ class ProjectController extends Controller
                 'status'              => 'open',
                 'target_employee_id'  => $targetEmployee->id,
             ]);
-            // A past Request Date (backfilling history) dates the request and its notification to that day
-            if (NotificationService::occurredOn($request->request_date)) {
-                $this->applyBackdate($progressRequest, $request->request_date, now()->format('H:i'));
-            }
             $progressRequest->save();
 
-            NotificationService::progressRequested(
-                $project, $targetEmployee, $request->message,
-                NotificationService::occurredOn($request->request_date)
-            );
+            NotificationService::progressRequested($project, $targetEmployee, $request->message);
             $requestedNames[] = $targetEmployee->first_name;
         }
 
@@ -1900,6 +1931,9 @@ class ProjectController extends Controller
             // Approving the Completion update completes the project — not while its finances are incomplete
             if ($newStatus === 'completed' && $project->status !== 'completed' && ($blocked = $this->blockIncompleteFinancials($project))) {
                 return $blocked;
+            }
+            if ($newStatus === 'completed' && $project->status !== 'completed' && ($gate = $this->gateUnsettledExpenses($request, $project, $update->id))) {
+                return $gate;
             }
 
             $update->update(['status' => 'approved']);

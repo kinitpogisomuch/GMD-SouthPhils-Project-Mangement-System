@@ -345,6 +345,9 @@ function showLogSuccess(message) {
 /* ── Init ─────────────────────────────────────────────── */
 
 (function() {
+    // The phase tracker only exists on the project page — every other page loads this file without its data
+    if (typeof PROJECT_DURATION === 'undefined' || typeof EMP_PHASES === 'undefined') return;
+
     var adjustedDays = empAdjustDays(PROJECT_DURATION);
     EMP_PHASES.forEach(function(p, i) { p.days = adjustedDays[i]; });
 

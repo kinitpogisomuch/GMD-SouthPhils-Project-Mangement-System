@@ -347,17 +347,6 @@
                               placeholder="Any other details that would help us prepare your quotation...">{{ old('notes') }}</textarea>
                 </div>
 
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>Submitted Date <span style="font-size:11px;color:var(--muted);font-weight:400;">(optional — leave blank for today)</span></label>
-                        <input type="date" name="submitted_date" value="{{ old('submitted_date') }}">
-                    </div>
-                    <div class="form-group">
-                        <label>Submitted Time <span style="font-size:11px;color:var(--muted);font-weight:400;">(optional)</span></label>
-                        <input type="time" name="submitted_time" value="{{ old('submitted_time') }}">
-                    </div>
-                </div>
-
                 <div class="qr-submit-row">
                     <span class="qr-submit-hint">
                         <i data-lucide="info" style="width:12px;height:12px;vertical-align:-1px;"></i>

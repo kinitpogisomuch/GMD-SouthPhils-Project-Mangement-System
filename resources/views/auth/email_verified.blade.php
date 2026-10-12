@@ -69,14 +69,6 @@
         .vf-desc { font-size: 14px; line-height: 1.6; color: var(--muted); margin: 0 0 20px; }
         .vf-desc strong { color: var(--dark); }
 
-        .vf-steps { list-style: none; margin: 0 0 20px; padding: 12px 16px; border: 1px solid var(--border); border-radius: 14px; background: #fafafa; text-align: left; }
-        .vf-steps li { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 700; color: var(--muted); padding: 5px 0; }
-        .vf-steps .dot { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-                         font-size: 11px; font-weight: 900; background: #eee; color: #888; }
-        .vf-steps li.done { color: #207A3A; } .vf-steps li.done .dot { background: #207A3A; color: #fff; }
-        .vf-steps li.current { color: var(--dark); } .vf-steps li.current .dot { background: var(--dark); color: #fff; }
-        .vf-steps .dot svg { width: 12px; height: 12px; }
-
         .vf-resend { margin: 4px 0 14px; padding-top: 16px; border-top: 1px solid var(--border); text-align: left; }
         .vf-resend p { font-size: 12.5px; color: var(--muted); margin: 0 0 10px; text-align: center; }
 
@@ -171,15 +163,7 @@
                         @endif
                     </p>
 
-                    @if($isVerified)
-                    {{-- Sign Up → Verify Email → Admin Approval → Set up account & log in --}}
-                    <ul class="vf-steps">
-                        <li class="done"><span class="dot"><i data-lucide="check"></i></span>Sign up</li>
-                        <li class="done"><span class="dot"><i data-lucide="check"></i></span>Verify your email</li>
-                        <li class="{{ $approved ? 'done' : 'current' }}"><span class="dot">@if($approved)<i data-lucide="check"></i>@else 3 @endif</span>Administrator approval</li>
-                        <li class="{{ $active ? 'done' : ($approved ? 'current' : '') }}"><span class="dot">@if($active)<i data-lucide="check"></i>@else 4 @endif</span>Set up your account from the approval email, then log in</li>
-                    </ul>
-                    @else
+                    @unless($isVerified)
                     <div class="vf-resend">
                         <p>Enter your email address and we'll send you a new verification link.</p>
                         <form method="POST" action="{{ route('signup.resend_verification') }}">
@@ -193,7 +177,7 @@
                             <button type="submit" class="vf-btn"><i data-lucide="send"></i><span>Resend verification email</span></button>
                         </form>
                     </div>
-                    @endif
+                    @endunless
 
                     {{-- Logging in only works once the account is set up (Active), so the button appears only then --}}
                     @if($active)

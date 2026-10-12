@@ -128,6 +128,7 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::post('/payments/{id}/billing-statements', [PaymentController::class, 'storeBillingStatement'])->name('payments.billing_statements.store');
     Route::get('/payments/{id}/billing-statements/{statementId}', [PaymentController::class, 'showBillingStatement'])->name('payments.billing_statements.show');
     Route::post('/payments/{id}/billing-statements/{statementId}/send', [PaymentController::class, 'sendBillingStatement'])->name('payments.billing_statements.send');
+    Route::post('/payments/{id}/proofs/{proofId}/return', [PaymentController::class, 'returnProof'])->name('payments.proofs.return');
     Route::get('/revolving-fund', [FundController::class, 'index'])->name('revolving_fund');
     Route::post('/revolving-fund/setup', [FundController::class, 'setupInitial'])->name('revolving_fund.setup_initial');
     Route::post('/revolving-fund/top-up', [FundController::class, 'topUp'])->name('revolving_fund.top_up');
@@ -287,6 +288,7 @@ Route::prefix('client')->name('client.')->middleware(['role:client', 'profile.co
     Route::get('/payments/{id}', [PaymentController::class, 'clientShow'])->name('payments.show');
     Route::get('/payments/{id}/billing-statements/{statementId}', [PaymentController::class, 'clientShowBillingStatement'])->name('payments.billing_statements.show');
     Route::post('/payments/{id}/proof', [PaymentController::class, 'uploadProof'])->name('payments.proof.store');
+    Route::post('/payments/{id}/proofs/{proofId}/resubmit', [PaymentController::class, 'resubmitProof'])->name('payments.proofs.resubmit');
     Route::get('/project-view/{id}', [ProjectController::class, 'clientView'])->name('project_view');
     Route::get('/projects/{projectId}/performance-test-reports/{reportId}', [PerformanceTestReportController::class, 'clientShow'])->name('performance_test_reports.show');
     Route::post('/project/{id}/shop-drawing/approve', [ProjectController::class, 'approveShopDrawing'])->name('project.shop_drawing.approve');

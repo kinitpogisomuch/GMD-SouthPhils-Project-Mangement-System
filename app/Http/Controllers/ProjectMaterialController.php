@@ -10,12 +10,9 @@ use App\Models\Employee;
 use App\Models\MaterialRequest;
 use App\Models\MaterialPurchase;
 use App\Services\NotificationService;
-use App\Http\Controllers\Concerns\BackdatesRecords;
 
 class ProjectMaterialController extends Controller
 {
-    use BackdatesRecords;
-
     // -----------------------------------------------------------------------
     // Admin
     // -----------------------------------------------------------------------
@@ -51,7 +48,7 @@ class ProjectMaterialController extends Controller
         $totalMaterials  = $activeMaterials->count();
         $totalQuantity   = $activeMaterials->sum('quantity');
         $estimatedCost   = $activeMaterials->sum('total_cost');
-        $materialFactor  = $materials->first()->factor ?? 0;
+        $materialFactor  = $materials->first()->factor ?? ProjectMaterial::DEFAULT_FACTOR;
 
         $regularEmployees = Employee::where('status', 'Active')
             ->where('employee_type', 'Regular')
@@ -174,8 +171,6 @@ class ProjectMaterialController extends Controller
             'factor'             => 'required|numeric|min:0|max:100',
             'notes'              => 'nullable|array',
             'notes.*'            => 'nullable|string',
-            'entry_date'         => 'nullable|date',
-            'entry_time'         => 'nullable|date_format:H:i',
         ]);
 
         [$createdCount, $updatedCount, $deletedCount] = $this->syncMaterials($request, $project);
@@ -289,7 +284,6 @@ class ProjectMaterialController extends Controller
                 'notes'          => $notes[$i] ?? null,
                 'status'         => 'active',
             ]);
-            $this->applyBackdate($material, $request->entry_date, $request->entry_time);
             $material->save();
 
             $createdCount++;
@@ -319,13 +313,18 @@ class ProjectMaterialController extends Controller
         $pay          = $project->getPaymentRecord();
         $termsLocked  = $pay && $pay->transactions()->exists();
 
+        // Price / Unit and the daily rates are shown with thousands separators — "15,000.00" is 15000
+        foreach (['price_per_unit', 'daily_rate', 'quantity'] as $field) {
+            if (is_array($request->input($field))) {
+                $request->merge([$field => array_map(fn ($v) => is_string($v) ? str_replace([',', ' '], '', $v) : $v, $request->input($field))]);
+            }
+        }
+
         $request->validate([
             'markup_percent'         => $pay ? 'required|numeric|min:0|max:100' : 'nullable',
             'payment_term_type'      => ($pay && !$termsLocked) ? 'required|in:big_project,small_project' : 'nullable',
             'factor'                 => 'required|numeric|min:0|max:100',
             'estimated_working_days' => 'required|numeric|gt:0',
-            'entry_date'             => 'nullable|date',
-            'entry_time'             => 'nullable|date_format:H:i',
 
             'material_id'            => 'nullable|array',
             'delete_material_id'     => 'nullable|array',
@@ -411,7 +410,6 @@ class ProjectMaterialController extends Controller
                     'total_cost'  => round($rate * $days, 2),
                     'status'      => 'active',
                 ]);
-                $this->applyBackdate($labor, $request->entry_date, $request->entry_time);
                 $labor->save();
                 $added++;
             }
@@ -439,7 +437,15 @@ class ProjectMaterialController extends Controller
                 $oldBudget = (float) $pay->project_budget;
                 $oldPct    = $oldBudget > 0 ? round((float) $pay->markup / $oldBudget * 100, 2) : null;
 
-                if ($oldPct === null || abs($newPct - $oldPct) > 0.004 || $newTerms !== $pay->payment_term_type) {
+                $markupChanged = $oldPct === null || abs($newPct - $oldPct) > 0.004;
+                // a new markup must be within the allowed range (an older one is kept as it was)
+                if ($markupChanged && ($newPct < \App\Models\QuotationBatch::MARKUP_MIN || $newPct > \App\Models\QuotationBatch::MARKUP_MAX)) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'markup_percent' => 'Markup must be between ' . \App\Models\QuotationBatch::MARKUP_MIN . '% and ' . \App\Models\QuotationBatch::MARKUP_MAX . '%.',
+                    ]);
+                }
+
+                if ($markupChanged || $newTerms !== $pay->payment_term_type) {
                     $budget   = $oldBudget > 0 ? $oldBudget : (float) $project->fresh()->estimatedBudget()['total'];
                     $markup   = round($budget * $newPct / 100, 2);
                     $contract = round($budget + $markup, 2);
@@ -495,8 +501,6 @@ class ProjectMaterialController extends Controller
             'role.*'           => 'nullable|string|max:255',
             'daily_rate'       => 'required|array|min:1',
             'daily_rate.*'     => 'required|numeric|min:0',
-            'entry_date'       => 'nullable|date',
-            'entry_time'       => 'nullable|date_format:H:i',
         ]);
 
         $project->update(['estimated_working_days' => $request->input('estimated_working_days')]);
@@ -517,7 +521,6 @@ class ProjectMaterialController extends Controller
                 'total_cost'  => round($rate * $project->estimated_working_days, 2),
                 'status'      => 'active',
             ]);
-            $this->applyBackdate($labor, $request->entry_date, $request->entry_time);
             $labor->save();
         }
 
@@ -607,7 +610,7 @@ class ProjectMaterialController extends Controller
             ->get();
 
         $adjCost = $materials->sum(function ($material) {
-            $factor = $material->factor ?? 7;
+            $factor = $material->factor ?? ProjectMaterial::DEFAULT_FACTOR;
             return round($material->total_cost * (1 + $factor / 100), 2);
         });
         $count = $materials->count();

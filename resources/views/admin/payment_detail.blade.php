@@ -114,6 +114,49 @@
             </div>
             @endif
 
+            {{-- A stage is due but the client hasn't been billed for it: they aren't asked to pay (and can't
+                 submit proof) until a billing statement is sent --}}
+            @php
+                $billingPending = $payment->billingPendingStage();
+                $billingDraft   = $billingPending ? $payment->unsentStatementFor($billingPending) : null;
+            @endphp
+            @if($billingPending)
+            <div class="pd-billing-pending">
+                <div class="pd-billing-icon"><i data-lucide="file-clock"></i></div>
+                <div class="pd-billing-body">
+                    <div class="pd-billing-title">Billing statement not sent — {{ \App\Models\PaymentTransaction::stageLabel($billingPending) }} (₱{{ number_format($payment->stageAmountsDue()[$billingPending] ?? 0, 2) }})</div>
+                    <div class="pd-billing-text">
+                        @if($billingDraft)
+                        A statement dated {{ $billingDraft->statement_date->format('M d, Y') }} is prepared but hasn't been sent. The client isn't notified and can't submit payment until you send it.
+                        @else
+                        This payment phase is due, but the client hasn't been billed yet. They aren't notified and can't submit payment until a billing statement is sent.
+                        @endif
+                    </div>
+                </div>
+                @if($billingDraft)
+                <a href="{{ route('admin.payments.billing_statements.show', [$payment->id, $billingDraft->id]) }}" class="save-btn" style="text-decoration:none;white-space:nowrap;">
+                    <i data-lucide="send"></i> Review &amp; Send
+                </a>
+                @else
+                <button type="button" class="save-btn" style="white-space:nowrap;" onclick="document.getElementById('generateBillingBtn').click()">
+                    <i data-lucide="file-plus"></i> Prepare Statement
+                </button>
+                @endif
+            </div>
+            <style>
+                .pd-billing-pending { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; padding: 14px 18px; border-radius: 16px; background: #fffbeb; border: 1px solid #fde68a; }
+                .pd-billing-icon { width: 38px; height: 38px; border-radius: 12px; background: #fef3c7; color: #b45309; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+                .pd-billing-icon svg { width: 18px; height: 18px; }
+                .pd-billing-body { flex: 1; min-width: 0; }
+                .pd-billing-title { font-size: 14px; font-weight: 800; color: var(--dark); }
+                .pd-billing-text { margin-top: 3px; font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+                @media (max-width: 640px) {
+                    .pd-billing-pending { flex-wrap: wrap; align-items: flex-start; }
+                    .pd-billing-pending .save-btn { width: 100%; justify-content: center; }
+                }
+            </style>
+            @endif
+
             <!-- Summary Cards -->
             <div class="page-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 24px;">
                 <div class="info-card teal">
@@ -178,7 +221,7 @@
                                  or if the stage happens to be fully settled some other way. --}}
                             @php $proofSettled = $proof->status === 'confirmed' || in_array($proof->payment_stage, $paidStages); @endphp
                             <tr>
-                                <td style="white-space:nowrap;color:var(--muted);">{{ $proof->created_at->format('M d, Y') }}</td>
+                                <td style="white-space:nowrap;color:var(--muted);">{{ $proof->submittedAt()->format('M d, Y') }}</td>
                                 <td><strong>{{ \App\Models\PaymentTransaction::stageLabel($proof->payment_stage) }}</strong></td>
                                 <td style="text-align:center;"><strong>₱{{ number_format($proof->amount ?? 0, 2) }}</strong></td>
                                 <td style="text-align:center;">{{ $proof->modeOfPaymentLabel() }}</td>
@@ -195,20 +238,39 @@
                                 <td style="text-align:center;">
                                     @if($proofSettled)
                                         <span class="status-badge completed">Confirmed</span>
+                                    @elseif($proof->needsCorrection())
+                                        <span class="status-badge" style="background:#fef3c7;color:#92400e;">Needs Correction</span>
+                                        <div style="margin-top:4px;font-size:11.5px;color:var(--muted);max-width:220px;margin-left:auto;margin-right:auto;white-space:normal;">“{{ $proof->correction_reason }}”</div>
                                     @else
-                                        <span class="status-badge pending">Pending Review</span>
+                                        <span class="status-badge pending">{{ $proof->resubmitted_at ? 'Resubmitted' : 'Pending Review' }}</span>
+                                    @endif
+                                    @if(!empty($proof->revisions))
+                                        <button type="button" class="pd-history-link" data-proof-history="{{ $proof->id }}">
+                                            {{ count($proof->revisions) }} earlier version{{ count($proof->revisions) === 1 ? '' : 's' }}
+                                        </button>
                                     @endif
                                 </td>
                                 <td style="text-align:right;white-space:nowrap;">
-                                    @if(!$proofSettled && $status !== 'Fully Paid')
-                                    <button type="button" class="save-btn" style="padding:7px 12px;font-size:12px;"
-                                            data-record-proof
-                                            data-id="{{ $proof->id }}"
-                                            data-stage="{{ $proof->payment_stage }}" data-amount="{{ $proof->amount }}" data-mode="{{ $proof->mode_of_payment }}" data-date="{{ $proof->created_at->format('Y-m-d') }}"
-                                            data-summary="{{ \App\Models\PaymentTransaction::stageLabel($proof->payment_stage) }} · ₱{{ number_format($proof->amount ?? 0, 2) }} ({{ $proof->modeOfPaymentLabel() }})">
-                                        <i data-lucide="check" style="width:13px;height:13px;"></i>
-                                        Record Payment
-                                    </button>
+                                    @if(!$proofSettled && $status !== 'Fully Paid' && !$proof->needsCorrection())
+                                    <div style="display:inline-flex;gap:6px;">
+                                        <button type="button" class="cancel-btn" style="padding:7px 12px;font-size:12px;"
+                                                data-return-proof
+                                                data-action="{{ route('admin.payments.proofs.return', [$payment->id, $proof->id]) }}"
+                                                data-summary="{{ \App\Models\PaymentTransaction::stageLabel($proof->payment_stage) }} · ₱{{ number_format($proof->amount ?? 0, 2) }} ({{ $proof->modeOfPaymentLabel() }})">
+                                            <i data-lucide="corner-up-left" style="width:13px;height:13px;"></i>
+                                            Return
+                                        </button>
+                                        <button type="button" class="save-btn" style="padding:7px 12px;font-size:12px;"
+                                                data-record-proof
+                                                data-id="{{ $proof->id }}"
+                                                data-stage="{{ $proof->payment_stage }}" data-amount="{{ $proof->amount }}" data-mode="{{ $proof->mode_of_payment }}" data-date="{{ $proof->submittedAt()->format('Y-m-d') }}"
+                                                data-summary="{{ \App\Models\PaymentTransaction::stageLabel($proof->payment_stage) }} · ₱{{ number_format($proof->amount ?? 0, 2) }} ({{ $proof->modeOfPaymentLabel() }})">
+                                            <i data-lucide="check" style="width:13px;height:13px;"></i>
+                                            Record Payment
+                                        </button>
+                                    </div>
+                                    @elseif($proof->needsCorrection())
+                                    <span style="font-size:12px;font-weight:700;color:var(--muted);">Waiting for the client</span>
                                     @endif
                                 </td>
                             </tr>
@@ -933,7 +995,114 @@
             color: #fff;
             box-shadow: 0 4px 12px rgba(14,20,40,.25);
         }
+        .pd-history-link { display: block; margin: 5px auto 0; padding: 0; border: none; background: none; font-size: 11.5px; font-weight: 700; color: var(--accent, #2563eb); cursor: pointer; text-decoration: underline; }
+        .pd-rev { padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; margin-bottom: 8px; font-size: 12.5px; line-height: 1.6; color: var(--dark); }
+        .pd-rev-head { display: flex; justify-content: space-between; gap: 10px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+        .pd-rev-reason { margin-top: 4px; padding: 6px 9px; border-radius: 8px; background: #fffbeb; color: #92400e; font-size: 12px; }
     </style>
+
+    {{-- ===== RETURN A CLIENT SUBMISSION FOR CORRECTION ===== --}}
+    <div class="modal-overlay" id="returnProofModal">
+        <div class="modal-card" style="max-width:480px;">
+            <div class="modal-header">
+                <div>
+                    <h2>Return for Correction</h2>
+                    <p id="returnProofSummary">The client will be asked to correct and resubmit this payment.</p>
+                </div>
+                <button class="modal-close" type="button" data-close-return><i data-lucide="x"></i></button>
+            </div>
+            <form method="POST" id="returnProofForm">
+                @csrf
+                <div class="form-group">
+                    <label>What needs to be corrected? <span style="color:#dc2626;">*</span></label>
+                    <textarea name="correction_reason" rows="4" maxlength="1000" required style="resize:vertical;"
+                              placeholder="e.g. The amount on the receipt is ₱45,000, not ₱50,000. Please check the amount and upload the correct receipt.">{{ old('correction_reason') }}</textarea>
+                    @error('correction_reason')<div style="margin-top:6px;font-size:12px;font-weight:700;color:#b91c1c;">{{ $message }}</div>@enderror
+                    <small style="display:block;margin-top:6px;font-size:12px;color:var(--muted);">The client sees this reason and can resubmit the same submission. Nothing is recorded as paid.</small>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="cancel-btn" data-close-return>Cancel</button>
+                    <button type="submit" class="save-btn" style="background:#b45309;border-color:#b45309;">
+                        <i data-lucide="corner-up-left"></i> Return to Client
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {{-- ===== EARLIER VERSIONS OF A SUBMISSION (kept for the record) ===== --}}
+    <div class="modal-overlay" id="proofHistoryModal">
+        <div class="modal-card" style="max-width:520px;max-height:85vh;display:flex;flex-direction:column;">
+            <div class="modal-header">
+                <div>
+                    <h2>Submission History</h2>
+                    <p>Earlier versions the client replaced, oldest first.</p>
+                </div>
+                <button class="modal-close" type="button" data-close-history><i data-lucide="x"></i></button>
+            </div>
+            <div id="proofHistoryBody" style="overflow-y:auto;"></div>
+        </div>
+    </div>
+
+    @php
+        // earlier versions of each resubmitted submission, ready to show in the history modal
+        $proofHistory = [];
+        foreach ($proofs as $p) {
+            foreach ($p->revisions ?? [] as $r) {
+                $proofHistory[$p->id][] = [
+                    'amount'   => '₱' . number_format((float) ($r['amount'] ?? 0), 2),
+                    'mode'     => \App\Models\PaymentProof::modeLabel($r['mode_of_payment'] ?? null),
+                    'file'     => $r['file_url'] ?? null,
+                    'notes'    => $r['notes'] ?? null,
+                    'reason'   => $r['correction_reason'] ?? null,
+                    'sent'     => !empty($r['submitted_at']) ? \Carbon\Carbon::parse($r['submitted_at'])->format('M d, Y g:i A') : '—',
+                    'replaced' => !empty($r['replaced_at']) ? \Carbon\Carbon::parse($r['replaced_at'])->format('M d, Y g:i A') : '—',
+                ];
+            }
+        }
+    @endphp
+    <script>
+    (function () {
+        var PROOF_HISTORY = @json($proofHistory);
+
+        function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+        function show(m) { m.classList.add('show'); document.body.style.overflow = 'hidden'; }
+        function hide(m) { m.classList.remove('show'); document.body.style.overflow = ''; }
+
+        var returnModal = document.getElementById('returnProofModal');
+        document.querySelectorAll('[data-return-proof]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                document.getElementById('returnProofForm').action = btn.dataset.action;
+                document.getElementById('returnProofSummary').textContent = 'Returning ' + btn.dataset.summary + ' — the client will correct and resubmit it.';
+                show(returnModal);
+                returnModal.querySelector('textarea').focus();
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            });
+        });
+        returnModal.querySelectorAll('[data-close-return]').forEach(function (b) { b.addEventListener('click', function () { hide(returnModal); }); });
+
+        var historyModal = document.getElementById('proofHistoryModal');
+        document.querySelectorAll('[data-proof-history]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var rows = PROOF_HISTORY[btn.dataset.proofHistory] || [];
+                document.getElementById('proofHistoryBody').innerHTML = rows.map(function (r, i) {
+                    return '<div class="pd-rev">' +
+                        '<div class="pd-rev-head"><span>Version ' + (i + 1) + ' · sent ' + esc(r.sent) + '</span><span>replaced ' + esc(r.replaced) + '</span></div>' +
+                        '<div><strong>' + esc(r.amount) + '</strong> · ' + esc(r.mode) +
+                            (r.file ? ' · <a href="' + esc(r.file) + '" target="_blank" data-receipt>View file</a>' : ' · no file') + '</div>' +
+                        (r.notes ? '<div style="color:var(--muted);">Note: ' + esc(r.notes) + '</div>' : '') +
+                        (r.reason ? '<div class="pd-rev-reason">Returned: ' + esc(r.reason) + '</div>' : '') +
+                    '</div>';
+                }).join('');
+                show(historyModal);
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            });
+        });
+        historyModal.querySelectorAll('[data-close-history]').forEach(function (b) { b.addEventListener('click', function () { hide(historyModal); }); });
+
+        [returnModal, historyModal].forEach(function (m) { m.addEventListener('click', function (e) { if (e.target === m) hide(m); }); });
+    })();
+    </script>
     @include('partials.receipt_viewer')
 
 </body>

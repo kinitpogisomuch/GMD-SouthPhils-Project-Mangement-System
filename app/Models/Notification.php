@@ -86,6 +86,8 @@ class Notification extends Model
         'payment_due'                      => 'wallet',
         'payment_received'                 => 'badge-check',
         'payment_proof_submitted'          => 'file-check',
+        'payment_proof_returned'           => 'file-warning',
+        'payment_proof_resubmitted'        => 'file-check-2',
         'low_stock_summary'                => 'package-search',
     ];
 

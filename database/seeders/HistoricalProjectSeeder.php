@@ -30,6 +30,12 @@ class HistoricalProjectSeeder extends Seeder
 {
     const HISTORICAL_TAG = 'Historical record';
 
+    // The waste/handling allowance on materials — already inside the sheet's estimated material cost.
+    const MATERIAL_FACTOR = 10;
+
+    // The owner's profit on every past project, as a % of the Project Budget.
+    const MARKUP = 10;
+
     // The crew and their daily rates at the time (from the sheet).
     const CREW = [
         ['first' => 'Andres',  'last' => 'Cabanban', 'role' => 'Welder',       'rate' => 700],
@@ -361,14 +367,21 @@ class HistoricalProjectSeeder extends Seeder
      * BOM lines totalling the sheet's Estimated Material Cost, purchases totalling the Actual
      * Material Cost, and usage logs. The MS Plates line (the main cost driver) absorbs whatever
      * the consumables don't cover, so both totals match the sheet to the peso.
+     *
+     * The sheet's estimate already includes the 10% material factor, so each line is stored at its
+     * base cost with MATERIAL_FACTOR on top — like a quotation built in the system — and base × 1.10
+     * gives back the sheet's estimate exactly.
      */
     private function seedMaterials(int $projectId, array $p, string $tankType, Carbon $start, Carbon $finish): void
     {
         $lines = $this->bomFor(strtolower($tankType), $p['qty']);
         $consumables = collect($lines)->reject(fn ($l) => $l[0] === 'MS Plates')->sum(fn ($l) => $l[2] * $l[4]);
-        $platesTotal = round($p['est_mat'] - $consumables, 2);
+        $platesTotal = round($this->estimatedMaterials($p) - $consumables, 2);
+        $toBase      = fn (float $v) => round($v / (1 + self::MATERIAL_FACTOR / 100), 2);
+        $baseTotal   = $toBase($this->estimatedMaterials($p));
+        $baseOthers  = collect($lines)->reject(fn ($l) => $l[0] === 'MS Plates')->sum(fn ($l) => $toBase(round($l[2] * $l[4], 2)));
 
-        $ratio      = $p['act_mat'] / $p['est_mat'];          // actual vs estimate, applied to every line
+        $ratio      = $p['act_mat'] / $this->estimatedMaterials($p);          // actual vs estimate, applied to every line
         $suppliers  = $this->supplierNames();
         $procureDays = max(2, (int) ($start->diffInDays($finish) * 0.4));   // buying happens early in the job
         $spent      = 0;
@@ -384,15 +397,18 @@ class HistoricalProjectSeeder extends Seeder
                 $total = round($qty * $price, 2);
             }
 
+            // base cost (factor added on top); the plates line takes the rounding so the base lines total estimate ÷ 1.10
+            $base = $isPlates ? round($baseTotal - $baseOthers, 2) : $toBase($total);
+
             $materialId = DB::table('project_materials')->insertGetId([
                 'project_id'     => $projectId,
                 'material_name'  => $name,
                 'category'       => $category,
                 'quantity'       => $qty,
                 'unit'           => $unit,
-                'price_per_unit' => $price,
-                'total_cost'     => $total,
-                'factor'         => 0,   // the sheet's estimate already is the budgeted material cost
+                'price_per_unit' => round($base / max($qty, 1), 2),
+                'total_cost'     => $base,
+                'factor'         => self::MATERIAL_FACTOR,
                 'status'         => 'active',
                 'created_at'     => $start->toDateTimeString(),
                 'updated_at'     => $start->toDateTimeString(),
@@ -459,9 +475,24 @@ class HistoricalProjectSeeder extends Seeder
         }
     }
 
+    /**
+     * Past projects carry the standard markup: the contract (fixed by what the client paid) is the
+     * Project Budget + MARKUP %, so the budget is contract ÷ 1.10.
+     */
+    private function projectBudget(array $p): float
+    {
+        return round($p['contract'] / (1 + self::MARKUP / 100), 2);
+    }
+
+    /** Estimated materials (with the 10% factor) = the budget less the estimated labor. */
+    private function estimatedMaterials(array $p): float
+    {
+        return round($this->projectBudget($p) - $p['est_labor'], 2);
+    }
+
     private function seedPayment(int $projectId, array $p, string $terms, Carbon $start, Carbon $delivered): void
     {
-        $budget = $p['est_mat'] + $p['est_labor'];
+        $budget = $this->projectBudget($p);   // contract ÷ 1.10 — the standard 10% markup
 
         $paymentId = DB::table('payments')->insertGetId([
             'project_id'        => $projectId,

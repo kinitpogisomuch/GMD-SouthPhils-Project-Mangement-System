@@ -99,7 +99,9 @@
                                     preg_match('/^(\d+)\s+phase/i', $payment->payment_terms, $pm);
                                     $phases = isset($pm[1]) ? $pm[1].' phases' : $payment->payment_terms;
                                 }
-                                $awaitingStage = $payment->project ? $payment->project->awaitingPaymentStage() : null;
+                                $awaitingStage  = $payment->project ? $payment->project->awaitingPaymentStage() : null;
+                                // due, but no billing statement sent yet — the client hasn't been asked to pay
+                                $billingPending = $status !== 'Fully Paid' ? $payment->billingPendingStage() : null;
                             @endphp
                             <tr data-search="{{ strtolower($payment->project->name ?? '') }}"
                                 class="{{ $awaitingStage ? 'row-needs-action' : '' }}">
@@ -112,6 +114,11 @@
                                         @if($awaitingStage)
                                         <span title="No payment recorded yet for {{ \App\Models\PaymentTransaction::stageLabel($awaitingStage) }}" style="display:inline-flex;align-items:center;gap:3px;margin-top:3px;font-size:9.5px;font-weight:800;color:#b45309;background:#fff3cd;border-radius:999px;padding:2px 7px;width:fit-content;">
                                             <i data-lucide="alert-triangle" style="width:9px;height:9px;"></i> Needs {{ \App\Models\PaymentTransaction::stageLabel($awaitingStage) }}
+                                        </span>
+                                        @endif
+                                        @if($billingPending)
+                                        <span title="{{ \App\Models\PaymentTransaction::stageLabel($billingPending) }} is due, but no billing statement has been sent — the client hasn't been asked to pay" style="display:inline-flex;align-items:center;gap:3px;margin-top:3px;font-size:9.5px;font-weight:800;color:#1e40af;background:#dbeafe;border-radius:999px;padding:2px 7px;width:fit-content;">
+                                            <i data-lucide="file-clock" style="width:9px;height:9px;"></i> Billing not sent
                                         </span>
                                         @endif
                                     </span>

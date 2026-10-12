@@ -463,7 +463,7 @@ class KpiDashboardController extends Controller
             // so the live-estimate fallback below matches what it's standing in for.
             'bomMatCostByProject' => ProjectMaterial::whereIn('project_id', $projectIds)
                 ->where('status', 'active')
-                ->selectRaw('project_id, SUM(total_cost * (1 + COALESCE(factor, 7) / 100.0)) as total')
+                ->selectRaw('project_id, SUM(total_cost * (1 + COALESCE(factor, ' . (int) \App\Models\ProjectMaterial::DEFAULT_FACTOR . ') / 100.0)) as total')
                 ->groupBy('project_id')
                 ->pluck('total', 'project_id'),
             'laborPivotByProject' => \DB::table('salary_record_project')

@@ -311,7 +311,7 @@
             </div>
 
             {{-- Summary Cards --}}
-            <div class="page-grid" style="margin-bottom:24px;">
+            <div class="page-grid emp-compact-stats" style="margin-bottom:24px;">
                 <div class="info-card blue">
                     <div class="info-card-icon blue"><i data-lucide="package"></i></div>
                     <h3>Planned Materials</h3>
