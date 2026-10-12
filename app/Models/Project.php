@@ -16,6 +16,16 @@ class Project extends Model
             if (!$project->isDirty('status')) {
                 return;
             }
+
+            // No code path — admin form, employee update approval, or a backend process — may
+            // complete a project whose Financial Overview is incomplete.
+            if ($project->status === 'completed' && $project->getOriginal('status') !== 'completed' && !static::$financialCheckDisabled) {
+                $missing = $project->financialCompletionGaps();
+                if ($missing) {
+                    throw new \App\Exceptions\ProjectCompletionBlockedException($project->name, $missing);
+                }
+            }
+
             if ($project->status === 'completed' && !$project->completed_at) {
                 $project->completed_at = now();
             } elseif ($project->status !== 'completed') {
@@ -31,7 +41,82 @@ class Project extends Model
             if ($project->isDirty('status') && $project->status === 'completed') {
                 ProjectTemplate::snapshotFromCompletedProject($project);
             }
+
+            // Reaching a new phase can change which payment stage is due (e.g. at Delivery an unpaid
+            // progress payment rolls into the final payment) — tell the client once if it did.
+            if ($project->isDirty('current_phase') || $project->isDirty('status')) {
+                if ($payment = $project->getPaymentRecord()) {
+                    \App\Services\NotificationService::syncPaymentDue($payment);
+                }
+            }
         });
+    }
+
+    /** Set while seeders import already-finished projects, whose records are created after the project. */
+    private static bool $financialCheckDisabled = false;
+
+    /** Run $callback with the Financial Overview completion check switched off (seeders / data imports only). */
+    public static function withoutFinancialCheck(callable $callback)
+    {
+        $previous = static::$financialCheckDisabled;
+        static::$financialCheckDisabled = true;
+        try {
+            return $callback();
+        } finally {
+            static::$financialCheckDisabled = $previous;
+        }
+    }
+
+    /**
+     * What the Financial Overview still needs before this project may be marked Completed — empty when
+     * nothing is missing. These are the figures the overview, Net Profit and the KPIs are built from:
+     * the payment setup (terms + contract value), the estimated costs (Project Budget), the actual costs
+     * (material purchases and labor), and the down payment received. The final payment is not required:
+     * it is collected at delivery, which comes after completion. Overhead is not required either: it is
+     * shared out only once a month's expenses are recorded at month end.
+     *
+     * @return string[]
+     */
+    public function financialCompletionGaps(): array
+    {
+        if (!$this->exists) {
+            return ['a saved project with its payment setup and costs'];
+        }
+
+        $missing = [];
+        $payment = Payment::where('project_id', $this->id)->with('transactions')->first();
+
+        if (!$payment) {
+            $missing[] = 'the payment setup (payment terms and contract value) in the Payment module';
+        } else {
+            if (empty($payment->payment_term_type)) {
+                $missing[] = 'the payment terms';
+            }
+            if ((float) $payment->contract_amount <= 0) {
+                $missing[] = 'the contract value';
+            }
+        }
+
+        $estimate = $this->estimatedBudget();
+        if ((float) $estimate['materials'] <= 0 && (!$payment || (float) $payment->project_budget <= 0)) {
+            $missing[] = 'the estimated materials (bill of materials)';
+        }
+        if ((float) $estimate['labor'] <= 0 && (!$payment || (float) $payment->project_budget <= 0)) {
+            $missing[] = 'the estimated labor';
+        }
+
+        if ((float) MaterialPurchase::where('project_id', $this->id)->sum('total_paid') <= 0) {
+            $missing[] = 'the actual material purchases (Material Usage → Log New Purchase)';
+        }
+        if ((float) \DB::table('salary_record_project')->where('project_id', $this->id)->sum('allocated_pay') <= 0) {
+            $missing[] = 'the actual labor cost (salary records assigned to this project)';
+        }
+
+        if ($payment && $payment->payment_term_type && !in_array('down_payment', $payment->paidStages(), true)) {
+            $missing[] = 'the down payment, recorded in the Payment module';
+        }
+
+        return $missing;
     }
 
     protected $fillable = [

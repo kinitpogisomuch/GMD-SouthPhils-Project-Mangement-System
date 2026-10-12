@@ -253,33 +253,70 @@ class PaymentController extends Controller
             'payments/' . $payment->id . '/receipts'
         );
 
-        PaymentTransaction::create([
-            'payment_id'       => $payment->id,
-            'payment_stage'    => $validated['payment_stage'],
-            'amount_paid'      => $validated['amount_paid'],
-            'payment_date'     => $validated['payment_date'],
-            'mode_of_payment'  => $validated['mode_of_payment'] ?? null,
-            'reference_number' => $validated['reference_number'] ?? null,
-            'receipt_url'      => $receiptUrls[0] ?? null,
-            'receipt_urls'     => !empty($receiptUrls) ? $receiptUrls : null,
-            'notes'            => $validated['notes'] ?? null,
-            'recorded_by'      => auth()->user()->name ?? 'Admin',
-        ]);
+        // Recorded under a lock on this payment: two requests arriving together (a double click, or two
+        // admins) are handled one after the other, and the second sees what the first saved — so the
+        // stage, amount and OR number are checked again here before anything is written.
+        try {
+            $transaction = \DB::transaction(function () use ($payment, $validated, $receiptUrls) {
+                $locked = Payment::whereKey($payment->id)->lockForUpdate()->first();
+                $locked->load('project', 'transactions', 'proofs');
+                $stage = $validated['payment_stage'];
 
-        // The client's submission this was recorded from is now dealt with — mark it confirmed
-        // regardless of whether this payment alone fully settles the stage (it may be a partial).
-        if (!empty($validated['proof_id'])) {
-            $payment->proofs()->whereKey($validated['proof_id'])->update(['status' => 'confirmed']);
+                $orTaken = PaymentTransaction::whereRaw('LOWER(TRIM(reference_number)) = ?', [mb_strtolower($validated['reference_number'])])->exists();
+                if ($orTaken) {
+                    throw new \DomainException('OR / Serial Number "' . $validated['reference_number'] . '" is already used on another payment. If you just clicked Save twice, the payment was already recorded.');
+                }
+                if (($locked->proofStageStates(false)[$stage] ?? null) !== 'open') {
+                    throw new \DomainException('That payment stage cannot be recorded right now — it is already paid, closed, or waiting on an earlier stage.');
+                }
+                $amountsDue = $locked->stageAmountsDue();
+                $cap        = $stage === 'progress_payment' ? $amountsDue['final_payment'] : ($amountsDue[$stage] ?? 0);
+                $amount     = $stage === 'down_payment' ? ($amountsDue['down_payment'] ?? 0) : (float) $validated['amount_paid'];
+                if ($amount <= 0 || $amount > $cap + 0.01) {
+                    throw new \DomainException('That payment stage is already fully paid, or the amount is more than what is still due.');
+                }
+
+                $transaction = PaymentTransaction::create([
+                    'payment_id'       => $locked->id,
+                    'payment_stage'    => $stage,
+                    'amount_paid'      => $amount,
+                    'payment_date'     => $validated['payment_date'],
+                    'mode_of_payment'  => $validated['mode_of_payment'] ?? null,
+                    'reference_number' => $validated['reference_number'] ?? null,
+                    'receipt_url'      => $receiptUrls[0] ?? null,
+                    'receipt_urls'     => !empty($receiptUrls) ? $receiptUrls : null,
+                    'notes'            => $validated['notes'] ?? null,
+                    'recorded_by'      => auth()->user()->name ?? 'Admin',
+                ]);
+
+                // The client's submission this was recorded from is now dealt with — mark it confirmed
+                // regardless of whether this payment alone fully settles the stage (it may be a partial).
+                if (!empty($validated['proof_id'])) {
+                    $locked->proofs()->whereKey($validated['proof_id'])->update(['status' => 'confirmed']);
+                }
+
+                $locked->load('transactions');
+                $locked->recalculate();
+
+                FundTransaction::autoReplenish(
+                    $locked->project,
+                    (float) $amount,
+                    PaymentTransaction::stageLabel($stage),
+                    $validated['payment_date']
+                );
+
+                return $transaction;
+            });
+        } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
+            return back()->withInput()->with('error', 'OR / Serial Number "' . $validated['reference_number'] . '" is already used on another payment. If you just clicked Save twice, the payment was already recorded.');
+        } catch (\DomainException $e) {
+            return back()->withInput()->with('error', $e->getMessage());
         }
 
-        $payment->recalculate();
-
-        FundTransaction::autoReplenish(
-            $payment->project,
-            (float) $validated['amount_paid'],
-            PaymentTransaction::stageLabel($validated['payment_stage']),
-            $validated['payment_date']
-        );
+        // Tell the client (once per payment), and if the next stage is already billed, that it is now due
+        $payment->refresh();
+        NotificationService::paymentRecorded($payment, $transaction);
+        NotificationService::syncPaymentDue($payment);
 
         return redirect()->route('admin.payments.show', $payment->id)
             ->with('success', 'Payment recorded successfully.');
@@ -326,11 +363,23 @@ class PaymentController extends Controller
         $payment   = Payment::with('project')->findOrFail($id);
         $statement = $payment->billingStatements()->findOrFail($statementId);
 
+        // Sending again (a double click, or "Send" pressed later) keeps the first sent date and
+        // doesn't notify the client a second time.
+        if ($statement->sent_at) {
+            return redirect()->route('admin.payments.billing_statements.show', [$payment->id, $statement->id])
+                ->with('success', 'This billing statement was already sent to the client on ' . $statement->sent_at->format('M d, Y') . '.');
+        }
+
         $statement->sent_at = now();
         $statement->save();
 
         if ($payment->project) {
-            NotificationService::billingStatementSent($payment->project, $payment->id, $statement->id);
+            // A statement that bills a new stage tells the client which phase is due and how much;
+            // otherwise (e.g. a reminder for a stage already announced) the client gets the usual
+            // "billing statement sent" notice. Either way, once.
+            if (!NotificationService::syncPaymentDue($payment)) {
+                NotificationService::billingStatementSent($payment->project, $payment->id, $statement->id);
+            }
         }
 
         return redirect()->route('admin.payments.billing_statements.show', [$payment->id, $statement->id])
@@ -472,15 +521,34 @@ class PaymentController extends Controller
             $fileUrl = $fileUrls[0];
         }
 
-        $proof = $payment->proofs()->make([
-            'payment_stage'   => $validated['payment_stage'],
-            'amount'          => $validated['amount_paid'],
-            'mode_of_payment' => $validated['mode_of_payment'],
-            'file_url'        => $fileUrl,
-            'notes'           => $validated['notes'] ?? null,
-        ]);
-        $this->applyBackdate($proof, $validated['submitted_date'] ?? null);
-        $payment->proofs()->save($proof);
+        // Saved under a lock on this payment so simultaneous submissions are handled one at a time, and
+        // the stage is checked again in case the first one (or an admin) just settled it.
+        $proof = \DB::transaction(function () use ($payment, $validated, $fileUrl) {
+            $locked = Payment::whereKey($payment->id)->lockForUpdate()->first();
+            $locked->load('project', 'transactions', 'proofs');
+            if (!in_array($validated['payment_stage'], $locked->stagesOpenForProof(), true)) {
+                return null;
+            }
+
+            $proof = $locked->proofs()->make([
+                'payment_stage'   => $validated['payment_stage'],
+                'amount'          => $validated['amount_paid'],
+                'mode_of_payment' => $validated['mode_of_payment'],
+                'file_url'        => $fileUrl,
+                'notes'           => $validated['notes'] ?? null,
+            ]);
+            $this->applyBackdate($proof, $validated['submitted_date'] ?? null);
+            $locked->proofs()->save($proof);
+
+            return $proof;
+        });
+
+        if (!$proof) {
+            return redirect()->route('client.payments.show', $payment->id)
+                ->with('error', 'That payment stage is no longer open for proof of payment — it may have just been settled.');
+        }
+
+        NotificationService::paymentProofSubmitted($payment, $proof);
 
         return redirect()->route('client.payments.show', $payment->id)
             ->with('success', 'Proof of payment submitted. Our team will verify it shortly.');

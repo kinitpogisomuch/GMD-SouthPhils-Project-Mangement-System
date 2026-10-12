@@ -19,6 +19,8 @@ class FundTransaction extends Model
         'status',
         'balance_after',
         'recorded_by',
+        'source_type',
+        'source_ref',
     ];
 
     protected $casts = [

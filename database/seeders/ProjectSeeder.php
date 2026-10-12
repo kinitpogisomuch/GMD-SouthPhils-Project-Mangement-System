@@ -10,6 +10,12 @@ class ProjectSeeder extends Seeder
 {
     public function run(): void
     {
+        // Some sample projects are created already completed, before their payments and costs exist.
+        \App\Models\Project::withoutFinancialCheck(fn () => $this->seedProjects());
+    }
+
+    private function seedProjects(): void
+    {
         // payments.project_id has no FK → must truncate explicitly before projects
         DB::statement('TRUNCATE TABLE payment_transactions CASCADE;');
         DB::statement('TRUNCATE TABLE payments CASCADE;');

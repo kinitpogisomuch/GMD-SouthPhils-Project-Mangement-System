@@ -17,6 +17,7 @@ class MaterialPurchase extends Model
         'supplier',
         'purchase_date',
         'notes',
+        'fund_transaction_id',   // the revolving fund release that covered this purchase's overrun, if any
     ];
 
     protected $casts = [

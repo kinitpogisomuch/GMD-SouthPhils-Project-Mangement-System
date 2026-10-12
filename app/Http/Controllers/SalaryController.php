@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Employee;
 use App\Models\SalaryRecord;
+use App\Services\ProjectFunds;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class SalaryController extends Controller
 {
@@ -112,18 +114,63 @@ class SalaryController extends Controller
             'notes'          => $validated['notes'] ?? null,
         ]);
 
-        $record = SalaryRecord::updateOrCreate(
-            ['employee_id' => $employee->id, 'pay_period' => $validated['pay_period']],
-            $data
-        );
+        $existing = SalaryRecord::where('employee_id', $employee->id)->where('pay_period', $validated['pay_period'])->first();
+        $pivot    = $this->buildPivotData($request->input('allocations', []), $projectIds, (float) $employee->daily_rate);
 
-        $record->projects()->sync($this->buildPivotData(
-            $request->input('allocations', []),
-            $projectIds,
-            (float) $employee->daily_rate
-        ));
+        $saved = $this->saveWithinProjectFunds($request, $existing, $pivot,
+            'Labor over Total Received — ' . ($employee->full_name ?? 'employee') . ', week of ' . $validated['pay_period'],
+            function () use ($employee, $validated, $data, $pivot) {
+                $record = SalaryRecord::updateOrCreate(
+                    ['employee_id' => $employee->id, 'pay_period' => $validated['pay_period']],
+                    $data
+                );
+                $record->projects()->sync($pivot);
+                return $record;
+            });
 
-        return response()->json(['record' => $this->format($record->load('employee', 'projects'))]);
+        if (!$saved instanceof SalaryRecord) {
+            return $saved;   // the "exceeds Total Received" details, or why the fund couldn't cover it
+        }
+
+        return response()->json(['record' => $this->format($saved->load('employee', 'projects'))]);
+    }
+
+    /**
+     * Labor is paid from what each project's client has paid so far. Works out how much more labor this
+     * save puts on each project (compared with what the record already allocated). If a project can't
+     * afford it, the save only goes ahead when the admin chose to cover the difference from the revolving
+     * fund (use_fund) — otherwise the "exceeds Total Received" details are returned for the modal.
+     *
+     * @return SalaryRecord|\Illuminate\Http\JsonResponse
+     */
+    private function saveWithinProjectFunds(Request $request, ?SalaryRecord $existing, array $pivot, string $purpose, callable $save)
+    {
+        $before = $existing
+            ? DB::table('salary_record_project')->where('salary_record_id', $existing->id)->pluck('allocated_pay', 'project_id')->all()
+            : [];
+        $increase = [];
+        foreach ($pivot as $projectId => $row) {
+            $increase[$projectId] = round((float) $row['allocated_pay'] - (float) ($before[$projectId] ?? 0), 2);
+        }
+
+        $useFund = $request->boolean('use_fund');
+        if (!$useFund && ($overruns = ProjectFunds::overruns($increase))) {
+            return response()->json([
+                'message'      => 'This salary is more than the money received for ' . (count($overruns) === 1 ? 'this project' : 'these projects') . '.',
+                'fund_overrun' => ProjectFunds::overrunPayload($overruns),
+            ], 422);
+        }
+
+        try {
+            return DB::transaction(function () use ($useFund, $increase, $purpose, $save, $existing) {
+                if ($useFund) {
+                    ProjectFunds::coverOverruns($increase, $purpose, 'labor', $existing ? 'salary_record:' . $existing->id : null);
+                }
+                return $save();
+            });
+        } catch (\DomainException $e) {
+            return response()->json(['errors' => ['fund' => [$e->getMessage()]]], 422);
+        }
     }
 
     /** PUT /admin/salary-records/{id} */
@@ -150,19 +197,25 @@ class SalaryController extends Controller
             'overtime_hours' => $validated['overtime_hours'] ?? 0,
         ]);
 
-        $record->update(array_merge($data, [
-            'project_id'     => count($projectIds) === 1 ? $projectIds[0] : null,
-            'payment_method' => $validated['payment_method'],
-            'notes'          => $validated['notes'] ?? $record->notes,
-        ]));
+        $pivot = $this->buildPivotData($request->input('allocations', []), $projectIds, (float) $record->daily_rate);
 
-        $record->projects()->sync($this->buildPivotData(
-            $request->input('allocations', []),
-            $projectIds,
-            (float) $record->daily_rate
-        ));
+        $saved = $this->saveWithinProjectFunds($request, $record, $pivot,
+            'Labor over Total Received — ' . ($record->employee->full_name ?? 'employee') . ', week of ' . $record->pay_period,
+            function () use ($record, $data, $projectIds, $validated, $pivot) {
+                $record->update(array_merge($data, [
+                    'project_id'     => count($projectIds) === 1 ? $projectIds[0] : null,
+                    'payment_method' => $validated['payment_method'],
+                    'notes'          => $validated['notes'] ?? $record->notes,
+                ]));
+                $record->projects()->sync($pivot);
+                return $record;
+            });
 
-        return response()->json(['record' => $this->format($record->load('employee', 'projects'))]);
+        if (!$saved instanceof SalaryRecord) {
+            return $saved;
+        }
+
+        return response()->json(['record' => $this->format($saved->load('employee', 'projects'))]);
     }
 
     /** DELETE /admin/salary-records/{id} */
@@ -238,6 +291,11 @@ class SalaryController extends Controller
             'project_ids'      => $r->relationLoaded('projects')
                 ? $r->projects->pluck('id')->toArray()
                 : ($r->project_id ? [$r->project_id] : []),
+            // What this record already puts on each project — editing it only counts the increase
+            // against the project's Total Received
+            'allocations'      => $r->relationLoaded('projects')
+                ? $r->projects->mapWithKeys(fn ($p) => [$p->id => (float) $p->pivot->allocated_pay])->all()
+                : [],
         ];
     }
 
@@ -250,14 +308,22 @@ class SalaryController extends Controller
             ->get()
             ->map(function ($p) {
                 $spec = $p->tankItems->map(fn($t) => $t->quantity.'× '.($t->tank_type ?? '').($t->capacity ? ' ('.$t->capacity.')' : ''))->join(', ');
+                $funds = ProjectFunds::summary($p->id);
                 return [
                     'id'     => $p->id,
                     'code'   => $p->code,
                     'name'   => $p->name,
                     'client' => $p->client,
                     'spec'   => $spec ?: ($p->tank_type ?? ''),
+                    // what the project has received and spent, for the "Available" panel in the salary form
+                    'funds'  => [
+                        'received'  => $funds['received'],
+                        'spent'     => $funds['spent'],
+                        'available' => $funds['available'],
+                        'fund_owed' => $funds['fund_owed'],
+                    ],
                 ];
             });
-        return response()->json($projects);
+        return response()->json(['projects' => $projects, 'fund_balance' => \App\Models\FundSetting::getCurrentBalance()]);
     }
 }

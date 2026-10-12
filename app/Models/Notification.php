@@ -17,6 +17,7 @@ class Notification extends Model
         'priority',
         'action_url',
         'is_read',
+        'event_key',
     ];
 
     protected $casts = [
@@ -82,6 +83,9 @@ class Notification extends Model
         'material_logging_reminder'        => 'clipboard-x',
         'salary_recording_reminder'        => 'wallet',
         'billing_statement_sent'           => 'file-text',
+        'payment_due'                      => 'wallet',
+        'payment_received'                 => 'badge-check',
+        'payment_proof_submitted'          => 'file-check',
         'low_stock_summary'                => 'package-search',
     ];
 

@@ -8,6 +8,10 @@ use App\Models\Employee;
 use App\Models\Client;
 use App\Models\Project;
 use App\Models\QuotationRequest;
+use App\Models\Payment;
+use App\Models\PaymentProof;
+use App\Models\PaymentTransaction;
+use Illuminate\Support\Facades\DB;
 
 class NotificationService
 {
@@ -44,6 +48,9 @@ class NotificationService
     const TYPE_MATERIAL_LOGGING_REMINDER        = 'material_logging_reminder';
     const TYPE_SALARY_RECORDING_REMINDER        = 'salary_recording_reminder';
     const TYPE_BILLING_STATEMENT_SENT           = 'billing_statement_sent';
+    const TYPE_PAYMENT_DUE                      = 'payment_due';
+    const TYPE_PAYMENT_RECEIVED                 = 'payment_received';
+    const TYPE_PAYMENT_PROOF_SUBMITTED          = 'payment_proof_submitted';
 
     // -------------------------------------------------------------------------
     // Core send — accepts any model with an id, or a raw integer ID + type
@@ -58,8 +65,30 @@ class NotificationService
         ?int   $projectId,
         ?int   $progressId,
         ?string $actionUrl,
-        $occurredAt = null
-    ): void {
+        $occurredAt = null,
+        ?string $eventKey = null
+    ): bool {
+        // An event key means "once per recipient": a second notification for the same event (a repeated
+        // request, a retry, a re-sent statement) is silently skipped by the database's unique index.
+        if ($eventKey !== null) {
+            $at = $occurredAt ?: now();
+            return DB::table('notifications')->insertOrIgnore([
+                'user_id'             => $userId,
+                'user_type'           => $userType,
+                'title'               => $title,
+                'message'             => $message,
+                'notification_type'   => $type,
+                'priority'            => $priority,
+                'related_project_id'  => $projectId,
+                'related_progress_id' => $progressId,
+                'action_url'          => $actionUrl,
+                'is_read'             => DB::raw('false'),   // a PHP false would be sent as 0, which Postgres rejects for a boolean
+                'event_key'           => mb_substr($eventKey, 0, 150),
+                'created_at'          => $at,
+                'updated_at'          => $at,
+            ]) > 0;
+        }
+
         $notification = new Notification([
             'user_id'             => $userId,
             'user_type'           => $userType,
@@ -83,6 +112,7 @@ class NotificationService
         }
 
         $notification->save();
+        return true;
     }
 
     /**
@@ -151,12 +181,13 @@ class NotificationService
         ?int    $projectId = null,
         ?int    $progressId = null,
         ?string $actionUrl = null,
-        $occurredAt = null
+        $occurredAt = null,
+        ?string $eventKey = null
     ): void {
         User::where('role', 'admin')->get()->each(function ($admin) use (
-            $title, $message, $type, $priority, $projectId, $progressId, $actionUrl, $occurredAt
+            $title, $message, $type, $priority, $projectId, $progressId, $actionUrl, $occurredAt, $eventKey
         ) {
-            self::send($admin->id, 'admin', $title, $message, $type, $priority, $projectId, $progressId, $actionUrl, $occurredAt);
+            self::send($admin->id, 'admin', $title, $message, $type, $priority, $projectId, $progressId, $actionUrl, $occurredAt, $eventKey);
         });
     }
 
@@ -169,11 +200,14 @@ class NotificationService
         string  $priority = 'info',
         ?int    $progressId = null,
         ?string $actionUrl = null,
-        $occurredAt = null
-    ): void {
-        $client = null;
+        $occurredAt = null,
+        ?string $eventKey = null
+    ): bool {
+        // The linked client account first (stable even if the client renames or changes email),
+        // then the older email / name matching for projects created before that link existed.
+        $client = $project->client_id ? Client::find($project->client_id) : null;
 
-        if (!empty($project->email)) {
+        if (!$client && !empty($project->email)) {
             $client = Client::where('email', $project->email)->first();
         }
 
@@ -182,8 +216,9 @@ class NotificationService
         }
 
         if ($client) {
-            self::send($client->id, 'client', $title, $message, $type, $priority, $project->id, $progressId, $actionUrl, $occurredAt);
+            return self::send($client->id, 'client', $title, $message, $type, $priority, $project->id, $progressId, $actionUrl, $occurredAt, $eventKey);
         }
+        return false;
     }
 
     /** Notify a specific client by their clients.id (not tied to any project) */
@@ -314,27 +349,6 @@ class NotificationService
     public static function lowStockAlert(\App\Models\Project $project, \App\Models\ProjectMaterial $material, ?float $remainingQty = null): void
     {
         \App\Services\LowStockService::sync();
-    }
-
-    /** Employee flags a material as short and requests more → activity log for admins */
-    public static function materialRequested(Project $project, string $employeeName, string $materialName, $quantity, ?string $notes): void
-    {
-        $message = "{$employeeName} reported a material shortage on Project: {$project->name}.\n" .
-            "Material: {$materialName}\nQuantity Needed: {$quantity}";
-
-        if ($notes) {
-            $message .= "\nNotes: {$notes}";
-        }
-
-        self::notifyAdmins(
-            'Material Shortage Reported',
-            $message,
-            self::TYPE_MATERIAL_REQUESTED,
-            'warning',
-            $project->id,
-            null,
-            "/admin/project-materials/{$project->id}"
-        );
     }
 
     /** Labor entry updated on a project → activity log for admins */
@@ -596,7 +610,7 @@ class NotificationService
         );
     }
 
-    /** Owner sent a billing statement to the client */
+    /** Owner sent a billing statement to the client — once per statement, even if "Send" is clicked again. */
     public static function billingStatementSent(Project $project, int $paymentId, int $statementId): void
     {
         self::notifyProjectClient(
@@ -606,7 +620,113 @@ class NotificationService
             self::TYPE_BILLING_STATEMENT_SENT,
             'info',
             null,
-            "/client/payments/{$paymentId}/billing-statements/{$statementId}"
+            "/client/payments/{$paymentId}/billing-statements/{$statementId}",
+            null,
+            "billing_statement_sent:{$statementId}"
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // Payment phases
+    // -------------------------------------------------------------------------
+
+    private static function peso(float $amount): string
+    {
+        return '₱' . number_format($amount, 2);
+    }
+
+    /**
+     * Tells the client when a payment stage becomes due — the stage GMD has billed (see
+     * Payment::currentBilledStage()) and that is still unpaid. Safe to call any time and as often as
+     * needed (after a statement is sent, a payment is recorded, or the project changes phase): each
+     * stage of each payment notifies the client only once. Returns true when a notification was sent.
+     */
+    public static function syncPaymentDue(Payment $payment): bool
+    {
+        $payment->loadMissing('project', 'transactions');
+        if (!$payment->project || !$payment->payment_term_type) {
+            return false;
+        }
+
+        $stage = $payment->currentBilledStage();
+        if (!$stage) {
+            return false;
+        }
+
+        $amountDue = (float) ($payment->stageAmountsDue()[$stage] ?? 0);
+        if ($amountDue <= 0) {
+            return false;
+        }
+
+        $label   = PaymentTransaction::stageLabel($stage);
+        $project = $payment->project;
+        $paidSoFar = $payment->totalPaid();
+
+        return self::notifyProjectClient(
+            $project,
+            "{$label} Due",
+            "Project: {$project->name}\nPayment phase: {$label}\nAmount due: " . self::peso($amountDue)
+                . "\nPayment status: " . $payment->computeStatus()
+                . ($paidSoFar > 0 ? ' (' . self::peso($paidSoFar) . ' of ' . self::peso((float) $payment->contract_amount) . ' received)' : '')
+                . "\nPlease settle it and upload your proof of payment.",
+            self::TYPE_PAYMENT_DUE,
+            'warning',
+            null,
+            "/client/payments/{$payment->id}",
+            null,
+            "payment_due:{$payment->id}:{$stage}"
+        );
+    }
+
+    /** GMD recorded a payment → tell the client what was received and where the payment now stands (once per payment). */
+    public static function paymentRecorded(Payment $payment, PaymentTransaction $transaction): void
+    {
+        $payment->loadMissing('project');
+        if (!$payment->project) {
+            return;
+        }
+
+        $payment->load('transactions');
+        $label   = PaymentTransaction::stageLabel($transaction->payment_stage);
+        $status  = $payment->computeStatus();
+        $balance = $payment->currentBalance();
+
+        self::notifyProjectClient(
+            $payment->project,
+            'Payment Received',
+            "Project: {$payment->project->name}\nPayment phase: {$label}\nAmount received: " . self::peso((float) $transaction->amount_paid)
+                . "\nPayment status: {$status}"
+                . ($balance > 0 ? "\nRemaining balance: " . self::peso($balance) : "\nYour project is fully paid. Thank you!"),
+            self::TYPE_PAYMENT_RECEIVED,
+            'success',
+            null,
+            "/client/payments/{$payment->id}",
+            NotificationService::occurredOn($transaction->payment_date),
+            "payment_received:{$transaction->id}"
+        );
+    }
+
+    /** The client uploaded proof of payment → admins verify and record it (once per submission). */
+    public static function paymentProofSubmitted(Payment $payment, PaymentProof $proof): void
+    {
+        $payment->loadMissing('project');
+        if (!$payment->project) {
+            return;
+        }
+
+        $label = PaymentTransaction::stageLabel($proof->payment_stage);
+
+        self::notifyAdmins(
+            'Proof of Payment Submitted',
+            "{$payment->project->live_client_name} submitted proof of payment.\nProject: {$payment->project->name}\nPayment phase: {$label}\nAmount: "
+                . self::peso((float) $proof->amount) . "\nVerify it and record the payment.",
+            self::TYPE_PAYMENT_PROOF_SUBMITTED,
+            'warning',
+            $payment->project->id,
+            null,
+            "/admin/payments/{$payment->id}",
+            null,
+            "payment_proof_submitted:{$proof->id}"
         );
     }
 

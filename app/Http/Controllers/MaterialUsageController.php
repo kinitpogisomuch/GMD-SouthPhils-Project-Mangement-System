@@ -12,6 +12,8 @@ use App\Models\Employee;
 use App\Models\SupplierContact;
 use App\Models\MaterialPurchase;
 use App\Services\NotificationService;
+use App\Services\ProjectFunds;
+use Illuminate\Support\Facades\DB;
 
 class MaterialUsageController extends Controller
 {
@@ -81,6 +83,15 @@ class MaterialUsageController extends Controller
         $data['totalPurchased'] = $purchases->sum('total_paid');
         $data['materialFactor'] = $data['project']->activeMaterials->first()?->factor ?? 7;
         $data['suppliers']      = SupplierContact::orderBy('name')->get();
+
+        // What the project has to spend (Total Received, plus/minus the revolving fund) — the Log New
+        // Purchase form checks a purchase against it before saving; the Project Budget is shown for reference.
+        $payment = $data['project']->getPaymentRecord();
+        $data['projectFunds']  = ProjectFunds::summary((int) $projectId);
+        $data['projectBudget'] = $payment && (float) $payment->project_budget > 0
+            ? (float) $payment->project_budget
+            : $data['project']->estimatedBudget()['total'];
+        $data['fundBalance']   = FundSetting::getCurrentBalance();
 
         return view('admin.material_usage_detail', $data);
     }
@@ -204,30 +215,70 @@ class MaterialUsageController extends Controller
             'row_supplier.*'        => 'nullable|string|max:255',
             'purchase_date'         => 'required|date',
             'notes'                 => 'nullable|string|max:500',
+            'use_fund'              => 'nullable|boolean',
         ]);
 
         $count = count($validated['material_name']);
-
+        $total = 0.0;
         for ($i = 0; $i < $count; $i++) {
-            $qty  = $validated['qty_bought'][$i];
-            $cost = $validated['actual_unit_cost'][$i];
+            $total += round($validated['qty_bought'][$i] * $validated['actual_unit_cost'][$i], 2);
+        }
 
-            MaterialPurchase::create([
-                'project_id'          => $project->id,
-                'project_material_id' => $validated['project_material_id'][$i] ?? null,
-                'material_name'       => $validated['material_name'][$i],
-                'unit'                => $validated['unit'][$i] ?? null,
-                'qty_bought'          => $qty,
-                'actual_unit_cost'    => $cost,
-                'total_paid'          => round($qty * $cost, 2),
-                // a row's own supplier wins; otherwise the log's general supplier
-                'supplier'            => ($validated['row_supplier'][$i] ?? null) ?: ($validated['supplier'] ?? null),
-                'purchase_date'       => $validated['purchase_date'],
-                'notes'               => $validated['notes'] ?? null,
-            ]);
+        // Purchases are paid from what the client has paid so far. If this one costs more, it is only
+        // saved when the admin chose to cover the difference from the revolving fund.
+        $useFund = $request->boolean('use_fund');
+        if (!$useFund && ($overruns = ProjectFunds::overruns([$project->id => $total]))) {
+            return redirect()->route('admin.material_usage.detail', $projectId)
+                ->withInput()
+                ->with('active_tab', 'purchased')
+                ->with('fund_overrun', ProjectFunds::overrunPayload($overruns))
+                ->with('error', 'This purchase costs more than the money received for this project. Cover the difference with the revolving fund, or change the purchase.');
+        }
+
+        try {
+            DB::transaction(function () use ($validated, $project, $count, $total, $useFund) {
+                $releaseId = null;
+                if ($useFund) {
+                    $names    = collect($validated['material_name'])->take(3)->implode(', ') . ($count > 3 ? ', …' : '');
+                    $releases = ProjectFunds::coverOverruns([$project->id => $total],
+                        "Material purchase over Total Received — {$count} item" . ($count === 1 ? '' : 's') . " ({$names})",
+                        'material_purchase', null, $validated['purchase_date']);
+                    $releaseId = isset($releases[$project->id]) ? $releases[$project->id]->id : null;
+                }
+
+                for ($i = 0; $i < $count; $i++) {
+                    $qty  = $validated['qty_bought'][$i];
+                    $cost = $validated['actual_unit_cost'][$i];
+
+                    MaterialPurchase::create([
+                        'project_id'          => $project->id,
+                        'project_material_id' => $validated['project_material_id'][$i] ?? null,
+                        'material_name'       => $validated['material_name'][$i],
+                        'unit'                => $validated['unit'][$i] ?? null,
+                        'qty_bought'          => $qty,
+                        'actual_unit_cost'    => $cost,
+                        'total_paid'          => round($qty * $cost, 2),
+                        // a row's own supplier wins; otherwise the log's general supplier
+                        'supplier'            => ($validated['row_supplier'][$i] ?? null) ?: ($validated['supplier'] ?? null),
+                        'purchase_date'       => $validated['purchase_date'],
+                        'notes'               => $validated['notes'] ?? null,
+                        'fund_transaction_id' => $releaseId,
+                    ]);
+                }
+
+                if ($releaseId) {
+                    \App\Models\FundTransaction::whereKey($releaseId)->update(['source_ref' => 'purchases:' . MaterialPurchase::where('fund_transaction_id', $releaseId)->pluck('id')->implode(',')]);
+                }
+            });
+        } catch (\DomainException $e) {
+            return redirect()->route('admin.material_usage.detail', $projectId)
+                ->withInput()->with('active_tab', 'purchased')->with('error', $e->getMessage());
         }
 
         $message = $count === 1 ? 'Purchase logged successfully.' : "{$count} purchases logged successfully.";
+        if ($useFund) {
+            $message .= ' The amount over Total Received was covered by the revolving fund.';
+        }
 
         \App\Services\LowStockService::sync();   // replenished materials drop off the low-stock alert
 
@@ -238,11 +289,18 @@ class MaterialUsageController extends Controller
 
     public function destroyPurchase($projectId, $purchaseId)
     {
-        MaterialPurchase::where('project_id', $projectId)->findOrFail($purchaseId)->delete();
+        $purchase = MaterialPurchase::where('project_id', $projectId)->findOrFail($purchaseId);
+
+        // A purchase the revolving fund paid for gives back what the project hasn't repaid yet
+        $returned = DB::transaction(function () use ($purchase) {
+            $repayment = ProjectFunds::returnForDeletedPurchase($purchase);
+            $purchase->delete();
+            return $repayment;
+        });
         \App\Services\LowStockService::sync();
 
         return redirect()->route('admin.material_usage.detail', $projectId)
-            ->with('success', 'Purchase record deleted.')
+            ->with('success', 'Purchase record deleted.' . ($returned ? ' ₱' . number_format($returned->amount, 2) . ' was returned to the revolving fund.' : ''))
             ->with('active_tab', 'purchased');
     }
 

@@ -209,7 +209,17 @@ class ProjectController extends Controller
         $fundHistory     = FundTransaction::where('project_id', $project->id)
             ->orderByDesc('date')->orderByDesc('id')->get();
 
+        // What the Financial Overview still needs before the project can be completed — shown from
+        // the Completion phase on, so the admin can fill it in before recording the final output.
+        $completionGaps = $project->status !== 'completed' && $project->current_phase === 'completion'
+            ? $project->financialCompletionGaps()
+            : [];
+
+        // Money the project has to spend: received + revolving fund released − repaid − actual spend
+        $projectFunds = \App\Services\ProjectFunds::summary($project->id);
+
         return view('admin.project_view', compact(
+            'completionGaps', 'projectFunds',
             'project', 'updates', 'activeRequestEmployeeIds', 'pendingUpdates', 'progressRequests', 'nextPhase',
             'clientName', 'clientAddress', 'clientContact', 'clientEmail',
             // financial
@@ -818,6 +828,60 @@ class ProjectController extends Controller
     }
 
     /**
+     * "Confirm Payment" / "Proceed Anyway" on the Fabrication and Delivery steps. Records that the payment
+     * gate was confirmed for the current phase and reloads the project page, which then opens that
+     * phase's checklist (fabrication) or delivery form. Kept under phase_data.payment_gates so it never
+     * mixes with the phase's own data (e.g. phase_data.delivery means "delivered").
+     */
+    public function confirmPaymentGate(Request $request, $id)
+    {
+        $project = Project::findOrFail($id);
+        $phase   = $project->current_phase;
+        $back    = redirect()->route('admin.project_view', $project->id);
+
+        if (!in_array($phase, ['fabrication', 'delivery'], true) || ($phase === 'delivery' && $project->isDelivered())) {
+            return $back->with('error', 'There is no payment to confirm at this step.');
+        }
+
+        $unpaid = $project->awaitingPaymentStage() !== null;
+        if ($unpaid && $phase === 'fabrication') {
+            return $back->with('error', 'Record the progress payment in the Payment module before continuing to the fabrication checklist.');
+        }
+        if ($unpaid && $phase === 'delivery' && !$request->boolean('proceed_without_final_payment')) {
+            return $back->with('error', 'The final payment has not been recorded yet. Use "Proceed Anyway" to record the delivery before it is paid.');
+        }
+
+        $project->setPhaseData('payment_gates.' . $phase, [
+            'confirmed_at'    => now()->toDateTimeString(),
+            'without_payment' => $unpaid,
+        ]);
+
+        $message = match (true) {
+            $phase === 'fabrication' => 'Progress payment confirmed. Complete the fabrication checklist below, then click Advance to Inspection.',
+            $unpaid                  => 'Proceeding without the final payment. Add the delivery details below, then click Mark as Delivered.',
+            default                  => 'Final payment confirmed. Add the delivery details below, then click Mark as Delivered.',
+        };
+
+        return $back->with('success', $message);
+    }
+
+    /**
+     * A project can't be marked Completed while its Financial Overview is incomplete. Returns the
+     * redirect that explains what is missing, or null when completion may go ahead. (Project's saving
+     * hook enforces the same rule for any other code path.)
+     */
+    private function blockIncompleteFinancials(Project $project)
+    {
+        $missing = $project->financialCompletionGaps();
+        if (!$missing) {
+            return null;
+        }
+
+        return redirect()->route('admin.project_view', $project->id)
+            ->with('error', (new \App\Exceptions\ProjectCompletionBlockedException($project->name, $missing))->getMessage());
+    }
+
+    /**
      * Create a ProjectUpdate record for an admin-driven phase completion.
      * Progress History only ever holds one entry per completed main phase —
      * if one already exists for this project+phase (e.g. a double form submit),
@@ -1182,6 +1246,16 @@ class ProjectController extends Controller
             'progress_photos.*'     => 'file|mimes:jpg,jpeg,png,webp,pdf|max:10240',
         ]);
 
+        // "Save Progress" logs the tests that passed this round, so at least one must be ticked.
+        // ("Mark as Completed" may be clicked with none ticked — it checks the passes logged so far.)
+        $testKeys = ['pressure_test_passed', 'soap_testing_passed', 'pneumatic_test_passed', 'leak_test_passed'];
+        $anyTicked = collect($testKeys)->contains(fn ($key) => $request->boolean($key));
+        if (!$request->boolean('mark_completed') && !$anyTicked) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'inspection_tests' => 'Tick at least one passed test before saving progress.',
+            ]);
+        }
+
         $photoUrls = [];
         if ($request->hasFile('progress_photos')) {
             $photoUrls = $this->storage->uploadMultiple($request->file('progress_photos'), 'projects/' . $project->id . '/inspection');
@@ -1318,6 +1392,11 @@ class ProjectController extends Controller
     */
     private function handleCompletion(Request $request, Project $project)
     {
+        // Checked first, before any photo is uploaded or phase data is written
+        if ($blocked = $this->blockIncompleteFinancials($project)) {
+            return $blocked;
+        }
+
         $request->validate([
             'photos'           => 'required|array|min:1',
             'photos.*'         => 'required|image|max:5120',
@@ -1818,6 +1897,11 @@ class ProjectController extends Controller
             $newProgress = $this->progressMap[$nextPhase];
             $newStatus   = $nextPhase === 'delivery' ? 'completed' : 'ongoing';
 
+            // Approving the Completion update completes the project — not while its finances are incomplete
+            if ($newStatus === 'completed' && $project->status !== 'completed' && ($blocked = $this->blockIncompleteFinancials($project))) {
+                return $blocked;
+            }
+
             $update->update(['status' => 'approved']);
             $project->update([
                 'current_phase' => $nextPhase,
@@ -1838,6 +1922,9 @@ class ProjectController extends Controller
         // Approving an update in the final (Delivery) phase records the delivery. The project
         // was already completed when it finished the Completion phase, so completed_at (the
         // On-Time Completion Rate date) is left alone; delivery is tracked separately.
+        if ($project->status !== 'completed' && ($blocked = $this->blockIncompleteFinancials($project))) {
+            return $blocked;
+        }
         $update->update(['status' => 'approved']);
         $project->setPhaseData('delivery', [
             'photos'       => $update->photos ?? [],
@@ -1880,6 +1967,10 @@ class ProjectController extends Controller
         if ($currentIndex !== false && $currentIndex < count($this->phases) - 1) {
             $nextPhase   = $this->phases[$currentIndex + 1];
             $newProgress = $this->progressMap[$nextPhase];
+
+            if ($nextPhase === 'delivery' && $project->status !== 'completed' && ($blocked = $this->blockIncompleteFinancials($project))) {
+                return $blocked;
+            }
 
             $project->update([
                 'current_phase' => $nextPhase,

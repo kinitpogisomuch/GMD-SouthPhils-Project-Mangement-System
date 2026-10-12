@@ -1,3 +1,4 @@
+@include('partials.submit_guard')
 <header class="admin-header">
     <div class="admin-header-left">
         <button class="sidebar-toggle-btn" type="button" id="sidebarToggleBtn" title="Toggle menu">

@@ -27,10 +27,6 @@
                     <h1>{{ $project->name }}</h1>
                     <p>Materials required for this project — view only.</p>
                 </div>
-                <button type="button" class="btn btn-warning" id="openRequestMaterialModal">
-                    <i data-lucide="alert-triangle"></i>
-                    Report Material Shortage
-                </button>
             </div>
 
 
@@ -89,42 +85,38 @@
                 </div>
             </div>
 
-            {{-- Usage Log --}}
+            {{-- Planned materials for this project (view only) --}}
             <div class="table-card">
                 <div class="table-toolbar">
-                    <span class="card-title" style="font-size:15px;font-weight:800;color:var(--dark);">Usage Log</span>
+                    <span class="card-title" style="font-size:15px;font-weight:800;color:var(--dark);">Materials</span>
+                    <div class="search-box" style="min-width:200px;">
+                        <i data-lucide="search"></i>
+                        <input type="text" id="materialSearch" placeholder="Search materials...">
+                    </div>
                 </div>
 
                 <div class="table-wrapper">
-                    <table class="data-table">
+                    <table class="data-table" id="materialsTable">
                         <thead>
                             <tr>
                                 <th>Material</th>
-                                <th>Quantity Needed</th>
+                                <th>Quantity</th>
                                 <th>Unit</th>
                                 <th>Notes</th>
-                                <th>Date Requested</th>
-                                <th>Status</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @forelse($myRequests as $req)
+                            @forelse($materials as $mat)
                             <tr>
-                                <td><strong>{{ $req->material }}</strong></td>
-                                <td>{{ number_format($req->quantity, 0) }}</td>
-                                <td>{{ $req->unit ?: '—' }}</td>
-                                <td>{{ $req->notes ? Str::limit($req->notes, 60) : '—' }}</td>
-                                <td>{{ $req->requested_date->format('M d, Y') }}</td>
-                                <td>
-                                    <span class="status-badge {{ $req->status === 'fulfilled' ? 'completed' : $req->status }}">
-                                        {{ ucfirst($req->status) }}
-                                    </span>
-                                </td>
+                                <td><strong>{{ $mat->material_name }}</strong></td>
+                                <td>{{ rtrim(rtrim(number_format($mat->quantity, 2), '0'), '.') }}</td>
+                                <td>{{ $mat->unit ?: '—' }}</td>
+                                <td>{{ $mat->notes ? Str::limit($mat->notes, 60) : '—' }}</td>
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="6" style="text-align:center;padding:40px;color:var(--muted);">
-                                    You haven't reported any material shortages for this project yet.
+                                <td colspan="4" style="text-align:center;padding:40px;color:var(--muted);">
+                                    No materials have been listed for this project yet.
                                 </td>
                             </tr>
                             @endforelse
@@ -133,57 +125,6 @@
                 </div>
             </div>
     </main>
-
-    {{-- ===================== REQUEST MATERIAL MODAL ===================== --}}
-    <div class="modal-overlay" id="requestMaterialModal">
-        <div class="modal-card" style="max-width:480px;">
-            <div class="modal-header">
-                <div>
-                    <h2>Report Material Shortage</h2>
-                    <p>Let the admin team know a material is running short.</p>
-                </div>
-                <button class="modal-close" type="button" id="closeRequestMaterialModal">
-                    <i data-lucide="x"></i>
-                </button>
-            </div>
-
-            <form method="POST" action="{{ route('employee.project_materials.request', $project->id) }}">
-                @csrf
-                <input type="hidden" name="project_material_id" id="reqMaterialId">
-
-                <div class="form-group">
-                    <label>Material Name</label>
-                    <input type="text" name="material_name" id="reqMaterialName" required placeholder="e.g. Welding Electrodes">
-                </div>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>Quantity Needed</label>
-                        <input type="number" name="quantity" id="reqQuantity" required min="1" step="1" placeholder="e.g. 50">
-                    </div>
-                    <div class="form-group">
-                        <label>Unit</label>
-                        <input type="text" name="unit" id="reqUnit" placeholder="e.g. kg, pcs">
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Date Needed</label>
-                    <input type="date" name="requested_date" value="{{ now()->format('Y-m-d') }}">
-                </div>
-                <div class="form-group">
-                    <label>Notes</label>
-                    <textarea name="notes" rows="3" placeholder="Describe the shortage or why more is needed..."></textarea>
-                </div>
-
-                <div class="modal-actions">
-                    <button type="button" class="cancel-btn" id="cancelRequestMaterial">Cancel</button>
-                    <button type="submit" class="save-btn">
-                        <i data-lucide="send"></i>
-                        Submit Request
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
 
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="{{ asset('js/employee.js') }}"></script>
@@ -199,52 +140,11 @@
                 });
             }
 
-            var requestModal = document.getElementById('requestMaterialModal');
-
-            function openRequestModal() {
-                if (requestModal) { requestModal.classList.add('show'); document.body.style.overflow = 'hidden'; }
-            }
-
-            function closeRequestModal() {
-                if (requestModal) { requestModal.classList.remove('show'); document.body.style.overflow = ''; }
-                document.getElementById('reqMaterialId').value = '';
-                document.getElementById('reqMaterialName').value = '';
-                document.getElementById('reqMaterialName').readOnly = false;
-                document.getElementById('reqQuantity').value = '';
-                document.getElementById('reqUnit').value = '';
-            }
-
-            var openBtn = document.getElementById('openRequestMaterialModal');
-            if (openBtn) openBtn.addEventListener('click', function() { closeRequestModal(); openRequestModal(); });
-
-            document.querySelectorAll('.request-material-btn').forEach(function(btn) {
-                btn.addEventListener('click', function() {
-                    closeRequestModal();
-                    document.getElementById('reqMaterialId').value = this.dataset.id;
-                    document.getElementById('reqMaterialName').value = this.dataset.name;
-                    document.getElementById('reqMaterialName').readOnly = true;
-                    document.getElementById('reqUnit').value = this.dataset.unit || '';
-                    openRequestModal();
-                });
-            });
-
-            var closeBtn = document.getElementById('closeRequestMaterialModal');
-            if (closeBtn) closeBtn.addEventListener('click', closeRequestModal);
-
-            var cancelBtn = document.getElementById('cancelRequestMaterial');
-            if (cancelBtn) cancelBtn.addEventListener('click', closeRequestModal);
-
-            if (requestModal) {
-                requestModal.addEventListener('click', function(e) {
-                    if (e.target === this) closeRequestModal();
-                });
-            }
-
             if (typeof lucide !== 'undefined') lucide.createIcons();
         });
     </script>
     @if(session('success'))
-    {{-- Saved (e.g. material usage logged, material requested): small dark toast centered below
+    {{-- Saved (e.g. material usage logged): small dark toast centered below
          the header. Longer messages stay a little longer. --}}
     <div class="toast" id="empMaterialsDetailToast" role="status">
         <i data-lucide="check-circle"></i>

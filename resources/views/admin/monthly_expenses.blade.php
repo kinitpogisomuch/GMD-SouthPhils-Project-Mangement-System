@@ -20,6 +20,7 @@
 <body class="page-enter">
 
     @include('partials.admin.header')
+    @include('partials.admin.fund_overrun_modal')
 
     <div class="admin-layout">
         @include('partials.admin.sidebar')
@@ -189,53 +190,98 @@
                         </table>
                     </div>
 
-                    {{-- Add Expense Form --}}
-                    <div style="padding:16px 20px;border-top:2px solid var(--border);background:var(--cream-soft);">
-                        <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:12px;">
-                            <i data-lucide="plus" style="width:11px;height:11px;"></i> Add Expense Item
+                    {{-- Add expenses — opens a modal where several items can be ticked and given an amount at once --}}
+                    <div style="padding:16px 20px;border-top:2px solid var(--border);background:var(--cream-soft);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                        <span style="font-size:12.5px;color:var(--muted);">Add rent, electricity and other overhead for {{ \Carbon\Carbon::createFromFormat('Y-m', $month)->format('F Y') }}.</span>
+                        <button type="button" class="save-btn" id="openAddExpensesBtn" style="justify-content:center;height:40px;">
+                            <i data-lucide="plus" style="width:14px;height:14px;"></i> Add Expense Items
+                        </button>
+                    </div>
+                </div>
+
+                @php
+                    $expenseCategories = collect(['Electricity', 'Water', 'Rent', 'Maintenance & Repair'])
+                        ->merge($customCategories)->unique(fn ($c) => mb_strtolower($c))->values();
+                    $addedThisMonth = $expenses->groupBy(fn ($e) => mb_strtolower($e->category))->map->sum('amount');
+                @endphp
+                <div class="modal-overlay" id="addExpensesModal" role="dialog" aria-modal="true" aria-labelledby="addExpensesTitle">
+                    <div class="modal-card" style="max-width:560px;width:95%;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;">
+                        <div class="modal-header" style="flex-shrink:0;">
+                            <div>
+                                <h2 id="addExpensesTitle">Add Expense Items</h2>
+                                <p>Tick the expenses for {{ \Carbon\Carbon::createFromFormat('Y-m', $month)->format('F Y') }}, then enter each amount.</p>
+                            </div>
+                            <button class="modal-close" type="button" data-ae-close aria-label="Close"><i data-lucide="x"></i></button>
                         </div>
-                        <form method="POST" action="{{ route('admin.monthly-expenses.store') }}">
+
+                        <form method="POST" action="{{ route('admin.monthly-expenses.store') }}" id="addExpensesForm" style="display:flex;flex-direction:column;min-height:0;flex:1;">
                             @csrf
                             <input type="hidden" name="month_year" value="{{ $month }}">
-                            <div style="display:grid;grid-template-columns:1fr 1fr 110px;gap:10px;align-items:end;">
-                                <div>
-                                    <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px;">Category *</label>
-                                    <select name="category" id="expenseCategorySelect" required
-                                            onchange="toggleExpenseCustomCategory(this)"
-                                            style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--white);">
-                                        <option value="" disabled selected hidden>Select category...</option>
-                                        <option value="Electricity">Electricity</option>
-                                        <option value="Water">Water</option>
-                                        <option value="Rent">Rent</option>
-                                        <option value="Maintenance & Repair">Maintenance & Repair</option>
-                                        @foreach($customCategories as $cat)
-                                        <option value="{{ $cat }}">{{ $cat }}</option>
-                                        @endforeach
-                                        <option value="__other__">Other</option>
-                                    </select>
-                                    <div id="expenseCategoryCustomWrap" style="display:none;position:relative;margin-top:8px;">
-                                        <input type="text" id="expenseCategoryCustom" placeholder="Enter category name" maxlength="100"
-                                               style="width:100%;padding:8px 32px 8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;">
-                                        <button type="button" onclick="resetExpenseCategory()" title="Back to list"
-                                                style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);padding:2px;display:flex;">
-                                            <i data-lucide="x" style="width:14px;height:14px;"></i>
-                                        </button>
+
+                            <div class="ae-list" id="aeList" style="overflow-y:auto;flex:1;">
+                                @foreach($expenseCategories as $i => $cat)
+                                @php $already = $addedThisMonth[mb_strtolower($cat)] ?? null; @endphp
+                                <div class="ae-row" data-cat="{{ $cat }}">
+                                    <label class="ae-pick">
+                                        <input type="checkbox" class="ae-check">
+                                        <span class="ae-name">{{ $cat }}</span>
+                                        @if($already)
+                                        <span class="ae-already">Already added · ₱{{ number_format($already, 2) }}</span>
+                                        @endif
+                                    </label>
+                                    <div class="ae-amount">
+                                        <span>₱</span>
+                                        <input type="text" inputmode="decimal" class="ae-amount-input" placeholder="0.00" disabled aria-label="Amount for {{ $cat }}">
                                     </div>
                                 </div>
-                                <div>
-                                    <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px;">Amount (₱) *</label>
-                                    <input type="number" name="amount" min="0.01" step="0.01" placeholder="0.00" required
-                                           style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:700;">
-                                </div>
-                                <div>
-                                    <button type="submit" class="save-btn" style="width:100%;justify-content:center;height:38px;">
-                                        <i data-lucide="plus" style="width:14px;height:14px;"></i> Add
-                                    </button>
+                                @endforeach
+                            </div>
+
+                            <div class="ae-other">
+                                <input type="text" id="aeOtherName" maxlength="100" placeholder="Other category (e.g. Internet)">
+                                <button type="button" class="cancel-btn" id="aeOtherAdd"><i data-lucide="plus" style="width:14px;height:14px;"></i> Add</button>
+                            </div>
+
+                            <div class="ae-error" id="aeError" hidden></div>
+
+                            <div class="ae-foot">
+                                <div class="ae-total"><span id="aeCount">0 selected</span><strong id="aeTotal">₱0.00</strong></div>
+                                <div style="display:flex;gap:10px;">
+                                    <button type="button" class="cancel-btn" data-ae-close>Cancel</button>
+                                    <button type="submit" class="save-btn" id="aeSave" disabled><i data-lucide="check"></i> <span>Save</span></button>
                                 </div>
                             </div>
                         </form>
                     </div>
                 </div>
+                <style>
+                    .ae-list { border: 1px solid var(--border); border-radius: 14px; }
+                    .ae-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); transition: background .15s; }
+                    .ae-row:last-child { border-bottom: none; }
+                    .ae-row.is-on { background: #eff6ff; }
+                    .ae-pick { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; cursor: pointer; min-width: 0; flex: 1; }
+                    .ae-pick input { width: 17px; height: 17px; accent-color: var(--dark); flex-shrink: 0; cursor: pointer; }
+                    .ae-name { font-size: 13.5px; font-weight: 700; color: var(--dark); }
+                    .ae-already { font-size: 10.5px; font-weight: 800; color: #8A6100; background: #FFF3D6; border-radius: 999px; padding: 2px 8px; }
+                    .ae-amount { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+                    .ae-amount span { font-size: 13px; font-weight: 800; color: var(--muted); }
+                    .ae-amount input { width: 130px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; font-weight: 700; text-align: right; background: var(--white); color: var(--dark); }
+                    .ae-amount input:disabled { background: var(--cream-soft); color: var(--muted); cursor: not-allowed; }
+                    .ae-amount input.is-bad { border-color: var(--danger); outline: 2px solid rgba(220,38,38,.15); }
+                    .ae-other { display: flex; gap: 8px; margin-top: 12px; }
+                    .ae-other input { flex: 1; min-width: 0; padding: 9px 12px; border: 1px solid var(--border); border-radius: 10px; font-size: 13px; }
+                    .ae-error { margin-top: 10px; padding: 9px 12px; border-radius: 10px; background: #fee2e2; color: #b91c1c; font-size: 12.5px; font-weight: 600; }
+                    .ae-error[hidden] { display: none; }
+                    .ae-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); flex-shrink: 0; }
+                    .ae-total span { display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+                    .ae-total strong { font-size: 18px; font-weight: 900; color: var(--dark); font-variant-numeric: tabular-nums; }
+                    #aeSave:disabled { opacity: .45; cursor: not-allowed; }
+                    @media (max-width: 520px) {
+                        .ae-row { flex-wrap: wrap; }
+                        .ae-amount { width: 100%; }
+                        .ae-amount input { flex: 1; width: auto; }
+                    }
+                </style>
 
                 {{-- RIGHT: Project Allocation --}}
                 <div class="table-card" style="overflow:visible;display:flex;flex-direction:column;">
@@ -316,6 +362,28 @@
                                     <strong style="color:#2563eb;font-size:16px;" id="previewPer">₱{{ number_format($perProject, 2) }}</strong>
                                 </div>
                             </div>
+
+                            {{-- Money each selected project has — overhead is paid from what its client has paid so far --}}
+                            <div id="meFundsPanel" class="sf-panel" hidden></div>
+                            <style>
+                                .sf-panel { margin-bottom: 16px; padding: 12px 14px; border-radius: 14px; background: linear-gradient(180deg, #333333 0%, #2a2a2a 100%); display: flex; flex-direction: column; gap: 12px; overflow-y: auto; overscroll-behavior: contain; }
+                                .sf-panel[hidden] { display: none; }
+                                .sf-panel.is-scrolling { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.3) transparent; }
+                                .sf-panel.is-scrolling::-webkit-scrollbar { width: 6px; }
+                                .sf-panel.is-scrolling::-webkit-scrollbar-thumb { background: rgba(255,255,255,.3); border-radius: 999px; }
+                                .sf-panel.is-scrolling::-webkit-scrollbar-track { background: transparent; }
+                                .sf-proj + .sf-proj { padding-top: 12px; border-top: 1px solid rgba(255,255,255,.1); }
+                                .sf-name { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; font-weight: 800; color: rgba(255,255,255,.85); margin-bottom: 8px; }
+                                .sf-name span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+                                .sf-name em { font-style: normal; flex-shrink: 0; color: #93c5fd; }
+                                .sf-figs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+                                .sf-fig span { display: block; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: rgba(255,255,255,.45); }
+                                .sf-fig strong { display: block; margin-top: 2px; font-size: 13px; font-weight: 900; color: #fff; font-variant-numeric: tabular-nums; }
+                                .sf-fig small { display: block; font-size: 10px; color: rgba(255,255,255,.4); }
+                                .sf-available strong { color: #4ade80; }
+                                .sf-warn { margin-top: 10px; padding: 8px 10px; border-radius: 10px; font-size: 12px; font-weight: 700; background: rgba(248,113,113,.14); color: #fca5a5; }
+                                @media (max-width: 520px) { .sf-figs { grid-template-columns: 1fr 1fr; } }
+                            </style>
 
                             @if($isAllocLocked)
                             <div id="allocLockNotice" style="display:flex;align-items:center;gap:8px;background:#fef9c3;border:1px solid #fde68a;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#854d0e;">
@@ -423,13 +491,86 @@
 
     var TOTAL_OVERHEAD = {{ $total }};
 
+    @if(session('fund_overrun') && session('fund_retry'))
+    // The overhead split is more than some projects have received — offer the revolving fund, and if
+    // chosen, send the same project selection again with use_fund (nothing was saved the first time).
+    document.addEventListener('DOMContentLoaded', function () {
+        var retry = @json(session('fund_retry'));
+        FundOverrun.open(@json(session('fund_overrun')), {
+            amountLabel: 'Overhead share',
+            onUse: function () {
+                var f = document.createElement('form');
+                f.method = 'POST';
+                f.action = @json(route('admin.monthly-expenses.allocate'));
+                var add = function (name, value) {
+                    var i = document.createElement('input');
+                    i.type = 'hidden'; i.name = name; i.value = value;
+                    f.appendChild(i);
+                };
+                add('_token', @json(csrf_token()));
+                add('month_year', retry.month_year);
+                add('use_fund', '1');
+                retry.project_ids.forEach(function (id) { add('project_ids[]', id); });
+                document.body.appendChild(f);
+                f.submit();
+            }
+        });
+    });
+    @endif
+
     function updateAllocationPreview() {
         var checked = document.querySelectorAll('input[name="project_ids[]"]:checked').length;
         var per = checked > 0 && TOTAL_OVERHEAD > 0 ? Math.floor(TOTAL_OVERHEAD * 100 / checked) / 100 : 0;
         document.getElementById('previewCount').textContent = checked;
         document.getElementById('previewPer').textContent   = '₱' + per.toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2});
         document.getElementById('previewTotal').textContent = '₱' + TOTAL_OVERHEAD.toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2});
+        renderOverheadFunds();
     }
+
+    // ---- Money each selected project has (same figures and rule as ProjectFunds on the server) ----
+    var ME_PROJECT_FUNDS  = @json($projectFunds);
+    var ME_CURRENT_SHARES = @json($currentShares);
+    var ME_PROJECT_NAMES  = @json($projects->pluck('name', 'id'));
+
+    function mePeso(n) { return '₱' + Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+    function renderOverheadFunds() {
+        var panel = document.getElementById('meFundsPanel');
+        if (!panel) return;
+        var ids = Array.prototype.map.call(document.querySelectorAll('input[name="project_ids[]"]:checked'), function (cb) { return parseInt(cb.value, 10); });
+        var n = ids.length;
+        // the same split the server saves: equal shares, leftover centavos on the last project
+        var per = n > 0 ? Math.floor(TOTAL_OVERHEAD * 100 / n) / 100 : 0;
+        var rem = n > 0 ? Math.round((TOTAL_OVERHEAD - per * n) * 100) / 100 : 0;
+
+        panel.innerHTML = ids.map(function (id, i) {
+            var f = ME_PROJECT_FUNDS[id];
+            if (!f) return '';
+            var share    = per + (i === n - 1 ? rem : 0);
+            var increase = Math.round((share - (parseFloat(ME_CURRENT_SHARES[id]) || 0)) * 100) / 100;
+            // only the new overhead is ever covered — an older shortfall isn't added on top
+            var over = increase > 0 ? Math.round(Math.max(0, Math.min(increase, increase - f.available)) * 100) / 100 : 0;
+            return '<div class="sf-proj">'
+                + '<div class="sf-name"><span>' + String(ME_PROJECT_NAMES[id] || 'Project').replace(/</g, '&lt;') + '</span><em>Share ' + mePeso(share) + '</em></div>'
+                + '<div class="sf-figs">'
+                +   '<div class="sf-fig"><span>Total Received</span><strong>' + mePeso(f.received) + '</strong></div>'
+                +   '<div class="sf-fig"><span>Already Spent</span><strong>' + mePeso(f.spent) + '</strong><small>Materials, labor &amp; overhead</small></div>'
+                +   '<div class="sf-fig sf-available"><span>Available</span><strong>' + mePeso(Math.max(0, f.available)) + '</strong>'
+                +     (f.fund_owed > 0 ? '<small>incl. ' + mePeso(f.fund_owed) + ' from the revolving fund</small>' : '') + '</div>'
+                + '</div>'
+                + (over > 0 ? '<div class="sf-warn">This overhead share is ' + mePeso(over) + ' more than the money available. You can cover it from the revolving fund when you save.</div>' : '')
+                + '</div>';
+        }).join('');
+        panel.hidden = panel.innerHTML === '';
+
+        // Two or more projects: keep the panel one project tall and scroll the rest, with a sliver of
+        // the next project showing so it's clear there is more below
+        var cards = panel.querySelectorAll('.sf-proj');
+        panel.scrollTop = 0;
+        panel.classList.toggle('is-scrolling', cards.length > 1);
+        panel.style.maxHeight = cards.length > 1 && cards[0].offsetHeight ? (cards[0].offsetHeight + 24 + 28) + 'px' : '';
+    }
+    document.addEventListener('DOMContentLoaded', renderOverheadFunds);
 
     // Whether this month has at least one logged expense item (the allocation splits their total)
     var HAS_EXPENSES = {{ $expenses->count() > 0 ? 'true' : 'false' }};
@@ -485,31 +626,137 @@
         }
     }
 
-    function toggleExpenseCustomCategory(sel) {
-        var wrap   = document.getElementById('expenseCategoryCustomWrap');
-        var custom = document.getElementById('expenseCategoryCustom');
-        if (sel.value === '__other__') {
-            sel.style.display = 'none';
-            sel.removeAttribute('name');
-            wrap.style.display = '';
-            custom.name = 'category';
-            custom.required = true;
-            custom.focus();
-        }
-    }
+    // ---- Add Expense Items modal: tick several expenses, give each an amount, save them together ----
+    (function () {
+        var modal = document.getElementById('addExpensesModal');
+        var form  = document.getElementById('addExpensesForm');
+        var list  = document.getElementById('aeList');
+        var save  = document.getElementById('aeSave');
+        var errEl = document.getElementById('aeError');
+        if (!modal) return;
 
-    function resetExpenseCategory() {
-        var sel    = document.getElementById('expenseCategorySelect');
-        var wrap   = document.getElementById('expenseCategoryCustomWrap');
-        var custom = document.getElementById('expenseCategoryCustom');
-        sel.style.display = '';
-        sel.value = '';   // back to the "Select category..." prompt
-        sel.name = 'category';
-        wrap.style.display = 'none';
-        custom.value = '';
-        custom.removeAttribute('name');
-        custom.required = false;
-    }
+        function amountOf(input) { return parseFloat(String(input.value).replace(/,/g, '')) || 0; }
+        function peso(n) { return '₱' + n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+        function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+        function refresh() {
+            var count = 0, total = 0;
+            list.querySelectorAll('.ae-row').forEach(function (row) {
+                var on = row.querySelector('.ae-check').checked;
+                row.classList.toggle('is-on', on);
+                if (on) { count++; total += amountOf(row.querySelector('.ae-amount-input')); }
+            });
+            document.getElementById('aeCount').textContent = count + ' selected';
+            document.getElementById('aeTotal').textContent = peso(total);
+            save.disabled = count === 0;
+            save.querySelector('span').textContent = count > 1 ? 'Save ' + count + ' Expenses' : 'Save';
+        }
+
+        // Live thousand separators on the amount boxes
+        function formatAmount(el) {
+            var raw = el.value.replace(/[^0-9.]/g, '');
+            var parts = raw.split('.');
+            var whole = parts[0].replace(/^0+(?=\d)/, '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            el.value = whole + (parts.length > 1 ? '.' + parts.slice(1).join('').slice(0, 2) : '');
+        }
+
+        list.addEventListener('change', function (e) {
+            if (!e.target.classList.contains('ae-check')) return;
+            var input = e.target.closest('.ae-row').querySelector('.ae-amount-input');
+            input.disabled = !e.target.checked;
+            input.classList.remove('is-bad');
+            if (e.target.checked) input.focus(); else input.value = '';
+            errEl.hidden = true;
+            refresh();
+        });
+        list.addEventListener('input', function (e) {
+            if (!e.target.classList.contains('ae-amount-input')) return;
+            formatAmount(e.target);
+            e.target.classList.remove('is-bad');
+            refresh();
+        });
+
+        // A category that isn't on the list: added as a new, already-ticked row
+        function addOther() {
+            var nameEl = document.getElementById('aeOtherName');
+            var name = nameEl.value.trim();
+            if (!name) { nameEl.focus(); return; }
+            var existing = Array.prototype.find.call(list.querySelectorAll('.ae-row'), function (r) {
+                return r.dataset.cat.toLowerCase() === name.toLowerCase();
+            });
+            var row = existing;
+            if (!row) {
+                row = document.createElement('div');
+                row.className = 'ae-row';
+                row.dataset.cat = name;
+                row.innerHTML = '<label class="ae-pick"><input type="checkbox" class="ae-check"><span class="ae-name">' + esc(name) + '</span></label>'
+                    + '<div class="ae-amount"><span>₱</span><input type="text" inputmode="decimal" class="ae-amount-input" placeholder="0.00" disabled aria-label="Amount for ' + esc(name) + '"></div>';
+                list.appendChild(row);
+            }
+            var check = row.querySelector('.ae-check');
+            if (!check.checked) { check.checked = true; check.dispatchEvent(new Event('change', { bubbles: true })); }
+            row.scrollIntoView({ block: 'nearest' });
+            row.querySelector('.ae-amount-input').focus();
+            nameEl.value = '';
+        }
+        document.getElementById('aeOtherAdd').addEventListener('click', addOther);
+        document.getElementById('aeOtherName').addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') { e.preventDefault(); addOther(); }
+        });
+
+        // Every ticked expense needs an amount; the ticked rows are sent as items[]
+        form.addEventListener('submit', function (e) {
+            form.querySelectorAll('input[name^="items["]').forEach(function (i) { i.remove(); });
+            var missing = [], n = 0;
+            list.querySelectorAll('.ae-row').forEach(function (row) {
+                if (!row.querySelector('.ae-check').checked) return;
+                var input = row.querySelector('.ae-amount-input');
+                var amt = amountOf(input);
+                if (amt <= 0) { missing.push(row.dataset.cat); input.classList.add('is-bad'); return; }
+                [['category', row.dataset.cat], ['amount', amt.toFixed(2)]].forEach(function (pair) {
+                    var h = document.createElement('input');
+                    h.type = 'hidden';
+                    h.name = 'items[' + n + '][' + pair[0] + ']';
+                    h.value = pair[1];
+                    form.appendChild(h);
+                });
+                n++;
+            });
+            if (missing.length || n === 0) {
+                e.preventDefault();
+                form.querySelectorAll('input[name^="items["]').forEach(function (i) { i.remove(); });
+                errEl.textContent = n === 0 && !missing.length ? 'Tick at least one expense.' : 'Enter an amount for: ' + missing.join(', ') + '.';
+                errEl.hidden = false;
+                var bad = list.querySelector('.is-bad');
+                if (bad) bad.focus();
+            }
+        });
+
+        function open() {
+            list.querySelectorAll('.ae-check').forEach(function (c) { c.checked = false; });
+            list.querySelectorAll('.ae-amount-input').forEach(function (i) { i.value = ''; i.disabled = true; i.classList.remove('is-bad'); });
+            errEl.hidden = true;
+            refresh();
+            modal.classList.add('show');
+            document.body.style.overflow = 'hidden';
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+        function close() {
+            modal.classList.remove('show');
+            document.body.style.overflow = '';
+        }
+        document.getElementById('openAddExpensesBtn').addEventListener('click', open);
+        modal.querySelectorAll('[data-ae-close]').forEach(function (b) { b.addEventListener('click', close); });
+        modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && modal.classList.contains('show')) close(); });
+
+        @if($errors->has('items') || $errors->has('items.*'))
+        // A rejected save comes back here — reopen the modal with the reason
+        open();
+        errEl.textContent = @json(collect($errors->getMessages())->filter(fn ($m, $k) => str_starts_with($k, 'items'))->flatten()->unique()->implode(' '));
+        errEl.hidden = false;
+        @endif
+    })();
     </script>
 </body>
 </html>

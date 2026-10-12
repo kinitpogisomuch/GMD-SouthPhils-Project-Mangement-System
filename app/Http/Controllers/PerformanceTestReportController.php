@@ -38,29 +38,32 @@ class PerformanceTestReportController extends Controller
             'noted_by_name'                => 'nullable|string|max:255',
             'noted_by_role'                => 'nullable|string|max:255',
             'test_photos'                  => 'nullable|array|max:10',
-            'test_photos.*'                => 'file|mimes:pdf,jpg,jpeg,png|max:10240',
+            'test_photos.*'                => 'file|mimes:jpg,jpeg,png|max:10240',
+        ], [
+            'test_photos.*.mimes' => 'Test photos must be JPG or PNG images.',
         ]);
 
-        $photoUrls = $this->storage->uploadMultiple(
-            $request->file('test_photos', []),
-            'performance-test-reports/' . $project->id
-        );
+        // The report is generated and shown, not saved: no database record and no uploaded files. Photos
+        // are placed straight into the page, so it is ready to print or save as PDF from the browser.
+        $photos = collect($request->file('test_photos', []))
+            ->map(fn ($file) => 'data:' . $file->getMimeType() . ';base64,' . base64_encode(file_get_contents($file->getRealPath())))
+            ->values()->all();
 
-        $report = $project->performanceTestReports()->create([
+        $report = new PerformanceTestReport([
+            'project_id'        => $project->id,
             'client_name'       => $validated['client_name'] ?? $project->client,
             'project_location'  => $validated['project_location'] ?? $project->address,
             'subject'           => $validated['subject'] ?? null,
             'report_date'       => $validated['report_date'],
             'test_items'        => array_values($validated['test_items']),
-            'test_photos'       => !empty($photoUrls) ? $photoUrls : null,
+            'test_photos'       => $photos ?: null,
             'conducted_by_name' => $validated['conducted_by_name'] ?? null,
             'conducted_by_role' => $validated['conducted_by_role'] ?? null,
             'noted_by_name'     => $validated['noted_by_name'] ?? null,
             'noted_by_role'     => $validated['noted_by_role'] ?? null,
         ]);
 
-        return redirect()->route('admin.performance_test_reports.show', [$project->id, $report->id])
-            ->with('success', 'Performance test report generated.');
+        return view('admin.performance_test_report', compact('project', 'report'));
     }
 
     public function show($projectId, $reportId)

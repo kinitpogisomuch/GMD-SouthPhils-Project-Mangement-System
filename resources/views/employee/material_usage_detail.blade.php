@@ -635,7 +635,7 @@
         });
     </script>
     @if(session('success'))
-    {{-- Saved (e.g. material usage logged, material requested): small dark toast centered below
+    {{-- Saved (e.g. material usage logged): small dark toast centered below
          the header. Longer messages stay a little longer. --}}
     <div class="toast" id="empUsageToast" role="status">
         <i data-lucide="check-circle"></i>

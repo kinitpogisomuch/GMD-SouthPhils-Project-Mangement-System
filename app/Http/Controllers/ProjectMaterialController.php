@@ -119,6 +119,13 @@ class ProjectMaterialController extends Controller
 
         $totalPaid = round($validated['qty_bought'] * $validated['actual_unit_cost'], 2);
 
+        // Same rule as Material Usage → Log New Purchase: a purchase can't cost more than the project has
+        // received. That page offers the revolving fund for the difference; this older form doesn't.
+        if (\App\Services\ProjectFunds::overrun($project->id, $totalPaid) > 0) {
+            return redirect()->route('admin.material_usage.detail', $projectId)
+                ->with('error', 'This purchase costs more than the money received for this project. Log it from Material Usage, where the revolving fund can cover the difference.');
+        }
+
         MaterialPurchase::create([
             'project_id'          => $project->id,
             'project_material_id' => $validated['project_material_id'] ?? null,
@@ -661,64 +668,12 @@ class ProjectMaterialController extends Controller
         $totalQuantity  = $materials->sum('quantity');
         $estimatedCost  = $materials->sum('total_cost');
 
-        $myRequests = MaterialRequest::where('project_id', $projectId)
-            ->where('requested_by', session('user_id'))
-            ->orderBy('created_at', 'desc')
-            ->get();
-
         // Keep the admins' single Low Stock Alert current (remaining stock ≤ 25% of what was purchased)
         \App\Services\LowStockService::syncThrottled();
 
         return view('employee.project_materials_detail', compact(
-            'project', 'materials', 'totalMaterials', 'totalQuantity', 'estimatedCost', 'myRequests'
+            'project', 'materials', 'totalMaterials', 'totalQuantity', 'estimatedCost'
         ));
-    }
-
-    /** Employee flags a material as short and requests more of it */
-    public function requestMaterial(Request $request, $projectId)
-    {
-        $project = Project::findOrFail($projectId);
-
-        if (!$project->assignedEmployees()->where('employees.id', session('user_id'))->exists()) {
-            abort(403);
-        }
-
-        $validated = $request->validate([
-            'project_material_id' => 'nullable|exists:project_materials,id',
-            'material_name'       => 'required|string|max:255',
-            'quantity'            => 'required|integer|min:1',
-            'unit'                => 'nullable|string|max:50',
-            'notes'               => 'nullable|string|max:500',
-            'requested_date'      => 'nullable|date',
-        ]);
-
-        $employee = Employee::find(session('user_id'));
-
-        MaterialRequest::create([
-            'project_id'          => $project->id,
-            'project_material_id' => $validated['project_material_id'] ?? null,
-            'requested_by'        => $employee?->id,
-            'material'            => $validated['material_name'],
-            'quantity'            => $validated['quantity'],
-            'unit'                => $validated['unit'] ?? '',
-            'project'             => $project->name,
-            'supplier'            => 'Pending Assignment',
-            'requested_date'      => $validated['requested_date'] ?? now()->toDateString(),
-            'status'              => 'pending',
-            'notes'               => $validated['notes'] ?? null,
-        ]);
-
-        NotificationService::materialRequested(
-            $project,
-            $employee?->full_name ?? 'An employee',
-            $validated['material_name'],
-            $validated['quantity'],
-            $validated['notes'] ?? null
-        );
-
-        return redirect()
-            ->route('employee.project_materials.detail', $projectId)
-            ->with('success', "Material shortage reported for \"{$validated['material_name']}\". The admin team has been notified.");
     }
 
 }

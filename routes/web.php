@@ -22,7 +22,6 @@ use App\Http\Controllers\PortfolioItemController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\FundController;
-use App\Http\Controllers\MaterialRequestController;
 use App\Http\Controllers\SupplierContactController;
 use App\Http\Controllers\MonthlyExpenseController;
 use App\Http\Controllers\MessageController;
@@ -93,8 +92,6 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::patch('/project-materials/{projectId}/labor/{laborId}/archive', [ProjectMaterialController::class, 'archiveLabor'])->name('project_materials.archive_labor');
     Route::patch('/project-materials/{projectId}/estimated-days', [ProjectMaterialController::class, 'updateEstimatedDays'])->name('project_materials.update_estimated_days');
 
-    Route::post('/material-requests/{id}/fund', [MaterialRequestController::class, 'fund'])->name('material_requests.fund');
-    Route::post('/material-requests/{id}/rerequest', [MaterialRequestController::class, 'rerequest'])->name('material_requests.rerequest');
 
     Route::get('/material-usage', [MaterialUsageController::class, 'adminIndex'])->name('material_usage');
     Route::get('/material-usage/client/{client}', [MaterialUsageController::class, 'clientIndex'])->name('material_usage.client');
@@ -133,8 +130,7 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::post('/payments/{id}/billing-statements/{statementId}/send', [PaymentController::class, 'sendBillingStatement'])->name('payments.billing_statements.send');
     Route::get('/revolving-fund', [FundController::class, 'index'])->name('revolving_fund');
     Route::post('/revolving-fund/setup', [FundController::class, 'setupInitial'])->name('revolving_fund.setup_initial');
-    Route::post('/revolving-fund/release', [FundController::class, 'release'])->name('revolving_fund.release');
-    Route::post('/revolving-fund/replenish', [FundController::class, 'replenish'])->name('revolving_fund.replenish');
+    Route::post('/revolving-fund/top-up', [FundController::class, 'topUp'])->name('revolving_fund.top_up');
     Route::get('/projects', [AdminController::class, 'projects'])->name('projects');
     Route::get('/projects/client/{client}', [AdminController::class, 'projectsClient'])->name('projects.client');
     Route::get('/projects/client-groups', [AdminController::class, 'projectClientGroups'])->name('projects.client_groups');
@@ -174,6 +170,7 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::get('/project-view/{id}', [ProjectController::class, 'adminView'])->name('project_view');
     Route::post('/project/{id}/advance-phase', [ProjectController::class, 'advancePhase'])->name('project.advance_phase');
     Route::post('/project/{id}/add-update', [ProjectController::class, 'addUpdate'])->name('project.add_update');
+    Route::post('/project/{id}/confirm-payment-gate', [ProjectController::class, 'confirmPaymentGate'])->name('project.confirm_payment_gate');
     Route::post('/project/{id}/send-quotation', [ProjectController::class, 'sendQuotationToClient'])->name('project.send_quotation');
     Route::post('/project/{id}/request-update', [ProjectController::class, 'requestUpdate'])->name('project.request_update');
 
@@ -335,7 +332,6 @@ Route::prefix('employee')->name('employee.')->middleware(['role:employee', 'prof
 
     Route::get('/project-materials', [ProjectMaterialController::class, 'employeeIndex'])->name('project_materials');
     Route::get('/project-materials/{projectId}', [ProjectMaterialController::class, 'employeeDetail'])->name('project_materials.detail');
-    Route::post('/project-materials/{projectId}/request', [ProjectMaterialController::class, 'requestMaterial'])->name('project_materials.request');
 
     Route::get('/material-usage/{projectId}', [MaterialUsageController::class, 'employeeDetail'])->name('material_usage.detail');
     Route::post('/material-usage/{projectId}', [MaterialUsageController::class, 'employeeStore'])->name('material_usage.store');

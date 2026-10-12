@@ -107,6 +107,49 @@
             </div>
             @endif
 
+            {{-- Completion phase: what the Financial Overview still needs before the project can be marked Completed --}}
+            @if(!empty($completionGaps))
+            <div class="fin-gaps" role="status">
+                <div class="fin-gaps-head">
+                    <i data-lucide="clipboard-list"></i>
+                    <div>
+                        <strong>Complete the Financial Overview before marking this project as Completed</strong>
+                        <span>The final output can't be recorded until these are in:</span>
+                    </div>
+                </div>
+                <ul>
+                    @foreach($completionGaps as $gap)
+                    <li>{{ ucfirst($gap) }}</li>
+                    @endforeach
+                </ul>
+                <div class="fin-gaps-links">
+                    @if($payment)
+                    <a href="{{ route('admin.payments.show', $payment->id) }}"><i data-lucide="wallet"></i> Payment</a>
+                    @else
+                    <a href="{{ route('admin.payments') }}"><i data-lucide="wallet"></i> Payments</a>
+                    @endif
+                    <a href="{{ route('admin.material_usage.detail', $project->id) }}"><i data-lucide="package"></i> Material Usage</a>
+                    <a href="{{ route('admin.salary.index') }}"><i data-lucide="banknote"></i> Salary Records</a>
+                </div>
+            </div>
+            <style>
+                .fin-gaps { margin-bottom: 20px; padding: 14px 18px; background: #FFF7E6; border: 1px solid #F5D08A; border-radius: 16px; color: #7A4B00; }
+                .fin-gaps-head { display: flex; align-items: flex-start; gap: 10px; }
+                .fin-gaps-head > i, .fin-gaps-head > svg { width: 18px; height: 18px; flex-shrink: 0; margin-top: 2px; }
+                .fin-gaps-head strong { display: block; font-size: 13.5px; font-weight: 900; }
+                .fin-gaps-head span { display: block; margin-top: 2px; font-size: 12.5px; }
+                .fin-gaps ul { margin: 8px 0 0 28px; padding: 0; font-size: 12.5px; line-height: 1.7; }
+                .fin-gaps-links { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 0 28px; }
+                .fin-gaps-links a { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 800; color: #7A4B00; text-decoration: none; background: #fff; border: 1px solid #F5D08A; border-radius: 999px; padding: 5px 11px; }
+                .fin-gaps-links a:hover { border-color: #7A4B00; }
+                .fin-gaps-links i, .fin-gaps-links svg { width: 13px; height: 13px; }
+                @media (max-width: 600px) {
+                    .fin-gaps ul, .fin-gaps-links { margin-left: 0; }
+                    .fin-gaps ul { padding-left: 18px; }
+                }
+            </style>
+            @endif
+
             <!-- Financial Overview Card -->
             @php
                 $collPct = $contractAmount > 0 ? min(100,round(($budgetReceived/$contractAmount)*100)) : 0;
@@ -129,13 +172,17 @@
                     </div>
                     <div class="fd-ov-item fd-ov-received">
                         {{-- Remaining funds = what is left of the money received after actual materials + actual labor + overhead --}}
-                        @php $remainingBalance = $budgetReceived - ($actMaterialCost + $actLaborCost + $overheadShare); @endphp
+                        {{-- revolving fund money given to the project counts too, less what its payments already paid back --}}
+                        @php $remainingBalance = $projectFunds['available']; @endphp
                         <span class="fd-ov-label" style="font-size:9.5px;">Total Received / Remaining Funds</span>
                         <span class="fd-ov-label" style="font-size:8px;color:rgba(255,255,255,0.3);">
                             {{ $payment && $payment->status === 'Fully Paid' ? 'Fully Paid' : 'Amount received' }} &middot; less Actual Materials + Labor + Overhead
+                            @if($projectFunds['fund_released'] > 0)
+                            &middot; incl. ₱{{ number_format($projectFunds['fund_released'], 0) }} revolving fund{{ $projectFunds['fund_owed'] > 0 ? ' (₱' . number_format($projectFunds['fund_owed'], 0) . ' still to repay)' : ', repaid' }}
+                            @endif
                         </span>
                         <span class="fd-ov-val" style="color:#4ade80;">
-                            @if($budgetReceived > 0)
+                            @if($budgetReceived > 0 || $projectFunds['fund_released'] > 0)
                             ₱{{ number_format($budgetReceived,0) }}
                             <span style="color:rgba(255,255,255,0.35);font-weight:600;">/</span>
                             <span style="color:{{ $remainingBalance >= 0 ? '#fff' : '#f87171' }};">{{ $remainingBalance < 0 ? '-' : '' }}₱{{ number_format(abs($remainingBalance),0) }}</span>
@@ -460,7 +507,10 @@
                         // If this render is a redirect-back from a failed submission, the real
                         // form fields must already be showing (that's what was submitted), so
                         // skip the confirm step and go straight to the fields + errors.
-                        $revealFormFields = $errors->any() && ($gateSettled || $deliveryGate);
+                        // ...and once "Confirm Payment" / "Proceed Anyway" has been submitted for this
+                        // phase (saved on the server), the fields stay open on every visit.
+                        $gateConfirmed    = $needsConfirmStep && !empty($project->phaseData('payment_gates.' . $project->current_phase));
+                        $revealFormFields = ($errors->any() && ($gateSettled || $deliveryGate)) || $gateConfirmed;
                         // Delivery is the one exception: the tank can be delivered before the final
                         // payment is settled, so it offers "Proceed Anyway" instead of blocking.
                         $paymentBlocked   = $showConfirmGate && !$gateSettled && !$deliveryGate;
@@ -935,8 +985,9 @@
                             </button>
                             @endif
                             @if($needsConfirmStep && ($gateSettled || $deliveryGate))
-                            <button type="button" class="save-btn" id="paymentConfirmBtn"
-                                    onclick="{{ $gateSettled ? "proceedAfterPaymentConfirm('" . $project->current_phase . "')" : 'openProceedUnpaidModal()' }}"
+                            {{-- Confirm Payment submits (page reloads with the checklist open); Proceed Anyway asks first --}}
+                            <button type="{{ $gateSettled ? 'submit' : 'button' }}" class="save-btn" id="paymentConfirmBtn"
+                                    @if($gateSettled) form="paymentGateForm" @else onclick="openProceedUnpaidModal()" @endif
                                     style="font-size:13.5px;padding:11px 24px;{{ $revealFormFields ? 'display:none;' : '' }}">
                                 <i data-lucide="{{ $gateSettled ? 'check' : 'arrow-right' }}"></i>
                                 {{ $gateSettled ? 'Confirm Payment' : 'Proceed Anyway' }}
@@ -1525,6 +1576,17 @@
     </div>
     @endif
 
+    {{-- Confirm Payment / Proceed Anyway (Fabrication & Delivery): saved on the server, then the page reloads
+         with the checklist or delivery form open. A separate form so it never sends the progress fields. --}}
+    @if(!empty($needsConfirmStep) && ($gateSettled || $deliveryGate) && !$revealFormFields)
+    <form method="POST" action="{{ route('admin.project.confirm_payment_gate', $project->id) }}" id="paymentGateForm" style="display:none;">
+        @csrf
+        @unless($gateSettled)
+        <input type="hidden" name="proceed_without_final_payment" value="1">
+        @endunless
+    </form>
+    @endif
+
     <!-- ===== DELIVERY: PROCEED WITHOUT FINAL PAYMENT CONFIRM MODAL ===== -->
     @if($project->current_phase === 'delivery' && $project->awaitingPaymentStage() === 'final_payment')
     <div class="modal-overlay" id="proceedUnpaidModal">
@@ -1547,7 +1609,7 @@
             </div>
             <div class="modal-actions">
                 <button type="button" class="cancel-btn" onclick="closeProceedUnpaidModal()">Cancel</button>
-                <button type="button" class="save-btn" onclick="closeProceedUnpaidModal(); proceedAfterPaymentConfirm('delivery');">
+                <button type="submit" class="save-btn" form="paymentGateForm">
                     <i data-lucide="arrow-right"></i>
                     Yes, Proceed Anyway
                 </button>
@@ -1607,7 +1669,8 @@
                 </button>
             </div>
 
-            <form method="POST" action="{{ route('admin.performance_test_reports.store', $project->id) }}" id="ptrForm" enctype="multipart/form-data">
+            {{-- The report opens in a new tab ready to print / save as PDF — it is not saved to the project --}}
+            <form method="POST" action="{{ route('admin.performance_test_reports.store', $project->id) }}" id="ptrForm" enctype="multipart/form-data" target="_blank" data-no-submit-guard>
                 @csrf
                 <div class="form-grid">
                     <div class="form-group">
@@ -1659,9 +1722,9 @@
                     <label for="ptrPhotosInput" class="pv-upload-dropzone" id="ptrPhotosDropzone">
                         <i data-lucide="upload-cloud" style="width:24px;height:24px;color:var(--accent);"></i>
                         <span style="font-size:13px;font-weight:700;color:var(--text-primary);">Click to upload jobsite/gauge photos</span>
-                        <span style="font-size:11px;color:var(--muted);">PDF or images, up to 10 files, max 10MB each</span>
+                        <span style="font-size:11px;color:var(--muted);">JPG or PNG images, up to 10 photos, max 10MB each</span>
                     </label>
-                    <input type="file" name="test_photos[]" id="ptrPhotosInput" accept=".pdf,image/*" multiple style="display:none;">
+                    <input type="file" name="test_photos[]" id="ptrPhotosInput" accept=".jpg,.jpeg,.png,image/jpeg,image/png" multiple style="display:none;">
                     <div id="ptrPhotosPreview" class="qr-file-list" style="display:none;"></div>
                 </div>
 
@@ -1735,39 +1798,6 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="{{ asset('js/admin.js') }}"></script>
     <script>
-        /* ── Payment-confirm gate (fabrication / delivery) ───────────────── */
-        // The confirm click only reveals the checklist client-side, so remember it
-        // per project+phase — otherwise a refresh drops back to the confirm step.
-        function paymentConfirmKey(phase) { return 'paymentConfirmed:' + PROJECT_ID + ':' + phase; }
-
-        function proceedAfterPaymentConfirm(phase) {
-            try { sessionStorage.setItem(paymentConfirmKey(phase), '1'); } catch (e) {}
-            const confirmStep = document.getElementById(phase + 'ConfirmStep');
-            const formFields  = document.getElementById(phase + 'FormFields');
-            const confirmBtn  = document.getElementById('paymentConfirmBtn');
-            const submitBtn   = document.getElementById('progressSubmitBtn');
-            const requestWrap = document.getElementById('requestFromEmployeeWrap');
-            if (confirmStep) confirmStep.style.display = 'none';
-            if (formFields)  formFields.style.display = 'block';
-            if (confirmBtn)  confirmBtn.style.display = 'none';
-            if (submitBtn)   submitBtn.style.display = '';
-            if (requestWrap) requestWrap.style.display = 'flex';
-        }
-
-        (function restorePaymentConfirm() {
-            // The confirm button only exists while the payment gate is settled.
-            if (!document.getElementById('paymentConfirmBtn')) return;
-            const phase = PROJECT_CURRENT_PHASE;
-            let confirmed = false;
-            try { confirmed = sessionStorage.getItem(paymentConfirmKey(phase)) === '1'; } catch (e) {}
-            if (confirmed) proceedAfterPaymentConfirm(phase);
-
-            // Once the update is actually submitted, the confirmation has done its job.
-            const form = document.getElementById('addUpdateForm');
-            if (form) form.addEventListener('submit', () => {
-                try { sessionStorage.removeItem(paymentConfirmKey(phase)); } catch (e) {}
-            });
-        })();
 
         const adminFileMaps = new Map();
 
@@ -2012,6 +2042,29 @@
                 // submitting through the button keeps its mark_completed=1 value in the request
                 inspectionCompleteBtn.form.requestSubmit(inspectionCompleteBtn);
             });
+
+            // "Save Progress" logs this round's passed tests — it needs at least one ticked
+            // (the server checks the same). "Mark as Completed" is not affected.
+            const inspectionForm = inspectionCompleteBtn.form;
+            const testBoxes = inspectionForm.querySelectorAll('.pv-checklist-item input[type="checkbox"]');
+            inspectionForm.addEventListener('submit', (e) => {
+                if (e.submitter === inspectionCompleteBtn) return;
+                if (Array.from(testBoxes).some((box) => box.checked)) return;
+                e.preventDefault();
+                const errorBox = document.getElementById('addUpdateClientError');
+                if (errorBox) {
+                    errorBox.innerHTML = '<div>• Tick at least one passed test before saving progress.</div>';
+                    errorBox.style.display = 'block';
+                }
+                testBoxes.forEach((box) => box.closest('.pv-checklist-item').classList.add('is-missing'));
+                testBoxes[0] && testBoxes[0].closest('.pv-checklist-item').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            });
+            testBoxes.forEach((box) => box.addEventListener('change', () => {
+                if (!Array.from(testBoxes).some((b) => b.checked)) return;
+                testBoxes.forEach((b) => b.closest('.pv-checklist-item').classList.remove('is-missing'));
+                const errorBox = document.getElementById('addUpdateClientError');
+                if (errorBox) errorBox.style.display = 'none';
+            }));
         }
 
         document.getElementById('closeRequestModal').addEventListener('click', () => {
@@ -2114,6 +2167,11 @@
             }
 
             document.getElementById('ptrAddItemBtn').addEventListener('click', addItemRow);
+
+            // The report opens in its own tab (nothing is saved) — close the form here once it's sent
+            document.getElementById('ptrForm').addEventListener('submit', function (e) {
+                if (!e.defaultPrevented) setTimeout(close, 150);
+            });
             addItemRow();
 
             // -- Actual test photos — chip UI (mirrors the client quotation-request upload) --

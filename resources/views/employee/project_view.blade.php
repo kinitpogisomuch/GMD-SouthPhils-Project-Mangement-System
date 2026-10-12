@@ -1065,7 +1065,7 @@
     </script>
     @include('partials.receipt_viewer')
     @if(session('success'))
-    {{-- Saved (e.g. progress update / revision submitted, material requested): small dark toast
+    {{-- Saved (e.g. progress update / revision submitted): small dark toast
          centered below the header. Longer messages stay a little longer. --}}
     <div class="toast" id="empProjectToast" role="status">
         <i data-lucide="check-circle"></i>

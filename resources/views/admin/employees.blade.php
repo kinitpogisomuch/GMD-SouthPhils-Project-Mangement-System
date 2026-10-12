@@ -10,6 +10,7 @@
 <body class="page-enter">
 
     @include('partials.admin.header')
+    @include('partials.admin.fund_overrun_modal')
 
     <div class="admin-layout">
         @include('partials.admin.sidebar')
@@ -938,6 +939,22 @@
                     </div>
                 </div>
 
+                {{-- ── Money each selected project has (labor is paid from Total Received) ── --}}
+                <div id="rpFundsPanel" class="sf-panel" hidden></div>
+                <style>
+                    .sf-panel { margin-bottom: 14px; padding: 12px 14px; border-radius: 14px; background: linear-gradient(180deg, #333333 0%, #2a2a2a 100%); display: flex; flex-direction: column; gap: 12px; }
+                    .sf-panel[hidden] { display: none; }
+                    .sf-proj + .sf-proj { padding-top: 12px; border-top: 1px solid rgba(255,255,255,.1); }
+                    .sf-name { font-size: 12px; font-weight: 800; color: rgba(255,255,255,.85); margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+                    .sf-figs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+                    .sf-fig span { display: block; font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: rgba(255,255,255,.45); }
+                    .sf-fig strong { display: block; margin-top: 2px; font-size: 14px; font-weight: 900; color: #fff; font-variant-numeric: tabular-nums; }
+                    .sf-fig small { display: block; font-size: 10.5px; color: rgba(255,255,255,.4); }
+                    .sf-available strong { color: #4ade80; }
+                    .sf-warn { margin-top: 10px; padding: 8px 10px; border-radius: 10px; font-size: 12.5px; font-weight: 700; background: rgba(248,113,113,.14); color: #fca5a5; }
+                    @media (max-width: 520px) { .sf-figs { grid-template-columns: 1fr 1fr; } }
+                </style>
+
                 <div id="rpError" style="display:none;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;margin-bottom:10px;color:#991b1b;font-size:13px;"></div>
 
                 <div class="modal-actions">
@@ -1233,7 +1250,7 @@
             }
             list.innerHTML = projects.map(function(p) {
                 var sel = selectedIds.indexOf(p.id) !== -1;
-                return '<div data-proj-id="' + p.id + '" data-proj-name="' + (p.name||'').replace(/"/g,'&quot;') + '" data-proj-client="' + (p.client||'') + '" data-proj-spec="' + (p.spec||'') + '"'
+                return '<div data-proj-id="' + p.id + '" data-selected="' + (sel ? '1' : '0') + '" data-proj-name="' + (p.name||'').replace(/"/g,'&quot;') + '" data-proj-client="' + (p.client||'') + '" data-proj-spec="' + (p.spec||'') + '"'
                     + ' onclick="toggleProjectCard(this)" style="cursor:pointer;border-radius:12px;padding:12px 14px;border:2px solid ' + (sel ? '#2563eb' : 'var(--border)') + ';background:' + (sel ? '#eff6ff' : '#fff') + ';transition:all .15s;position:relative;">'
                     // Check icon
                     + '<div class="proj-check-icon" style="position:absolute;top:10px;right:10px;width:20px;height:20px;border-radius:50%;background:#2563eb;display:' + (sel ? 'flex' : 'none') + ';align-items:center;justify-content:center;">'
@@ -1257,7 +1274,48 @@
         list.innerHTML = '<div style="font-size:12px;color:var(--muted);text-align:center;padding:16px 0;">Loading…</div>';
         fetch(SALARY_PROJECTS_URL, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
             .then(function(r){ return r.json(); })
-            .then(function(data){ SALARY_PROJECTS_CACHE = data; render(data); });
+            .then(function(data){
+                SALARY_PROJECTS_CACHE = data.projects || [];
+                SALARY_PROJECT_FUNDS = {};
+                SALARY_PROJECTS_CACHE.forEach(function (p) { SALARY_PROJECT_FUNDS[p.id] = p.funds; });
+                render(SALARY_PROJECTS_CACHE);
+            });
+    }
+
+    // What each project has received / spent (from the salary projects list), and what the record being
+    // edited already puts on each project — only the increase is checked against what is available.
+    var SALARY_PROJECT_FUNDS = {};
+    var rpEditAllocations = {};
+
+    // Same rule as ProjectFunds::overrun() on the server: only the new labor is ever covered
+    function salaryExceeded(amount, available) {
+        if (amount <= 0) return 0;
+        return Math.round(Math.max(0, Math.min(amount, amount - available)) * 100) / 100;
+    }
+
+    function renderSalaryFunds(selectedCards, amounts) {
+        var panel = document.getElementById('rpFundsPanel');
+        if (!panel) return;
+        var rows = selectedCards.map(function (card, i) {
+            var id = parseInt(card.dataset.projId);
+            var f  = SALARY_PROJECT_FUNDS[id];
+            if (!f) return '';
+            var increase = Math.round(((amounts[i] || 0) - (parseFloat(rpEditAllocations[id]) || 0)) * 100) / 100;
+            var over = salaryExceeded(increase, f.available);
+            return '<div class="sf-proj">'
+                + (selectedCards.length > 1 ? '<div class="sf-name">' + (card.dataset.projName || 'Project') + '</div>' : '')
+                + '<div class="sf-figs">'
+                +   '<div class="sf-fig"><span>Total Received</span><strong>₱' + fmt(f.received) + '</strong></div>'
+                +   '<div class="sf-fig"><span>Already Spent</span><strong>₱' + fmt(f.spent) + '</strong><small>Materials, labor &amp; overhead</small></div>'
+                +   '<div class="sf-fig sf-available"><span>Available</span><strong>₱' + fmt(Math.max(0, f.available)) + '</strong>'
+                +     (f.fund_owed > 0 ? '<small>incl. ₱' + fmt(f.fund_owed) + ' from the revolving fund</small>' : '') + '</div>'
+                + '</div>'
+                + (over > 0 ? '<div class="sf-warn">This salary is ₱' + fmt(over) + ' more than the money available'
+                    + (selectedCards.length > 1 ? ' for this project' : '') + '. You can cover it from the revolving fund when you save.</div>' : '')
+                + '</div>';
+        }).join('');
+        panel.innerHTML = rows;
+        panel.hidden = rows === '';
     }
 
     function toggleProjectCard(card) {
@@ -1632,6 +1690,7 @@
         document.getElementById('rpDays').value           = storedDays;
         document.getElementById('rpOvertimeHours').value  = rec.overtime_hours || '';
         setSalaryPaymentMethod(rec.payment_method || 'cash');
+        rpEditAllocations = rec.allocations || {};
         loadSalaryProjects(rec.project_ids || (rec.project_id ? [rec.project_id] : []));
 
         document.getElementById('backSalaryStep2').style.display = 'none';
@@ -1661,6 +1720,7 @@
         document.getElementById('recordPaymentTitle').textContent    = 'Add Outsourced Worker';
         document.getElementById('recordPaymentSubtitle').textContent = 'Select an outsourced worker to record their weekly salary.';
 
+        rpEditAllocations = {};
         loadSalaryProjects([]);
         pickedSalaryEmployee = null;
         document.getElementById('salaryEmpPickerSearch').value = '';
@@ -1772,6 +1832,12 @@
                 if (line && card.getAttribute('data-selected') !== '1') line.style.display = 'none';
             });
         }
+
+        // ── Money available per selected project (same equal split as above) ──
+        var nSel = selectedCards.length;
+        var per  = nSel > 0 ? Math.floor(gross * 100 / nSel) / 100 : 0;
+        var rem  = nSel > 0 ? Math.round((gross - per * nSel) * 100) / 100 : 0;
+        renderSalaryFunds(selectedCards, selectedCards.map(function (c, i) { return per + (i === nSel - 1 ? rem : 0); }));
     }
 
     document.addEventListener('DOMContentLoaded', function () {
@@ -1861,33 +1927,49 @@
             var url    = isEdit ? '/admin/salary-records/' + recordId : SALARY_STORE_URL;
             var method = isEdit ? 'PUT' : 'POST';
 
-            fetch(url, {
-                method: method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': CSRF,
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-                body: JSON.stringify(payload),
-            })
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-                submitBtn.disabled = false;
-                if (data.errors) {
-                    var msgs = Object.values(data.errors).flat().join(' ');
-                    errEl.textContent    = msgs;
+            // Labor is paid from what the client has paid so far. If this salary is more than a project
+            // has received, the server sends the details back and nothing is saved until the admin
+            // chooses to cover the difference from the revolving fund (sent again with use_fund).
+            function sendSalary(useFund) {
+                payload.use_fund = !!useFund;
+                fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': CSRF,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify(payload),
+                })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    submitBtn.disabled = false;
+                    if (data.fund_overrun) {
+                        FundOverrun.open(data.fund_overrun, {
+                            amountLabel: 'Labor this week',
+                            onUse: function () { FundOverrun.close(); submitBtn.disabled = true; sendSalary(true); }
+                        });
+                        return;
+                    }
+                    if (data.errors) {
+                        var msgs = Object.values(data.errors).flat().join(' ');
+                        errEl.textContent    = msgs;
+                        errEl.style.display  = 'block';
+                        return;
+                    }
+                    closeEmpModal('recordPaymentModal');
+                    SALARY_PROJECTS_CACHE = null;   // what each project has spent just changed — reload it next time
+                    loadSalaryRecords(currentSalaryPeriod);
+                    showEmpToast((isEdit ? 'Salary record updated.' : 'Salary record saved.') + (useFund ? ' The amount over Total Received was covered by the revolving fund.' : ''));
+                })
+                .catch(function () {
+                    submitBtn.disabled   = false;
+                    errEl.textContent    = 'Something went wrong. Please try again.';
                     errEl.style.display  = 'block';
-                    return;
-                }
-                closeEmpModal('recordPaymentModal');
-                loadSalaryRecords(currentSalaryPeriod);
-                showEmpToast(isEdit ? 'Salary record updated.' : 'Salary record saved.');
-            })
-            .catch(function () {
-                submitBtn.disabled   = false;
-                errEl.textContent    = 'Something went wrong. Please try again.';
-                errEl.style.display  = 'block';
-            });
+                });
+            }
+            sendSalary(false);
         });
     });
 

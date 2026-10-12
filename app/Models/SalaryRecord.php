@@ -43,7 +43,7 @@ class SalaryRecord extends Model
 
     public function projects()
     {
-        return $this->belongsToMany(Project::class, 'salary_record_project');
+        return $this->belongsToMany(Project::class, 'salary_record_project')->withPivot('allocated_pay');
     }
 
     public static function compute(array $data): array

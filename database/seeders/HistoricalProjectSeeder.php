@@ -189,6 +189,12 @@ class HistoricalProjectSeeder extends Seeder
 
     public function run(): void
     {
+        // These projects are imported already finished; their payments and costs are created after them.
+        \App\Models\Project::withoutFinancialCheck(fn () => $this->importProjects());
+    }
+
+    private function importProjects(): void
+    {
         DB::transaction(function () {
             $this->removePreviousRun();
 

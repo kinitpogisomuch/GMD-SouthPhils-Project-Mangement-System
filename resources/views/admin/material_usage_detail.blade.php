@@ -10,6 +10,7 @@
 <body class="page-enter">
 
     @include('partials.admin.header')
+    @include('partials.admin.fund_overrun_modal')
 
     <div class="admin-layout">
         @include('partials.admin.sidebar')
@@ -172,8 +173,10 @@
                     $allMaterialRows = $plannedNames->concat($extraNames)->unique()->values();
                 @endphp
 
-                {{-- Summary table (full width — the purchase form now lives in a modal) --}}
-                <div class="pm-card" style="margin-bottom:16px;display:flex;flex-direction:column;min-width:0;height:500px;overflow:hidden;">
+                {{-- Summary table (full width — the purchase form now lives in a modal). One table: the
+                     header stays visible while the rows scroll, the TOTAL row always lines up with the
+                     columns, the card is only as tall as its rows, and narrow screens scroll sideways. --}}
+                <div class="pm-card pm-purchased-card" style="margin-bottom:16px;min-width:0;overflow:hidden;">
                     <div class="pm-card-header pm-purchased-header">
                         <div>
                             <div class="pm-card-title">Purchased materials &mdash; summary</div>
@@ -190,9 +193,8 @@
                         </div>
                     </div>
 
-                    @php $pcols = 'table-layout:fixed;border-collapse:collapse;width:100%;'; @endphp
-                    <div class="pm-purchased-scroll" style="flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;">
-                        <table class="pm-purchased-table" style="{{ $pcols }}">
+                    <div class="pm-purchased-scroll">
+                        <table class="pm-purchased-table">
                             <colgroup>
                                 <col style="width:28%;">
                                 <col style="width:11%;">
@@ -202,26 +204,15 @@
                                 <col style="width:18%;">
                             </colgroup>
                             <thead>
-                                <tr style="background:var(--cream-soft);border-bottom:1px solid var(--border);">
-                                    <th style="text-align:left;padding:10px 12px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">Material</th>
-                                    <th style="text-align:center;padding:10px 8px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">Unit</th>
-                                    <th style="text-align:center;padding:10px 8px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">Planned Qty</th>
-                                    <th style="text-align:center;padding:10px 8px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">Qty Bought</th>
-                                    <th style="text-align:right;padding:10px 8px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">Total Paid (₱)</th>
-                                    <th style="text-align:center;padding:10px 8px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">VS BOM</th>
+                                <tr>
+                                    <th style="text-align:left;padding-left:14px;">Material</th>
+                                    <th>Unit</th>
+                                    <th>Planned Qty</th>
+                                    <th>Qty Bought</th>
+                                    <th style="text-align:right;">Total Paid (₱)</th>
+                                    <th>VS BOM</th>
                                 </tr>
                             </thead>
-                        </table>
-                        <div class="pm-purchased-body-wrap" style="flex:1;overflow-y:scroll;min-height:0;">
-                        <table class="pm-purchased-table" style="{{ $pcols }}">
-                            <colgroup>
-                                <col style="width:28%;">
-                                <col style="width:11%;">
-                                <col style="width:13%;">
-                                <col style="width:15%;">
-                                <col style="width:15%;">
-                                <col style="width:18%;">
-                            </colgroup>
                             <tbody>
                                 @forelse($allMaterialRows as $matName)
                                 @php
@@ -235,15 +226,15 @@
                                     $vsColor   = $vsPct !== null ? ($vsPct <= 100 ? '#16a34a' : '#ef4444') : 'var(--muted)';
                                     $unit      = $group ? $group->first()->unit : ($bomMat->unit ?? null);
                                 @endphp
-                                <tr style="border-bottom:1px solid var(--border);">
-                                    <td style="padding:12px 12px;">
+                                <tr>
+                                    <td style="text-align:left;padding-left:14px;">
                                         <strong style="font-size:13px;font-weight:700;color:var(--dark);">{{ $matName }}</strong>
                                     </td>
-                                    <td style="text-align:center;padding:12px 8px;font-size:12px;font-weight:400;color:var(--muted);">{{ $unit ?: '—' }}</td>
-                                    <td style="text-align:center;padding:12px 8px;font-size:13px;font-weight:400;color:var(--dark);">{{ $planned !== null ? number_format($planned, 0) : '—' }}</td>
-                                    <td style="text-align:center;padding:12px 8px;font-size:13px;font-weight:400;color:var(--dark);">{{ number_format($totalQty, 0) }}</td>
-                                    <td style="text-align:right;padding:12px 8px;font-size:13px;color:var(--dark);font-weight:700;">₱{{ number_format($totalPaid, 2) }}</td>
-                                    <td style="text-align:center;padding:12px 8px;">
+                                    <td style="font-size:12px;color:var(--muted);">{{ $unit ?: '—' }}</td>
+                                    <td>{{ $planned !== null ? number_format($planned, 0) : '—' }}</td>
+                                    <td>{{ number_format($totalQty, 0) }}</td>
+                                    <td style="text-align:right;font-weight:700;">₱{{ number_format($totalPaid, 2) }}</td>
+                                    <td>
                                         @if($vsPct !== null)
                                         <div style="display:flex;align-items:center;gap:6px;justify-content:center;">
                                             <div style="width:60px;height:5px;background:var(--cream-deep);border-radius:999px;overflow:hidden;flex-shrink:0;">
@@ -252,33 +243,33 @@
                                             <span style="font-weight:800;font-size:12px;color:{{ $vsColor }};min-width:30px;">{{ $vsPct }}%</span>
                                         </div>
                                         @else
-                                        <span style="font-size:13px;color:var(--muted);">—</span>
+                                        <span style="color:var(--muted);">—</span>
                                         @endif
                                     </td>
                                 </tr>
                                 @empty
                                 <tr>
-                                    <td colspan="6" style="text-align:center;padding:48px 20px;font-size:13px;color:var(--muted);">
+                                    <td colspan="6" style="padding:48px 20px;color:var(--muted);">
                                         <i data-lucide="shopping-cart" style="width:32px;height:32px;color:var(--border);display:block;margin:0 auto 10px;"></i>
                                         No materials planned or purchased yet.
                                     </td>
                                 </tr>
                                 @endforelse
                             </tbody>
+                            @if($allMaterialRows->isNotEmpty())
+                            <tfoot>
+                                <tr>
+                                    <td style="text-align:left;padding-left:14px;font-weight:900;font-size:12px;text-transform:uppercase;letter-spacing:.04em;">Total</td>
+                                    <td></td>
+                                    <td style="color:var(--muted);">—</td>
+                                    <td style="font-weight:900;">{{ number_format($purchases->sum('qty_bought'), 0) }}</td>
+                                    <td style="text-align:right;font-weight:900;">&#x20B1;{{ number_format($totalPurchased, 2) }}</td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                            @endif
                         </table>
-                        </div>
                     </div>
-                    @if($allMaterialRows->isNotEmpty())
-                    <div style="background:var(--cream-soft);display:grid;grid-template-columns:28fr 11fr 13fr 15fr 15fr 18fr;border-top:2px solid var(--border);">
-                        <div style="padding:12px 14px;color:var(--dark);font-weight:900;font-size:12px;text-transform:uppercase;letter-spacing:.04em;">Total</div>
-                        <div style="padding:12px 8px;"></div>
-                        <div style="padding:12px 8px;text-align:center;font-size:13px;color:var(--muted);">—</div>
-                        <div style="padding:12px 8px;text-align:center;font-size:13px;color:var(--dark);font-weight:900;">{{ number_format($purchases->sum('qty_bought'), 0) }}</div>
-                        <div style="padding:12px 8px;text-align:right;font-size:13px;color:var(--dark);font-weight:900;">&#x20B1;{{ number_format($totalPurchased, 2) }}</div>
-                        <div style="padding:12px 8px;"></div>
-                    </div>
-                    @endif
-
                 </div>{{-- end summary card --}}
 
                 {{-- Log New Purchase modal — supports multiple material rows in one
@@ -351,10 +342,36 @@
                             </div>
                         </div>
 
-                        <button type="submit" class="save-btn" style="width:100%;justify-content:center;height:44px;margin-top:16px;">
+                        {{-- Purchases are paid from what the client has paid so far; the Project Budget is only the plan --}}
+                        <input type="hidden" name="use_fund" id="purchaseUseFund" value="0">
+                        <div class="pf-panel" id="purchaseFundsPanel">
+                            <div class="pf-fig"><span>Total Received</span><strong>₱{{ number_format($projectFunds['received'], 2) }}</strong></div>
+                            <div class="pf-fig" title="Materials ₱{{ number_format($projectFunds['materials'], 2) }} · Labor ₱{{ number_format($projectFunds['labor'], 2) }} · Overhead ₱{{ number_format($projectFunds['overhead'], 2) }}">
+                                <span>Already Spent</span><strong>₱{{ number_format($projectFunds['spent'], 2) }}</strong>
+                                <small>Materials, labor &amp; overhead</small>
+                            </div>
+                            <div class="pf-fig pf-available"><span>Available</span><strong id="pfAvailable">₱{{ number_format(max(0, $projectFunds['available']), 2) }}</strong>
+                                @if($projectFunds['fund_owed'] > 0)<small>incl. ₱{{ number_format($projectFunds['fund_owed'], 2) }} from the revolving fund</small>@endif
+                            </div>
+                            <div class="pf-fig pf-budget"><span>Project Budget</span><strong>₱{{ number_format($projectBudget, 2) }}</strong><small>Planned, for reference</small></div>
+                            <div class="pf-status" id="pfStatus" hidden></div>
+                        </div>
+
+                        <button type="submit" class="save-btn" style="width:100%;justify-content:center;height:44px;margin-top:12px;">
                             <i data-lucide="check"></i> Save Purchases
                         </button>
                     </form>
+                    <style>
+                        .pf-panel { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 14px; padding: 12px 14px; border: 1px solid rgba(255,255,255,.12); border-radius: 14px; background: rgba(255,255,255,.04); }
+                        .pf-fig span { display: block; font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: rgba(255,255,255,.45); }
+                        .pf-fig strong { display: block; margin-top: 2px; font-size: 14px; font-weight: 900; color: #fff; font-variant-numeric: tabular-nums; }
+                        .pf-fig small { display: block; font-size: 10.5px; color: rgba(255,255,255,.4); }
+                        .pf-available strong { color: #4ade80; }
+                        .pf-budget strong { color: rgba(255,255,255,.7); }
+                        .pf-status { grid-column: 1 / -1; padding: 8px 10px; border-radius: 10px; font-size: 12.5px; font-weight: 700; background: rgba(248,113,113,.14); color: #fca5a5; }
+                        .pf-status[hidden] { display: none; }
+                        @media (max-width: 640px) { .pf-panel { grid-template-columns: 1fr 1fr; } }
+                    </style>
                 </div>
 
                 {{-- Hidden template for one purchase row — cloned by JS via addPurchaseRow() --}}
@@ -440,7 +457,15 @@
                             <tbody>
                                 @foreach($purchases as $pur)
                                 <tr>
-                                    <td style="font-size:13px;font-weight:700;color:var(--dark);">{{ $pur->material_name }}</td>
+                                    <td style="font-size:13px;font-weight:700;color:var(--dark);">
+                                        {{ $pur->material_name }}
+                                        @if($pur->fund_transaction_id)
+                                        <span title="Part of this purchase was more than the money received, and was covered by the revolving fund"
+                                              style="display:inline-flex;align-items:center;gap:4px;margin-left:6px;font-size:10.5px;font-weight:800;color:#8A6100;background:#FFF3D6;border-radius:999px;padding:2px 8px;vertical-align:1px;">
+                                            <i data-lucide="wallet" style="width:11px;height:11px;"></i> Revolving fund
+                                        </span>
+                                        @endif
+                                    </td>
                                     <td class="ctr" style="font-size:13px;font-weight:700;color:var(--dark);">{{ number_format($pur->qty_bought, 0) }}</td>
                                     <td class="ctr" style="font-size:13px;font-weight:400;color:var(--dark);">&#x20B1;{{ number_format($pur->actual_unit_cost, 2) }}</td>
                                     <td class="ctr"><strong style="font-size:13px;font-weight:700;color:#16a34a;">&#x20B1;{{ number_format($pur->total_paid, 2) }}</strong></td>
@@ -587,14 +612,15 @@
                     })->values();
                 @endphp
 
-                {{-- Summary table (full width — the usage form now lives in a modal) --}}
-                <div class="pm-card" style="margin-bottom:16px;display:flex;flex-direction:column;min-width:0;height:500px;overflow:hidden;">
-                    <div class="pm-card-header">
+                {{-- Summary table (full width — the usage form now lives in a modal). Same layout as the
+                     Purchased materials summary: one table, sticky header and TOTAL row, as tall as its rows. --}}
+                <div class="pm-card pm-purchased-card" style="margin-bottom:16px;min-width:0;overflow:hidden;">
+                    <div class="pm-card-header pm-purchased-header">
                         <div>
                             <div class="pm-card-title">Material usage &mdash; summary</div>
                             <div class="pm-card-sub">Aggregated usage per material &middot; logged by employees</div>
                         </div>
-                        <div style="display:flex;align-items:center;gap:14px;">
+                        <div class="pm-purchased-header-right" style="display:flex;align-items:center;gap:14px;">
                             @if($allUsageRows->isNotEmpty())
                             <span style="font-size:12px;font-weight:700;color:var(--muted);">{{ $allUsageRows->count() }} material{{ $allUsageRows->count() !== 1 ? 's' : '' }} &nbsp;·&nbsp; Total: <strong style="color:var(--dark);">{{ number_format($activeUsageEntries->sum('quantity_used'), 0) }}</strong></span>
                             @endif
@@ -604,9 +630,9 @@
                             </button>
                         </div>
                     </div>
-                    @php $ucols = 'table-layout:fixed;border-collapse:collapse;width:100%;'; @endphp
-                    <div style="flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;">
-                        <table style="{{ $ucols }}">
+
+                    <div class="pm-purchased-scroll">
+                        <table class="pm-purchased-table">
                             <colgroup>
                                 <col style="width:25%;">
                                 <col style="width:11%;">
@@ -616,26 +642,15 @@
                                 <col style="width:24%;">
                             </colgroup>
                             <thead>
-                                <tr style="background:var(--cream-soft);border-bottom:1px solid var(--border);">
-                                    <th style="text-align:left;padding:10px 12px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">Material</th>
-                                    <th style="text-align:center;padding:10px 8px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">Unit</th>
-                                    <th style="text-align:center;padding:10px 8px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">Stock (Bought)</th>
-                                    <th style="text-align:center;padding:10px 8px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">Qty Used</th>
-                                    <th style="text-align:center;padding:10px 8px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">Remaining</th>
-                                    <th style="text-align:center;padding:10px 8px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">Status</th>
+                                <tr>
+                                    <th style="text-align:left;padding-left:14px;">Material</th>
+                                    <th>Unit</th>
+                                    <th>Stock (Bought)</th>
+                                    <th>Qty Used</th>
+                                    <th>Remaining</th>
+                                    <th>Status</th>
                                 </tr>
                             </thead>
-                        </table>
-                        <div style="flex:1;overflow-y:scroll;min-height:0;">
-                        <table style="{{ $ucols }}">
-                            <colgroup>
-                                <col style="width:25%;">
-                                <col style="width:11%;">
-                                <col style="width:14%;">
-                                <col style="width:14%;">
-                                <col style="width:12%;">
-                                <col style="width:24%;">
-                            </colgroup>
                             <tbody>
                                 @forelse($allUsageRows as $matName)
                                 @php
@@ -659,17 +674,15 @@
                                         $statusLabel = 'In Stock';   $statusColor = '#16a34a';
                                     }
                                 @endphp
-                                <tr style="border-bottom:1px solid var(--border);">
-                                    <td style="padding:12px 12px;">
+                                <tr>
+                                    <td style="text-align:left;padding-left:14px;">
                                         <strong style="font-size:13px;font-weight:700;color:var(--dark);">{{ $matName }}</strong>
                                     </td>
-                                    <td style="text-align:center;padding:12px 8px;font-size:12px;font-weight:400;color:var(--muted);">{{ $unit ?: '—' }}</td>
-                                    <td style="text-align:center;padding:12px 8px;font-size:13px;font-weight:400;color:var(--dark);">{{ $stock > 0 ? number_format($stock, 0) : '—' }}</td>
-                                    <td style="text-align:center;padding:12px 8px;font-size:13px;font-weight:700;color:var(--dark);">{{ number_format($totalUsed, 0) }}</td>
-                                    <td style="text-align:center;padding:12px 8px;font-size:13px;font-weight:700;color:{{ $remainColor }};">
-                                        {{ $stock > 0 ? number_format($remaining, 0) : '—' }}
-                                    </td>
-                                    <td style="text-align:center;padding:12px 8px;">
+                                    <td style="font-size:12px;color:var(--muted);">{{ $unit ?: '—' }}</td>
+                                    <td>{{ $stock > 0 ? number_format($stock, 0) : '—' }}</td>
+                                    <td style="font-weight:700;">{{ number_format($totalUsed, 0) }}</td>
+                                    <td style="font-weight:700;color:{{ $remainColor }};">{{ $stock > 0 ? number_format($remaining, 0) : '—' }}</td>
+                                    <td>
                                         @if($remainPct !== null)
                                         <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
                                             <div style="display:flex;align-items:center;gap:6px;justify-content:center;">
@@ -687,26 +700,27 @@
                                 </tr>
                                 @empty
                                 <tr>
-                                    <td colspan="6" style="text-align:center;padding:48px 20px;font-size:13px;color:var(--muted);">
+                                    <td colspan="6" style="padding:48px 20px;color:var(--muted);">
                                         <i data-lucide="activity" style="width:32px;height:32px;color:var(--border);display:block;margin:0 auto 10px;"></i>
                                         No materials planned or used yet.
                                     </td>
                                 </tr>
                                 @endforelse
                             </tbody>
+                            @if($allUsageRows->isNotEmpty())
+                            <tfoot>
+                                <tr>
+                                    <td style="text-align:left;padding-left:14px;font-weight:900;font-size:12px;text-transform:uppercase;letter-spacing:.04em;">Total</td>
+                                    <td></td>
+                                    <td style="font-weight:900;">{{ isset($purchases) && $purchases->isNotEmpty() ? number_format($purchases->sum('qty_bought'), 0) : '—' }}</td>
+                                    <td style="font-weight:900;">{{ number_format($activeUsageEntries->sum('quantity_used'), 0) }}</td>
+                                    <td></td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                            @endif
                         </table>
-                        </div>
                     </div>
-                    @if($allUsageRows->isNotEmpty())
-                    <div style="background:var(--cream-soft);display:grid;grid-template-columns:25fr 11fr 14fr 14fr 12fr 24fr;border-top:2px solid var(--border);">
-                        <div style="padding:12px 14px;color:var(--dark);font-weight:900;font-size:12px;text-transform:uppercase;letter-spacing:.04em;">Total</div>
-                        <div style="padding:12px 8px;"></div>
-                        <div style="padding:12px 8px;text-align:center;font-size:13px;color:var(--dark);font-weight:900;">{{ isset($purchases) && $purchases->isNotEmpty() ? number_format($purchases->sum('qty_bought'), 0) : '—' }}</div>
-                        <div style="padding:12px 8px;text-align:center;font-size:13px;color:var(--dark);font-weight:900;">{{ number_format($activeUsageEntries->sum('quantity_used'), 0) }}</div>
-                        <div style="padding:12px 8px;"></div>
-                        <div style="padding:12px 8px;"></div>
-                    </div>
-                    @endif
                 </div>{{-- end summary card --}}
 
                 {{-- Log Material Usage modal — supports multiple material rows in
@@ -1182,6 +1196,35 @@
                 row.querySelector('.purchase-row-total').value = '₱' + total.toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2});
             });
             document.getElementById('purchaseGrandTotal').value = '₱' + grand.toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2});
+            updatePurchaseFundsStatus(grand);
+        }
+
+        // ---- Total Received check (same rule as ProjectFunds on the server) ----
+        var PROJECT_FUNDS = @json($projectFunds);
+        var FUND_BALANCE  = {{ (float) $fundBalance }};
+        var PROJECT_NAME  = @json($project->name);
+        var CLIENT_NAME   = @json($project->live_client_name);
+
+        function purchaseGrand() {
+            var grand = 0;
+            document.querySelectorAll('#purchaseRowsContainer .purchase-row').forEach(function (row) {
+                var qty  = parseFloat(row.querySelector('.purchase-row-qty').value.replace(/,/g, '')) || 0;
+                var cost = parseFloat(row.querySelector('.purchase-row-cost').value.replace(/,/g, '')) || 0;
+                grand += Math.round(qty * cost * 100) / 100;
+            });
+            return Math.round(grand * 100) / 100;
+        }
+        // Only the new purchase is ever covered — an older shortfall isn't added on top
+        function purchaseExceeded(grand) {
+            if (grand <= 0) return 0;
+            return Math.round(Math.max(0, Math.min(grand, grand - PROJECT_FUNDS.available)) * 100) / 100;
+        }
+        function updatePurchaseFundsStatus(grand) {
+            var box = document.getElementById('pfStatus');
+            if (!box) return;
+            var over = purchaseExceeded(grand);
+            box.hidden = over <= 0;
+            if (over > 0) box.textContent = 'This purchase is ' + FundOverrun.peso(over) + ' more than the money available. You can cover it from the revolving fund when you save.';
         }
 
         var logPurchaseForm = document.getElementById('logPurchaseForm');
@@ -1196,6 +1239,25 @@
                     empty.textContent = 'Add at least one material before saving.';
                     return;
                 }
+
+                // Costs more than the project has received → ask before saving
+                var grand = purchaseGrand();
+                var over  = purchaseExceeded(grand);
+                var useFund = document.getElementById('purchaseUseFund');
+                if (over > 0 && useFund.value !== '1') {
+                    e.preventDefault();
+                    FundOverrun.open({
+                        projects: [{ project: PROJECT_NAME, client: CLIENT_NAME, amount: grand, available: Math.max(0, PROJECT_FUNDS.available), exceeded: over }],
+                        total: over,
+                        fund_balance: FUND_BALANCE,
+                        fund_enough: FUND_BALANCE + 0.005 >= over
+                    }, {
+                        amountLabel: 'This purchase',
+                        onUse: function () { useFund.value = '1'; logPurchaseForm.requestSubmit(); }
+                    });
+                    return;
+                }
+
                 rows.forEach(function (row) {
                     ['purchase-row-qty', 'purchase-row-cost'].forEach(function (cls) {
                         var el = row.querySelector('.' + cls);
@@ -1491,21 +1553,27 @@
                 justify-content: center;
             }
 
-            /* The summary table itself: percentage columns with no floor crush down to
-               nothing and the header text overlaps ("MATERIAL"/"UNIT"/etc. running into
-               each other). Give it a real width and let the card scroll to reach it,
-               keeping the two split head/body tables in sync as one scrolling unit. */
-            .pm-purchased-scroll {
-                overflow-x: auto !important;
-                overflow-y: hidden !important;
-            }
-            .pm-purchased-table {
-                min-width: 650px !important;
-                width: auto !important;
-            }
-            .pm-purchased-body-wrap {
-                min-width: 650px !important;
-            }
+        }
+
+        /* Purchased materials summary: one table whose header and TOTAL row stay in view while the rows
+           scroll. The card grows with its rows up to about ten, then scrolls; below 680px wide the
+           table keeps a readable width and scrolls sideways inside the card instead of squashing. */
+        .pm-purchased-scroll { max-height: 520px; overflow: auto; -webkit-overflow-scrolling: touch; }
+        .pm-purchased-table { width: 100%; min-width: 680px; table-layout: fixed; border-collapse: separate; border-spacing: 0; }
+        /* .admin-content prefix: outranks the app-wide ".admin-content table thead th" (left-aligned,
+           22px side padding), so each header sits centred over its own column like the values below */
+        .admin-content .pm-purchased-table th,
+        .admin-content .pm-purchased-table td { padding: 12px 8px; text-align: center; font-size: 13px; color: var(--dark); border-bottom: 1px solid var(--border); }
+        .admin-content .pm-purchased-table thead th {
+            position: sticky; top: 0; z-index: 2; padding-top: 10px; padding-bottom: 10px;
+            background: var(--cream-soft); font-size: 11.5px; font-weight: 700; color: var(--muted);
+            text-transform: uppercase; letter-spacing: .04em; white-space: nowrap;
+        }
+        .pm-purchased-table tbody tr:last-child td { border-bottom: none; }
+        .pm-purchased-table tbody tr:hover td { background: rgba(0,0,0,.015); }
+        .pm-purchased-table tfoot td {
+            position: sticky; bottom: 0; z-index: 2; background: var(--cream-soft);
+            border-top: 2px solid var(--border); border-bottom: none;
         }
 
         /* Dark sidebar form inputs */

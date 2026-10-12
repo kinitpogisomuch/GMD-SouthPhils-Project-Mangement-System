@@ -280,7 +280,6 @@
                                         gap: 10px; color: var(--muted-light); font-size: 13px; font-weight: 600; text-align: center; }
         .kd-card-empty .kd-empty-body svg { width: 28px; height: 28px; opacity: .55; }
         .kd-hero.kd-hero-text { font-size: 30px; letter-spacing: -.5px; line-height: 1.15; }
-        .kd-card-notarget .kd-breakdown { padding-top: 8px; flex: 0 0 auto; justify-content: flex-start; }
         .kd-breakdown-title { font-size: 10px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
         .kd-breakdown-row:has(+ .kd-breakdown-row.total) { border-bottom: none; }
         .kd-breakdown-row.total { border-top: 1px solid var(--dark); padding-top: 9px; margin-top: 2px; font-size: 12.5px; }
@@ -987,8 +986,8 @@
            value reads "—": the numbers only mean something once there is a goal to measure against. */
         /* KPI card states
            1. No project data + no target  → empty card: only the KPI name, nothing measured
-           2. Project data + no owner target → "No target set" + the breakdown only — no percentage,
-              no owner target, nothing that needs a target to calculate
+           2. Project data + no owner target → "No target set" + the measured rate, an empty goal box
+              and the breakdown — nothing that needs a target to calculate
            3. Project data + target set     → the full card
            4. Budget adherence needs no owner target → full card whenever there is project data */
         function emptyCard(name) {
@@ -1036,9 +1035,13 @@
                 '</div>';
         }
 
-        function noTargetCard(name, breakdownHtml) {
+        /* No owner target: the measured rate still shows, and the goal box keeps its place (empty
+           bar, "—") so all three cards line up — it just says no target was set */
+        function noTargetCard(name, heroValue, heroCaption, goalLabel, breakdownHtml) {
             return '<div class="kd-card kd-card-notarget">' +
                 '<div class="kd-card-top"><span class="kd-card-name">' + name + '</span>' + statusChip(null) + '</div>' +
+                heroBlock(heroValue, heroCaption) +
+                goalBox(goalLabel, '—', progressBar(0, null), 'No target set for this period', '') +
                 breakdownHtml +
                 '</div>';
         }
@@ -1050,7 +1053,10 @@
                     ? notMeasuredCard(name, 'Owner target (net profit)', fmtPeso(p.target), 'Profit is measured once a project is completed in this period')
                     : emptyCardText(name, 'No completed projects');
             }
-            if (!p.has_target) return noTargetCard(name, profitBreakdown(p));
+            if (!p.has_target) {
+                return noTargetCard(name, p.revenue > 0 ? fmtPct(p.avg_margin) : '—', fmtPeso(p.net_profit) + ' net profit this period',
+                    'Owner target (net profit)', profitBreakdown(p));
+            }
             var lvl = achievementLevel(p.net_profit, p.target);
             var resultText = fmtPct(lvl.pct) + ' of target · ' + (p.variance >= 0
                 ? '+' + fmtPeso(p.variance) + ' above'
@@ -1080,11 +1086,7 @@
             }
 
             if (!o.has_target) {
-                return '<div class="kd-card kd-card-notarget">' +
-                    '<div class="kd-card-top"><span class="kd-card-name">' + name + '</span>' + statusChip(null) + '</div>' +
-                    heroBlock(fmtPct(o.rate), note) +
-                    onTimeBreakdown(o) +
-                    '</div>';
+                return noTargetCard(name, fmtPct(o.rate), note, 'Owner target (on-time completion rate)', onTimeBreakdown(o));
             }
 
             var lvl = onTimeLevel(o.rate, o.target);

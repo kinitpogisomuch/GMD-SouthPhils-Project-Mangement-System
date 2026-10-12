@@ -5,8 +5,6 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\FundTransaction;
 use App\Models\FundSetting;
-use App\Models\Project;
-use App\Services\NotificationService;
 
 class FundController extends Controller
 {
@@ -14,8 +12,17 @@ class FundController extends Controller
     {
         $fund = FundSetting::instance();
 
-        $currentBalance   = (float) $fund->current_balance;
+        // Total Balance always comes from the records: initial + additional capital − released + repaid
+        $currentBalance   = FundSetting::syncBalance();
         $initialBalance   = (float) $fund->initial_balance;
+        $isInitialized    = $initialBalance > 0;
+        $totalTopUps      = FundSetting::totalTopUps();
+        $topUpCount       = FundTransaction::where('type', 'topup')->count();
+        $lastTopUp        = FundTransaction::where('type', 'topup')->latest('id')->first();
+        $totalCapital     = $initialBalance + $totalTopUps;   // all money ever put into the fund
+        // The initial balance can only be corrected before the fund has any history
+        $canEditInitial   = !FundTransaction::exists();
+        $initialSetAt     = $fund->updated_at;
         $totalReleased    = FundTransaction::totalReleased();
         $totalReplenished = FundTransaction::totalReplenished();
         $activeAdvances   = FundTransaction::activeProjectAdvancesCount();
@@ -55,66 +62,51 @@ class FundController extends Controller
         $pendingReplenishment = (float) $projectOutstandings->sum('outstanding');
 
         // Low balance threshold: < 20% of initial balance
-        $isLowBalance = $initialBalance > 0 && ($currentBalance / $initialBalance) < 0.20;
+        // Low balance = less than 20% of all the money put into the fund (initial + additional capital)
+        $isLowBalance = $totalCapital > 0 && ($currentBalance / $totalCapital) < 0.20;
 
         $transactions = FundTransaction::with('project')
             ->orderByDesc('date')
             ->orderByDesc('id')
             ->get();
 
-        $projects = Project::whereNotIn('status', ['completed', 'archived'])
-            ->orderBy('client')
-            ->orderBy('name')
-            ->get(['id', 'name', 'client', 'capacity', 'current_phase', 'status']);
-
         return view('admin.revolving_fund', compact(
             'currentBalance', 'initialBalance',
             'totalReleased', 'totalReplenished',
             'totalDrawnThisMonth', 'pendingReplenishment',
             'activeAdvances', 'projectOutstandings',
-            'isLowBalance', 'transactions', 'projects'
+            'isLowBalance', 'transactions',
+            'isInitialized', 'totalTopUps', 'topUpCount', 'lastTopUp', 'totalCapital', 'canEditInitial', 'initialSetAt'
         ));
     }
 
-    public function replenish(Request $request)
+    /** POST — invest additional capital in the fund after the initial setup; recorded in the fund history. */
+    public function topUp(Request $request)
     {
+        if ($request->has('amount')) {
+            $request->merge(['amount' => str_replace(',', '', (string) $request->input('amount'))]);
+        }
         $validated = $request->validate([
-            'project_id' => 'required|integer|exists:projects,id',
-            'amount'     => 'required|numeric|min:0.01',
-            'purpose'    => 'required|string|max:255',
-            'date'       => 'required|date',
+            'amount' => 'required|numeric|min:0.01|max:999999999',
+            'note'   => 'nullable|string|max:255',
+        ], [
+            'amount.required' => 'Enter the capital amount.',
+            'amount.numeric'  => 'Enter the amount as a number.',
+            'amount.min'      => 'The capital amount must be more than zero.',
+            'amount.max'      => 'That amount is too large.',
         ]);
 
-        // A project can only pay back what was actually released to it.
-        $outstanding = FundTransaction::outstandingForProject((int) $validated['project_id']);
-        if ((float) $validated['amount'] > $outstanding + 0.005) {
-            return redirect()->route('admin.revolving_fund')
-                ->with('error', $outstanding > 0
-                    ? 'That is more than the ₱' . number_format($outstanding, 2) . ' this project still owes the fund.'
-                    : 'This project has no outstanding fund balance to replenish.');
+        try {
+            $entry = FundSetting::topUp((float) $validated['amount'], trim((string) ($validated['note'] ?? '')) ?: null, auth()->user()->name ?? 'Admin');
+        } catch (\DomainException $e) {
+            return redirect()->route('admin.revolving_fund')->with('error', $e->getMessage());
         }
 
-        $newBalance = FundSetting::adjustBalance((float) $validated['amount']);
-
-        FundTransaction::create([
-            'type'          => 'replenishment',
-            'amount'        => $validated['amount'],
-            'date'          => $validated['date'],
-            'project_id'    => $validated['project_id'],
-            'purpose'       => $validated['purpose'],
-            'description'   => $validated['purpose'],
-            'status'        => 'Completed',
-            'balance_after' => $newBalance,
-            'recorded_by'   => auth()->user()->name ?? 'Admin',
-        ]);
-
-        FundTransaction::syncReleaseStatuses((int) $validated['project_id']);
-
-        $project = Project::find($validated['project_id']);
-        NotificationService::revolvingFundReplenished($project, (float) $validated['amount']);
+        // same money format as the page: no .00 on whole amounts
+        $peso = fn ($n) => '₱' . preg_replace('/\.00$/', '', number_format((float) $n, 2));
 
         return redirect()->route('admin.revolving_fund')
-            ->with('success', 'Replenishment recorded successfully.');
+            ->with('success', $peso($entry->amount) . ' additional capital added to the revolving fund. New balance: ' . $peso($entry->balance_after) . '.');
     }
 
     public function setupInitial(Request $request)
@@ -135,44 +127,5 @@ class FundController extends Controller
 
         return redirect()->route('admin.revolving_fund')
             ->with('success', 'Initial revolving fund balance updated successfully.');
-    }
-
-    public function release(Request $request)
-    {
-        $validated = $request->validate([
-            'project_id' => 'required|integer|exists:projects,id',
-            'amount'     => 'required|numeric|min:0.01',
-            'purpose'    => 'required|string|max:255',
-            'remarks'    => 'nullable|string|max:1000',
-            'date'       => 'required|date',
-        ]);
-
-        $currentBalance = FundSetting::getCurrentBalance();
-
-        if ($validated['amount'] > $currentBalance) {
-            return redirect()->route('admin.revolving_fund')
-                ->with('error', 'Insufficient Revolving Fund Balance.');
-        }
-
-        $newBalance = FundSetting::adjustBalance(-$validated['amount']);
-
-        FundTransaction::create([
-            'type'          => 'release',
-            'amount'        => $validated['amount'],
-            'date'          => $validated['date'],
-            'project_id'    => $validated['project_id'],
-            'purpose'       => $validated['purpose'],
-            'description'   => $validated['purpose'],
-            'remarks'       => $validated['remarks'] ?? null,
-            'status'        => 'Pending Replenishment',
-            'balance_after' => $newBalance,
-            'recorded_by'   => auth()->user()->name ?? 'Admin',
-        ]);
-
-        $project = Project::find($validated['project_id']);
-        NotificationService::revolvingFundReleased($project, (float) $validated['amount'], $validated['purpose']);
-
-        return redirect()->route('admin.revolving_fund')
-            ->with('success', 'Revolving fund released successfully.');
     }
 }

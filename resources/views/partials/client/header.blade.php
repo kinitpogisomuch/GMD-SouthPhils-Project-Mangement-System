@@ -1,3 +1,4 @@
+@include('partials.submit_guard')
 @php
     // The full client portal (My Projects, Payments) only unlocks once the client
     // has an approved/converted quotation request or an actual project — not while
