@@ -9,12 +9,30 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="{{ asset('css/landing.css') }}" rel="stylesheet">
+    {{-- UI enhancement layer: ui.css is compiled from resources/scss; GSAP drives the motion (landing.js),
+         Alpine.js the menu and quotation dialog. Pinned CDN versions, like the rest of the page's libraries. --}}
+    <link href="{{ asset('css/ui.css') }}?v={{ @filemtime(public_path('css/ui.css')) }}" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+    <script>
+        (function () {
+            var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            if (!window.gsap || !window.ScrollTrigger || reduce) return;
+            var root = document.documentElement;
+            root.classList.add('ui-gsap', 'ui-preload');
+            setTimeout(function () { root.classList.remove('ui-preload'); }, 2500);   // never leave the hero hidden
+        })();
+    </script>
+    <script defer src="{{ asset('js/landing.js') }}?v={{ @filemtime(public_path('js/landing.js')) }}"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
 </head>
 <body>
 
     <!-- ============================================================
          NAVIGATION
     ============================================================ -->
+    {{-- Alpine.js: the phone menu opens/closes from here (a plain-script fallback at the bottom covers it if Alpine can't load) --}}
+    <div x-data="{ menu: false }" @click.outside="menu = false" @keydown.escape.window="menu = false">
     <nav class="lp-nav" id="lpNav">
         <a href="#" class="nav-logo">
             <div class="nav-logo-icon">
@@ -35,22 +53,24 @@
         </ul>
 
         <div class="nav-actions">
-            <button class="nav-hamburger" id="navHamburger" aria-label="Open menu">
+            <button class="nav-hamburger" id="navHamburger" aria-label="Open menu" aria-controls="mobileMenu"
+                    @click="menu = !menu" :class="{ open: menu }" :aria-expanded="menu.toString()">
                 <span></span><span></span><span></span>
             </button>
         </div>
     </nav>
 
     <!-- Mobile menu drawer -->
-    <div class="mobile-menu" id="mobileMenu">
-        <a href="#about"     class="mm-link">About</a>
-        <a href="#tanks"     class="mm-link">What We Build</a>
-        <a href="#portfolio" class="mm-link">Our Work</a>
+    <div class="mobile-menu" id="mobileMenu" :class="{ open: menu }">
+        <a href="#about"     class="mm-link" @click="menu = false">About</a>
+        <a href="#tanks"     class="mm-link" @click="menu = false">What We Build</a>
+        <a href="#portfolio" class="mm-link" @click="menu = false">Our Work</a>
         @if($reviews->isNotEmpty())
-        <a href="#reviews"   class="mm-link">Client Feedback</a>
+        <a href="#reviews"   class="mm-link" @click="menu = false">Client Feedback</a>
         @endif
-        <a href="#contact"   class="mm-link">Contact</a>
+        <a href="#contact"   class="mm-link" @click="menu = false">Contact</a>
         <a href="{{ route('login') }}" class="mm-login">Login to Portal</a>
+    </div>
     </div>
 
 
@@ -60,7 +80,8 @@
     @php
     $hasHeroBg = file_exists(public_path('images/login.jpg'));
     @endphp
-    <section class="lp-hero @if($hasHeroBg) has-bg-photo @endif" id="home"
+    {{-- "hero" is the class the headline styles in landing.css target (.hero h1, .hero h1 .gold) --}}
+    <section class="lp-hero hero @if($hasHeroBg) has-bg-photo @endif" id="home"
              @if($hasHeroBg) style="--hero-bg-photo: url('{{ asset('images/login.jpg') }}')" @endif>
         <div class="hero-glow"></div>
 
@@ -80,9 +101,9 @@
             </p>
 
             <div class="hero-btns">
-                <a href="#tanks" class="btn-gold">
-                    <i data-lucide="layers"></i>
-                    View Our Work
+                <a href="#portfolio" class="btn-gold">
+                    <i data-lucide="file-text"></i>
+                    Get a Quotation
                 </a>
                 <a href="{{ route('login') }}" class="btn-ghost">Login</a>
             </div>
@@ -136,49 +157,25 @@
                 <p class="about-text">
                     With a skilled team of welders and fabricators, we handle every stage of the tank lifecycle — from initial engineering consultation to final inspection, painting, and on-site delivery.
                 </p>
-
-                <div class="about-highlights">
-                    <div class="about-hl reveal">
-                        <i data-lucide="hammer"></i>
-                        <span>Skilled Fabricators</span>
-                    </div>
-                    <div class="about-hl reveal">
-                        <i data-lucide="badge-check"></i>
-                        <span>Quality Assured</span>
-                    </div>
-                    <div class="about-hl reveal">
-                        <i data-lucide="clock"></i>
-                        <span>On-Time Delivery</span>
-                    </div>
-                    <div class="about-hl reveal">
-                        <i data-lucide="settings"></i>
-                        <span>Custom Specifications</span>
-                    </div>
-                </div>
             </div>
 
-            <div class="about-visual reveal-right">
-                <div class="about-visual-title">Our Commitment to Quality</div>
-                <div class="about-phase-list">
-                    @php
-                    $strengths = [
-                        ['Precision Engineering',   'Every tank is designed to exact client specifications.'],
-                        ['Certified Welding',       'Skilled welders trained in structural steel fabrication.'],
-                        ['Pressure Tested',         'All tanks undergo rigorous pressure and leak testing.'],
-                        ['Anti-Corrosion Coating',  'Industrial-grade paint systems for lasting protection.'],
-                        ['On-Site Delivery',        'Safe transport and installation support at your location.'],
-                        ['Post-Delivery Support',   'Our team remains available after handover.'],
-                    ];
-                    @endphp
-                    @foreach($strengths as $strength)
-                    <div class="about-phase-item">
-                        <span class="about-phase-dot"></span>
-                        <div>
-                            <span style="font-weight:800;color:var(--white);">{{ $strength[0] }}</span>
-                            <span style="color:rgba(255,255,255,0.5);font-size:12px;display:block;margin-top:1px;">{{ $strength[1] }}</span>
-                        </div>
-                    </div>
-                    @endforeach
+            {{-- the four highlights sit beside the text (where the "Commitment to Quality" card used to be) --}}
+            <div class="about-highlights reveal-right">
+                <div class="about-hl reveal">
+                    <i data-lucide="hammer"></i>
+                    <span>Skilled Fabricators</span>
+                </div>
+                <div class="about-hl reveal">
+                    <i data-lucide="badge-check"></i>
+                    <span>Quality Assured</span>
+                </div>
+                <div class="about-hl reveal">
+                    <i data-lucide="clock"></i>
+                    <span>On-Time Delivery</span>
+                </div>
+                <div class="about-hl reveal">
+                    <i data-lucide="settings"></i>
+                    <span>Custom Specifications</span>
                 </div>
             </div>
 
@@ -238,87 +235,78 @@
     <section class="portfolio-wrap" id="portfolio">
         <div class="portfolio-inner">
             <div class="section-tag reveal">Our Work</div>
-            <h2 class="section-title reveal">Projects We've Built</h2>
-            <p class="section-sub reveal">A showcase of our completed storage tank projects — each fabricated to client specifications, pressure-tested, and delivered on schedule.</p>
+            <h2 class="section-title reveal">Choose Your Tank, Get a Quotation</h2>
+            <p class="section-sub reveal">Pick what you need below. Tell us your capacity and requirements in your client portal, and GMD South Phils sends your quotation there — no calls or messages needed.</p>
 
-            <div class="portfolio-grid" id="portfolioGrid">
-                @foreach($portfolioItems as $i => $item)
-                @php
-                    $src = $item->image_url && !str_starts_with($item->image_url, 'http')
-                        ? asset($item->image_url)
-                        : $item->image_url;
-                @endphp
-                <div class="portfolio-card reveal" data-portfolio-index="{{ $i }}">
-                    <div class="portfolio-media"
-                         @if($src) style="background-image:url('{{ $src }}')" @endif>
-                        <span class="portfolio-spec">{{ $item->spec }}</span>
-                        @if($src)
-                            <img src="{{ $src }}" alt="{{ $item->title }}">
+            {{-- Tank cards: the start of a quotation request. Guests are asked to log in or sign up first
+                 (the choice is remembered); a logged-in client goes straight to that tank's form. --}}
+            <div class="portfolio-grid qt-grid">
+                @foreach($tankCards as $card)
+                {{-- A real link to /quote/{tank} (works even without JavaScript); for visitors, Alpine opens
+                     the log-in / sign-up dialog instead of navigating straight away. --}}
+                <a href="{{ route('quote.start', $card['slug']) }}" class="portfolio-card qt-card reveal"
+                   data-tank-slug="{{ $card['slug'] }}" data-tank-name="{{ $card['type'] }}"
+                   @if(session('role') !== 'client')
+                   x-data @click.prevent="$dispatch('quote-open', { slug: $el.dataset.tankSlug, name: $el.dataset.tankName, el: $el })"
+                   @endif
+                   aria-label="Request a quotation for {{ $card['type'] }}">
+                    <div class="portfolio-media" @if($card['image']) style="background-image:url('{{ $card['image'] }}')" @endif>
+                        <span class="portfolio-spec">{{ $card['badge'] }}</span>
+                        @if($card['image'])
+                            <img src="{{ $card['image'] }}" alt="{{ $card['type'] }}" loading="lazy">
                         @else
-                            <div class="portfolio-media-icon"><i data-lucide="{{ $item->icon }}"></i></div>
+                            <div class="portfolio-media-icon"><i data-lucide="{{ $card['icon'] }}"></i></div>
                         @endif
                     </div>
                     <div class="portfolio-body">
-                        <div class="portfolio-tag">
-                            <i data-lucide="tag" style="width:11px;height:11px;"></i>
-                            {{ $item->tag }}
-                        </div>
-                        <div class="portfolio-title">{{ $item->title }}</div>
-                        <p class="portfolio-desc">{{ $item->description }}</p>
+                        <div class="portfolio-title">{{ $card['type'] }}</div>
+                        <p class="portfolio-desc">{{ $card['blurb'] }}</p>
+                        <span class="qt-cta">Request a Quotation <i data-lucide="arrow-right"></i></span>
                     </div>
-                </div>
+                </a>
                 @endforeach
             </div>
 
-            {{-- Pagination controls --}}
-            <div id="portfolioPagination" style="display:flex;align-items:center;justify-content:center;gap:12px;margin-top:36px;">
-                <button id="portPrev" onclick="portfolioPage(-1)"
-                    style="width:40px;height:40px;border-radius:50%;border:2px solid #fff;background:transparent;color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s;"
-                    onmouseover="this.style.background='rgba(255,255,255,.15)'" onmouseout="this.style.background='transparent'">
-                    &#8592;
-                </button>
-                <span id="portPageInfo" style="font-size:13px;font-weight:700;color:rgba(255,255,255,.7);min-width:80px;text-align:center;"></span>
-                <button id="portNext" onclick="portfolioPage(1)"
-                    style="width:40px;height:40px;border-radius:50%;border:2px solid #fff;background:transparent;color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s;"
-                    onmouseover="this.style.background='rgba(255,255,255,.15)'" onmouseout="this.style.background='transparent'">
-                    &#8594;
-                </button>
-            </div>
-            <script>
-            (function(){
-                var PER_PAGE = 6;
-                var currentPage = 0;
-                var cards = document.querySelectorAll('#portfolioGrid .portfolio-card');
-                var total = cards.length;
-
-                function render() {
-                    var totalPages = Math.ceil(total / PER_PAGE);
-                    var start = currentPage * PER_PAGE;
-                    cards.forEach(function(c, i) {
-                        c.style.display = (i >= start && i < start + PER_PAGE) ? '' : 'none';
-                    });
-                    document.getElementById('portPageInfo').textContent = totalPages > 1 ? 'Page ' + (currentPage+1) + ' of ' + totalPages : '';
-                    document.getElementById('portPrev').style.opacity = currentPage === 0 ? '0.3' : '1';
-                    document.getElementById('portNext').style.opacity = currentPage >= totalPages-1 ? '0.3' : '1';
-                    document.getElementById('portfolioPagination').style.display = totalPages > 1 ? 'flex' : 'none';
-                }
-
-                window.portfolioPage = function(dir) {
-                    var totalPages = Math.ceil(total / PER_PAGE);
-                    currentPage = Math.max(0, Math.min(totalPages-1, currentPage + dir));
-                    render();
-                    document.getElementById('portfolio').scrollIntoView({behavior:'smooth', block:'start'});
-                };
-
-                render();
-            })();
-            </script>
-
             <div class="portfolio-foot">
-                <p>Each project is engineered to the client's exact specifications — pressure tested, quality inspected, and delivered ready for operation.</p>
+                <p>Every tank is engineered to your exact specifications — pressure tested, quality inspected, and delivered ready for operation.</p>
             </div>
         </div>
     </section>
+
+    {{-- Log in / sign up prompt for a tank card --}}
+    {{-- Alpine.js component: opened by a tank card's "quote-open" event --}}
+    <div class="qt-modal" id="quoteAuthModal" role="dialog" aria-modal="true" aria-labelledby="quoteAuthTitle"
+         x-data="{
+             open: false, slug: '', name: '', opener: null,
+             show(detail) {
+                 this.slug = detail.slug; this.name = detail.name; this.opener = detail.el;
+                 this.open = true;
+                 document.body.style.overflow = 'hidden';
+                 this.$nextTick(() => this.$refs.login.focus());
+             },
+             close() {
+                 this.open = false;
+                 document.body.style.overflow = '';
+                 if (this.opener) this.opener.focus();
+             },
+             link(then) { return @js(url('/quote')) + '/' + encodeURIComponent(this.slug) + '?then=' + then; }
+         }"
+         x-cloak x-show="open" :class="{ show: open }"
+         x-transition.opacity.duration.200ms
+         @quote-open.window="show($event.detail)"
+         @keydown.escape.window="open && close()"
+         @click.self="close()">
+        <div class="qt-modal-card" x-show="open" x-transition.scale.92.origin.bottom.duration.260ms>
+            <button type="button" class="qt-modal-close" aria-label="Close" @click="close()"><i data-lucide="x"></i></button>
+            <div class="qt-modal-icon"><i data-lucide="file-text"></i></div>
+            <h3 id="quoteAuthTitle">Request a quotation for <span x-text="name"></span></h3>
+            <p>Log in to your GMD client portal to describe what you need — we'll keep your tank selected. New here? Sign up; once your account is approved, your first login takes you straight to this tank's form.</p>
+            <div class="qt-modal-actions">
+                <a :href="link('login')" class="btn-gold" x-ref="login"><i data-lucide="log-in"></i> Log In</a>
+                <a :href="link('signup')" class="btn-ghost qt-signup">Sign Up</a>
+            </div>
+        </div>
+    </div>
 
 
     <!-- ============================================================
@@ -793,8 +781,10 @@
     <script>
         if (window.lucide) lucide.createIcons();
 
-        // Mobile hamburger menu
-        (function() {
+        // Mobile hamburger menu — Alpine.js runs it (see the nav); this plain version only takes over if
+        // Alpine couldn't load, so the menu always works.
+        window.addEventListener('load', function () {
+            if (window.Alpine) return;
             var btn  = document.getElementById('navHamburger');
             var menu = document.getElementById('mobileMenu');
             if (!btn || !menu) return;
@@ -815,7 +805,7 @@
                     btn.classList.remove('open');
                 }
             });
-        })();
+        });
 
         // Sticky nav shadow on scroll
         window.addEventListener('scroll', function () {

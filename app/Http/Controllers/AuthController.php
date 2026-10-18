@@ -18,8 +18,33 @@ class AuthController extends Controller
         $reviews = \App\Models\Review::active()->with('project')->latest()->take(6)->get();
         $allReviews = \App\Models\Review::active()->with('project')->latest()->get();
         $contactInfo = \App\Models\SiteSetting::instance();
+        // "Our Work" tank cards — each one starts a quotation request for that tank
+        $tankCards = \App\Support\TankCatalog::cards($portfolioItems);
 
-        return view('landing', compact('portfolioItems', 'reviews', 'allReviews', 'contactInfo'));
+        return view('landing', compact('portfolioItems', 'reviews', 'allReviews', 'contactInfo', 'tankCards'));
+    }
+
+    /**
+     * A tank card on the landing page was clicked. A logged-in client goes straight to that tank's
+     * quotation form; a visitor is sent to log in or sign up with the choice remembered, so after
+     * authentication (and, for new accounts, approval and setup) they land on the same form.
+     */
+    public function quoteIntent(Request $request, string $tank)
+    {
+        abort_unless(in_array($tank, \App\Support\TankCatalog::requestableSlugs(), true), 404);
+
+        if (session('role') === 'client') {
+            return redirect()->route('client.quotation.create', ['tank' => $tank]);
+        }
+        if (session('role')) {
+            return redirect()->route('home');
+        }
+
+        session(['quote_intent' => $tank]);
+
+        return $request->query('then') === 'signup'
+            ? redirect()->route('signup')
+            : redirect()->route('login');
     }
 
     public function showLogin()
@@ -34,6 +59,7 @@ class AuthController extends Controller
             return redirect()->route('employee.dashboard');
         }
 
+        // a tank picked on the landing page stays in session('quote_intent'); login() sends them on to that quotation
         return view('auth.login');
     }
 
@@ -154,6 +180,9 @@ class AuthController extends Controller
                     ->with('error', 'Your account is inactive. Please contact the administrator.')
                     ->withInput(['email' => $username]);
             }
+            // A tank picked on the landing page — in this browser, or before signing up — survives the login
+            $quoteIntent = session('quote_intent') ?: $client->pending_quote_tank;
+            $quoteIntent = \App\Support\TankCatalog::find($quoteIntent) ? $quoteIntent : null;
             $request->session()->flush();
             session([
                 'user_id'       => $client->id,
@@ -164,7 +193,14 @@ class AuthController extends Controller
                 'first_login'   => (bool) $client->first_login,
                 'profile_photo' => $client->profile_photo,
             ]);
+            if ($quoteIntent) {
+                session(['quote_intent' => $quoteIntent]);   // used (and forgotten) by the quotation page
+            }
             if ($client->first_login) return redirect()->route('setup.credentials');
+            if ($quoteIntent) {
+                return redirect()->route('client.quotation.create', ['tank' => $quoteIntent])
+                    ->with('success', 'Welcome back! Tell us about the ' . \App\Support\TankCatalog::find($quoteIntent)['type'] . ' you need.');
+            }
             return redirect()->route('client.dashboard');
         }
 

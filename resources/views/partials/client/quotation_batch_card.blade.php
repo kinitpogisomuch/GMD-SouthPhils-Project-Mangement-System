@@ -4,9 +4,11 @@
 @php
     $statusMeta = [
         'pending'        => ['label' => 'Under Review', 'icon' => 'clock', 'bg' => '#FFF3D6', 'color' => '#8A6100'],
+        'in_preparation' => ['label' => 'Quotation Being Prepared', 'icon' => 'calculator', 'bg' => '#FFF3D6', 'color' => '#8A6100'],
         'quotation_sent' => ['label' => 'Quotation Ready for Review', 'icon' => 'file-text', 'bg' => '#EAF0FF', 'color' => '#1e40af'],
         'approved'       => ['label' => 'Quotation Approved', 'icon' => 'thumbs-up', 'bg' => '#dcfce7', 'color' => '#16a34a'],
         'converted'      => ['label' => 'Accepted — Project Created', 'icon' => 'check-circle-2', 'bg' => '#dcfce7', 'color' => '#16a34a'],
+        'rejected'       => ['label' => 'Rejected by You', 'icon' => 'x-circle', 'bg' => '#f3f4f6', 'color' => '#4b5563'],
         'declined'       => ['label' => 'Not Approved', 'icon' => 'x-circle', 'bg' => '#fee2e2', 'color' => '#dc2626'],
     ];
     $first  = $batch->first();
@@ -14,10 +16,16 @@
     $meta   = $statusMeta[$status] ?? $statusMeta['pending'];
     $specifiedCount = $batch->filter(fn ($qr) => $qr->tank_type)->count();
     $quotationBatch = $first->quotationBatch;
+    $versions       = $quotationBatch ? $quotationBatch->versions : collect();
+    $latestVersion  = $versions->first();
 @endphp
 <div class="pv-card">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border);">
-        <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);font-weight:700;">
+        <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);font-weight:700;flex-wrap:wrap;">
+            @if($quotationBatch?->reference_no)
+            <span style="color:var(--dark);font-weight:900;letter-spacing:.02em;">{{ $quotationBatch->reference_no }}</span>
+            <span aria-hidden="true">·</span>
+            @endif
             <i data-lucide="calendar" style="width:14px;height:14px;"></i>
             Submitted {{ $first->created_at->format('M d, Y') }}
         </div>
@@ -27,17 +35,19 @@
         </div>
     </div>
 
-    @if($status !== 'declined')
+    @if(!in_array($status, ['declined', 'rejected'], true))
     @php
-        $isRevision = $status === 'pending' && !empty($first->decline_reason);
-        $steps      = ['Submitted', $isRevision ? 'Revising' : 'Under review', 'Quotation ready', 'Approved', 'Project created'];
-        $current    = ['pending' => 1, 'quotation_sent' => 2, 'approved' => 3, 'converted' => 4][$status] ?? 1;
+        $isRevision = in_array($status, ['pending', 'in_preparation'], true) && !empty($first->decline_reason);
+        $steps      = ['Submitted', $isRevision ? 'Revising' : 'Being prepared', 'Quotation ready', 'Approved', 'Project created'];
+        $current    = ['pending' => 1, 'in_preparation' => 1, 'quotation_sent' => 2, 'approved' => 3, 'converted' => 4][$status] ?? 1;
         $finished   = $status === 'converted';   // every step is complete
+        $reviewHint = $isRevision
+            ? ['icon' => 'rotate-ccw', 'tone' => '', 'text' => 'Your requested changes were sent. GMD South Phils is preparing an updated quotation for you.']
+            : ['icon' => 'clock', 'tone' => '', 'text' => 'GMD South Phils is reviewing your request and preparing your quotation. We will let you know as soon as it is ready.'];
         $hint = [
-            'pending'        => $isRevision
-                ? ['icon' => 'rotate-ccw', 'tone' => '', 'text' => 'Your requested changes were sent. GMD South Phils is preparing an updated quotation for you.']
-                : ['icon' => 'clock', 'tone' => '', 'text' => 'GMD South Phils is reviewing your request and preparing your quotation. We will let you know as soon as it is ready.'],
-            'quotation_sent' => ['icon' => 'bell-ring', 'tone' => 'is-action', 'text' => 'Your quotation is ready. Review it below, then approve it or ask for changes.'],
+            'pending'        => $reviewHint,
+            'in_preparation' => $reviewHint,
+            'quotation_sent' => ['icon' => 'bell-ring', 'tone' => 'is-action', 'text' => 'Your quotation is ready. Open it to review the details, then approve it, ask for changes, or reject it.'],
             'approved'       => ['icon' => 'thumbs-up', 'tone' => 'is-good', 'text' => 'You approved this quotation. GMD South Phils will turn it into a project shortly.'],
             'converted'      => ['icon' => 'check-circle-2', 'tone' => 'is-good', 'text' => 'Your project has been created. You can follow its progress under My Projects.'],
         ][$status] ?? null;
@@ -139,9 +149,12 @@
             </div>
 
             <div class="qc-facts">
-                <div class="qc-fact"><span>Capacity / Size</span><strong>{{ $qr->capacity ?: '—' }}</strong></div>
+                <div class="qc-fact"><span>{{ \App\Support\TankCatalog::forType($qr->tank_type)['capacity']['label'] }}</span><strong>{{ $qr->capacity ?: '—' }}</strong></div>
                 <div class="qc-fact"><span>Quantity</span><strong>{{ $qr->quantity }}</strong></div>
-                <div class="qc-fact"><span>Target Delivery</span><strong>{{ !empty($qr->target_timeline) ? $qr->target_timeline_display : '—' }}</strong></div>
+                <div class="qc-fact"><span>Target Date</span><strong>{{ !empty($qr->target_timeline) ? $qr->target_timeline_display : '—' }}</strong></div>
+                @foreach($qr->specificationLines() as $label => $value)
+                <div class="qc-fact {{ mb_strlen($value) > 40 ? 'qc-fact-wide' : '' }}"><span>{{ $label }}</span><strong>{{ $value }}</strong></div>
+                @endforeach
                 @unless($isPickup)
                 <div class="qc-fact qc-fact-wide"><span>Delivery Address</span><strong>{{ $qr->location ?: '—' }}</strong></div>
                 @endunless
@@ -170,7 +183,46 @@
         @endif
     </div>
 
-    @if(!empty($quotationBatch?->quotation_files))
+    @if($latestVersion)
+    @php $snap = $latestVersion->snapshot; @endphp
+    <div class="qc-section">
+        <i data-lucide="file-text"></i> Quotation
+        <small>from GMD South Phils</small>
+    </div>
+    <div class="qc-quote">
+        <div class="qc-head">
+            <span class="qc-title" style="font-size:14px;"><i data-lucide="file-check-2"></i> {{ $latestVersion->quotation_number }}</span>
+            <span class="qc-pill">{{ $latestVersion->statusLabel() }}</span>
+        </div>
+        <div class="qc-facts">
+            <div class="qc-fact"><span>Date</span><strong>{{ $latestVersion->sent_at?->format('M d, Y') }}</strong></div>
+            <div class="qc-fact"><span>Total Amount</span><strong>₱{{ number_format($latestVersion->contract_value, 2) }}</strong></div>
+            <div class="qc-fact"><span>Quantity</span><strong>{{ $snap['tank']['quantity'] ?? '—' }} × ₱{{ number_format($snap['breakdown']['unit_price'] ?? 0, 2) }}</strong></div>
+            <div class="qc-fact"><span>Valid Until</span><strong>{{ isset($snap['valid_until']) ? \Carbon\Carbon::parse($snap['valid_until'])->format('M d, Y') : '—' }}</strong></div>
+            <div class="qc-fact qc-fact-wide"><span>Payment Terms</span><strong>{{ $snap['payment_terms'] ?? '—' }}</strong></div>
+        </div>
+        <div class="qc-files" style="border-top:1px dashed #c7d7fe;">
+            <a href="{{ route('client.quotation.show', $first->batch_id) }}" class="qc-file"><i data-lucide="eye"></i> View full quotation</a>
+            <a href="{{ route('client.quotation.pdf', [$first->batch_id, $latestVersion->version]) }}" class="qc-file"><i data-lucide="download"></i> Download PDF</a>
+            @if(!empty($quotationBatch->quotation_files))
+                <span data-receipt-set style="display:contents;">
+                @foreach($quotationBatch->quotation_files as $i => $file)
+                <a href="{{ $file }}" target="_blank" data-receipt class="qc-file"><i data-lucide="paperclip"></i> Attachment {{ $i + 1 }}</a>
+                @endforeach
+                </span>
+            @endif
+        </div>
+        @if($versions->count() > 1)
+        <div style="font-size:12px;color:#1e40af;font-weight:600;">
+            Earlier versions:
+            @foreach($versions->skip(1) as $old)
+            <a href="{{ route('client.quotation.show', [$first->batch_id, 'v' => $old->version]) }}" style="color:inherit;font-weight:800;">{{ $old->quotation_number }}</a> ({{ strtolower($old->statusLabel()) }}){{ !$loop->last ? ',' : '' }}
+            @endforeach
+        </div>
+        @endif
+    </div>
+    @elseif(!empty($quotationBatch?->quotation_files))
+    {{-- Quotations sent before the system generated them were uploaded as files --}}
     <div class="qc-section">
         <i data-lucide="file-text"></i> Quotation
         <small>from GMD South Phils</small>
@@ -186,19 +238,36 @@
         </div>
     </div>
     @endif
-    @if($status === 'declined' && $first->decline_reason)
+    @if($status === 'rejected')
+    <div style="margin-bottom:16px;padding:10px 12px;background:#f9fafb;border:1px solid var(--border);border-radius:10px;font-size:12.5px;color:var(--muted);display:flex;align-items:flex-start;gap:8px;">
+        <i data-lucide="info" style="width:14px;height:14px;flex-shrink:0;margin-top:1px;"></i>
+        <span style="flex:1;min-width:0;overflow-wrap:anywhere;">You rejected this quotation{{ $first->decline_reason ? ': ' . $first->decline_reason : '.' }} Need something else? Start a new request any time.</span>
+    </div>
+    @elseif($status === 'declined' && $first->decline_reason)
     <div style="margin-bottom:16px;padding:10px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;font-size:12.5px;color:#dc2626;display:flex;align-items:flex-start;gap:8px;">
         <i data-lucide="info" style="width:14px;height:14px;flex-shrink:0;margin-top:1px;"></i>
         <span style="flex:1;min-width:0;overflow-wrap:anywhere;word-break:break-word;"><strong>Reason:</strong> {{ $first->decline_reason }}</span>
     </div>
-    @elseif($status === 'pending' && $first->decline_reason)
+    @elseif(in_array($status, ['pending', 'in_preparation'], true) && $first->decline_reason)
     <div style="margin-bottom:16px;padding:10px 12px;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;font-size:12.5px;color:#9a3412;display:flex;align-items:flex-start;gap:8px;">
         <i data-lucide="rotate-ccw" style="width:14px;height:14px;flex-shrink:0;margin-top:1px;"></i>
         <span style="flex:1;min-width:0;overflow-wrap:anywhere;word-break:break-word;"><strong>Your requested changes:</strong> {{ $first->decline_reason }}</span>
     </div>
     @endif
 
-    @if($status === 'quotation_sent')
+    @if($status === 'quotation_sent' && $latestVersion)
+    <div class="qc-section">
+        <i data-lucide="gavel"></i> Your decision
+    </div>
+    <div class="qc-decision">
+        <a href="{{ route('client.quotation.show', $first->batch_id) }}" class="save-btn" style="text-decoration:none;">
+            <i data-lucide="file-search"></i>
+            Review &amp; Decide
+        </a>
+        <span style="font-size:12px;color:var(--muted);align-self:center;">Open the quotation to approve it, request a revision, or reject it.</span>
+    </div>
+    @elseif($status === 'quotation_sent')
+    {{-- a quotation uploaded as a file before quotations were generated by the system --}}
     <div class="qc-section">
         <i data-lucide="gavel"></i> Your decision
     </div>
@@ -248,7 +317,7 @@
                     <i data-lucide="x"></i>
                 </button>
             </div>
-            <form method="POST" action="{{ route('client.quotation.reject', $first->batch_id) }}">
+            <form method="POST" action="{{ route('client.quotation.revision', $first->batch_id) }}">
                 @csrf
                 <div class="form-group" style="margin-bottom:18px;">
                     <label>Reason</label>

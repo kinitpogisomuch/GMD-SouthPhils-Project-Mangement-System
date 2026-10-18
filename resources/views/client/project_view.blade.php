@@ -262,33 +262,10 @@
             @endif
             @endif
 
-            <!-- Payment Status -->
+            <!-- Project & Payment Status (operational progress and payments tracked separately) -->
             @if($payment)
-            <div class="pv-card" style="margin-top:20px;">
-                <div class="pv-card-title">
-                    <i data-lucide="credit-card"></i>
-                    Payment Status
-                </div>
-                <div class="pv-stat-row">
-                    <div class="pv-stat-box">
-                        <div class="pv-stat-label">Status</div>
-                        <div class="pv-stat-value">
-                            <span class="pv-status-pill {{ \App\Models\Payment::statusBadgeClass($payment->status) }}">
-                                {{ $payment->status }}
-                            </span>
-                        </div>
-                    </div>
-                    <div class="pv-stat-box">
-                        <div class="pv-stat-label">Remaining Balance</div>
-                        <div class="pv-stat-value">₱{{ number_format($payment->balance, 2) }}</div>
-                    </div>
-                </div>
-                <div style="margin-top:12px;">
-                    <a href="{{ route('client.payments.show', $payment->id) }}" class="cancel-btn" style="display:inline-flex;text-decoration:none;">
-                        <i data-lucide="external-link"></i>
-                        View Payment Details
-                    </a>
-                </div>
+            <div style="margin-top:20px;">
+                @include('partials.project_settlement_status', ['project' => $project, 'portal' => 'client'])
             </div>
             @endif
 

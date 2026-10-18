@@ -26,6 +26,12 @@ class QuotationBatch extends Model
         'contract_value',
         'quotation_files',
         'payment_term_type',
+        'reference_no',
+        'specifications',
+        'document',
+        'current_version',
+        'project_id',
+        'converted_at',
     ];
 
     protected $casts = [
@@ -36,11 +42,77 @@ class QuotationBatch extends Model
         'markup_percent'         => 'float',
         'contract_value'         => 'float',
         'quotation_files'        => 'array',
+        'specifications'         => 'array',
+        'document'               => 'array',
+        'current_version'        => 'integer',
+        'converted_at'           => 'datetime',
     ];
+
+    protected static function booted(): void
+    {
+        // Every quotation gets its reference number the moment it exists
+        static::creating(function (QuotationBatch $batch) {
+            if (empty($batch->reference_no)) {
+                $batch->reference_no = self::nextReferenceNumber();
+            }
+        });
+    }
+
+    /**
+     * GMDSP-<year>-<sequence>, e.g. GMDSP-2026-061 — the same format as GMD's printed quotations. The
+     * sequence restarts every year. A transaction-scoped advisory lock serialises concurrent submissions,
+     * and the unique index on reference_no is the final guarantee.
+     */
+    public static function nextReferenceNumber(): string
+    {
+        $year   = now()->format('Y');
+        $prefix = "GMDSP-{$year}-";
+
+        return \DB::transaction(function () use ($prefix) {
+            \DB::select('SELECT pg_advisory_xact_lock(?)', [crc32('quotation_reference_no')]);
+
+            $last = self::where('reference_no', 'like', $prefix . '%')
+                ->pluck('reference_no')
+                ->map(fn ($ref) => (int) substr($ref, strlen($prefix)))
+                ->max() ?? 0;
+
+            return $prefix . str_pad((string) ($last + 1), 3, '0', STR_PAD_LEFT);
+        });
+    }
 
     public function client()
     {
         return $this->belongsTo(Client::class);
+    }
+
+    public function project()
+    {
+        return $this->belongsTo(Project::class);
+    }
+
+    public function versions()
+    {
+        return $this->hasMany(QuotationVersion::class, 'quotation_batch_id')->orderByDesc('version');
+    }
+
+    /** The quotation most recently sent to the client, if any */
+    public function latestVersion(): ?QuotationVersion
+    {
+        return $this->versions()->first();
+    }
+
+    /** "GMDSP-2026-061" for the first quotation, "GMDSP-2026-061-R1" for its first revision, … */
+    public function quotationNumberFor(int $version): string
+    {
+        $base = $this->reference_no ?: ('Q-' . substr($this->id, 0, 8));
+
+        return $version <= 1 ? $base : $base . '-R' . ($version - 1);
+    }
+
+    /** One document setting (project title, validity days, notes …), or its default */
+    public function documentSetting(string $key, $default = null)
+    {
+        return data_get($this->document ?? [], $key, $default);
     }
 
     public function quotationRequests()

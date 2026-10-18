@@ -112,7 +112,7 @@
                 </div>
             </div>
 
-            {{-- ── Needs Attention + live Project Status, side by side ── --}}
+            {{-- ── Needs Attention ── --}}
             <div class="db-attn-row">
             <div class="table-card" style="margin-bottom:0;">
                 <div style="display:flex;align-items:center;gap:10px;padding:20px 24px 16px;border-bottom:1px solid var(--border);">
@@ -182,40 +182,6 @@
                 @endif
             </div>
 
-            {{-- ── Project Status — where every project stands right now (not filtered by year) ── --}}
-            @php
-                $statusTotal  = collect($statusSnapshot)->sum('count');
-                $statusColors = ['planning' => '#d97706', 'ongoing' => '#2563eb', 'shortage' => '#dc2626', 'completed' => '#16a34a'];
-            @endphp
-            <div class="table-card db-status-card" style="margin-bottom:0;">
-                <div class="db-status-head">
-                    <div style="width:36px;height:36px;background:#EAF0FF;color:#2A4EAA;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                        <i data-lucide="layers" style="width:18px;height:18px;"></i>
-                    </div>
-                    <div style="min-width:0;">
-                        <div style="font-size:15px;font-weight:800;color:var(--dark);">Project Status</div>
-                        <div style="font-size:12px;color:var(--muted);margin-top:2px;">All projects, as of today</div>
-                    </div>
-                    <div class="db-status-total">{{ $statusTotal }}<span>projects</span></div>
-                </div>
-                <div class="db-status-body">
-                    <div class="db-status-bar" role="img" aria-label="Project status breakdown">
-                        @foreach($statusSnapshot as $item)
-                            @if($item['count'] > 0)
-                            <span style="flex:{{ $item['count'] }};background:{{ $statusColors[$item['badge']] ?? '#999' }};" title="{{ $item['label'] }}: {{ $item['count'] }}"></span>
-                            @endif
-                        @endforeach
-                    </div>
-                    @foreach($statusSnapshot as $item)
-                    <a href="{{ route('admin.projects') }}" class="db-status-row">
-                        <span class="db-status-dot" style="background:{{ $statusColors[$item['badge']] ?? '#999' }};"></span>
-                        <span class="db-status-label">{{ $item['label'] }}</span>
-                        <span class="db-status-pct">{{ $statusTotal > 0 ? round($item['count'] / $statusTotal * 100) : 0 }}%</span>
-                        <span class="db-status-count">{{ $item['count'] }}</span>
-                    </a>
-                    @endforeach
-                </div>
-            </div>
             </div>{{-- /.db-attn-row --}}
 
             {{-- ── Top Client + Top Supplier ── --}}
@@ -1580,22 +1546,9 @@
         .db-three-panel-row > *,
         .db-kpi-row > * { min-width: 0; }
 
-        /* ── Needs Attention (2/3) + Project Status (1/3) ── */
-        .db-attn-row { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 20px; margin-bottom: 20px; align-items: stretch; }
+        /* ── Needs Attention (full width) ── */
+        .db-attn-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; margin-bottom: 20px; }
         .db-attn-row > * { min-width: 0; }
-        .db-status-card { display: flex; flex-direction: column; }
-        .db-status-head { display: flex; align-items: center; gap: 10px; padding: 20px 24px 16px; border-bottom: 1px solid var(--border); }
-        .db-status-total { margin-left: auto; font-size: 24px; font-weight: 900; color: var(--dark); line-height: 1; text-align: right; font-variant-numeric: tabular-nums; }
-        .db-status-total span { display: block; margin-top: 3px; font-size: 10.5px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
-        .db-status-body { padding: 16px 24px 18px; display: flex; flex-direction: column; gap: 4px; }
-        .db-status-bar { display: flex; gap: 3px; height: 10px; margin-bottom: 10px; border-radius: 999px; overflow: hidden; background: var(--cream-soft); }
-        .db-status-bar span { min-width: 6px; }
-        .db-status-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; margin: 0 -10px; border-radius: 10px; text-decoration: none; color: var(--dark); transition: background .15s; }
-        .db-status-row:hover { background: var(--cream-soft); }
-        .db-status-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
-        .db-status-label { flex: 1; font-size: 13px; font-weight: 700; }
-        .db-status-pct { font-size: 12px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
-        .db-status-count { min-width: 32px; text-align: right; font-size: 15px; font-weight: 900; font-variant-numeric: tabular-nums; }
 
         /* Prevent page-level horizontal bleed */
         .admin-content { overflow-x: hidden; }
@@ -1660,7 +1613,6 @@
             .db-kpi-value          { font-size: clamp(17px, 5.4vw, 22px); white-space: nowrap; overflow-wrap: normal; }
             .db-kpi-label          { font-size: 10.5px; }
             .db-kpi-sub            { font-size: 11px; }
-            .db-status-head, .db-status-body { padding-left: 16px; padding-right: 16px; }
             .db-chart-card         { padding: 14px 14px 18px; }
             .db-chart-wrap         { height: 170px; }
             .db-panel-card         { padding: 16px; }

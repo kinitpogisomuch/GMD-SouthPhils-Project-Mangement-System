@@ -53,9 +53,14 @@
                     Payments
                 </a>
                 <i data-lucide="chevron-right" style="width:14px;height:14px;"></i>
-                <a href="{{ route('admin.payments.client', urlencode($payment->client)) }}" style="color:var(--muted);text-decoration:none;font-weight:600;">
+                @if(in_array($payment->project?->status, ['completed', 'archived'], true))
+                {{-- finished projects' payments are listed on their client's page; active ones on the Payments page itself --}}
+                <a href="{{ route('admin.payments.client', ['client' => $payment->project->client_id ?: $payment->client, 'tab' => $payment->project->status]) }}" style="color:var(--muted);text-decoration:none;font-weight:600;">
                     {{ $payment->client }}
                 </a>
+                @else
+                <span style="color:var(--muted);font-weight:600;">{{ $payment->client }}</span>
+                @endif
                 <i data-lucide="chevron-right" style="width:14px;height:14px;"></i>
                 <span style="color:var(--dark);font-weight:700;">{{ $payment->project->name ?? 'Payment Detail' }}</span>
             </div>
@@ -287,6 +292,61 @@
                 </div>
             </div>
 
+            @if($onlinePayments->isNotEmpty())
+            <!-- Online Payments (payment gateway) -->
+            <div class="table-card" style="margin-bottom:20px;">
+                <div class="table-toolbar" style="padding-bottom:14px;margin-bottom:0;border-bottom:1px solid var(--border);">
+                    <div>
+                        <div style="font-weight:800;font-size:15px;color:var(--dark);">Online Payments</div>
+                        <div style="font-size:12px;color:var(--muted);margin-top:2px;">Checkouts the client started through PayMongo. Paid ones are verified with the gateway and recorded in Payment History automatically.</div>
+                    </div>
+                    <span style="font-size:13px;font-weight:700;color:var(--muted);">{{ $onlinePayments->where('status', 'paid')->count() }} paid · ₱{{ number_format($onlinePayments->where('status', 'paid')->sum('amount'), 2) }}</span>
+                </div>
+                <div class="table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="text-align:left;">Started</th>
+                                <th style="text-align:left;">Stage</th>
+                                <th style="text-align:center;">Amount</th>
+                                <th style="text-align:center;">Method</th>
+                                <th style="text-align:left;">Reference / Transaction</th>
+                                <th style="text-align:center;">Status</th>
+                                <th style="text-align:center;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($onlinePayments as $op)
+                            <tr>
+                                <td style="white-space:nowrap;color:var(--muted);">{{ $op->created_at->format('M d, Y g:i A') }}</td>
+                                <td><strong>{{ \App\Models\PaymentTransaction::stageLabel($op->payment_stage) }}</strong></td>
+                                <td style="text-align:center;"><strong>₱{{ number_format($op->amount, 2) }}</strong></td>
+                                <td style="text-align:center;">{{ $op->methodLabel() }}</td>
+                                <td style="font-size:12px;">
+                                    <div style="font-family:monospace;">{{ $op->reference }}</div>
+                                    @if($op->provider_payment_id)<div style="font-family:monospace;color:var(--muted);">{{ $op->provider_payment_id }}</div>@endif
+                                    @if($op->paid_at)<div style="color:var(--muted);">Paid {{ $op->paid_at->format('M d, Y g:i A') }}</div>@endif
+                                    @if($op->failure_reason)<div style="color:#b45309;">{{ $op->failure_reason }}</div>@endif
+                                </td>
+                                <td style="text-align:center;"><span class="status-badge {{ $op->badgeClass() }}">{{ $op->statusLabel() }}</span></td>
+                                <td style="text-align:center;">
+                                    @if($op->isPending() && $op->checkout_session_id)
+                                    <form method="POST" action="{{ route('admin.payments.online.verify', $op->id) }}" style="margin:0;">
+                                        @csrf
+                                        <button type="submit" class="action-btn view" title="Check with PayMongo now" aria-label="Check status with PayMongo"><i data-lucide="refresh-cw"></i></button>
+                                    </form>
+                                    @else
+                                    <span style="color:var(--muted);">—</span>
+                                    @endif
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            @endif
+
             <!-- Payment History -->
             <div class="table-card">
                 <div class="table-toolbar" style="padding-bottom:14px;margin-bottom:0;border-bottom:1px solid var(--border);">
@@ -319,9 +379,10 @@
                                         $mopStyle = match($tx->mode_of_payment) {
                                             'bank_transfer' => 'background:#dbeafe;color:#1d4ed8;',
                                             'cheque'        => 'background:#fef3c7;color:#92400e;',
+                                            'online_bank'   => 'background:#ede9fe;color:#5b21b6;',
                                             default         => 'background:#dcfce7;color:#15803d;',
                                         };
-                                        $mopLabel = $tx->mode_of_payment === 'bank_transfer' ? 'Bank Transfer' : ucfirst($tx->mode_of_payment);
+                                        $mopLabel = \App\Models\PaymentProof::modeLabel($tx->mode_of_payment);
                                     @endphp
                                     <span class="status-badge" style="{{ $mopStyle }}box-shadow:none;font-size:12px;">{{ $mopLabel }}</span>
                                     @else

@@ -721,6 +721,71 @@ class NotificationService
         );
     }
 
+    /** An online payment was verified with the gateway and recorded → tell admins (the client gets "Payment Received") */
+    public static function onlinePaymentConfirmed(\App\Models\OnlinePayment $online, PaymentTransaction $transaction): void
+    {
+        $payment = $online->payment()->with('project', 'transactions')->first();
+        if (!$payment || !$payment->project) {
+            return;
+        }
+
+        self::notifyAdmins(
+            'Online Payment Confirmed',
+            "{$payment->project->live_client_name} paid online — verified with PayMongo and recorded automatically.\nProject: {$payment->project->name}\nPayment phase: "
+                . PaymentTransaction::stageLabel($online->payment_stage) . "\nAmount: " . self::peso((float) $transaction->amount_paid)
+                . "\nTransaction ref: {$transaction->reference_number}\nRemaining balance: " . self::peso($payment->currentBalance()),
+            self::TYPE_PAYMENT_RECEIVED,
+            'success',
+            $payment->project->id,
+            null,
+            "/admin/payments/{$payment->id}",
+            null,
+            'online_payment_confirmed:' . $online->id
+        );
+    }
+
+    /** The bank / gateway reported the online payment as failed → tell the client they were not charged */
+    public static function onlinePaymentFailed(\App\Models\OnlinePayment $online): void
+    {
+        $payment = $online->payment()->with('project')->first();
+        if (!$payment || !$payment->project) {
+            return;
+        }
+
+        self::notifyProjectClient(
+            $payment->project,
+            'Online Payment Not Completed',
+            "Project: {$payment->project->name}\nPayment phase: " . PaymentTransaction::stageLabel($online->payment_stage)
+                . "\nAmount: " . self::peso((float) $online->amount)
+                . "\nThe payment did not go through" . ($online->failure_reason ? " ({$online->failure_reason})" : '') . '. You can try again with Pay Now.',
+            self::TYPE_PAYMENT_DUE,
+            'warning',
+            null,
+            "/client/payments/{$payment->id}",
+            null,
+            'online_payment_failed:' . $online->id
+        );
+    }
+
+    /** The gateway reported an amount that doesn't match the checkout → admins reconcile it by hand */
+    public static function onlinePaymentNeedsReview(\App\Models\OnlinePayment $online): void
+    {
+        $payment = $online->payment()->with('project')->first();
+
+        self::notifyAdmins(
+            'Online Payment Needs Review',
+            'Online payment ' . $online->reference . ($payment?->project ? " for {$payment->project->name}" : '') . " was not recorded automatically.\n"
+                . ($online->failure_reason ?: 'Check it in the PayMongo dashboard and record it manually if it was received.'),
+            self::TYPE_PAYMENT_PROOF_SUBMITTED,
+            'warning',
+            $payment?->project_id,
+            null,
+            $payment ? "/admin/payments/{$payment->id}" : '/admin/payments',
+            null,
+            'online_payment_review:' . $online->id
+        );
+    }
+
     /** The client uploaded proof of payment → admins verify and record it (once per submission). */
     public static function paymentProofSubmitted(Payment $payment, PaymentProof $proof): void
     {
@@ -840,15 +905,19 @@ class NotificationService
     /** Client submitted a quotation request → notify admins */
     public static function quotationRequestSubmitted(QuotationRequest $request): void
     {
+        $ref = $request->quotationBatch?->reference_no;
+
         self::notifyAdmins(
             'New Quotation Request',
-            "{$request->client->name} submitted a quotation request for {$request->tank_summary}.",
+            "{$request->client->name} submitted a quotation request" . ($ref ? " ({$ref})" : '') . " for {$request->tank_summary}"
+                . ($request->capacity ? ", {$request->capacity}" : '') . '.',
             self::TYPE_QUOTATION_REQUEST_SUBMITTED,
             'info',
             null,
             null,
-            '/admin/quotation-requests',
-            $request->created_at
+            '/admin/quotation-requests/batch/' . $request->batch_id,
+            $request->created_at,
+            'quotation_requested:' . $request->id
         );
     }
 
@@ -882,18 +951,64 @@ class NotificationService
         );
     }
 
+    /** A generated quotation (a new version) is available in the client's portal → notify the client, once per version */
+    public static function quotationVersionSent(QuotationRequest $request, \App\Models\QuotationVersion $version): void
+    {
+        $client = Client::find($request->client_id);
+        if (!$client) {
+            return;
+        }
+
+        self::send(
+            $client->id,
+            'client',
+            $version->version > 1 ? 'Revised Quotation Ready for Review' : 'Quotation Ready for Review',
+            "Quotation {$version->quotation_number} for your {$request->tank_summary} request is ready.\nTotal: "
+                . self::peso((float) $version->contract_value) . "\nOpen it to review the details, download the PDF, and approve or reject it.",
+            self::TYPE_QUOTATION_REQUEST_QUOTATION_SENT,
+            'info',
+            null,
+            null,
+            '/client/quotations/' . $version->quotation_batch_id,
+            $version->sent_at,
+            'quotation_version_sent:' . $version->id
+        );
+    }
+
     /** Client approved the sent quotation → notify admins */
     public static function quotationRequestApproved(QuotationRequest $request): void
     {
+        $ref = $request->quotationBatch?->reference_no;
+
         self::notifyAdmins(
             'Quotation Approved by Client',
-            "{$request->client->name} approved the quotation for their {$request->tank_summary} request. It's ready to be converted into a project.",
+            "{$request->client->name} approved quotation " . ($ref ? "{$ref} " : '') . "for their {$request->tank_summary} request. It's ready to be converted into a project.",
             self::TYPE_QUOTATION_REQUEST_APPROVED,
             'success',
             null,
             null,
-            '/admin/quotation-requests',
-            $request->approved_at
+            '/admin/quotation-requests/batch/' . $request->batch_id,
+            $request->approved_at,
+            'quotation_approved:' . $request->batch_id
+        );
+    }
+
+    /** Client rejected the quotation for good → notify admins */
+    public static function quotationRejectedByClient(QuotationRequest $request): void
+    {
+        $ref = $request->quotationBatch?->reference_no;
+
+        self::notifyAdmins(
+            'Quotation Rejected by Client',
+            "{$request->client->name} rejected quotation " . ($ref ? "{$ref} " : '') . "for their {$request->tank_summary} request."
+                . ($request->decline_reason ? " Reason: {$request->decline_reason}" : ''),
+            self::TYPE_QUOTATION_REQUEST_REJECTED,
+            'warning',
+            null,
+            null,
+            '/admin/quotation-requests/batch/' . $request->batch_id,
+            null,
+            'quotation_rejected:' . $request->batch_id
         );
     }
 
@@ -908,7 +1023,7 @@ class NotificationService
             'warning',
             null,
             null,
-            '/admin/quotation-requests'
+            '/admin/quotation-requests/batch/' . $request->batch_id
         );
     }
 

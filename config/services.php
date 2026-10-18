@@ -42,4 +42,23 @@ return [
         'project_id'  => env('SUPABASE_PROJECT_ID'),
     ],
 
+    /*
+     | PayMongo — online bank payments (checkout sessions + signed webhooks). Online payment stays
+     | switched off until the secret key is set; clients then only see the proof-of-payment upload.
+     | payment_methods: the checkout's methods. Bank options: dob (BPI), dob_ubp (UnionBank),
+     | brankas_bdo, brankas_landbank, brankas_metrobank, and qrph (InstaPay QR — any bank app).
+     */
+    'paymongo' => [
+        'secret_key'      => env('PAYMONGO_SECRET_KEY'),
+        'public_key'      => env('PAYMONGO_PUBLIC_KEY'),
+        'webhook_secret'  => env('PAYMONGO_WEBHOOK_SECRET'),
+        'base_url'        => env('PAYMONGO_BASE_URL', 'https://api.paymongo.com/v1'),
+        'payment_methods' => array_values(array_filter(array_map('trim', explode(',', env(
+            'PAYMONGO_PAYMENT_METHODS',
+            'qrph,dob,dob_ubp,brankas_bdo,brankas_landbank,brankas_metrobank'
+        ))))),
+        // seconds of webhook timestamp drift tolerated before a signature is treated as a replay
+        'webhook_tolerance' => (int) env('PAYMONGO_WEBHOOK_TOLERANCE', 600),
+    ],
+
 ];

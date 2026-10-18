@@ -395,8 +395,19 @@ class AdminController extends Controller
         $projects = Project::with('assignedEmployees', 'tankItems')->orderBy('created_at', 'desc')->get();
         $projectTemplates = \App\Models\ProjectTemplate::orderBy('name')->get();
 
-        // Per-client rollup powering the Projects page's client drill-down list.
-        $clientGroups = $this->buildClientGroups($projects);
+        // Active tab: every in-progress project listed directly (newest first). Completed and Archived
+        // tabs: grouped by client — the client page then lists that client's finished projects.
+        $activeProjects  = $projects->whereNotIn('status', ['completed', 'archived'])->values();
+        $completedGroups = $this->buildClientGroups($projects->where('status', 'completed'));
+        $archivedGroups  = $this->buildClientGroups($projects->where('status', 'archived'));
+
+        $pendingUpdateProjectIds = \App\Models\ProjectUpdate::where('status', 'pending_review')
+            ->whereIn('project_id', $activeProjects->pluck('id'))
+            ->pluck('project_id')
+            ->unique()
+            ->all();
+
+        $tab = in_array(request('tab'), ['active', 'completed', 'archived'], true) ? request('tab') : 'active';
 
         // ── Financial Summary (Active projects only: not completed, archived, or cancelled) ──
         $activeStatuses = ['completed', 'archived', 'cancelled'];
@@ -422,8 +433,11 @@ class AdminController extends Controller
         $netProfit = $totalRevenue - $actualMaterialCost - $actualLaborCost - $actualOverheadCost;
 
         return view('admin.projects', compact(
-            'projects',
-            'clientGroups',
+            'activeProjects',
+            'completedGroups',
+            'archivedGroups',
+            'pendingUpdateProjectIds',
+            'tab',
             'projectTemplates',
             'activeProjectsCount',
             'totalRevenue',
@@ -447,75 +461,41 @@ class AdminController extends Controller
             $query->where('client', $decoded);
         }
 
-        $projects = $query->orderBy('created_at', 'desc')->get();
+        // Active projects live on the Projects page itself; a client's page holds the finished ones
+        $projects = $query->whereIn('status', ['completed', 'archived'])->orderBy('updated_at', 'desc')->get();
 
-        abort_if($projects->isEmpty(), 404);
+        if ($projects->isEmpty()) {
+            return redirect()->route('admin.projects');
+        }
 
         $client = $projects->first()->live_client_name;
+        $tab    = request('tab') === 'archived' ? 'archived' : 'completed';
 
-        // Projects with an employee-submitted update still waiting on admin review —
-        // highlighted the same way as the client list on the Projects page.
-        $pendingUpdateProjectIds = \App\Models\ProjectUpdate::where('status', 'pending_review')
-            ->whereIn('project_id', $projects->pluck('id'))
-            ->pluck('project_id')
-            ->unique()
-            ->all();
-
-        return view('admin.projects_client', compact('client', 'projects', 'pendingUpdateProjectIds'));
-    }
-
-    /** GET /admin/projects/client-groups — polled to keep the client list live-sorted */
-    public function projectClientGroups()
-    {
-        $projects = Project::orderBy('created_at', 'desc')->get();
-
-        return response()->json($this->buildClientGroups($projects)->values());
+        return view('admin.projects_client', compact('client', 'projects', 'tab'));
     }
 
     /**
-     * Per-client rollup for the Projects page's client list, sorted so that:
-     *   1. Clients with active projects come before clients with none.
-     *   2. Among those, more active projects ranks higher.
-     *   3. Ties (including the "no active projects" group) break by most recent
-     *      project activity (latest updated_at across that client's projects).
-     *   4. Remaining ties break alphabetically — Postgres doesn't guarantee a
-     *      stable row order for equal timestamps, so without this the order
-     *      could flap between two otherwise-identical calls.
+     * Per-client rollup of finished (completed or archived) projects for the Projects page's
+     * Completed / Archived tabs — most recently finished first, ties broken alphabetically
+     * (Postgres doesn't guarantee a stable order for equal timestamps).
      */
     private function buildClientGroups($projects)
     {
-        // Projects with an employee-submitted progress update still waiting on
-        // admin review — surfaced as a "Needs Review" highlight on the client row.
-        $pendingUpdateProjectIds = \App\Models\ProjectUpdate::where('status', 'pending_review')
-            ->pluck('project_id')
-            ->unique();
-
         // Group by client_id when a project is linked (so a client rename or
         // relink is reflected immediately); fall back to the raw name string
         // for the rare project that predates the client_id link.
         return $projects->groupBy(fn ($p) => $p->client_id ? 'id:' . $p->client_id : 'name:' . $p->client)
-            ->map(function ($group) use ($pendingUpdateProjectIds) {
+            ->map(function ($group) {
             $first = $group->first();
-            $pendingUpdateProjects = $group->filter(fn ($p) => $pendingUpdateProjectIds->contains($p->id));
             return [
-                'client'        => $first->live_client_name,
-                'client_key'    => $first->client_id ?: $first->client,
-                'total'         => $group->count(),
-                'active'        => $group->whereNotIn('status', ['completed', 'archived'])->count(),
-                'completed'     => $group->where('status', 'completed')->count(),
-                'archived'      => $group->where('status', 'archived')->count(),
-                'last_activity' => $group->max('updated_at'),
-                'pending_update_count'    => $pendingUpdateProjects->count(),
-                'pending_update_projects' => $pendingUpdateProjects->pluck('name')->values(),
+                'client'            => $first->live_client_name,
+                'client_key'        => $first->client_id ?: $first->client,
+                'count'             => $group->count(),
+                'awaiting_delivery' => $group->filter(fn ($p) => $p->status === 'completed' && $p->deliveryStatus() === 'awaiting_delivery')->count(),
+                'last_activity'     => $group->max('updated_at'),
             ];
         })
         ->sort(function ($a, $b) {
-            if ($a['active'] > 0 !== $b['active'] > 0) {
-                return $a['active'] > 0 ? -1 : 1;
-            }
-            if ($a['active'] !== $b['active']) {
-                return $b['active'] <=> $a['active'];
-            }
             $byActivity = strtotime($b['last_activity']) <=> strtotime($a['last_activity']);
             return $byActivity !== 0 ? $byActivity : strcasecmp($a['client'], $b['client']);
         })
@@ -610,12 +590,13 @@ class AdminController extends Controller
 
         $users = $employees->merge($clients)->sortBy('created_at')->values();
 
-        $portfolioItems = \App\Models\PortfolioItem::orderBy('sort_order')->get();
+        // "Our Work" tank cards, hidden ones included so they can be shown again
+        $tankCards = \App\Support\TankCatalog::cards(null, true);
         $reviews = \App\Models\Review::with('project')->orderBy('created_at', 'desc')->get();
 
         $contactInfo = SiteSetting::instance();
 
-        return view('admin.settings', compact('adminData', 'users', 'portfolioItems', 'reviews', 'contactInfo'));
+        return view('admin.settings', compact('adminData', 'users', 'tankCards', 'reviews', 'contactInfo'));
     }
 
     public function manual()

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <link rel="icon" type="image/svg+xml" href="{{ asset('images/gmdlogo-circle.svg') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Build Quotation — {{ $batch->client->name ?? 'Client' }} | GMD South Phils</title>
+    <title>{{ $step === 'document' ? 'Quotation Document' : 'Costing' }} — {{ $batch->client->name ?? 'Client' }} | GMD South Phils</title>
     <link href="{{ asset('css/admin.css') }}" rel="stylesheet">
     <style>
         #materialsTable th.num-cell, #materialsTable td.num-cell,
@@ -261,6 +261,109 @@
         .qb-locked input:disabled, .qb-locked select:disabled { background: rgba(0,0,0,.03); color: var(--dark); -webkit-text-fill-color: var(--dark); opacity: 1; cursor: default; }
         .qb-locked .qb-cell-total:disabled { background: transparent; }
         .qb-locked .qb-chip { cursor: default; }
+
+        /* ── Two steps: Costing → Quotation Document ── */
+        .qb-card[data-step="document"] .qb-section:not(.qb-doc-section) { display: none; }   /* still in the form, so Save keeps them */
+        .qb-card[data-step="costing"] .qb-doc-section { display: none; }
+        .qb-steps { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+        .qb-stepper { display: flex; align-items: center; gap: 11px; padding: 10px 16px 10px 10px; border-radius: 16px; border: 1px solid var(--border);
+                      background: var(--white); text-decoration: none; color: var(--dark); transition: border-color .15s, box-shadow .15s; }
+        a.qb-stepper:hover { border-color: #cfcfcf; box-shadow: 0 4px 14px rgba(0,0,0,.06); }
+        .qb-stepper strong { display: block; font-size: 13.5px; font-weight: 800; }
+        .qb-stepper small { display: block; font-size: 11.5px; font-weight: 600; color: var(--muted); margin-top: 1px; }
+        .qb-stepper-num { width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+                          font-size: 13px; font-weight: 900; background: var(--cream-deep, #ebebeb); color: var(--muted); }
+        .qb-stepper-num svg { width: 15px; height: 15px; }
+        .qb-stepper.is-current { border-color: #333; box-shadow: 0 0 0 3px rgba(245,180,0,.25); }
+        .qb-stepper.is-current .qb-stepper-num { background: #333; color: #F5B400; }
+        .qb-stepper.is-done .qb-stepper-num { background: #207A3A; color: #fff; }
+        .qb-stepper.is-locked { opacity: .55; cursor: not-allowed; }
+        .qb-stepper-line { flex: 0 0 40px; height: 3px; border-radius: 999px; background: var(--border); }
+        .qb-stepper-line.is-open { background: #207A3A; }
+        #generateDocBtn[aria-disabled="true"] { opacity: .45; cursor: not-allowed; pointer-events: none; box-shadow: none; }
+
+        /* ── Quotation Document step: form | live preview (full length) ── */
+        .qd-layout { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 20px; align-items: start; }
+        .qd-layout > .qb-card { min-width: 0; margin-bottom: 0; }
+        /* the summary + Save, tidied for the narrower form column */
+        .qd-layout .qb-foot { flex-direction: column; align-items: stretch; gap: 12px; }
+        .qd-layout .qb-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .qd-layout .qb-sum-op { display: none; }
+        .qd-layout .qb-sum-item { min-width: 0; }
+        .qd-layout .qb-sum-total { grid-column: 1 / -1; }
+        .qd-layout .qb-foot .save-btn { width: 100%; justify-content: center; }
+
+        /* form groups */
+        .qd-layout .qb-doc-section { padding-top: 6px; }
+        .qd-group { padding: 16px 0; border-bottom: 1px dashed var(--border); }
+        .qd-group:last-of-type { border-bottom: none; }
+        .qd-group-head { display: flex; align-items: flex-start; gap: 11px; margin-bottom: 12px; }
+        .qd-group-icon { width: 32px; height: 32px; border-radius: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: #FFF4D6; color: #8A6100; }
+        .qd-group-icon svg { width: 16px; height: 16px; }
+        .qd-group-head h4 { margin: 0; font-size: 13.5px; font-weight: 800; color: var(--dark); display: flex; align-items: center; gap: 7px; }
+        .qd-group-head p { margin: 2px 0 0; font-size: 11.5px; color: var(--muted); }
+        .qd-count { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: #333; color: #F5B400; font-size: 10.5px; font-weight: 900; }
+        .qd-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 14px; }
+        .qd-span-2 { grid-column: 1 / -1; }
+        .qd-suffix-wrap { position: relative; }
+        .qd-suffix-wrap .qb-input { padding-right: 52px; }
+        .qd-suffix { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 12px; font-weight: 700; color: var(--muted); pointer-events: none; }
+        .qd-spec-wrap .qb-table { min-width: 0 !important; }
+        .qd-add-line { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-top: 10px; padding: 10px; border-radius: 12px;
+                       border: 1.5px dashed #d4d4d4; background: transparent; color: var(--muted); font: inherit; font-size: 12.5px; font-weight: 800; cursor: pointer; transition: border-color .15s, color .15s, background .15s; }
+        .qd-add-line:hover { border-color: #333; color: var(--dark); background: var(--cream-soft, #fafafa); }
+        .qd-add-line svg { width: 14px; height: 14px; }
+        .qd-toggle { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 14px; border: 1.5px solid var(--border); cursor: pointer; transition: border-color .15s, background .15s; }
+        .qd-toggle:hover { border-color: #cfcfcf; }
+        .qd-toggle:has(input[type=checkbox]:checked) { border-color: #F5B400; background: #FFFBEB; }
+        .qd-toggle input[type=checkbox] { position: absolute; opacity: 0; pointer-events: none; }
+        .qd-switch { position: relative; width: 40px; height: 22px; flex-shrink: 0; border-radius: 999px; background: #d4d4d4; transition: background .2s; }
+        .qd-switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.2); transition: transform .2s; }
+        .qd-toggle input[type=checkbox]:checked + .qd-switch { background: #333; }
+        .qd-toggle input[type=checkbox]:checked + .qd-switch::after { transform: translateX(18px); background: #F5B400; }
+        .qd-toggle input[type=checkbox]:focus-visible + .qd-switch { box-shadow: 0 0 0 3px rgba(245,180,0,.35); }
+        .qd-toggle-text strong { display: block; font-size: 13px; font-weight: 800; color: var(--dark); }
+        .qd-toggle-text small { display: block; margin-top: 2px; font-size: 11.5px; color: var(--muted); }
+
+        /* preview: the whole document, full length — the page scrolls, not the panel */
+        .qd-preview { display: flex; flex-direction: column; min-width: 0; background: #eef0f3; border: 1px solid var(--border); border-radius: 20px;
+                      box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 14px 34px rgba(0,0,0,.06); }
+        .qd-preview-head { position: sticky; top: calc(var(--header-height, 64px) + 10px); z-index: 3; display: flex; align-items: center; gap: 12px;
+                           padding: 12px 16px; border-bottom: 1px solid var(--border); background: rgba(255,255,255,.96); backdrop-filter: blur(8px);
+                           border-radius: 20px 20px 0 0; }
+        .qd-preview-icon { width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: #333; color: #F5B400; }
+        .qd-preview-icon svg { width: 16px; height: 16px; }
+        .qd-preview-title { font-size: 13.5px; font-weight: 800; color: var(--dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .qd-preview-title span { font-weight: 600; color: var(--muted); }
+        .qd-preview-sub { display: flex; align-items: center; gap: 6px; margin-top: 2px; font-size: 11.5px; font-weight: 600; color: var(--muted); }
+        .qd-dot { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,.18); flex-shrink: 0; }
+        .qd-preview-sub.is-busy .qd-dot { background: #F5B400; box-shadow: 0 0 0 3px rgba(245,180,0,.22); animation: qdPulse 1s ease-in-out infinite; }
+        .qd-preview-sub.is-error { color: var(--danger); }
+        .qd-preview-sub.is-error .qd-dot { background: var(--danger); box-shadow: 0 0 0 3px rgba(220,38,38,.18); }
+        @keyframes qdPulse { 50% { opacity: .35; } }
+        .qd-preview-open { margin-left: auto; width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--border); background: var(--white); color: var(--dark);
+                           display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .qd-preview-open:hover { border-color: var(--dark); }
+        .qd-preview-open svg { width: 15px; height: 15px; }
+        .qd-preview-frame-wrap { position: relative; border-radius: 0 0 20px 20px; overflow: hidden; }
+        .qd-preview-frame-wrap iframe { display: block; width: 100%; height: 900px; border: 0; background: #eef0f3; }   /* JS sets the real height */
+        .qd-preview-loading { position: absolute; top: 0; left: 0; right: 0; height: 3px; overflow: hidden; opacity: 0; transition: opacity .2s; }
+        .qd-preview-loading.show { opacity: 1; }
+        .qd-preview-loading span { position: absolute; top: 0; left: -40%; width: 40%; height: 100%; background: #F5B400; animation: qdLoad 1s ease-in-out infinite; }
+        @keyframes qdLoad { to { left: 100%; } }
+        @media (max-width: 1200px) {
+            .qd-layout { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 600px) {
+            .qd-fields { grid-template-columns: 1fr; }
+            .qd-preview-head { top: calc(var(--header-height, 64px) + 4px); }
+        }
+        @media (max-width: 600px) {
+            .qb-steps { gap: 8px; }
+            .qb-stepper { flex: 1; padding: 8px 10px 8px 8px; }
+            .qb-stepper small { display: none; }
+            .qb-stepper-line { flex-basis: 14px; }
+        }
     </style>
 </head>
 <body class="page-enter">
@@ -278,25 +381,76 @@
                     Quotation Requests
                 </a>
                 <i data-lucide="chevron-right" style="width:14px;height:14px;"></i>
-                <span style="color:var(--dark);font-weight:700;">Build Quotation</span>
+                <span style="color:var(--dark);font-weight:700;">{{ $step === 'document' ? 'Quotation Document' : 'Costing' }}</span>
             </div>
 
-            <div class="page-header">
+            @php
+                $requestMeta  = $tankItems->first();
+                $latestSent   = $versions->first();
+            @endphp
+            <div class="page-header" style="flex-wrap:wrap;gap:12px;">
                 <div>
                     <h1>{{ $batch->client->name ?? 'Client' }}</h1>
-                    <p>{{ $isLocked ? 'Materials, labor, and costs of the approved quotation.' : 'Enter materials, labor, and costs for this quotation.' }}</p>
+                    <p>
+                        <strong style="color:var(--dark);">{{ $batch->reference_no }}</strong>
+                        @if($requestMeta)
+                        · <span class="status-badge {{ $requestMeta->status_class }}" style="vertical-align:1px;">{{ $requestMeta->status_label }}</span>
+                        @endif
+                        · @if($step === 'document')
+                            {{ $isLocked ? 'The quotation document sent to the client (view only).' : 'Set what the quotation document says, then send it to the client.' }}
+                          @else
+                            {{ $isLocked ? 'Materials, labor, and costs of this quotation (view only).' : 'Enter the tank, pricing, materials and labor — then generate the quotation document.' }}
+                          @endif
+                    </p>
                 </div>
-                @if($batchStatus === 'pending')
-                <button class="add-btn" type="button" id="openSendQuotationModal">
-                    <i data-lucide="send"></i>
-                    Send to Client
-                </button>
-                @elseif($batchStatus === 'approved')
-                <a class="add-btn" style="text-decoration:none;" href="{{ route('admin.projects', ['prefill_quotation_batch' => $batch->id]) }}">
-                    <i data-lucide="folder-plus"></i>
-                    Convert to Project
-                </a>
-                @endif
+                <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                    @if(in_array($batchStatus, ['pending', 'in_preparation'], true))
+                        @if($step === 'costing')
+                        {{-- step 1 → 2: only once the costing is complete AND saved (checked live in the page as well) --}}
+                        <a class="add-btn" id="generateDocBtn" data-ready="{{ $costingReady ? '1' : '0' }}"
+                           href="{{ route('admin.quotation_requests.batch_detail', ['batchId' => $batch->id, 'step' => 'document']) }}"
+                           style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;"
+                           title="{{ $costingReady ? '' : 'Complete and save the costing first: ' . implode(', ', $costingGaps) }}"
+                           @unless($costingReady) aria-disabled="true" @endunless>
+                            <i data-lucide="file-text"></i>
+                            Generate Quotation Document
+                        </a>
+                        @else
+                        <a class="cancel-btn" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;" href="{{ route('admin.quotation_requests.batch_detail', $batch->id) }}">
+                            <i data-lucide="arrow-left"></i>
+                            Back to Costing
+                        </a>
+                        <button class="add-btn" type="button" id="openSendQuotationModal">
+                            <i data-lucide="send"></i>
+                            {{ $latestSent ? 'Send Revised Quotation' : 'Send to Client' }}
+                        </button>
+                        @endif
+                    @elseif($batchStatus === 'quotation_sent')
+                    <form method="POST" action="{{ route('admin.quotation_requests.batch_withdraw', $batch->id) }}" onsubmit="return confirm('Take this quotation back from the client to revise it? They will no longer be able to approve this version.');">
+                        @csrf
+                        <button type="submit" class="cancel-btn" style="display:inline-flex;align-items:center;gap:6px;">
+                            <i data-lucide="rotate-ccw"></i>
+                            Withdraw &amp; Revise
+                        </button>
+                    </form>
+                    @elseif($batchStatus === 'approved')
+                    <a class="add-btn" style="text-decoration:none;" href="{{ route('admin.projects', ['prefill_quotation_batch' => $batch->id]) }}">
+                        <i data-lucide="folder-plus"></i>
+                        Convert to Project
+                    </a>
+                    @elseif($batchStatus === 'converted' && $batch->project_id)
+                    <a class="add-btn" style="text-decoration:none;" href="{{ route('admin.project_view', $batch->project_id) }}">
+                        <i data-lucide="folder-open"></i>
+                        Open Project
+                    </a>
+                    @endif
+                    @if($latestSent)
+                    <a class="cancel-btn" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;" href="{{ route('admin.quotation_requests.version', [$batch->id, $latestSent->version]) }}">
+                        <i data-lucide="file-text"></i>
+                        {{ $latestSent->quotation_number }}
+                    </a>
+                    @endif
+                </div>
             </div>
 
             @if(session('success'))
@@ -325,30 +479,37 @@
             </div>
             @endif
 
-            @if($batchStatus === 'pending' && optional($tankItems->first())->decline_reason)
+            @if(in_array($batchStatus, ['pending', 'in_preparation'], true) && optional($tankItems->first())->decline_reason)
             <div class="alert-banner" style="align-items:flex-start;margin-bottom:20px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;">
                 <i data-lucide="rotate-ccw"></i>
-                <span style="flex:1;min-width:0;overflow-wrap:anywhere;word-break:break-word;"><strong>Client requested a revision:</strong> {{ $tankItems->first()->decline_reason }}</span>
+                <span style="flex:1;min-width:0;overflow-wrap:anywhere;word-break:break-word;"><strong>Client requested a revision{{ $latestSent ? ' of ' . $latestSent->quotation_number : '' }}:</strong> {{ $tankItems->first()->decline_reason }}</span>
             </div>
             @endif
 
             @if($batchStatus === 'quotation_sent')
             <div class="alert-banner info" style="margin-bottom:20px;">
                 <i data-lucide="clock"></i>
-                Sent to the client on {{ optional($batch->updated_at)->format('M d, Y') }} — Contract Value ₱{{ number_format($batch->contract_value, 2) }}. Waiting for their approval.
+                <span>{{ $latestSent?->quotation_number ?? 'The quotation' }} was sent to the client on {{ optional($latestSent?->sent_at ?? $batch->updated_at)->format('M d, Y') }} — Contract Value ₱{{ number_format($batch->contract_value, 2) }}. Waiting for their decision. The builder is locked while they review it; use <strong>Withdraw &amp; Revise</strong> to change it.</span>
             </div>
             @elseif($batchStatus === 'approved')
             <div class="alert-banner success" style="margin-bottom:20px;">
                 <i data-lucide="check-circle"></i>
-                The client approved this quotation — Contract Value ₱{{ number_format($batch->contract_value, 2) }}. Click <strong>Convert to Project</strong> above to create the project.
+                <span>The client approved {{ $latestSent?->quotation_number ?? 'this quotation' }}{{ $latestSent?->responded_at ? ' on ' . $latestSent->responded_at->format('M d, Y') : '' }} — Contract Value ₱{{ number_format($batch->contract_value, 2) }}. Click <strong>Convert to Project</strong> above: its tank, specifications, materials, labor, costs and payment terms carry over automatically.</span>
+            </div>
+            @elseif($batchStatus === 'rejected')
+            <div class="alert-banner error" style="margin-bottom:20px;">
+                <i data-lucide="x-circle"></i>
+                <span>The client rejected {{ $latestSent?->quotation_number ?? 'this quotation' }}{{ $tankItems->first()?->decline_reason ? ': ' . $tankItems->first()->decline_reason : '.' }}</span>
             </div>
             @elseif($batchStatus === 'declined')
             <div class="alert-banner error" style="margin-bottom:20px;">
                 <i data-lucide="x-circle"></i>
-                This quotation was declined.
+                This request was declined.
             </div>
             @endif
 
+            {{-- The request and costing summary are for the Costing step; the document step keeps the form + preview in view --}}
+            @if($step === 'costing')
             {{-- Requested tank(s) — what the client asked for, read-only here. One card per tank. --}}
             @php
                 // Each tank carries its own design files. Older requests stored the same shared set on every
@@ -459,20 +620,56 @@
                     </div>
                 </div>
             </div>
+            @endif
 
-            {{-- Quotation Builder — pricing, materials and labor in one card with a single Save --}}
-            <form method="POST" action="{{ route('admin.quotation_requests.batch_save', $batch->id) }}" id="quotationForm" class="qb-card{{ $isLocked ? ' qb-locked' : '' }}">
+            {{-- The two steps: 1 · Costing → 2 · Quotation Document (opens once the costing is complete and saved) --}}
+            @php $docStepOpen = $costingReady || $isLocked; @endphp
+            <nav class="qb-steps" aria-label="Quotation steps">
+                <a href="{{ route('admin.quotation_requests.batch_detail', $batch->id) }}" class="qb-stepper {{ $step === 'costing' ? 'is-current' : 'is-done' }}">
+                    <span class="qb-stepper-num">
+                        @if($step === 'costing')
+                            1
+                        @else
+                            <i data-lucide="check"></i>
+                        @endif
+                    </span>
+                    <span><strong>Costing</strong><small>Tank, pricing, materials &amp; labor</small></span>
+                </a>
+                <span class="qb-stepper-line {{ $docStepOpen ? 'is-open' : '' }}" aria-hidden="true"></span>
+                @if($docStepOpen)
+                <a href="{{ route('admin.quotation_requests.batch_detail', ['batchId' => $batch->id, 'step' => 'document']) }}" class="qb-stepper {{ $step === 'document' ? 'is-current' : '' }}" id="docStepLink">
+                @else
+                <span class="qb-stepper is-locked" title="Complete and save the costing first">
+                @endif
+                    <span class="qb-stepper-num">2</span>
+                    <span><strong>Quotation Document</strong><small>{{ $docStepOpen ? 'Specs & terms, then send to client' : 'Opens after the costing is saved' }}</small></span>
+                @if($docStepOpen)</a>@else</span>@endif
+            </nav>
+
+            {{-- Quotation Document step: the form on the left, a live preview of the document on the right --}}
+            @if($step === 'document')<div class="qd-layout">@endif
+
+            {{-- Costing + Quotation Document — one form with a single Save; each step shows its own sections --}}
+            <form method="POST" action="{{ route('admin.quotation_requests.batch_save', $batch->id) }}" id="quotationForm" class="qb-card{{ $isLocked ? ' qb-locked' : '' }}" data-step="{{ $step }}">
                 @csrf
                 <input type="hidden" name="open_send_modal" id="openSendModalFlag" value="0">
+                <input type="hidden" name="step" value="{{ $step }}">
 
                 <div class="qb-head">
                     <div>
-                        <h2 class="qb-title"><i data-lucide="calculator"></i> Quotation Builder</h2>
-                        <p class="qb-sub">{{ $isLocked ? 'The client has approved this quotation, so it can no longer be edited.' : 'Set the pricing, materials and labor below, then save everything at once.' }}</p>
+                        @if($step === 'document')
+                        <h2 class="qb-title"><i data-lucide="file-text"></i> Quotation Document</h2>
+                        <p class="qb-sub">{{ $isLocked ? 'What the client received — view only.' : 'Edit the details here — the preview beside it follows as you type. Save, then send it to the client.' }}</p>
+                        @else
+                        <h2 class="qb-title"><i data-lucide="calculator"></i> Costing</h2>
+                        <p class="qb-sub">{{ $isLocked ? ($batchStatus === 'quotation_sent' ? 'The quotation is with the client, so it is view-only until they respond or you withdraw it.' : 'This quotation is final, so it can no longer be edited.') : 'Set the tank, pricing, materials and labor below, then save. Next: Generate Quotation Document.' }}</p>
+                        @endif
                     </div>
                     <div class="qb-head-right">
                         @if($isLocked)
                         <span class="qb-viewonly"><i data-lucide="lock"></i> View only</span>
+                        @elseif($step === 'document')
+                        {{-- templates fill in the costing — not offered on the document step --}}
                         @else
                         <button type="button" class="qb-chip" id="openQuoteTemplateBtn" style="cursor:pointer;">
                             <i data-lucide="copy"></i> Use Template
@@ -668,6 +865,109 @@
                     </div>
                 </section>
 
+                {{-- Step 2 · Quotation Document — what the generated quotation prints, besides the costing figures --}}
+                <section class="qb-section qb-doc-section">
+                    {{-- Project --}}
+                    <div class="qd-group">
+                        <div class="qd-group-head"><span class="qd-group-icon"><i data-lucide="briefcase"></i></span><div><h4>Project</h4><p>How the job is named on the quotation.</p></div></div>
+                        <div class="qd-fields">
+                            <div class="qb-field qd-span-2">
+                                <label for="docTitle">Project Title</label>
+                                <input type="text" name="doc[project_title]" id="docTitle" class="qb-input" maxlength="255" value="{{ $docSettings['project_title'] }}">
+                            </div>
+                            <div class="qb-field qd-span-2">
+                                <label for="docLocation">Project Location</label>
+                                <input type="text" name="doc[project_location]" id="docLocation" class="qb-input" maxlength="500" value="{{ $docSettings['project_location'] }}">
+                            </div>
+                            <div class="qb-field">
+                                <label for="docRfq">RFQ Ref No. <span class="qb-optional">(optional)</span></label>
+                                <input type="text" name="doc[rfq_ref]" id="docRfq" class="qb-input" maxlength="100" value="{{ $docSettings['rfq_ref'] }}" placeholder="Client's own reference">
+                            </div>
+                            <div class="qb-field">
+                                <label for="docValidity">Valid For</label>
+                                <div class="qd-suffix-wrap">
+                                    <input type="number" name="doc[validity_days]" id="docValidity" class="qb-input" min="1" max="365" value="{{ $docSettings['validity_days'] }}">
+                                    <span class="qd-suffix">days</span>
+                                </div>
+                                <small>Counted from the day it is sent.</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Specifications --}}
+                    <div class="qd-group">
+                        <div class="qd-group-head">
+                            <span class="qd-group-icon"><i data-lucide="list-checks"></i></span>
+                            <div><h4>Specification Lines <span class="qd-count" id="specCount">{{ count($specLines) }}</span></h4><p>Printed under the tank in the quotation, in this order.</p></div>
+                        </div>
+                        <div class="qb-table-wrap qd-spec-wrap">
+                            <table class="qb-table">
+                                <thead><tr><th style="width:36%;">Item</th><th>Specification</th><th style="width:44px;"></th></tr></thead>
+                                <tbody id="specRows">
+                                    @foreach($specLines as $line)
+                                    <tr>
+                                        <td><input type="text" name="spec_label[]" class="qb-cell-input" maxlength="120" value="{{ $line['label'] }}" aria-label="Specification item"></td>
+                                        <td><textarea name="spec_value[]" class="qb-cell-input" rows="1" maxlength="1000" aria-label="Specification" style="resize:vertical;min-height:38px;">{{ $line['value'] }}</textarea></td>
+                                        <td><button type="button" class="qb-icon-btn spec-remove" title="Remove line" aria-label="Remove specification line"><i data-lucide="trash-2"></i></button></td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                        @unless($isLocked)
+                        <button type="button" class="qd-add-line" id="addSpecRow"><i data-lucide="plus"></i> Add specification line</button>
+                        @endunless
+                    </div>
+
+                    {{-- Terms & notes --}}
+                    <div class="qd-group">
+                        <div class="qd-group-head"><span class="qd-group-icon"><i data-lucide="scroll-text"></i></span><div><h4>Terms &amp; Notes</h4><p>Listed under "General notes", after the validity date.</p></div></div>
+                        <div class="qd-fields">
+                            <div class="qb-field qd-span-2">
+                                <label for="docWarranty">Warranty</label>
+                                <textarea name="doc[warranty]" id="docWarranty" class="qb-input" rows="2" maxlength="1000">{{ $docSettings['warranty'] }}</textarea>
+                            </div>
+                            <div class="qb-field qd-span-2">
+                                <label for="docNotes">General Notes <span class="qb-optional">(one per line)</span></label>
+                                <textarea name="doc[notes]" id="docNotes" class="qb-input" rows="4" maxlength="4000">{{ $docSettings['notes'] }}</textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Signatory --}}
+                    <div class="qd-group">
+                        <div class="qd-group-head"><span class="qd-group-icon"><i data-lucide="pen-line"></i></span><div><h4>Signatory</h4><p>Who signs the quotation for GMD.</p></div></div>
+                        <div class="qd-fields">
+                            <div class="qb-field">
+                                <label for="docSignName">Signed By</label>
+                                <input type="text" name="doc[signatory_name]" id="docSignName" class="qb-input" maxlength="120" value="{{ $docSettings['signatory_name'] }}">
+                            </div>
+                            <div class="qb-field">
+                                <label for="docSignTitle">Position</label>
+                                <input type="text" name="doc[signatory_title]" id="docSignTitle" class="qb-input" maxlength="120" value="{{ $docSettings['signatory_title'] }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Options --}}
+                    <div class="qd-group">
+                        <label class="qd-toggle">
+                            <input type="hidden" name="doc[show_breakdown]" value="0">
+                            <input type="checkbox" name="doc[show_breakdown]" value="1" {{ $docSettings['show_breakdown'] ? 'checked' : '' }}>
+                            <span class="qd-switch" aria-hidden="true"></span>
+                            <span class="qd-toggle-text">
+                                <strong>Include Annex A — cost breakdown</strong>
+                                <small>Itemized materials, labor, overhead &amp; profit on a second page.</small>
+                            </span>
+                        </label>
+                    </div>
+
+                    <div class="qb-tank-note" style="margin-top:4px;">
+                        <i data-lucide="info"></i>
+                        <span>The validity date, payment terms, totals and quotation number are filled in automatically when you send it. The client sees exactly what the preview shows.</span>
+                    </div>
+                </section>
+
 
                 {{-- Summary + the one Save — the last row of the card --}}
                 <div class="qb-foot">
@@ -696,6 +996,66 @@
                     </button>
                 </div>
             </form>
+
+            @if($step === 'document')
+                <aside class="qd-preview" aria-label="Live preview of the quotation document">
+                    <div class="qd-preview-head">
+                        <span class="qd-preview-icon"><i data-lucide="file-text"></i></span>
+                        <div style="min-width:0;">
+                            <div class="qd-preview-title">Live Preview <span>· {{ $latestSent ? 'next version of ' . $latestSent->quotation_number : $batch->reference_no }}</span></div>
+                            <div class="qd-preview-sub" id="qdPreviewStatus"><span class="qd-dot"></span> <span class="qd-status-text">Loading the document…</span></div>
+                        </div>
+                        <a href="{{ route('admin.quotation_requests.batch_preview', $batch->id) }}" target="_blank" rel="noopener" class="qd-preview-open" title="Open the saved version full size">
+                            <i data-lucide="maximize-2"></i>
+                        </a>
+                    </div>
+                    <div class="qd-preview-frame-wrap">
+                        <iframe id="qdPreviewFrame" title="Quotation document preview" sandbox="allow-same-origin"></iframe>
+                        <div class="qd-preview-loading" id="qdPreviewLoading"><span></span></div>
+                    </div>
+                </aside>
+            </div>{{-- /.qd-layout --}}
+            @endif
+
+            {{-- Every quotation sent for this request (revisions keep the earlier versions) + who did what --}}
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:20px;margin-top:24px;">
+                <div class="table-card" style="padding:18px 20px;">
+                    <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px;">Quotation Versions</div>
+                    @forelse($versions as $v)
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-top:{{ $loop->first ? 'none' : '1px solid var(--border)' }};flex-wrap:wrap;">
+                        <div style="min-width:0;">
+                            <a href="{{ route('admin.quotation_requests.version', [$batch->id, $v->version]) }}" style="font-weight:900;color:var(--dark);text-decoration:none;">{{ $v->quotation_number }}</a>
+                            <div style="font-size:12px;color:var(--muted);">
+                                Sent {{ $v->sent_at?->format('M d, Y g:i A') }}{{ $v->sent_by ? ' by ' . $v->sent_by : '' }} · ₱{{ number_format($v->contract_value, 2) }}
+                                @if($v->response_reason)<br><em>“{{ $v->response_reason }}”</em>@endif
+                            </div>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <span class="status-badge {{ $v->badgeClass() }}">{{ $v->statusLabel() }}</span>
+                            <a class="action-btn view" href="{{ route('admin.quotation_requests.version_pdf', [$batch->id, $v->version]) }}" title="Download PDF" aria-label="Download {{ $v->quotation_number }} PDF"><i data-lucide="download"></i></a>
+                        </div>
+                    </div>
+                    @empty
+                    <p style="font-size:13px;color:var(--muted);margin:0;">Nothing sent yet. When you press <strong>Send to Client</strong>, the system generates the quotation document from this builder and it appears here.</p>
+                    @endforelse
+                </div>
+                <div class="table-card" style="padding:18px 20px;">
+                    <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px;">Activity</div>
+                    <div style="max-height:320px;overflow-y:auto;">
+                    @forelse($activity as $log)
+                    <div style="padding:8px 0;border-top:{{ $loop->first ? 'none' : '1px solid var(--border)' }};font-size:12.5px;">
+                        <strong style="color:var(--dark);">{{ $log->label }}</strong>
+                        @if(!empty($log->details['quotation_number']))· {{ $log->details['quotation_number'] }}@endif
+                        @if(!empty($log->details['changes']))<div style="color:var(--muted);">{{ $log->details['changes'] }}</div>@endif
+                        @if(!empty($log->details['reason']))<div style="color:var(--muted);">“{{ $log->details['reason'] }}”</div>@endif
+                        <div style="color:var(--muted);font-size:11.5px;">{{ $log->created_at?->format('M d, Y g:i A') }}{{ $log->actor_name ? ' · ' . $log->actor_name : '' }}</div>
+                    </div>
+                    @empty
+                    <p style="font-size:13px;color:var(--muted);margin:0;">No activity recorded yet.</p>
+                    @endforelse
+                    </div>
+                </div>
+            </div>
 
 
         </main>
@@ -858,7 +1218,7 @@
             <div class="modal-header">
                 <div>
                     <h2>Send Quotation to Client</h2>
-                    <p>Review the totals below, then send.</p>
+                    <p>The system generates quotation <strong>{{ $batch->quotationNumberFor($batch->current_version + 1) }}</strong> from the saved builder and puts it in the client's portal.</p>
                 </div>
                 <button class="modal-close" type="button" id="closeSendQuotationModal">
                     <i data-lucide="x"></i>
@@ -900,25 +1260,31 @@
                     <span style="font-size:20px;font-weight:900;color:#fff;">₱{{ number_format($sendContract, 0) }}</span>
                 </div>
 
+                <a href="{{ route('admin.quotation_requests.batch_preview', $batch->id) }}" target="_blank" rel="noopener"
+                   style="display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid var(--border);border-radius:12px;margin-bottom:16px;text-decoration:none;color:var(--dark);font-weight:800;font-size:13px;">
+                    <i data-lucide="file-search" style="width:18px;height:18px;"></i>
+                    Preview the generated quotation
+                    <i data-lucide="external-link" style="width:14px;height:14px;margin-left:auto;color:var(--muted);"></i>
+                </a>
+
                 <div class="form-group" style="margin-bottom:20px;">
-                    <label class="log-label">QUOTATION FILE(S) <span style="color:var(--danger);">*</span></label>
+                    <label class="log-label">SUPPORTING FILES <span style="font-weight:500;text-transform:none;letter-spacing:0;color:var(--muted);">(optional — e.g. a shop drawing)</span></label>
                     <label class="pv-upload-dropzone" id="quotationFilesDropzone">
-                        <i data-lucide="upload-cloud" style="width:28px;height:28px;color:var(--accent);"></i>
-                        <span style="font-size:13.5px;font-weight:700;color:var(--text-primary);">Click to upload the quotation</span>
+                        <i data-lucide="paperclip" style="width:24px;height:24px;color:var(--accent);"></i>
+                        <span style="font-size:13px;font-weight:700;color:var(--text-primary);">Attach files to send along with the quotation</span>
                         <span style="font-size:12px;color:var(--muted);">PDF or image (JPG / PNG) — up to 5 files, max 10MB each</span>
                         <input type="file" name="quotation_files[]" id="quotationFilesInput" multiple accept=".pdf,.jpg,.jpeg,.png,image/jpeg,image/png"
                                style="display:none;">
                     </label>
                     <div id="quotationFilesPreview" class="pv-file-grid"></div>
                     <div id="quotationFilesError" role="alert" style="display:none;margin-top:8px;font-size:12.5px;font-weight:700;color:#b91c1c;"></div>
-                    <p style="font-size:12px;color:var(--muted);margin-top:8px;">This is what the client will see as the quotation.</p>
                 </div>
 
                 <div class="modal-actions">
                     <button type="button" class="cancel-btn" id="cancelSendQuotation">Cancel</button>
                     <button type="submit" class="save-btn">
                         <i data-lucide="send"></i>
-                        Send to Client
+                        Generate &amp; Send
                     </button>
                 </div>
             </form>
@@ -1854,7 +2220,9 @@
         renderQuoteTemplateList();
     });
     document.getElementById('quoteTemplateSearch').addEventListener('input', renderQuoteTemplateList);
-    document.getElementById('openQuoteTemplateBtn').addEventListener('click', openQuoteTemplateModal);
+    // (no "Use Template" button on the Quotation Document step — templates fill in the costing)
+    var openQuoteTplBtn = document.getElementById('openQuoteTemplateBtn');
+    if (openQuoteTplBtn) openQuoteTplBtn.addEventListener('click', openQuoteTemplateModal);
     document.getElementById('closeQuoteTemplate').addEventListener('click', closeQuoteTemplateModal);
     document.getElementById('cancelQuoteTemplate').addEventListener('click', closeQuoteTemplateModal);
     document.getElementById('continueQuoteTemplate').addEventListener('click', function () {
@@ -2286,12 +2654,24 @@
     }
 
     function updateSendState() {
+        // Step 1 → 2: "Generate Quotation Document" opens once the costing is complete AND saved —
+        // any unsaved change greys it out again until Save
+        var gen = document.getElementById('generateDocBtn');
+        if (gen) {
+            var savedOk = gen.dataset.ready === '1';
+            var genReady = savedOk && !qbDirty && builderIsComplete();
+            gen.setAttribute('aria-disabled', genReady ? 'false' : 'true');
+            gen.title = genReady ? ''
+                : (qbDirty ? 'Save the costing first, then generate the quotation document.'
+                           : (gen.title || 'Complete and save the costing first — every required field, at least one material and one labor entry.'));
+        }
+
         var btn = document.getElementById('openSendQuotationModal');
         if (!btn) return;
         var ready = builderIsComplete();
         btn.disabled = !ready;
         btn.setAttribute('aria-disabled', ready ? 'false' : 'true');
-        btn.title = ready ? '' : 'Complete the Quotation Builder first — every required field, at least one material and one labor entry.';
+        btn.title = ready ? '' : 'Complete the Costing first — every required field, at least one material and one labor entry.';
     }
 
     // ---- Send to Client: quotation file picker (dropzone + thumbnails, like the project page uploads) ----
@@ -2389,14 +2769,30 @@
             render();
         });
 
-        // the file input is hidden behind the dropzone, so the browser can't show its own "required" bubble
-        var form = input.closest('form');
-        form.addEventListener('submit', function (e) {
-            if (files.length === 0) {
-                e.preventDefault();
-                dropzone.style.borderColor = '#dc2626';
-                showError('Please upload the quotation file before sending.');
-            }
+        // supporting files are optional — the quotation itself is generated by the system
+    })();
+
+    // ---- Quotation Document: specification lines ----
+    (function () {
+        var body = document.getElementById('specRows');
+        var add  = document.getElementById('addSpecRow');
+        if (!body) return;
+        function markDirty() { if (typeof quotationForm !== 'undefined') quotationForm.dispatchEvent(new Event('input', { bubbles: true })); }
+        body.addEventListener('click', function (e) {
+            var btn = e.target.closest('.spec-remove');
+            if (!btn || btn.disabled) return;
+            btn.closest('tr').remove();
+            markDirty();
+        });
+        if (add) add.addEventListener('click', function () {
+            var tr = document.createElement('tr');
+            tr.innerHTML = '<td><input type="text" name="spec_label[]" class="qb-cell-input" maxlength="120" placeholder="e.g. Accessories" aria-label="Specification item"></td>' +
+                '<td><textarea name="spec_value[]" class="qb-cell-input" rows="1" maxlength="1000" aria-label="Specification" style="resize:vertical;min-height:38px;"></textarea></td>' +
+                '<td><button type="button" class="qb-icon-btn spec-remove" title="Remove line" aria-label="Remove specification line"><i data-lucide="trash-2"></i></button></td>';
+            body.appendChild(tr);
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+            tr.querySelector('input').focus();
+            markDirty();
         });
     })();
     // ---- initial render (saved rows come from the server) ----
@@ -2412,6 +2808,133 @@
     recalc();
     updateSendState();
     if (typeof lucide !== 'undefined') lucide.createIcons();
+
+    // ---- Quotation Document step: live preview of the document as typed (nothing is saved) ----
+    (function () {
+        var frame = document.getElementById('qdPreviewFrame');
+        if (!frame) return;
+        var status  = document.getElementById('qdPreviewStatus');
+        var loading = document.getElementById('qdPreviewLoading');
+        var url     = @json(route('admin.quotation_requests.batch_live_preview', $batch->id));
+        var timer = null, seq = 0, keepScroll = 0, loaded = false;
+
+        // Plain text fields are written straight into the preview as you type — no round trip at all
+        var LIVE = { docTitle: 'project_title', docLocation: 'project_location', docRfq: 'rfq_ref',
+                     docWarranty: 'warranty', docSignName: 'signatory_name', docSignTitle: 'signatory_title' };
+        function frameDoc() { try { return frame.contentDocument; } catch (e) { return null; } }
+        function applyLive(id) {
+            var d = frameDoc(), input = document.getElementById(id);
+            if (!d || !input) return;
+            d.querySelectorAll('[data-live="' + LIVE[id] + '"]').forEach(function (el) {
+                var v = input.value.trim();
+                el.textContent = v || el.getAttribute('data-live-empty') || '';
+            });
+        }
+        // Specification lines and general notes are simple too — redrawn in the preview straight away
+        function applySpecs() {
+            var d = frameDoc(), table = d && d.querySelector('[data-live-specs]');
+            if (!table) return;
+            var rows = [];
+            document.querySelectorAll('#specRows tr').forEach(function (tr) {
+                var l = tr.querySelector('[name="spec_label[]"]'), v = tr.querySelector('[name="spec_value[]"]');
+                var label = l ? l.value.trim() : '', value = v ? v.value.trim() : '';
+                if (label || value) rows.push([label, value]);
+            });
+            if (!rows.length) return;            // none left → the server fills in the tank type's defaults
+            var body = table.tBodies[0] || table;
+            body.innerHTML = '';
+            rows.forEach(function (r) {
+                var tr = d.createElement('tr'), k = d.createElement('td'), val = d.createElement('td');
+                k.className = 'qd-spec-k';
+                k.textContent = r[0] + (r[0] !== '' ? ':' : '');
+                val.textContent = r[1];
+                tr.appendChild(k); tr.appendChild(val); body.appendChild(tr);
+            });
+        }
+        function applyNotes() {
+            var d = frameDoc(), list = d && d.querySelector('.qd-notes'), box = document.getElementById('docNotes');
+            if (!list || !box) return;
+            list.querySelectorAll('[data-live-note]').forEach(function (li) { li.remove(); });
+            box.value.split(/\r\n|\r|\n/).map(function (s) { return s.trim(); }).filter(Boolean).forEach(function (note) {
+                var li = d.createElement('li');
+                li.setAttribute('data-live-note', '');
+                li.textContent = note;
+                list.appendChild(li);
+            });
+        }
+        function applyAllLive() { Object.keys(LIVE).forEach(applyLive); applySpecs(); applyNotes(); fitFrame(); updateSpecCount(); }
+
+        // Full length: the frame is as tall as the document, so the whole quotation is visible and the page scrolls
+        function fitFrame() {
+            var d = frameDoc();
+            if (!d || !d.documentElement) return;
+            var h = Math.max(d.documentElement.scrollHeight, d.body ? d.body.scrollHeight : 0);
+            if (h > 0) frame.style.height = h + 'px';
+        }
+        function updateSpecCount() {
+            var c = document.getElementById('specCount');
+            if (c) c.textContent = document.querySelectorAll('#specRows tr').length;
+        }
+        function setStatus(kind, text) {   // kind: '', 'is-busy' or 'is-error'
+            status.classList.remove('is-busy', 'is-error');
+            if (kind) status.classList.add(kind);
+            status.querySelector('.qd-status-text').textContent = text;
+        }
+
+        // Everything else (validity date, Annex A, default spec lines) comes from the server — but only the
+        // document part is swapped in place, so the frame never reloads its styles or logos
+        function swapSheet(html) {
+            var d = frameDoc(), sheet = d && d.querySelector('.lp-sheet');
+            if (!loaded || !sheet) { frame.srcdoc = html; return; }
+            var fresh = new DOMParser().parseFromString(html, 'text/html').querySelector('.lp-sheet');
+            if (!fresh) { frame.srcdoc = html; return; }
+            sheet.innerHTML = fresh.innerHTML;
+            applyAllLive();   // keep anything typed while the request was on its way
+            // logos are cached, but measure again once any image settles
+            sheet.querySelectorAll('img').forEach(function (img) { if (!img.complete) img.addEventListener('load', fitFrame, { once: true }); });
+        }
+
+        function payload() {
+            // only what the document step edits: the details + specification lines (+ the CSRF token)
+            var all = new FormData(quotationForm), data = new FormData();
+            all.forEach(function (v, k) {
+                if (k === '_token' || k.indexOf('doc[') === 0 || k === 'spec_label[]' || k === 'spec_value[]') data.append(k, v);
+            });
+            return data;
+        }
+
+        function refresh() {
+            var mine = ++seq;
+            loading.classList.add('show');
+            setStatus('is-busy', 'Updating…');
+            // token sent as a header too: on a view-only quotation every form field (the token included) is disabled
+            fetch(url, { method: 'POST', body: payload(), headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html', 'X-CSRF-TOKEN': @json(csrf_token()) } })
+                .then(function (r) { if (!r.ok) throw new Error(r.status === 422 ? 'invalid' : 'http'); return r.text(); })
+                .then(function (html) {
+                    if (mine !== seq) return;          // a newer refresh is on its way
+                    swapSheet(html);
+                    setStatus('', @json($isLocked ? 'As sent to the client · view only' : 'In sync · not saved until you press Save'));
+                })
+                .catch(function (err) {
+                    if (mine !== seq) return;
+                    setStatus('is-error', err.message === 'invalid'
+                        ? 'Preview paused — a field is too long or out of range.'
+                        : 'Preview could not refresh. It will try again on your next change.');
+                })
+                .finally(function () { if (mine === seq) loading.classList.remove('show'); });
+        }
+
+        frame.addEventListener('load', function () { loaded = true; applyAllLive(); });
+        window.addEventListener('resize', function () { clearTimeout(fitFrame._t); fitFrame._t = setTimeout(fitFrame, 120); });
+
+        function schedule() { clearTimeout(timer); timer = setTimeout(refresh, 250); }
+        quotationForm.addEventListener('input', function () {
+            applyAllLive();   // instant: text fields, specification lines, notes
+            schedule();       // and the full document (validity date, Annex A, defaults) shortly after
+        });
+        quotationForm.addEventListener('change', schedule);
+        refresh();
+    })();
 
     @if($isLocked)
     // View-only: the client has approved this quotation, so every field in the builder is frozen.

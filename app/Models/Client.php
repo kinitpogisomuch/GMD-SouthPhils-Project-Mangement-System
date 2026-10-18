@@ -32,6 +32,7 @@ class Client extends Model
         'email_verification_sent_at',
         'account_setup_token',
         'account_setup_sent_at',
+        'pending_quote_tank',
     ];
 
     protected $hidden = ['password', 'email_verification_token', 'account_setup_token'];

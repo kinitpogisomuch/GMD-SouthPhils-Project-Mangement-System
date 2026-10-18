@@ -1,4 +1,4 @@
-﻿@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap');
 
 :root {
     /* ── 60-30-10 Grayscale Design System ── */
@@ -782,10 +782,11 @@ input[type="number"] {
     color: var(--dark);
 }
 
+/* the page you're on: the landing page's safety yellow, with dark text and icon */
 .admin-sidebar-nav a.active {
-    background-color: var(--dark);
-    color: var(--white);
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14);
+    background-color: #F5B400;
+    color: #1a1a1a;
+    box-shadow: 0 4px 14px rgba(245, 180, 0, 0.35);
 }
 
 .sidebar-overlay {
@@ -1223,15 +1224,23 @@ input[type="number"] {
     background: rgba(0, 0, 0, 0.04);
 }
 
+/* the selected filter: a dark pill with a yellow count (same as the Quotation Requests switch) */
 .filter-tab.active {
-    background: #fff;
-    color: var(--dark);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.10);
+    background: #333333;
+    color: #fff;
+    font-weight: 800;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+.filter-tab.active:hover {
+    background: #333333;
+    color: #fff;
 }
 
 .filter-tab.active .filter-count {
-    background: var(--dark);
-    color: #fff;
+    background: #F5B400;
+    color: #1a1a1a;
+    font-weight: 900;
 }
 
 /* ================= MATERIAL USAGE — SUPPLIER CARDS ================= */
@@ -6670,7 +6679,7 @@ body.page-enter .admin-content {
         width: 7px;
         height: 7px;
         border-radius: 50%;
-        background: var(--dark);
+        background: #F5B400;
         margin-left: auto;
         flex-shrink: 0;
     }

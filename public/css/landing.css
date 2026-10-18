@@ -236,6 +236,9 @@ body { font-family: 'Inter', Arial, sans-serif; background: var(--cream); color:
 .about-body { display: flex; flex-direction: column; gap: 24px; }
 .about-text { font-size: 15.5px; color: var(--muted); line-height: 1.75; }
 .about-highlights { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 8px; }
+/* beside the text, the tiles are a little taller so the two columns balance */
+.about-inner > .about-highlights { margin-top: 0; }
+.about-inner > .about-highlights .about-hl { padding: 26px 22px; }
 .about-hl {
     background: var(--cream); border: 1px solid var(--border);
     border-radius: 14px; padding: 16px 18px;
@@ -243,25 +246,6 @@ body { font-family: 'Inter', Arial, sans-serif; background: var(--cream); color:
 }
 .about-hl i { width: 18px; height: 18px; color: var(--dark); flex-shrink: 0; }
 .about-hl span { font-size: 13px; font-weight: 700; }
-.about-visual {
-    background: linear-gradient(135deg, #333333 0%, #1a1a1a 100%);
-    border-radius: 24px; padding: 48px 40px;
-    display: flex; flex-direction: column; gap: 20px;
-    border: 1px solid rgba(255,255,255,0.08);
-    position: relative; overflow: hidden;
-}
-.about-visual::before {
-    content: ''; position: absolute; inset: 0;
-    background: repeating-linear-gradient(45deg, transparent, transparent 30px, rgba(255,255,255,0.02) 30px, rgba(255,255,255,0.02) 31px);
-}
-.about-visual-title { font-size: 18px; font-weight: 900; color: var(--white); position: relative; }
-.about-phase-list { display: flex; flex-direction: column; gap: 10px; position: relative; }
-.about-phase-item {
-    display: flex; align-items: center; gap: 12px;
-    font-size: 13px; color: rgba(255,255,255,0.70); font-weight: 600;
-}
-.about-phase-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
-.about-phase-num { font-family: var(--mono); font-size: 11px; font-weight: 800; color: rgba(255,255,255,0.40); width: 18px; }
 
 /* ===================== SERVICES ===================== */
 .services-wrap { background: var(--cream); }
@@ -910,7 +894,6 @@ body { font-family: 'Inter', Arial, sans-serif; background: var(--cream); color:
     .stat-num { font-size: 28px; }
     .stat-label { font-size: 11.5px; }
 
-    .about-visual { padding: 28px 22px; }
     .contact-inner { gap: 28px; }
     .portal-cta-inner { gap: 32px; }
 
@@ -959,4 +942,57 @@ body { font-family: 'Inter', Arial, sans-serif; background: var(--cream); color:
         opacity: 1 !important;
         transform: none !important;
     }
+}
+
+/* ===================== OUR WORK — TANK CARDS (quotation entry point) ===================== */
+.qt-card {
+    display: block; width: 100%; padding: 0; text-align: left; cursor: pointer;
+    font-family: inherit; color: inherit; text-decoration: none;
+}
+.qt-card:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.qt-card .portfolio-body { display: flex; flex-direction: column; gap: 0; }
+.qt-cta {
+    display: inline-flex; align-items: center; gap: 6px; margin-top: 14px;
+    font-size: 12.5px; font-weight: 800; color: var(--accent);
+    text-transform: uppercase; letter-spacing: 0.06em;
+}
+.qt-cta i, .qt-cta svg { width: 14px; height: 14px; transition: transform 0.25s; }
+.qt-card:hover .qt-cta i, .qt-card:hover .qt-cta svg { transform: translateX(4px); }
+
+.qt-modal {
+    position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center;
+    padding: 16px; background: rgba(10,10,10,0.6); opacity: 0; transition: opacity 0.2s;
+}
+.qt-modal.show { opacity: 1; }
+.qt-modal[hidden] { display: none; }
+.qt-modal-card {
+    position: relative; width: 100%; max-width: 440px; background: var(--white); color: var(--dark-deep);
+    border-radius: 22px; padding: 30px 28px 26px; text-align: center; box-shadow: 0 30px 80px rgba(0,0,0,0.35);
+    transform: translateY(10px); transition: transform 0.2s;
+}
+.qt-modal.show .qt-modal-card { transform: none; }
+.qt-modal-close {
+    position: absolute; top: 12px; right: 12px; width: 34px; height: 34px; border-radius: 10px;
+    border: none; background: transparent; cursor: pointer; color: var(--muted);
+    display: flex; align-items: center; justify-content: center;
+}
+.qt-modal-close:hover { background: var(--cream-deep); color: var(--dark-deep); }
+.qt-modal-close i, .qt-modal-close svg { width: 18px; height: 18px; }
+.qt-modal-icon {
+    width: 56px; height: 56px; margin: 0 auto 14px; border-radius: 16px; background: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+}
+.qt-modal-icon i, .qt-modal-icon svg { width: 26px; height: 26px; color: var(--dark-deep); }
+.qt-modal-card h3 { font-size: 19px; font-weight: 900; margin: 0 0 10px; line-height: 1.3; }
+.qt-modal-card p { font-size: 13.5px; color: var(--muted); line-height: 1.65; margin: 0 0 22px; }
+.qt-modal-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.qt-modal-actions .btn-gold, .qt-modal-actions .btn-ghost { flex: 1 1 140px; justify-content: center; }
+.qt-modal-actions .qt-signup { color: var(--dark-deep); border-color: var(--border); }
+.qt-modal-actions .qt-signup:hover { border-color: var(--dark-deep); }
+
+@media (max-width: 640px) {
+    .qt-modal-card { padding: 26px 20px 20px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .qt-modal, .qt-modal-card, .qt-cta i, .qt-cta svg { transition: none; }
 }

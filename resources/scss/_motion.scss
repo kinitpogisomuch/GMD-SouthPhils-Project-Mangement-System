@@ -1,0 +1,49 @@
+@use 'tokens' as *;
+
+// Keyframes and the "pre-hide until GSAP animates it in" states.
+//
+// html.ui-preload is added by an inline script only when GSAP actually loaded, and removed by ui.js once
+// the entrance animation starts (or by a 2.5 s failsafe) — so content is never left invisible if a script
+// fails, and nothing is hidden at all for people who prefer reduced motion.
+
+@keyframes ui-pop {
+    from { opacity: 0; transform: translateY(14px) scale(0.97); }
+    to   { opacity: 1; transform: none; }
+}
+
+@keyframes ui-fade {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+@keyframes ui-sheen {
+    from { transform: translateX(-120%) skewX(-18deg); }
+    to   { transform: translateX(220%) skewX(-18deg); }
+}
+
+@keyframes ui-pulse-ring {
+    0%   { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.45); }
+    70%  { box-shadow: 0 0 0 8px rgba(220, 38, 38, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+}
+
+@keyframes ui-float {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-8px); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    html.ui-preload {
+        // portal page entrance (see ui.js → enterPage)
+        .admin-content > .page-header,
+        .admin-content .stats-grid > *,
+        .admin-content .fd-overview,
+        .admin-content > .table-card,
+        .admin-content > .pv-card,
+        .admin-content > .card,
+        // landing hero (see landing.js)
+        .lp-hero .hero-content > * {
+            opacity: 0;
+        }
+    }
+}

@@ -34,10 +34,10 @@
             </script>
             @endif
 
-            @if($errors->hasBag('portfolioEdit'))
+            @if($errors->hasBag('tankCard'))
             <div class="alert-banner error">
                 <i data-lucide="alert-circle"></i>
-                @foreach($errors->getBag('portfolioEdit')->all() as $error)
+                @foreach($errors->getBag('tankCard')->all() as $error)
                     {{ $error }}
                 @endforeach
             </div>
@@ -326,74 +326,74 @@
                 </div>
 
                 <div class="table-card">
-                    <div class="table-toolbar">
-                        <span style="font-weight:700;font-size:15px;">"Our Work" Portfolio Items</span>
-                        <button class="add-btn" type="button" id="openAddPortfolioModal">
+                    <div class="table-toolbar" style="flex-wrap:wrap;gap:6px;">
+                        <div>
+                            <div style="font-weight:700;font-size:15px;">"Our Work" — Choose Your Tank, Get a Quotation</div>
+                            <div style="font-size:12px;color:var(--muted);margin-top:2px;">The tank cards on the landing page and the client's quotation form. Click a card to change its picture, badge, description or order; hide a tank you don't offer right now.</div>
+                        </div>
+                        <button class="add-btn" type="button" id="openAddTankCard">
                             <i data-lucide="plus"></i>
-                            Add Portfolio Item
+                            Add Tank Card
                         </button>
                     </div>
-                    @if($portfolioItems->isEmpty())
-                    <div style="text-align:center;padding:40px;color:var(--muted);">
-                        No portfolio items yet. Click "Add Portfolio Item" to create one.
-                    </div>
-                    @else
-                    <div class="portfolio-grid" id="portfolioTableBody">
-                        @foreach($portfolioItems as $item)
-                        @php
-                            $itemSrc = $item->image_url && !str_starts_with($item->image_url, 'http')
-                                ? asset($item->image_url)
-                                : $item->image_url;
-                        @endphp
-                        <div class="portfolio-card" title="Click to edit">
+                    <div class="portfolio-grid" id="tankCardGrid">
+                        @foreach($tankCards as $card)
+                        <div class="portfolio-card {{ $card['visible'] ? '' : 'is-hidden-card' }}" title="Click to edit">
                             <div class="portfolio-card-image">
-                                @if($itemSrc)
-                                    <img src="{{ $itemSrc }}" alt="">
+                                @if($card['image'])
+                                    <img src="{{ $card['image'] }}" alt="">
                                 @else
-                                    <i data-lucide="{{ $item->icon ?: 'image' }}"></i>
+                                    <i data-lucide="{{ $card['icon'] }}"></i>
                                 @endif
-                                <span class="status-badge {{ $item->status === 'active' ? 'active' : 'archived' }} portfolio-card-status">
-                                    {{ $item->status === 'active' ? 'Visible' : 'Hidden' }}
+                                <span class="status-badge {{ $card['visible'] ? 'active' : 'archived' }} portfolio-card-status">
+                                    {{ $card['visible'] ? 'Visible' : 'Hidden' }}
                                 </span>
                             </div>
                             <div class="portfolio-card-body">
-                                <div class="portfolio-card-title">{{ $item->title }}</div>
+                                <div class="portfolio-card-title">{{ $card['type'] }}</div>
                                 <div class="portfolio-card-chips">
-                                    <span class="portfolio-chip"><i data-lucide="tag"></i>{{ $item->tag }}</span>
-                                    <span class="portfolio-chip"><i data-lucide="ruler"></i>{{ $item->spec }}</span>
+                                    <span class="portfolio-chip"><i data-lucide="hash"></i>Order {{ $card['sort_order'] }}</span>
+                                    <span class="portfolio-chip"><i data-lucide="tag"></i>{{ $card['badge'] }}</span>
                                 </div>
-                                <p class="portfolio-card-desc">{{ Str::limit($item->description, 90) }}</p>
+                                <p class="portfolio-card-desc">{{ Str::limit($card['blurb'], 90) }}</p>
                             </div>
                             <div class="portfolio-card-actions">
-                                <button class="action-btn view edit-portfolio-btn" type="button"
-                                        data-id="{{ $item->id }}"
-                                        data-image="{{ $itemSrc }}"
-                                        data-icon="{{ $item->icon }}"
-                                        data-spec="{{ $item->spec }}"
-                                        data-tag="{{ $item->tag }}"
-                                        data-title="{{ $item->title }}"
-                                        data-description="{{ $item->description }}"
-                                        title="Edit">
+                                <button class="action-btn view edit-tank-card-btn" type="button"
+                                        data-url="{{ route('admin.tank_cards.update', $card['slug']) }}"
+                                        data-type="{{ $card['type'] }}"
+                                        data-image="{{ $card['image'] }}"
+                                        data-custom-image="{{ $card['custom_image'] ? '1' : '0' }}"
+                                        data-badge="{{ $card['badge'] === $card['default_badge'] ? '' : $card['badge'] }}"
+                                        data-default-badge="{{ $card['default_badge'] }}"
+                                        data-blurb="{{ $card['blurb'] === $card['default_blurb'] ? '' : $card['blurb'] }}"
+                                        data-default-blurb="{{ $card['default_blurb'] }}"
+                                        data-order="{{ $card['sort_order'] }}"
+                                        data-custom="{{ $card['custom'] ? '1' : '0' }}"
+                                        data-capacity-label="{{ $card['capacity_label'] }}"
+                                        title="Edit" aria-label="Edit {{ $card['type'] }}">
                                     <i data-lucide="pencil"></i>
                                 </button>
                                 <button class="action-btn view toggle-visibility-btn" type="button"
-                                        data-archive-url="{{ route('admin.portfolio.archive', $item->id) }}"
-                                        data-hidden="{{ $item->status === 'archived' ? '1' : '0' }}"
-                                        data-name="{{ $item->title }}"
-                                        title="{{ $item->status === 'archived' ? 'Show on landing page' : 'Hide from landing page' }}">
-                                    <i data-lucide="{{ $item->status === 'archived' ? 'eye' : 'eye-off' }}"></i>
+                                        data-archive-url="{{ route('admin.tank_cards.toggle', $card['slug']) }}"
+                                        data-hidden="{{ $card['visible'] ? '0' : '1' }}"
+                                        data-name="{{ $card['type'] }}"
+                                        title="{{ $card['visible'] ? 'Hide from landing page' : 'Show on landing page' }}"
+                                        aria-label="{{ $card['visible'] ? 'Hide' : 'Show' }} {{ $card['type'] }}">
+                                    <i data-lucide="{{ $card['visible'] ? 'eye-off' : 'eye' }}"></i>
                                 </button>
+                                @if($card['custom'])
                                 <button class="action-btn view delete-item-btn" type="button"
-                                        data-delete-url="{{ route('admin.portfolio.destroy', $item->id) }}"
-                                        data-name="{{ $item->title }}"
-                                        title="Delete">
+                                        data-delete-url="{{ route('admin.tank_cards.destroy', $card['slug']) }}"
+                                        data-name="{{ $card['type'] }}"
+                                        title="Delete" aria-label="Delete {{ $card['type'] }}">
                                     <i data-lucide="trash-2"></i>
                                 </button>
+                                @endif
                             </div>
                         </div>
                         @endforeach
                     </div>
-                    @endif
+                    <style>.portfolio-card.is-hidden-card { opacity: .55; }</style>
                 </div>
 
                 <div class="table-card" style="margin-top:24px;">
@@ -507,111 +507,135 @@
         </div>
     </div>
 
-    <!-- ===== ADD PORTFOLIO ITEM MODAL ===== -->
-    <div class="modal-overlay" id="addPortfolioModal">
-        <div class="modal-card pf-add-card" style="max-width:640px;">
+    <!-- ===== ADD TANK CARD MODAL ===== -->
+    <div class="modal-overlay" id="addTankCardModal">
+        <div class="modal-card" style="max-width:600px;max-height:90vh;overflow-y:auto;">
             <div class="modal-header">
                 <div>
-                    <h2>Add Portfolio Items</h2>
-                    <p>Add one or more project cards to the "Our Work" section of the landing page, then save them all at once.</p>
+                    <h2>Add Tank Card</h2>
+                    <p>Adds a tank to "Our Work" on the landing page and to the client's quotation form. Clients request it with a general form: capacity, quantity, their requirements and optional dimensions.</p>
                 </div>
-                <button class="modal-close" type="button" id="closeAddPortfolioModal">
+                <button class="modal-close" type="button" id="closeAddTankCard" aria-label="Close">
                     <i data-lucide="x"></i>
                 </button>
             </div>
-            <form method="POST" action="{{ route('admin.portfolio.store') }}" enctype="multipart/form-data" id="addPortfolioForm" novalidate>
+            <form method="POST" action="{{ route('admin.tank_cards.store') }}" enctype="multipart/form-data" id="addTankCardForm">
                 @csrf
 
-                @if($errors->hasBag('portfolio'))
-                <div class="pf-errors">
-                    @foreach($errors->getBag('portfolio')->all() as $error)
-                        <div>• {{ $error }}</div>
-                    @endforeach
-                    <div class="pf-errors-note">Please choose the images again — browsers don't keep picked files after a page reload.</div>
+                @if($errors->hasBag('tankCardAdd'))
+                <div class="alert-banner error" style="margin-bottom:14px;">
+                    <i data-lucide="alert-circle"></i>
+                    <div>
+                        @foreach($errors->getBag('tankCardAdd')->all() as $error)<div>{{ $error }}</div>@endforeach
+                        <div style="font-size:12px;margin-top:4px;">Please choose the picture again — browsers don't keep a picked file after the page reloads.</div>
+                    </div>
                 </div>
                 @endif
 
-                {{-- One card per item, built by the script below (so "Add another item" can add more) --}}
-                <div class="pf-items" id="pfItems"></div>
+                <div class="tank-card-grid" style="display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:14px;">
+                    <div class="form-group">
+                        <label for="addTankName">Tank Name <span style="color:#dc2626;">*</span></label>
+                        <input type="text" name="type" id="addTankName" required maxlength="100" value="{{ old('type') }}" placeholder="e.g. Septic Tank">
+                    </div>
+                    <div class="form-group">
+                        <label for="addTankOrder">Order</label>
+                        <input type="number" name="sort_order" id="addTankOrder" min="1" max="99" value="{{ old('sort_order') }}" placeholder="Last">
+                    </div>
+                </div>
 
-                <button type="button" class="pf-add-another" id="pfAddAnother">
-                    <i data-lucide="plus"></i> Add another item
-                </button>
-                <div class="pf-size-note" id="pfSizeNote">Up to 10 items · each image up to 10MB · 40MB total per save</div>
+                <div class="form-group form-group-full" style="margin-bottom:14px;">
+                    <label for="addTankImage">Picture <span style="color:#dc2626;">*</span> <span style="font-weight:400;color:var(--muted);">(up to 10MB)</span></label>
+                    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+                        <img id="addTankImagePreview" src="" alt=""
+                             style="display:none;width:96px;height:72px;object-fit:cover;border-radius:10px;border:1px solid var(--border);flex-shrink:0;">
+                        <input type="file" name="image" id="addTankImage" accept="image/*" required style="flex:1;min-width:0;">
+                    </div>
+                </div>
 
-                <div class="modal-actions">
-                    <button type="button" class="cancel-btn" id="cancelAddPortfolio">Cancel</button>
-                    <button type="submit" class="save-btn" id="pfSaveBtn">
+                <div class="tank-card-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+                    <div class="form-group">
+                        <label for="addTankBadge">Badge</label>
+                        <input type="text" name="badge" id="addTankBadge" maxlength="50" value="{{ old('badge') }}" placeholder="e.g. Up to 10,000 L">
+                    </div>
+                    <div class="form-group">
+                        <label for="addTankCapacity">Capacity Label</label>
+                        <input type="text" name="capacity_label" id="addTankCapacity" maxlength="50" value="{{ old('capacity_label') }}" placeholder="Capacity / Size">
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom:14px;">
+                    <label for="addTankBlurb">Description <span style="color:#dc2626;">*</span></label>
+                    <textarea name="blurb" id="addTankBlurb" rows="3" required maxlength="500" style="resize:none;" placeholder="One or two sentences shown on the card">{{ old('blurb') }}</textarea>
+                </div>
+
+                <div class="modal-actions" style="margin-top:20px;">
+                    <button type="button" class="cancel-btn" id="cancelAddTankCard">Cancel</button>
+                    <button type="submit" class="save-btn">
                         <i data-lucide="check-circle" style="width:15px;height:15px;"></i>
-                        <span id="pfSaveLabel">Save Item</span>
+                        Add Tank Card
                     </button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- ===== EDIT PORTFOLIO ITEM MODAL ===== -->
-    <div class="modal-overlay" id="editPortfolioModal">
-        <div class="modal-card" style="max-width:620px;">
+    <!-- ===== EDIT TANK CARD MODAL ===== -->
+    <div class="modal-overlay" id="editTankCardModal">
+        <div class="modal-card" style="max-width:600px;">
             <div class="modal-header">
                 <div>
-                    <h2>Edit Portfolio Item</h2>
-                    <p>Update this project card on the landing page.</p>
+                    <h2 id="editTankCardTitle">Edit Tank Card</h2>
+                    <p>How this tank appears under "Our Work" on the landing page and on the client's quotation form. Leave a field blank to use the default.</p>
                 </div>
-                <button class="modal-close" type="button" id="closeEditPortfolioModal">
+                <button class="modal-close" type="button" id="closeEditTankCard" aria-label="Close">
                     <i data-lucide="x"></i>
                 </button>
             </div>
-            <form method="POST" id="editPortfolioForm" enctype="multipart/form-data">
+            <form method="POST" id="editTankCardForm" enctype="multipart/form-data">
                 @csrf
                 @method('PUT')
+                <input type="hidden" name="reset_image" id="tankCardResetImage" value="0">
 
-                {{-- Image section --}}
+                {{-- only for cards the admin added: their own name and capacity label --}}
+                <div id="tankCardCustomFields" class="tank-card-grid" style="display:none;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:14px;">
+                    <div class="form-group">
+                        <label for="tankCardName">Tank Name</label>
+                        <input type="text" name="type" id="tankCardName" maxlength="100" disabled>
+                    </div>
+                    <div class="form-group">
+                        <label for="tankCardCapacityLabel">Capacity Label</label>
+                        <input type="text" name="capacity_label" id="tankCardCapacityLabel" maxlength="50" placeholder="Capacity / Size" disabled>
+                    </div>
+                </div>
+
                 <div class="form-group form-group-full" style="margin-bottom:14px;">
-                    <label>Image <span style="font-weight:400;color:var(--muted);">(up to 10MB — choosing a new file replaces the current one)</span></label>
-                    <div style="display:flex;align-items:center;gap:14px;">
-                        <img id="editPortfolioImagePreview" src="" alt=""
-                             style="display:none;width:70px;height:56px;object-fit:cover;border-radius:10px;border:1px solid var(--border);flex-shrink:0;">
-                        <input type="file" name="image" id="editPortfolioImageInput" accept="image/*" style="flex:1;min-width:0;" onchange="validateFileSize(this, 10)">
+                    <label for="tankCardImageInput">Picture <span style="font-weight:400;color:var(--muted);">(up to 10MB — choosing a file replaces the current one)</span></label>
+                    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+                        <img id="tankCardImagePreview" src="" alt=""
+                             style="display:none;width:96px;height:72px;object-fit:cover;border-radius:10px;border:1px solid var(--border);flex-shrink:0;">
+                        <input type="file" name="image" id="tankCardImageInput" accept="image/*" style="flex:1;min-width:0;">
                     </div>
+                    <button type="button" class="cancel-btn" id="tankCardUseDefault" style="margin-top:10px;display:none;">Use default picture</button>
                 </div>
 
-                {{-- Two-column layout --}}
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+                <div style="display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:14px;" class="tank-card-grid">
                     <div class="form-group">
-                        <label>Capacity / Badge</label>
-                        <input type="text" name="spec" id="editPortfolioSpec" required placeholder="e.g. 10,000 L">
+                        <label for="tankCardBadge">Badge</label>
+                        <input type="text" name="badge" id="tankCardBadge" maxlength="50">
                     </div>
                     <div class="form-group">
-                        <label>Category Tag</label>
-                        <select name="tag" id="editTagSelect" required onchange="toggleEditCustomTag(this)">
-                            <option value="" disabled hidden>Select category...</option>
-                            <option value="Water Storage">Water Storage</option>
-                            <option value="Oil Storage">Oil Storage</option>
-                            <option value="Pipe Line">Pipe Line</option>
-                            <option value="Tetrapod">Tetrapod</option>
-                            <option value="Fuel Storage Tank">Fuel Storage Tank</option>
-                            <option value="Cistern Tank">Cistern Tank</option>
-                            <option value="__other__">Others (type manually)</option>
-                        </select>
-                        <input type="text" id="editTagCustom" name="tag_custom" placeholder="Enter custom category" maxlength="100" style="display:none;margin-top:8px;">
+                        <label for="tankCardOrder">Order</label>
+                        <input type="number" name="sort_order" id="tankCardOrder" min="1" max="99">
                     </div>
                 </div>
 
                 <div class="form-group" style="margin-bottom:14px;">
-                    <label>Title</label>
-                    <input type="text" name="title" id="editPortfolioTitle" required placeholder="e.g. Diesel Storage Tank — Distribution Depot">
-                </div>
-
-                <div class="form-group" style="margin-bottom:14px;">
-                    <label>Description</label>
-                    <textarea name="description" id="editPortfolioDescription" rows="4" required
-                              style="resize:none;"
-                              placeholder="Short description of the project..."></textarea>
+                    <label for="tankCardBlurb">Description</label>
+                    <textarea name="blurb" id="tankCardBlurb" rows="3" maxlength="500" style="resize:none;"></textarea>
                 </div>
 
                 <div class="modal-actions" style="margin-top:20px;">
-                    <button type="button" class="cancel-btn" id="cancelEditPortfolio">Cancel</button>
+                    <button type="button" class="cancel-btn" id="cancelEditTankCard">Cancel</button>
                     <button type="submit" class="save-btn">
                         <i data-lucide="save" style="width:15px;height:15px;"></i>
                         Save Changes
@@ -620,6 +644,7 @@
             </form>
         </div>
     </div>
+    <style>@media (max-width: 560px) { .tank-card-grid { grid-template-columns: 1fr !important; } }</style>
 
     <!-- ===== TOGGLE VISIBILITY (HIDE/SHOW) MODAL ===== -->
     <div class="modal-overlay" id="visibilityModal">
@@ -684,7 +709,7 @@
         <span id="toastMsg">Saved successfully.</span>
     </div>
 
-    <script>const ACTIVE_TAB = "{{ session('active_tab', request('tab', 'profile')) }}";</script>
+    <script>const ACTIVE_TAB = "{{ ($errors->hasBag('tankCardAdd') || $errors->hasBag('tankCard')) ? 'landing' : session('active_tab', request('tab', 'profile')) }}";</script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
     <script src="{{ asset('js/admin.js') }}"></script>
@@ -709,11 +734,6 @@
         // If validation errors exist on profile, open in edit mode
         @if($errors->hasBag('profile') && $errors->getBag('profile')->any())
         enableEdit();
-        @endif
-
-        // If validation errors exist on Add Portfolio Item, reopen that modal
-        @if($errors->hasBag('portfolio'))
-        openModal('addPortfolioModal');
         @endif
 
         // Save profile — validate then enable all fields and submit
@@ -745,67 +765,86 @@
             if (confInput) confInput.addEventListener('input', checkPw);
         }
 
-        // ---- Add Portfolio Item Modal ----
-        document.getElementById('openAddPortfolioModal')
-            .addEventListener('click', function () { openModal('addPortfolioModal'); });
-        document.getElementById('closeAddPortfolioModal')
-            .addEventListener('click', function () { closeModal('addPortfolioModal'); });
-        document.getElementById('cancelAddPortfolio')
-            .addEventListener('click', function () { closeModal('addPortfolioModal'); });
-
-        // ---- Edit Portfolio Item Modal ----
-        document.querySelectorAll('.edit-portfolio-btn').forEach(function (btn) {
+        // ---- Edit Tank Card Modal ("Our Work" cards) ----
+        document.querySelectorAll('.edit-tank-card-btn').forEach(function (btn) {
             btn.addEventListener('click', function () {
-                document.getElementById('editPortfolioForm').action = '/admin/portfolio-items/' + this.dataset.id;
-                document.getElementById('editPortfolioSpec').value = this.dataset.spec || '';
-                // Set tag dropdown — if value not in list, select Others + show custom input
-                var tagVal = this.dataset.tag || '';
-                var tagSel = document.getElementById('editTagSelect');
-                var tagCustom = document.getElementById('editTagCustom');
-                var tagOpts = Array.from(tagSel.options).map(function(o){ return o.value; });
-                if (tagOpts.indexOf(tagVal) !== -1 && tagVal !== '__other__') {
-                    tagSel.value = tagVal;
-                    tagCustom.style.display = 'none';
-                    tagCustom.value = '';
-                } else {
-                    tagSel.value = '__other__';
-                    tagCustom.style.display = '';
-                    tagCustom.value = tagVal;
-                }
-                document.getElementById('editPortfolioTitle').value = this.dataset.title || '';
-                document.getElementById('editPortfolioDescription').value = this.dataset.description || '';
+                var d = this.dataset;
+                document.getElementById('editTankCardForm').action = d.url;
+                document.getElementById('editTankCardTitle').textContent = d.type;
+                var badge = document.getElementById('tankCardBadge');
+                badge.value = d.badge || '';
+                badge.placeholder = d.defaultBadge || '';
+                var blurb = document.getElementById('tankCardBlurb');
+                blurb.value = d.blurb || '';
+                blurb.placeholder = d.defaultBlurb || '';
+                document.getElementById('tankCardOrder').value = d.order || '';
+                document.getElementById('tankCardImageInput').value = '';
+                document.getElementById('tankCardResetImage').value = '0';
+                var preview = document.getElementById('tankCardImagePreview');
+                preview.src = d.image || '';
+                preview.style.display = d.image ? '' : 'none';
 
-                var imageInput = document.getElementById('editPortfolioImageInput');
-                imageInput.value = '';
+                // an added card: its name and capacity label are editable, and it has no default picture
+                var isCustom = d.custom === '1';
+                var customFields = document.getElementById('tankCardCustomFields');
+                customFields.style.display = isCustom ? 'grid' : 'none';
+                customFields.querySelectorAll('input').forEach(function (el) { el.disabled = !isCustom; });
+                document.getElementById('tankCardName').value = isCustom ? d.type : '';
+                document.getElementById('tankCardName').required = isCustom;
+                document.getElementById('tankCardCapacityLabel').value = d.capacityLabel || '';
+                blurb.required = isCustom;
 
-                var preview = document.getElementById('editPortfolioImagePreview');
-                if (this.dataset.image) {
-                    preview.src = this.dataset.image;
-                    preview.style.display = '';
-                } else {
-                    preview.src = '';
-                    preview.style.display = 'none';
-                }
-
-                openModal('editPortfolioModal');
+                var useDefault = document.getElementById('tankCardUseDefault');
+                useDefault.disabled = false;
+                useDefault.textContent = 'Use default picture';
+                useDefault.style.display = !isCustom && d.customImage === '1' ? '' : 'none';
+                openModal('editTankCardModal');
             });
         });
-        document.getElementById('closeEditPortfolioModal')
-            .addEventListener('click', function () { closeModal('editPortfolioModal'); });
-        document.getElementById('cancelEditPortfolio')
-            .addEventListener('click', function () { closeModal('editPortfolioModal'); });
 
-        // ---- Portfolio cards open Edit when clicked anywhere — action buttons opt out ----
-        document.querySelectorAll('#portfolioTableBody .portfolio-card').forEach(function (card) {
-            var editBtn = card.querySelector('.edit-portfolio-btn');
-            if (!editBtn) return;
+        // ---- Add Tank Card Modal ----
+        document.getElementById('openAddTankCard').addEventListener('click', function () { openModal('addTankCardModal'); });
+        document.getElementById('closeAddTankCard').addEventListener('click', function () { closeModal('addTankCardModal'); });
+        document.getElementById('cancelAddTankCard').addEventListener('click', function () { closeModal('addTankCardModal'); });
+        document.getElementById('addTankImage').addEventListener('change', function () {
+            var file = this.files && this.files[0];
+            var preview = document.getElementById('addTankImagePreview');
+            if (!file || (typeof validateFileSize === 'function' && !validateFileSize(this, 10))) { preview.style.display = 'none'; return; }
+            var reader = new FileReader();
+            reader.onload = function (e) { preview.src = e.target.result; preview.style.display = ''; };
+            reader.readAsDataURL(file);
+        });
+        @if($errors->hasBag('tankCardAdd'))
+        openModal('addTankCardModal');   // a failed add comes back with its errors
+        @endif
+        document.getElementById('closeEditTankCard').addEventListener('click', function () { closeModal('editTankCardModal'); });
+        document.getElementById('cancelEditTankCard').addEventListener('click', function () { closeModal('editTankCardModal'); });
+        document.getElementById('tankCardUseDefault').addEventListener('click', function () {
+            document.getElementById('tankCardResetImage').value = '1';
+            document.getElementById('tankCardImageInput').value = '';
+            document.getElementById('tankCardImagePreview').style.display = 'none';
+            this.textContent = 'Default picture will be used';
+            this.disabled = true;
+        });
+        document.getElementById('tankCardImageInput').addEventListener('change', function () {
+            var file = this.files && this.files[0];
+            if (!file) return;
+            if (typeof validateFileSize === 'function' && !validateFileSize(this, 10)) return;
+            document.getElementById('tankCardResetImage').value = '0';
+            var preview = document.getElementById('tankCardImagePreview');
+            var reader = new FileReader();
+            reader.onload = function (e) { preview.src = e.target.result; preview.style.display = ''; };
+            reader.readAsDataURL(file);
+        });
+        // clicking anywhere on a card opens Edit — the action buttons opt out
+        document.querySelectorAll('#tankCardGrid .portfolio-card').forEach(function (card) {
+            var editBtn = card.querySelector('.edit-tank-card-btn');
             card.addEventListener('click', function (e) {
                 if (e.target.closest('.action-btn')) return;
                 editBtn.click();
             });
         });
-
-        // ---- Toggle Visibility (Hide/Show) Modal — shared by Portfolio Items & Reviews ----
+        // ---- Toggle Visibility (Hide/Show) Modal — shared by Tank Cards & Reviews ----
         document.querySelectorAll('.toggle-visibility-btn').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 var isHidden = this.dataset.hidden === '1';
@@ -833,7 +872,7 @@
         document.getElementById('cancelVisibilityModal')
             .addEventListener('click', function () { closeModal('visibilityModal'); });
 
-        // ---- Delete Item Modal — shared by Portfolio Items & Reviews ----
+        // ---- Delete Item Modal — shared by Tank Cards & Reviews ----
         document.querySelectorAll('.delete-item-btn').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 var name = this.dataset.name || 'this item';
@@ -847,270 +886,12 @@
         document.getElementById('cancelDeleteItem')
             .addEventListener('click', function () { closeModal('deleteItemModal'); });
 
-        // ---- Live preview when replacing the portfolio image ----
-        document.getElementById('editPortfolioImageInput')?.addEventListener('change', function () {
-            var file = this.files && this.files[0];
-            if (!file) return;
-            if (!validateFileSize(this, 10)) return;
-
-            var preview = document.getElementById('editPortfolioImagePreview');
-            var reader = new FileReader();
-            reader.onload = function (e) {
-                preview.src = e.target.result;
-                preview.style.display = '';
-            };
-            reader.readAsDataURL(file);
-        });
-
         // ---- Overlay click to close ----
         document.querySelectorAll('.modal-overlay').forEach(function (modal) {
             modal.addEventListener('click', function (e) {
                 if (e.target === this) closeModal(this.id);
             });
         });
-    });
-
-    // Category tag dropdown helpers
-    var TAG_CATEGORIES = ['Water Storage','Oil Storage','Pipe Line','Tetrapod','Fuel Storage Tank','Cistern Tank'];
-
-    function toggleEditCustomTag(sel) {
-        var custom = document.getElementById('editTagCustom');
-        if (sel.value === '__other__') { custom.style.display=''; custom.required=true; custom.focus(); }
-        else { custom.style.display='none'; custom.required=false; custom.value=''; }
-    }
-
-    // Before submitting add/edit forms, merge custom tag into hidden tag field
-
-    /* ── Add Portfolio Items: several items, one save ─────────────────────────── */
-    (function () {
-        var form     = document.getElementById('addPortfolioForm');
-        var list     = document.getElementById('pfItems');
-        var addBtn   = document.getElementById('pfAddAnother');
-        var saveLbl  = document.getElementById('pfSaveLabel');
-        var sizeNote = document.getElementById('pfSizeNote');
-        if (!form || !list) return;
-
-        var MAX_ITEMS  = 10;
-        var MAX_FILE   = 10 * 1024 * 1024;   // per image
-        var MAX_TOTAL  = 38 * 1024 * 1024;   // all images in one save (server limit is 40MB incl. the form)
-        var TAGS = ['Water Storage', 'Oil Storage', 'Pipe Line', 'Tetrapod', 'Fuel Storage Tank', 'Cistern Tank'];
-        var seq  = 0;
-
-        // Text typed before a failed save comes back (picked files can't)
-        var oldItems = @json(array_values(old('items', [])));
-
-        function esc(v) {
-            return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-        }
-
-        function addItem(data) {
-            if (list.children.length >= MAX_ITEMS) return;
-            data = data || {};
-            var key = seq++;
-            var tag = data.tag || '';
-            var isOther = tag === '__other__' || (tag && TAGS.indexOf(tag) === -1);
-
-            var options = '<option value="" disabled' + (tag ? '' : ' selected') + ' hidden>Select category...</option>' +
-                TAGS.map(function (t) { return '<option value="' + esc(t) + '"' + (t === tag ? ' selected' : '') + '>' + esc(t) + '</option>'; }).join('') +
-                '<option value="__other__"' + (isOther ? ' selected' : '') + '>Others (type manually)</option>';
-
-            var card = document.createElement('div');
-            card.className = 'pf-item';
-            card.innerHTML =
-                '<div class="pf-item-head">' +
-                    '<span class="pf-item-no">Item <b></b></span>' +
-                    '<button type="button" class="pf-item-remove" title="Remove this item"><i data-lucide="trash-2"></i></button>' +
-                '</div>' +
-                '<div class="form-grid">' +
-                    '<div class="form-group form-group-full">' +
-                        '<label>Image <span style="font-weight:400;color:var(--muted);">(required)</span></label>' +
-                        '<label class="pf-drop">' +
-                            '<input type="file" name="items[' + key + '][image]" accept="image/*" required class="pf-file">' +
-                            // empty state
-                            '<span class="pf-drop-empty">' +
-                                '<span class="pf-drop-icon"><i data-lucide="image-plus"></i></span>' +
-                                '<span class="pf-drop-text"><b>Click to upload</b> or drag an image here</span>' +
-                                '<span class="pf-drop-hint">JPG, PNG or WEBP · up to 10MB</span>' +
-                            '</span>' +
-                            // picked state
-                            '<span class="pf-drop-filled">' +
-                                '<span class="pf-thumb"></span>' +
-                                '<span class="pf-file-info">' +
-                                    '<span class="pf-file-name"></span>' +
-                                    '<span class="pf-file-size"></span>' +
-                                '</span>' +
-                                '<span class="pf-file-actions">' +
-                                    '<span class="pf-file-btn">Change</span>' +
-                                    '<button type="button" class="pf-file-btn pf-file-clear">Remove</button>' +
-                                '</span>' +
-                            '</span>' +
-                        '</label>' +
-                    '</div>' +
-                    '<div class="form-group">' +
-                        '<label>Capacity / Badge</label>' +
-                        '<input type="text" name="items[' + key + '][spec]" required maxlength="50" value="' + esc(data.spec) + '" placeholder="e.g. 10,000 L">' +
-                    '</div>' +
-                    '<div class="form-group">' +
-                        '<label>Category Tag</label>' +
-                        '<select name="items[' + key + '][tag]" required class="pf-tag">' + options + '</select>' +
-                        '<input type="text" name="items[' + key + '][tag_custom]" class="pf-tag-custom" maxlength="50" placeholder="Enter custom category"' +
-                            ' value="' + esc(isOther && tag !== '__other__' ? tag : (data.tag_custom || '')) + '" style="' + (isOther ? '' : 'display:none;') + 'margin-top:8px;">' +
-                    '</div>' +
-                    '<div class="form-group form-group-full">' +
-                        '<label>Title</label>' +
-                        '<input type="text" name="items[' + key + '][title]" required maxlength="255" value="' + esc(data.title) + '" placeholder="e.g. Diesel Storage Tank — Distribution Depot">' +
-                    '</div>' +
-                    '<div class="form-group form-group-full">' +
-                        '<label>Description</label>' +
-                        '<textarea name="items[' + key + '][description]" rows="3" required maxlength="1000" style="resize:none;" placeholder="Short description of the project">' + esc(data.description) + '</textarea>' +
-                    '</div>' +
-                '</div>';
-
-            list.appendChild(card);
-
-            // category "Others" → type it
-            var sel = card.querySelector('.pf-tag'), custom = card.querySelector('.pf-tag-custom');
-            sel.addEventListener('change', function () {
-                var other = sel.value === '__other__';
-                custom.style.display = other ? '' : 'none';
-                if (other) custom.focus(); else custom.value = '';
-            });
-
-            // image: drop zone with preview, file name/size, change/remove, drag & drop
-            var drop  = card.querySelector('.pf-drop');
-            var file  = card.querySelector('.pf-file');
-            var thumb = card.querySelector('.pf-thumb');
-
-            function fmtSize(b) { return b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB'; }
-
-            function showFile() {
-                var f = file.files[0];
-                if (!f) {
-                    drop.classList.remove('has-file');
-                    thumb.innerHTML = '';
-                    refresh();
-                    return;
-                }
-                var url = URL.createObjectURL(f);
-                thumb.innerHTML = '<img src="' + url + '" alt="">';
-                thumb.querySelector('img').onload = function () { URL.revokeObjectURL(url); };
-                card.querySelector('.pf-file-name').textContent = f.name;
-                card.querySelector('.pf-file-size').textContent = fmtSize(f.size);
-                drop.classList.add('has-file');
-                drop.classList.remove('is-invalid');
-                refresh();
-            }
-
-            file.addEventListener('change', function () {
-                if (typeof validateFileSize === 'function' && !validateFileSize(file, 10)) { file.value = ''; }
-                showFile();
-            });
-
-            card.querySelector('.pf-file-clear').addEventListener('click', function (e) {
-                e.preventDefault();
-                e.stopPropagation();
-                file.value = '';
-                showFile();
-            });
-
-            ['dragenter', 'dragover'].forEach(function (ev) {
-                drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('is-dragging'); });
-            });
-            ['dragleave', 'drop'].forEach(function (ev) {
-                drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('is-dragging'); });
-            });
-            drop.addEventListener('drop', function (e) {
-                var dropped = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-                if (!dropped) return;
-                if (!/^image\//.test(dropped.type)) { alert('Please drop an image file (JPG, PNG or WEBP).'); return; }
-                var dt = new DataTransfer();
-                dt.items.add(dropped);
-                file.files = dt.files;
-                file.dispatchEvent(new Event('change'));
-            });
-
-            card.querySelector('.pf-item-remove').addEventListener('click', function () {
-                card.remove();
-                if (!list.children.length) addItem();
-                refresh();
-            });
-
-            refresh();
-            return card;
-        }
-
-        function totalBytes() {
-            var t = 0;
-            list.querySelectorAll('input[type=file]').forEach(function (f) { if (f.files[0]) t += f.files[0].size; });
-            return t;
-        }
-
-        function refresh() {
-            var items = list.querySelectorAll('.pf-item');
-            items.forEach(function (c, i) {
-                c.querySelector('.pf-item-no b').textContent = i + 1;
-                c.querySelector('.pf-item-remove').style.visibility = items.length > 1 ? '' : 'hidden';
-            });
-            saveLbl.textContent = items.length > 1 ? 'Save ' + items.length + ' Items' : 'Save Item';
-            addBtn.disabled = items.length >= MAX_ITEMS;
-            addBtn.style.display = items.length >= MAX_ITEMS ? 'none' : '';
-            var mb = totalBytes() / 1024 / 1024;
-            sizeNote.textContent = 'Up to ' + MAX_ITEMS + ' items · each image up to 10MB · ' +
-                (mb > 0 ? mb.toFixed(1) + 'MB of 38MB used' : '38MB total per save');
-            sizeNote.classList.toggle('over', totalBytes() > MAX_TOTAL);
-            if (typeof lucide !== 'undefined') lucide.createIcons();
-        }
-
-        addBtn.addEventListener('click', function () {
-            var card = addItem();
-            if (card) card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        });
-
-        // Check everything before sending: missing fields get a red outline, and the save stops
-        // if the images together are too big for one upload
-        form.addEventListener('submit', function (e) {
-            var firstBad = null;
-            list.querySelectorAll('input, select, textarea').forEach(function (el) {
-                var needed = el.required || (el.classList.contains('pf-tag-custom') && el.style.display !== 'none');
-                var empty  = el.type === 'file' ? !el.files.length : !String(el.value || '').trim();
-                var bad = needed && empty;
-                (el.type === 'file' ? el.closest('.pf-drop') : el).classList.toggle('is-invalid', bad);
-                if (bad && !firstBad) firstBad = el;
-            });
-            if (totalBytes() > MAX_TOTAL) {
-                e.preventDefault();
-                sizeNote.classList.add('over');
-                sizeNote.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                alert('The images are too large to save together (' + (totalBytes() / 1024 / 1024).toFixed(1) + 'MB). Save fewer items at a time, or use smaller images.');
-                return;
-            }
-            if (firstBad) {
-                e.preventDefault();
-                (firstBad.type === 'file' ? firstBad.closest('.pf-drop') : firstBad).scrollIntoView({ behavior: 'smooth', block: 'center' });
-                if (firstBad.type !== 'file') firstBad.focus();
-                return;
-            }
-            var btn = document.getElementById('pfSaveBtn');
-            btn.disabled = true;
-            saveLbl.textContent = 'Saving...';
-        });
-        list.addEventListener('input', function (e) { e.target.classList.remove('is-invalid'); });
-
-        // Opening the window again starts from one empty item (unless a save just failed)
-        document.getElementById('openAddPortfolioModal')?.addEventListener('click', function () {
-            if (!document.querySelector('.pf-errors')) { list.innerHTML = ''; addItem(); }
-        });
-
-        (oldItems.length ? oldItems : [{}]).forEach(function (d) { addItem(d); });
-    })();
-
-    document.getElementById('editPortfolioForm')?.addEventListener('submit', function() {
-        var sel = document.getElementById('editTagSelect');
-        if (sel && sel.value === '__other__') {
-            var custom = document.getElementById('editTagCustom');
-            sel.removeAttribute('name');
-            custom.name = 'tag';
-        }
     });
 
     function openModal(id) {
@@ -1399,59 +1180,6 @@
 
         /* A blank required password field gets a red outline instead of blocking on the
            server-side message list. */
-/* ── Add Portfolio Items (several at once) ── */
-        .pf-add-card { max-height: 90vh; overflow-y: auto; }
-        .pf-items { display: flex; flex-direction: column; gap: 14px; }
-        .pf-item { border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px 6px; background: var(--white); }
-        .pf-item-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-        .pf-item-no { font-size: 11px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
-        .pf-item-no b { color: var(--dark); }
-        .pf-item-remove { width: 30px; height: 30px; border: 1px solid var(--border); border-radius: 9px; background: var(--white); color: var(--muted);
-                          display: flex; align-items: center; justify-content: center; cursor: pointer; }
-        .pf-item-remove:hover { color: #B42318; border-color: #fca5a5; background: #fff5f5; }
-        .pf-item-remove svg { width: 14px; height: 14px; }
-        /* image drop zone */
-        .pf-drop { position: relative; display: block; border: 1.5px dashed var(--border); border-radius: 14px; background: var(--cream-soft);
-                   cursor: pointer; transition: border-color .18s ease, background-color .18s ease, box-shadow .18s ease; }
-        .pf-drop:hover, .pf-drop.is-dragging { border-color: var(--dark); background: var(--white); }
-        .pf-drop.is-dragging { box-shadow: 0 0 0 4px rgba(0,0,0,.06); }
-        .pf-drop.is-invalid { border-color: #dc2626; background: #fff5f5; }
-        .pf-drop .pf-file { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
-        .pf-drop-empty { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 18px 12px; text-align: center; }
-        .pf-drop-icon { width: 40px; height: 40px; border-radius: 12px; background: var(--white); border: 1px solid var(--border);
-                        display: flex; align-items: center; justify-content: center; color: var(--dark); margin-bottom: 2px; }
-        .pf-drop-icon svg { width: 19px; height: 19px; }
-        .pf-drop-text { font-size: 13px; color: var(--muted); font-weight: 600; }
-        .pf-drop-text b { color: var(--dark); font-weight: 800; }
-        .pf-drop-hint { font-size: 11.5px; color: var(--muted-light, #999); }
-        .pf-drop-filled { display: none; align-items: center; gap: 12px; padding: 10px 12px; }
-        .pf-drop.has-file { border-style: solid; background: var(--white); }
-        .pf-drop.has-file .pf-drop-empty { display: none; }
-        .pf-drop.has-file .pf-drop-filled { display: flex; }
-        .pf-thumb { width: 72px; height: 54px; flex-shrink: 0; border-radius: 10px; overflow: hidden; background: var(--cream-soft); border: 1px solid var(--border); }
-        .pf-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-        .pf-file-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-        .pf-file-name { font-size: 13px; font-weight: 800; color: var(--dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .pf-file-size { font-size: 11.5px; color: var(--muted); }
-        .pf-file-actions { display: flex; gap: 6px; flex-shrink: 0; }
-        .pf-file-btn { font: inherit; font-size: 12px; font-weight: 700; color: var(--dark); background: var(--cream-soft); border: 1px solid var(--border);
-                       border-radius: 999px; padding: 5px 11px; cursor: pointer; }
-        .pf-file-btn:hover { border-color: var(--dark); }
-        .pf-file-clear:hover { color: #B42318; border-color: #fca5a5; background: #fff5f5; }
-        @media (max-width: 480px) {
-            .pf-drop-filled { flex-wrap: wrap; }
-            .pf-file-actions { width: 100%; justify-content: flex-end; }
-        }
-        .pf-add-another { width: 100%; margin-top: 12px; padding: 11px; border: 1.5px dashed var(--border); border-radius: 14px; background: transparent;
-                          color: var(--dark); font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
-        .pf-add-another:hover { border-color: var(--dark); background: var(--cream-soft); }
-        .pf-add-another svg { width: 15px; height: 15px; }
-        .pf-size-note { margin-top: 8px; font-size: 11.5px; color: var(--muted); text-align: center; }
-        .pf-size-note.over { color: #B42318; font-weight: 800; }
-        .pf-errors { background: #fee2e2; border: 1px solid #fca5a5; border-radius: 10px; padding: 12px; margin-bottom: 14px; color: #dc2626; font-size: 13px; }
-        .pf-errors-note { margin-top: 6px; font-size: 12px; color: #991b1b; font-weight: 600; }
-        #addPortfolioForm .is-invalid { border-color: #dc2626 !important; }
-
         #passwordForm input.is-invalid {
             border-color: #dc2626 !important;
         }
@@ -1481,7 +1209,7 @@
             margin-right: 0;
         }
 
-        /* "Our Work" Portfolio Items — a card grid instead of a dense table, since this is
+        /* "Our Work" tank cards — a card grid instead of a dense table, since this is
            visual content (a photo per row) that a table format under-serves. */
         .portfolio-grid {
             display: grid;

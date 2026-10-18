@@ -1,178 +1,162 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <link rel="icon" type="image/svg+xml" href="{{ asset('images/gmdlogo-circle.svg') }}">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Verify Code | GMD South Phils</title>
-    <link rel="stylesheet" href="{{ asset('css/login.css') }}">
-    <style>
-        .fp-wrap {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #f5f5f5;
-            padding: 40px 16px;
-        }
-        .fp-card {
-            background: #fff;
-            border-radius: 16px;
-            box-shadow: 0 4px 24px rgba(0,0,0,0.08);
-            width: 100%;
-            max-width: 440px;
-            padding: 40px 36px;
-        }
-        .fp-brand { font-size: 13px; font-weight: 800; color: #999; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 28px; }
-        .fp-steps { display: flex; align-items: center; gap: 0; margin-bottom: 28px; }
-        .fp-step { display: flex; align-items: center; gap: 6px; }
-        .fp-step-dot { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; }
-        .fp-step-dot.active  { background: #333; color: #fff; }
-        .fp-step-dot.pending { background: #e8e8e8; color: #999; }
-        .fp-step-dot.done    { background: #333; color: #fff; }
-        .fp-step-label { font-size: 11.5px; font-weight: 700; color: #999; }
-        .fp-step-label.active { color: #333; }
-        .fp-step-line { flex: 1; height: 2px; background: #e8e8e8; margin: 0 8px; }
-        .fp-step-line.done { background: #333; }
-        .fp-title { font-size: 22px; font-weight: 900; color: #111; margin-bottom: 6px; }
-        .fp-subtitle { font-size: 13.5px; color: #666; margin-bottom: 8px; line-height: 1.5; }
-        .fp-email-badge {
-            display: inline-flex; align-items: center; gap: 5px;
-            background: #f5f5f5; border: 1px solid #ddd; border-radius: 6px;
-            padding: 5px 10px; font-size: 13px; font-weight: 700; color: #333;
-            margin-bottom: 24px;
-        }
-        .fp-label { display: block; font-size: 13px; font-weight: 700; color: #333; margin-bottom: 6px; }
-        .fp-code-input {
-            width: 100%; padding: 14px 16px; border: 2px solid #ddd; border-radius: 8px;
-            font-size: 28px; font-weight: 900; color: #111; letter-spacing: 8px;
-            text-align: center; outline: none; transition: border-color 0.15s;
-            font-family: monospace; box-sizing: border-box;
-        }
-        .fp-code-input:focus { border-color: #333; }
-        .fp-code-input.error { border-color: #ef4444; }
-        .fp-error { font-size: 12.5px; color: #ef4444; margin-top: 5px; display: flex; align-items: center; gap: 4px; }
-        .fp-success { font-size: 12.5px; color: #16a34a; margin-top: 5px; display: flex; align-items: center; gap: 4px; background: #dcfce7; border: 1px solid #86efac; padding: 8px 12px; border-radius: 6px; margin-bottom: 8px; }
-        .fp-expiry { font-size: 12.5px; color: #777; margin-top: 8px; display: flex; align-items: center; gap: 4px; }
-        .fp-btn-primary {
-            width: 100%; padding: 12px; background: #333; color: #fff; border: none;
-            border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer;
-            margin-top: 20px; transition: background 0.15s; display: flex;
-            align-items: center; justify-content: center; gap: 8px;
-        }
-        .fp-btn-primary:hover { background: #111; }
-        .fp-resend-row { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 16px; }
-        .fp-resend-label { font-size: 13px; color: #777; }
-        .fp-resend-btn {
-            background: none; border: none; cursor: pointer; font-size: 13px;
-            font-weight: 700; color: #333; text-decoration: underline; padding: 0;
-        }
-        .fp-resend-btn:hover { color: #111; }
-        .fp-back { display: block; text-align: center; margin-top: 16px; font-size: 13px; color: #777; text-decoration: none; }
-        .fp-back:hover { color: #333; }
-    </style>
-</head>
-<body>
-<div class="fp-wrap">
-    <div class="fp-card">
-        <div class="fp-brand">GMD South Phils</div>
+@extends('auth.layouts.recovery')
 
-        <!-- Step indicators -->
-        <div class="fp-steps">
-            <div class="fp-step">
-                <div class="fp-step-dot done">✓</div>
-                <span class="fp-step-label">Email</span>
+@section('title', 'Verify Code')
+@section('step', '2')
+
+@section('content')
+    <h1 class="rc-title">Check your email</h1>
+    <p class="rc-sub">We sent a 6-digit verification code to:</p>
+    <div class="rc-email"><i data-lucide="mail"></i>{{ session('fp_email') }}</div>
+
+    @if(session('resent'))
+    <div class="rc-notice" role="status"><i data-lucide="circle-check"></i> A new code is on its way — check your inbox.</div>
+    @elseif(session('code_sent'))
+    <div class="rc-notice" role="status"><i data-lucide="circle-check"></i> Code sent. It can take a minute to arrive — check spam too.</div>
+    @endif
+
+    <form method="POST" action="{{ route('password.verify.post') }}" id="verifyForm">
+        @csrf
+        <div class="rc-field">
+            <label class="rc-label" id="codeLabel" for="otp0">Verification Code</label>
+            {{-- six boxes for typing; the real field sent to the server is the hidden "code" below --}}
+            <div class="rc-otp {{ $errors->has('code') ? 'error shake' : '' }}" id="otpBoxes" role="group" aria-labelledby="codeLabel">
+                @for($i = 0; $i < 6; $i++)
+                {{-- no maxlength: several digits arriving at once (autofill, some keyboards) are spread across the boxes by the script --}}
+                <input type="text" id="otp{{ $i }}" inputmode="numeric"
+                       autocomplete="{{ $i === 0 ? 'one-time-code' : 'off' }}" aria-label="Digit {{ $i + 1 }} of 6"
+                       @if($i === 0) autofocus @endif>
+                @endfor
             </div>
-            <div class="fp-step-line done"></div>
-            <div class="fp-step">
-                <div class="fp-step-dot active">2</div>
-                <span class="fp-step-label active">Verify</span>
+            <input type="text" name="code" id="code" class="rc-code-hidden" tabindex="-1" aria-hidden="true" maxlength="6">
+
+            <div class="rc-error" id="codeError" role="alert" @unless($errors->has('code')) hidden @endunless>
+                <i data-lucide="circle-alert"></i><span>{{ $errors->first('code') }}</span>
             </div>
-            <div class="fp-step-line"></div>
-            <div class="fp-step">
-                <div class="fp-step-dot pending">3</div>
-                <span class="fp-step-label">Reset</span>
+
+            <div class="rc-meta">
+                <span><i data-lucide="clock"></i>Code expires in <span class="rc-timer" id="expiryTimer">10:00</span></span>
             </div>
         </div>
 
-        <h2 class="fp-title">Verify Your Identity</h2>
-        <p class="fp-subtitle">A 6-digit verification code has been sent to:</p>
-        <div class="fp-email-badge">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
-            {{ session('fp_email') }}
-        </div>
+        <button type="submit" class="rc-btn" id="verifyBtn" disabled>
+            Verify Code
+            <i data-lucide="arrow-right"></i>
+        </button>
+    </form>
 
-        @if(session('resent'))
-        <div class="fp-success">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-            A new verification code has been sent to your email.
-        </div>
-        @endif
-
-        @if(session('code_sent'))
-        <div class="fp-success">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-            Verification code sent successfully.
-        </div>
-        @endif
-
-        <form method="POST" action="{{ route('password.verify.post') }}" id="verifyForm">
+    <div class="rc-meta" style="justify-content:center;margin-top:16px;">
+        <span>Didn't get it?</span>
+        <form method="POST" action="{{ route('password.resend') }}" id="resendForm" style="display:inline;">
             @csrf
-            <div>
-                <label class="fp-label" for="code">Verification Code </label>
-                <input
-                    type="text"
-                    name="code"
-                    id="code"
-                    class="fp-code-input {{ $errors->has('code') ? 'error' : '' }}"
-                    placeholder="000000"
-                    maxlength="6"
-                    inputmode="numeric"
-                    pattern="[0-9]{6}"
-                    autocomplete="one-time-code"
-                    autofocus
-                    required>
-                @error('code')
-                <div class="fp-error">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                    {{ $message }}
-                </div>
-                @enderror
-                <div class="fp-expiry">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                    Code expires in 10 minutes from when it was sent.
-                </div>
-            </div>
-
-            <button type="submit" class="fp-btn-primary" id="verifyBtn">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                Verify Code
-            </button>
+            <button type="submit" class="rc-link-btn" id="resendBtn">Resend code</button>
         </form>
-
-        <div class="fp-resend-row">
-            <span class="fp-resend-label">Didn't receive it?</span>
-            <form method="POST" action="{{ route('password.resend') }}" style="display:inline;">
-                @csrf
-                <button type="submit" class="fp-resend-btn" id="resendBtn">Resend Code</button>
-            </form>
-        </div>
-
-        <a href="{{ route('password.request') }}" class="fp-back">← Use a different email</a>
     </div>
-</div>
-<script>
-    // Only allow digits in code input
-    document.getElementById('code').addEventListener('input', function () {
-        this.value = this.value.replace(/\D/g, '').slice(0, 6);
-    });
 
-    document.getElementById('verifyForm').addEventListener('submit', function () {
-        var btn = document.getElementById('verifyBtn');
-        btn.disabled = true;
-        btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin 0.8s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Verifying...';
-    });
+    <div class="rc-foot">
+        <a href="{{ route('password.request') }}" class="rc-back"><i data-lucide="arrow-left"></i> Use a different email</a>
+    </div>
+@endsection
+
+@push('scripts')
+<script>
+    (function () {
+        var boxes  = Array.prototype.slice.call(document.querySelectorAll('#otpBoxes input'));
+        var group  = document.getElementById('otpBoxes');
+        var hidden = document.getElementById('code');
+        var form   = document.getElementById('verifyForm');
+        var btn    = document.getElementById('verifyBtn');
+        var error  = document.getElementById('codeError');
+        var submitted = false;
+
+        function value() { return boxes.map(function (b) { return b.value; }).join(''); }
+        function sync() {
+            var v = value();
+            hidden.value = v;
+            btn.disabled = v.length !== 6;
+            boxes.forEach(function (b) { b.classList.toggle('filled', !!b.value); });
+            return v;
+        }
+        function clearError() {
+            group.classList.remove('error', 'shake');
+            error.hidden = true;
+        }
+        function fill(from, digits) {
+            for (var i = 0; i < digits.length && from + i < boxes.length; i++) boxes[from + i].value = digits[i];
+            var next = Math.min(from + digits.length, boxes.length - 1);
+            boxes[next].focus();
+            boxes[next].select();
+            if (sync().length === 6) autoSubmit();
+        }
+        // the moment all six digits are in, send it (once)
+        function autoSubmit() {
+            if (submitted) return;
+            setTimeout(function () { if (value().length === 6 && !submitted) form.requestSubmit(btn); }, 180);
+        }
+
+        boxes.forEach(function (box, i) {
+            box.addEventListener('input', function () {
+                clearError();
+                var digits = box.value.replace(/\D/g, '');
+                box.value = '';
+                if (digits) fill(i, digits);      // also handles phones that autofill the whole code into one box
+                else sync();
+            });
+            box.addEventListener('keydown', function (e) {
+                if (e.key === 'Backspace' && !box.value && i > 0) { boxes[i - 1].value = ''; boxes[i - 1].focus(); sync(); e.preventDefault(); }
+                else if (e.key === 'ArrowLeft' && i > 0) { boxes[i - 1].focus(); e.preventDefault(); }
+                else if (e.key === 'ArrowRight' && i < boxes.length - 1) { boxes[i + 1].focus(); e.preventDefault(); }
+            });
+            box.addEventListener('focus', function () { box.select(); });
+            box.addEventListener('paste', function (e) {
+                var text = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '').slice(0, 6);
+                if (!text) return;
+                e.preventDefault();
+                clearError();
+                fill(i === 0 || text.length === 6 ? 0 : i, text);
+            });
+        });
+
+        form.addEventListener('submit', function (e) {
+            if (sync().length !== 6) { e.preventDefault(); boxes[value().length].focus(); return; }
+            submitted = true;
+            rcBusy(btn, 'Verifying…');
+        });
+
+        // a wrong / expired code: start fresh in the first box
+        if (!error.hidden) { boxes[0].focus(); }
+
+        // ---- countdowns: code expiry and when "Resend code" becomes available ----
+        var expiresIn = {{ (int) $expiresIn }};
+        var resendIn  = {{ (int) $resendIn }};
+        var timer     = document.getElementById('expiryTimer');
+        var resendBtn = document.getElementById('resendBtn');
+        var started   = Date.now();
+        var expiredShown = false;
+
+        function mmss(s) { return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+        function tick() {
+            var gone = Math.floor((Date.now() - started) / 1000);
+            var exp  = Math.max(0, expiresIn - gone);
+            var res  = Math.max(0, resendIn - gone);
+
+            if (exp > 0) {
+                timer.textContent = mmss(exp);
+                timer.classList.toggle('is-low', exp < 60);
+            } else if (!expiredShown) {
+                expiredShown = true;
+                timer.parentNode.innerHTML = '<span class="rc-timer is-low">This code has expired</span> — request a new one below.';
+            }
+
+            resendBtn.disabled = res > 0;
+            resendBtn.textContent = res > 0 ? 'Resend in ' + mmss(res) : 'Resend code';
+            if (exp > 0 || res > 0) setTimeout(tick, 1000);
+        }
+        tick();
+
+        document.getElementById('resendForm').addEventListener('submit', function () {
+            resendBtn.disabled = true;
+            resendBtn.textContent = 'Sending…';
+        });
+    })();
 </script>
-<style>@keyframes spin { to { transform: rotate(360deg); } }</style>
-</body>
-</html>
+@endpush

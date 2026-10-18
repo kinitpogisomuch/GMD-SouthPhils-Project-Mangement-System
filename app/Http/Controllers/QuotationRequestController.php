@@ -10,10 +10,16 @@ use App\Models\Project;
 use App\Models\ProjectLabor;
 use App\Models\ProjectMaterial;
 use App\Models\ProjectTankItem;
+use App\Models\AuditLog;
 use App\Models\QuotationBatch;
 use App\Models\QuotationRequest;
+use App\Models\QuotationVersion;
+use App\Services\AuditTrail;
 use App\Services\NotificationService;
+use App\Services\QuotationDocument;
 use App\Services\SupabaseStorageService;
+use App\Support\TankCatalog;
+use Illuminate\Support\Facades\DB;
 
 class QuotationRequestController extends Controller
 {
@@ -29,30 +35,47 @@ class QuotationRequestController extends Controller
     | Client — Request a Quotation
     |--------------------------------------------------------------------------
     */
-    public function create()
+    public function create(Request $request)
     {
         $client = Client::findOrFail(session('user_id'));
 
         // Clients can submit a new request any time, even with one still under review —
         // the page shows both a "New Request" form and a "Pending" tab listing whatever
         // is currently awaiting GMD's review, so neither ever has to hide the other.
-        $pendingBatches = QuotationRequest::where('client_id', $client->id)
+        $pendingBatches = QuotationRequest::with('quotationBatch.versions')
+            ->where('client_id', $client->id)
             ->unresolved()
             ->orderBy('created_at', 'desc')
             ->get()
             ->groupBy(fn ($r) => $r->batch_id ?: ('single-' . $r->id));
 
-        // Finished business (accepted or declined) is the module's third tab, so the client never
+        // Finished business (accepted, rejected or declined) is the module's third tab, so the client never
         // has to leave the Quotation page to look back at earlier requests.
-        $historyBatches = QuotationRequest::where('client_id', $client->id)
-            ->whereIn('status', ['converted', 'declined'])
+        $historyBatches = QuotationRequest::with('quotationBatch.versions')
+            ->where('client_id', $client->id)
+            ->whereIn('status', ['converted', 'declined', 'rejected'])
             ->orderBy('created_at', 'desc')
             ->get()
             ->groupBy(fn ($r) => $r->batch_id ?: ('single-' . $r->id));
 
+        // The tank picked on the landing page ("Our Work") — passed in the link, or remembered through
+        // login / sign-up — opens straight to that tank's form. Used once, then forgotten.
+        $requestable  = TankCatalog::requestableSlugs();
+        $selectedTank = in_array($request->query('tank'), $requestable, true)
+            ? $request->query('tank')
+            : (in_array(session('quote_intent'), $requestable, true) ? session('quote_intent') : null);
+        if (session()->has('quote_intent') || $client->pending_quote_tank) {
+            session()->forget('quote_intent');
+            if ($client->pending_quote_tank) {
+                $client->forceFill(['pending_quote_tank' => null])->save();
+            }
+        }
+
         return view('client.quotation_request', [
             'client'         => $client,
             'tankTypes'      => ProjectTankItem::TANK_TYPES,
+            'tankCards'      => TankCatalog::cards(),
+            'selectedTank'   => $selectedTank,
             'pendingBatches' => $pendingBatches,
             'historyBatches' => $historyBatches,
         ]);
@@ -62,76 +85,114 @@ class QuotationRequestController extends Controller
     {
         $client = Client::findOrFail(session('user_id'));
 
-        $request->validate([
+        // The tank card the client picked decides the tank type and which extra fields apply
+        $items = (array) $request->input('tank_items', []);
+        $specRules = [];
+        $specNames = [];
+        foreach ($items as $key => $item) {
+            $slug = $item['tank_slug'] ?? TankCatalog::slugFor($item['tank_type'] ?? null);
+            [$rules, $names] = TankCatalog::rules((string) $slug, "tank_items.$key.specs", (array) ($item['specs'] ?? []));
+            $specRules += $rules;
+            $specNames += $names;
+        }
+
+        $request->validate(array_merge([
             // Tank requirements are mandatory (at least one tank). Each tank is either for delivery
             // (which needs an address) or for pick-up (which doesn't); its own design upload is optional.
-            'tank_items'                        => 'required|array|min:1',
-            'tank_items.*.tank_type'            => 'required|string|in:' . implode(',', ProjectTankItem::TANK_TYPES),
-            // "Others" = the client names their own tank type
-            'tank_items.*.tank_type_other'      => 'required_if:tank_items.*.tank_type,Others|nullable|string|max:100',
+            'tank_items'                        => 'required|array|min:1|max:10',
+            'tank_items.*.tank_slug'            => ['required', \Illuminate\Validation\Rule::in(TankCatalog::requestableSlugs())],
+            'tank_items.*.specs'                => 'nullable|array',
             'tank_items.*.capacity'             => 'required|string|max:255',
-            'tank_items.*.quantity'             => 'required|integer|min:1',
-            'tank_items.*.target_timeline'      => 'nullable|date',
-            'tank_items.*.fulfillment'          => 'required|in:delivery,pickup',
-            'tank_items.*.address'              => 'required_if:tank_items.*.fulfillment,delivery|nullable|string|max:1000',
+            'tank_items.*.quantity'             => 'required|integer|min:1|max:1000',
+            'tank_items.*.target_timeline'      => 'nullable|date|after_or_equal:today',
             'tank_items.*.design_files'         => 'nullable|array|max:5',
             // "extensions" (not "mimes") because CAD tools like AutoCAD don't produce a
             // MIME type PHP's file-info can reliably sniff — Laravel's "mimes" rule would
             // reject valid .dwg uploads, so we trust the file's extension instead.
             'tank_items.*.design_files.*'       => 'file|extensions:pdf,jpg,jpeg,png,dwg|max:10240',
             'notes'                             => 'nullable|string|max:2000',
-        ], [
-            'tank_items.required'                     => 'Please add at least one tank requirement.',
-            'tank_items.min'                          => 'Please add at least one tank requirement.',
-            'tank_items.*.tank_type.required'         => 'Choose a tank type for every tank.',
-            'tank_items.*.tank_type_other.required_if' => 'Type your tank type for every tank set to "Others".',
-            'tank_items.*.capacity.required'          => 'Enter the capacity / size for every tank.',
-            'tank_items.*.quantity.required'          => 'Enter a quantity for every tank.',
-            'tank_items.*.fulfillment.required'       => 'Choose delivery or pick-up for every tank.',
-            'tank_items.*.address.required_if'        => 'Enter the delivery address for every tank that is for delivery.',
-        ]);
+        ], $specRules), [
+            'tank_items.required'                     => 'Please choose the tank you need.',
+            'tank_items.min'                          => 'Please choose the tank you need.',
+            'tank_items.*.tank_slug.required'         => 'Choose a tank type.',
+            'tank_items.*.tank_slug.in'               => 'Choose one of the tank types shown.',
+            'tank_items.*.capacity.required'          => 'Enter the capacity / size.',
+            'tank_items.*.quantity.required'          => 'Enter the quantity.',
+            'tank_items.*.target_timeline.after_or_equal' => 'The target date cannot be in the past.',
+        ], $specNames);
+
+        // A second, identical request seconds after the first (double click that slipped past the browser
+        // guard, a refresh, or a retried slow upload) is the same request — don't create it twice.
+        $first = reset($items);
+        $recentDuplicate = QuotationRequest::where('client_id', $client->id)
+            ->where('created_at', '>=', now()->subMinutes(2))
+            ->where('tank_type', TankCatalog::find($first['tank_slug'])['type'] ?? null)
+            ->where('capacity', ProjectTankItem::normalizeCapacity($first['capacity'] ?? null) ?? ($first['capacity'] ?? null))
+            ->where('quantity', (int) ($first['quantity'] ?? 0))
+            ->exists();
+        if ($recentDuplicate && count($items) === 1) {
+            return redirect()->route('client.quotation.create', ['tab' => 'pending'])
+                ->with('success', 'This request was already submitted a moment ago — it is listed below.');
+        }
 
         // Every tank is its own request — its own batch, so its own quotation, its own approval, project and
         // payments. The client approves each quotation separately, so tanks in one submission (which may go to
         // different addresses, or be picked up) must never share a quotation.
-        $created = collect();
-        $tankNo  = 0;
-
-        foreach ($request->input('tank_items', []) as $tankKey => $item) {
-            $tankNo++;
+        $prepared = [];
+        foreach ($items as $tankKey => $item) {
             $batchId    = (string) Str::uuid();
-            $delivery   = ($item['fulfillment'] ?? 'delivery') === 'delivery';
             $files      = $request->file("tank_items.$tankKey.design_files", []);
+            // uploads happen before the database work, so a slow upload never holds a transaction open
             $designUrls = $files
                 ? $this->storage->uploadMultiple($files, 'quotation-requests/' . $batchId . '/reference')
                 : [];
-
-            $quotationRequest = new QuotationRequest([
-                'client_id'       => $client->id,
-                'batch_id'        => $batchId,
-                // "Others" is stored as the client's own wording, so every screen shows what they actually asked for
-                'tank_type'       => $item['tank_type'] === 'Others' ? trim($item['tank_type_other']) : $item['tank_type'],
-                'capacity'        => $item['capacity'],
-                'quantity'        => $item['quantity'],
-                'target_timeline' => $item['target_timeline'] ?? null,
-                'fulfillment'     => $delivery ? 'delivery' : 'pickup',
-                'location'        => $delivery ? trim($item['address']) : null,
-                'notes'           => $request->notes,
-                'reference_files' => !empty($designUrls) ? $designUrls : null,
-                'status'          => 'pending',
-            ]);
-            $quotationRequest->save();
-
-            $created->push($quotationRequest);
+            $prepared[] = [$batchId, $item, $designUrls];
         }
 
-        $created->each(fn ($qr) => NotificationService::quotationRequestSubmitted($qr));
+        $created = DB::transaction(function () use ($prepared, $client, $request) {
+            $created = collect();
+            foreach ($prepared as [$batchId, $item, $designUrls]) {
+                $def      = TankCatalog::find($item['tank_slug']);
 
+                // The quotation (and its GMDSP reference number) exists from the moment the request is made
+                QuotationBatch::create([
+                    'id'            => $batchId,
+                    'client_id'     => $client->id,
+                ]);
+
+                $created->push(QuotationRequest::create([
+                    'client_id'       => $client->id,
+                    'batch_id'        => $batchId,
+                    'tank_type'       => $def['type'],
+                    'capacity'        => ProjectTankItem::normalizeCapacity($item['capacity']) ?? $item['capacity'],
+                    'quantity'        => (int) $item['quantity'],
+                    'target_timeline' => $item['target_timeline'] ?? null,
+                    // GMD's tanks are picked up at the Calauan, Laguna shop — there is no delivery option
+                    'fulfillment'     => 'pickup',
+                    'location'        => null,
+                    'notes'           => $request->notes,
+                    'reference_files' => !empty($designUrls) ? $designUrls : null,
+                    'specifications'  => TankCatalog::cleanAnswers($item['tank_slug'], (array) ($item['specs'] ?? [])) ?: null,
+                    'status'          => QuotationRequest::STATUS_PENDING,
+                ]));
+            }
+
+            return $created;
+        });
+
+        $created->each(function (QuotationRequest $qr) {
+            AuditTrail::record('quotation', $qr->batch_id, 'quotation.requested', [
+                'tank' => $qr->tank_type, 'capacity' => $qr->capacity, 'quantity' => $qr->quantity,
+            ]);
+            NotificationService::quotationRequestSubmitted($qr);
+        });
+
+        $refs    = QuotationBatch::whereIn('id', $created->pluck('batch_id'))->pluck('reference_no')->implode(', ');
         $message = $created->count() > 1
-            ? 'Your ' . $created->count() . ' tanks were sent as ' . $created->count() . ' separate quotation requests — each one gets its own quotation and approval. Our team will review them shortly.'
-            : 'Your request has been submitted! Our team will review it shortly.';
+            ? 'Your ' . $created->count() . ' tanks were sent as separate quotation requests (' . $refs . '). Our team will review them shortly.'
+            : "Request {$refs} submitted! Our team will review it and send your quotation here.";
 
-        return redirect()->route('client.quotation.create')->with('success', $message);
+        return redirect()->route('client.quotation.create', ['tab' => 'pending'])->with('success', $message);
     }
 
     /** Quotation History used to be its own page; it is now the History tab of the Quotation module. */
@@ -140,70 +201,192 @@ class QuotationRequestController extends Controller
         return redirect()->route('client.quotation.create', ['tab' => 'history']);
     }
 
-    /** Approves every tank request in the batch together — the client reviews and decides on one combined quotation. */
-    public function approveQuotation(Request $request, $batchId)
+    /** The session client's batch, or 404 — a client can only ever reach their own quotations */
+    private function clientBatch(string $batchId): QuotationBatch
     {
-        $client = Client::findOrFail(session('user_id'));
+        $batch = QuotationBatch::where('id', $batchId)->where('client_id', session('user_id'))->first();
+        abort_unless($batch, 404);
 
-        $requests = QuotationRequest::where('batch_id', $batchId)
-            ->where('client_id', $client->id)
-            ->get();
-
-        if ($requests->isEmpty()) {
-            abort(404);
-        }
-
-        if ($requests->first()->status !== 'quotation_sent') {
-            return redirect()->route('client.quotation.create')
-                ->with('error', 'There is no quotation currently awaiting your approval.');
-        }
-
-        QuotationRequest::where('batch_id', $batchId)->update([
-            'status'      => 'approved',
-            'approved_at' => now(),
-        ]);
-
-        NotificationService::quotationRequestApproved($requests->first()->fresh());
-
-        return redirect()->route('client.quotation.create')
-            ->with('success', 'Quotation approved! Our team will proceed with your project shortly.');
+        return $batch;
     }
 
-    /** Client rejects the sent quotation — a batch is one combined quotation, so this declines every tank in it. */
+    /**
+     * Runs a client decision on the quotation version they were looking at. Under row locks, so a double
+     * click or two open tabs can't decide twice, and only the latest version still awaiting a decision
+     * can be decided — an older version, or one GMD has since replaced, is refused.
+     */
+    private function decide(Request $request, string $batchId, callable $apply)
+    {
+        $batch = $this->clientBatch($batchId);
+        $request->validate(['version_id' => 'nullable|integer']);
+
+        $result = DB::transaction(function () use ($request, $batch, $apply) {
+            QuotationBatch::whereKey($batch->id)->lockForUpdate()->first();
+            $version = QuotationVersion::where('quotation_batch_id', $batch->id)->lockForUpdate()->orderByDesc('version')->first();
+            $status  = QuotationRequest::where('batch_id', $batch->id)->value('status');
+
+            if ($status !== QuotationRequest::STATUS_SENT || ($version && !$version->isAwaitingDecision())) {
+                return 'You already responded to this quotation.';
+            }
+            if (!$version) {
+                // a quotation uploaded as a file before quotations were generated — no version to tie it to
+                $version = new QuotationVersion([
+                    'quotation_batch_id' => $batch->id, 'version' => 0,
+                    'quotation_number'   => $batch->reference_no, 'contract_value' => (float) $batch->contract_value,
+                ]);
+                $apply(null);
+
+                return $version;
+            }
+            if ((int) $version->id !== (int) $request->input('version_id')) {
+                return 'This is not the latest quotation — please review the newest version before deciding.';
+            }
+
+            $apply($version);
+
+            return $version;
+        });
+
+        if (is_string($result)) {
+            $back = QuotationVersion::where('quotation_batch_id', $batch->id)->exists()
+                ? redirect()->route('client.quotation.show', $batch->id)
+                : redirect()->route('client.quotation.create', ['tab' => 'pending']);
+
+            return [null, $back->with('error', $result)];
+        }
+
+        return [$result, null];
+    }
+
+    /** Client approves the latest quotation version */
+    public function approveQuotation(Request $request, $batchId)
+    {
+        [$version, $refused] = $this->decide($request, $batchId, function (?QuotationVersion $version) use ($batchId) {
+            $version?->update(['status' => QuotationVersion::STATUS_APPROVED, 'responded_at' => now()]);
+            QuotationRequest::where('batch_id', $batchId)->update([
+                'status'      => QuotationRequest::STATUS_APPROVED,
+                'approved_at' => now(),
+            ]);
+        });
+        if ($refused) {
+            return $refused;
+        }
+
+        AuditTrail::record('quotation', $batchId, 'quotation.approved', [
+            'version' => $version->version, 'quotation_number' => $version->quotation_number, 'amount' => $version->contract_value,
+        ]);
+        NotificationService::quotationRequestApproved(QuotationRequest::where('batch_id', $batchId)->first());
+
+        return redirect()->route('client.quotation.create', ['tab' => 'pending'])
+            ->with('success', "Quotation {$version->quotation_number} approved! GMD South Phils will set up your project shortly.");
+    }
+
+    /**
+     * Client asks for changes. Unlike a rejection this reopens the request: it goes back to "pending"
+     * (with the client's reason) so it lands in the admin's queue with the same builder data, and the
+     * version they saw is kept as "revision requested".
+     */
+    public function requestRevision(Request $request, $batchId)
+    {
+        $request->validate(['reason' => 'required|string|max:1000'], ['reason.required' => 'Tell GMD what you would like changed.']);
+        $reason = trim($request->input('reason'));
+
+        [$version, $refused] = $this->decide($request, $batchId, function (?QuotationVersion $version) use ($batchId, $reason) {
+            $version?->update(['status' => QuotationVersion::STATUS_REVISION_REQUESTED, 'responded_at' => now(), 'response_reason' => $reason]);
+            QuotationRequest::where('batch_id', $batchId)->update([
+                'status'         => QuotationRequest::STATUS_PENDING,
+                'decline_reason' => $reason,
+            ]);
+        });
+        if ($refused) {
+            return $refused;
+        }
+
+        AuditTrail::record('quotation', $batchId, 'quotation.revision_requested', ['version' => $version->version, 'reason' => $reason]);
+        NotificationService::quotationRequestRejected(QuotationRequest::where('batch_id', $batchId)->first());
+
+        return redirect()->route('client.quotation.create', ['tab' => 'pending'])
+            ->with('success', 'Revision requested. GMD South Phils will send you an updated quotation.');
+    }
+
+    /** Client rejects the quotation for good — the request is closed */
     public function rejectQuotation(Request $request, $batchId)
     {
-        $client = Client::findOrFail(session('user_id'));
+        $request->validate(['reason' => 'nullable|string|max:1000']);
+        $reason = trim((string) $request->input('reason')) ?: null;
 
-        $requests = QuotationRequest::where('batch_id', $batchId)
-            ->where('client_id', $client->id)
-            ->get();
-
-        if ($requests->isEmpty()) {
-            abort(404);
+        [$version, $refused] = $this->decide($request, $batchId, function (?QuotationVersion $version) use ($batchId, $reason) {
+            $version?->update(['status' => QuotationVersion::STATUS_REJECTED, 'responded_at' => now(), 'response_reason' => $reason]);
+            QuotationRequest::where('batch_id', $batchId)->update([
+                'status'         => QuotationRequest::STATUS_REJECTED,
+                'decline_reason' => $reason,
+            ]);
+        });
+        if ($refused) {
+            return $refused;
         }
 
-        if ($requests->first()->status !== 'quotation_sent') {
-            return redirect()->route('client.quotation.create')
-                ->with('error', 'There is no quotation currently awaiting your decision.');
-        }
+        AuditTrail::record('quotation', $batchId, 'quotation.rejected', ['version' => $version->version, 'reason' => $reason]);
+        NotificationService::quotationRejectedByClient(QuotationRequest::where('batch_id', $batchId)->first());
 
-        $request->validate([
-            'reason' => 'required|string|max:1000',
+        return redirect()->route('client.quotation.create', ['tab' => 'history'])
+            ->with('success', "Quotation {$version->quotation_number} rejected. Thank you for letting us know.");
+    }
+
+    /** Client: the generated quotation (latest version, or ?v=N), with the decision buttons when it awaits one */
+    public function clientShow(Request $request, $batchId)
+    {
+        $batch    = $this->clientBatch($batchId);
+        $versions = $batch->versions()->get();
+        abort_if($versions->isEmpty(), 404);
+
+        $version = $request->filled('v') ? $versions->firstWhere('version', (int) $request->query('v')) : $versions->first();
+        abort_unless($version, 404);
+
+        $isLatest = $version->id === $versions->first()->id;
+        $status   = QuotationRequest::where('batch_id', $batch->id)->value('status');
+
+        return view('quotations.show', [
+            'doc'       => $version->snapshot,
+            'backUrl'   => route('client.quotation.create', ['tab' => in_array($status, ['converted', 'declined', 'rejected'], true) ? 'history' : 'pending']),
+            'backLabel' => 'Back to Quotations',
+            'pdfUrl'    => route('client.quotation.pdf', [$batch->id, $version->version]),
+            'versions'  => $this->versionLinks($versions, $version, fn ($v) => route('client.quotation.show', [$batch->id, 'v' => $v->version])),
+            'decision'  => $isLatest && $version->isAwaitingDecision() && $status === QuotationRequest::STATUS_SENT ? [
+                'version_id'   => $version->id,
+                'approve_url'  => route('client.quotation.approve', $batch->id),
+                'revision_url' => route('client.quotation.revision', $batch->id),
+                'reject_url'   => route('client.quotation.reject', $batch->id),
+            ] : null,
         ]);
+    }
 
-        // Unlike a decline, this reopens the request instead of ending it — it goes
-        // back to "pending" (with the client's reason attached) so it lands back in
-        // the admin's queue and the same Build Quotation page/materials/labor stay
-        // intact for the admin to revise, rather than starting over from scratch.
-        QuotationRequest::where('batch_id', $batchId)->update([
-            'status'         => 'pending',
-            'decline_reason' => $request->input('reason'),
+    public function clientPdf($batchId, $version)
+    {
+        $batch   = $this->clientBatch($batchId);
+        $version = $batch->versions()->where('version', (int) $version)->firstOrFail();
+
+        return $this->pdfResponse($version);
+    }
+
+    private function pdfResponse(QuotationVersion $version)
+    {
+        return response(QuotationDocument::pdfFor($version), 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="' . $version->pdfFilename() . '"',
+            'Cache-Control'       => 'private, no-store',
         ]);
+    }
 
-        NotificationService::quotationRequestRejected($requests->first()->fresh());
-
-        return redirect()->route('client.quotation.create')
-            ->with('success', 'Revision requested. Our team will follow up with an updated quotation.');
+    private function versionLinks($versions, QuotationVersion $current, callable $url)
+    {
+        return $versions->map(fn (QuotationVersion $v) => [
+            'number'  => $v->quotation_number,
+            'label'   => $v->statusLabel(),
+            'badge'   => $v->badgeClass(),
+            'url'     => $url($v),
+            'current' => $v->id === $current->id,
+        ]);
     }
 
     /*
@@ -218,7 +401,7 @@ class QuotationRequestController extends Controller
      */
     public function adminIndex(Request $request)
     {
-        $requests = QuotationRequest::with('client')->orderBy('created_at', 'desc')->get();
+        $requests = QuotationRequest::with(['client', 'quotationBatch'])->orderBy('created_at', 'desc')->get();
 
         $projects     = Project::orderBy('created_at', 'desc')->get();
         // Group by client_id when a project is linked (so a client rename or
@@ -264,12 +447,22 @@ class QuotationRequestController extends Controller
             'reason.max' => 'The decline reason can be at most 500 characters.',
         ]);
 
-        QuotationRequest::where('batch_id', $batchId)->update([
-            'status'         => 'declined',
-            'decline_reason' => $validated['reason'] ?? null,
-        ]);
+        // Only a request that is still open can be declined (an approved quotation is converted, not declined)
+        $updated = QuotationRequest::where('batch_id', $batchId)
+            ->whereIn('status', ['pending', 'in_preparation', 'quotation_sent'])
+            ->update([
+                'status'         => 'declined',
+                'decline_reason' => $validated['reason'] ?? null,
+            ]);
+        if (!$updated) {
+            return redirect()->route('admin.quotation_requests')
+                ->with('error', 'This request can no longer be declined — it was already decided.');
+        }
 
-        NotificationService::quotationRequestDeclined($quotationRequest);
+        QuotationVersion::where('quotation_batch_id', $batchId)->where('status', QuotationVersion::STATUS_SENT)
+            ->update(['status' => QuotationVersion::STATUS_SUPERSEDED]);
+        AuditTrail::record('quotation', $batchId, 'quotation.declined', ['reason' => $validated['reason'] ?? null]);
+        NotificationService::quotationRequestDeclined($quotationRequest->fresh());
 
         return redirect()->route('admin.quotation_requests')
             ->with('success', 'Quotation request declined.');
@@ -301,7 +494,7 @@ class QuotationRequestController extends Controller
 
         if (!$batch->payment_term_type) {
             return response()->json([
-                'message' => 'Please set Payment Terms on the Build Quotation page before converting.',
+                'message' => 'Please set Payment Terms on the Costing page before converting.',
             ], 422);
         }
 
@@ -310,11 +503,20 @@ class QuotationRequestController extends Controller
             ->unique()
             ->values();
 
+        // Dimensions the client (or GMD, in the builder's specification lines) already gave carry over,
+        // so the Add Project form starts with them instead of asking again.
+        $specLines  = QuotationDocument::specifications($batch);
+        $dimensions = $this->projectDimensions(
+            collect($specLines)->first(fn ($l) => stripos((string) ($l['label'] ?? ''), 'dimension') !== false)['value']
+                ?? ($requests->first()->specifications['dimensions'] ?? null)
+        );
+
         $tankItem = fn (?string $type, $quantity, ?string $capacity, $timeline) => [
             'tank_type'        => in_array($type, ProjectTankItem::TANK_TYPES, true) ? $type : ($type ? 'Others' : null),
             'tank_type_custom' => in_array($type, ProjectTankItem::TANK_TYPES, true) ? null : $type,
             'quantity'         => $quantity,
             'capacity'         => $capacity,
+            'dimensions'       => $dimensions,
             'target_timeline'  => $timeline,
         ];
 
@@ -339,12 +541,44 @@ class QuotationRequestController extends Controller
             'reference_files' => $referenceFiles,
             'summary' => [
                 'notes' => trim(implode("\n", array_filter([
+                    'Quotation ' . ($batch->latestVersion()?->quotation_number ?? $batch->reference_no) . ' (approved by the client).',
                     $requests->first()->notes,
                     $requests->filter(fn ($qr) => $qr->tank_type && !in_array($qr->tank_type, ProjectTankItem::TANK_TYPES, true))
                         ->map(fn ($qr) => 'Tank type (Others): ' . $qr->tank_type)->unique()->implode('; '),
+                    // the approved specifications travel with the project
+                    collect($specLines)->map(fn ($l) => trim(($l['label'] ?? '') . ': ' . ($l['value'] ?? ''), ': '))->implode("\n"),
                 ]))),
             ],
         ]);
+    }
+
+    /**
+     * "2,200 mm Ø × 4,850 mm L" / "2.2 m dia x 4.85 m" / "4 x 2 x 2 m" → the Add Project form's own format
+     * ("Ø2.2m × L4.85m", "L4m × W2m × H2m"), so its dimension fields fill in. Anything it can't read is
+     * left for the admin (null).
+     */
+    private function projectDimensions(?string $text): ?string
+    {
+        if (!$text) {
+            return null;
+        }
+        $t = mb_strtolower(str_replace(',', '', $text));
+        $toM = fn (string $value, ?string $unit) => round((float) $value / (($unit ?? 'm') === 'mm' ? 1000 : (($unit ?? 'm') === 'cm' ? 100 : 1)), 3);
+        $num = '([\d.]+)\s*(mm|cm|m)?';
+
+        if (preg_match("/{$num}\s*(?:ø|dia\.?|diameter|⌀)\s*[x×*]\s*{$num}/u", $t, $m)
+            || preg_match("/(?:ø|dia\.?|diameter|⌀)\s*{$num}\s*[x×*]\s*(?:l\s*)?{$num}/u", $t, $m)) {
+            $m = array_pad($m, 7, '');   // trailing optional groups that didn't match are left out
+            $unit2 = $m[4] ?: ($m[2] ?: 'm');
+            return 'Ø' . $toM($m[1], $m[2] ?: $unit2) . 'm × L' . $toM($m[3], $unit2) . 'm';
+        }
+        if (preg_match("/{$num}\s*[x×*]\s*{$num}\s*[x×*]\s*{$num}/u", $t, $m)) {
+            $m = array_pad($m, 7, '');
+            $unit = $m[6] ?: ($m[4] ?: ($m[2] ?: 'm'));
+            return 'L' . $toM($m[1], $m[2] ?: $unit) . 'm × W' . $toM($m[3], $m[4] ?: $unit) . 'm × H' . $toM($m[5], $unit) . 'm';
+        }
+
+        return null;
     }
 
     /*
@@ -371,19 +605,33 @@ class QuotationRequestController extends Controller
         ]);
     }
 
-    /** Once the client has approved the quotation it is final — the Quotation Builder becomes view-only. */
+    /**
+     * Once the client has decided (approved / rejected) or GMD declined the request, the quotation is final —
+     * the Quotation Builder becomes view-only. While a quotation is out with the client it is also frozen,
+     * so what they are reviewing can't change under them; a revision request reopens it.
+     */
+    private const LOCKED_STATUSES = ['quotation_sent', 'approved', 'converted', 'rejected', 'declined'];
+
     private function isLocked(string $batchId): bool
     {
         return QuotationRequest::where('batch_id', $batchId)
-            ->whereIn('status', ['approved', 'converted'])
+            ->whereIn('status', self::LOCKED_STATUSES)
             ->exists();
     }
 
     private function lockedRedirect(string $batchId)
     {
+        $status = QuotationRequest::where('batch_id', $batchId)->value('status');
+        $why = match ($status) {
+            'quotation_sent' => 'The quotation is with the client for review. It can be edited again if they request a revision.',
+            'rejected'       => 'The client rejected this quotation, so it can no longer be edited.',
+            'declined'       => 'This request was declined, so its quotation can no longer be edited.',
+            default          => 'The client has already approved this quotation, so it can no longer be edited.',
+        };
+
         return redirect()
             ->route('admin.quotation_requests.batch_detail', $batchId)
-            ->with('error', 'The client has already approved this quotation, so it can no longer be edited.');
+            ->with('error', $why);
     }
 
     public function batchDetail($batchId)
@@ -412,7 +660,13 @@ class QuotationRequestController extends Controller
 
         $estimatedBudget = $batch->estimatedBudget();
         $batchStatus     = $tankItems->first()->status ?? 'pending';
-        $isLocked        = in_array($batchStatus, ['approved', 'converted'], true);
+        $isLocked        = in_array($batchStatus, self::LOCKED_STATUSES, true);
+
+        // The generated document's content: specification lines and print settings, plus every version sent
+        $specLines   = QuotationDocument::specifications($batch);
+        $docSettings = QuotationDocument::settings($batch);
+        $versions    = $batch->versions()->get();
+        $activity    = AuditLog::for('quotation', $batch->id)->latest('id')->limit(30)->get();
 
         $regularEmployees = Employee::where('status', 'Active')
             ->where('employee_type', 'Regular')
@@ -435,13 +689,151 @@ class QuotationRequestController extends Controller
         ];
         $tankTypeOptions = $this->builderTankOptions($quotationTemplates, $builderTank);
 
+        // Two steps: 1 · Costing (tank, pricing, materials, labor) → 2 · Quotation Document (what the
+        // client receives). The document step opens once the costing is complete and saved.
+        $costingGaps  = $this->quotationGaps($batch);
+        $costingReady = empty($costingGaps);
+        $step         = request('step') === 'document' && ($costingReady || $isLocked) ? 'document' : 'costing';
+
         return view('admin.quotation_batch_detail', compact(
             'batch', 'tankItems', 'batchStatus', 'isLocked',
             'materials', 'totalMaterials', 'estimatedCost', 'materialFactor',
             'laborEntries', 'totalLaborEntries', 'totalLaborCost',
             'estimatedBudget', 'regularEmployees', 'quotationTemplates',
-            'builderTank', 'tankTypeOptions'
+            'builderTank', 'tankTypeOptions',
+            'specLines', 'docSettings', 'versions', 'activity',
+            'costingReady', 'costingGaps', 'step'
         ));
+    }
+
+    /**
+     * Admin: the Quotation Document step's live preview — the document as it would be generated with the
+     * details exactly as typed (not yet saved). The typed values are applied to an in-memory copy of the
+     * quotation only; nothing is written. Returns a small standalone page shown in the preview frame.
+     */
+    public function livePreview(Request $request, $batchId)
+    {
+        $batch = $this->resolveBatch($batchId);
+
+        $request->validate([
+            'spec_label'           => 'nullable|array|max:40',
+            'spec_label.*'         => 'nullable|string|max:120',
+            'spec_value'           => 'nullable|array|max:40',
+            'spec_value.*'         => 'nullable|string|max:1000',
+            'doc'                  => 'nullable|array',
+            'doc.project_title'    => 'nullable|string|max:255',
+            'doc.project_location' => 'nullable|string|max:500',
+            'doc.rfq_ref'          => 'nullable|string|max:100',
+            'doc.validity_days'    => 'nullable|integer|min:1|max:365',
+            'doc.warranty'         => 'nullable|string|max:1000',
+            'doc.notes'            => 'nullable|string|max:4000',
+            'doc.signatory_name'   => 'nullable|string|max:120',
+            'doc.signatory_title'  => 'nullable|string|max:120',
+        ]);
+
+        // same shaping as the builder's Save (saveBatch), applied without saving
+        if ($request->has('spec_label')) {
+            $values = $request->input('spec_value', []);
+            $lines  = [];
+            foreach ($request->input('spec_label', []) as $i => $label) {
+                $label = trim((string) $label);
+                $value = trim((string) ($values[$i] ?? ''));
+                if ($label !== '' || $value !== '') {
+                    $lines[] = ['label' => $label, 'value' => $value];
+                }
+            }
+            $batch->specifications = $lines;
+        }
+        if ($request->has('doc')) {
+            $doc = collect($request->input('doc', []))
+                ->only(['project_title', 'project_location', 'rfq_ref', 'validity_days', 'warranty', 'notes', 'signatory_name', 'signatory_title'])
+                ->map(fn ($v) => is_string($v) ? trim($v) : $v)
+                ->all();
+            $doc['show_breakdown'] = $request->boolean('doc.show_breakdown');
+            $batch->document = $doc;
+        }
+
+        return response()->view('quotations.live_preview', ['doc' => QuotationDocument::build($batch)])
+            ->header('Cache-Control', 'no-store');
+    }
+
+    /** Admin: the quotation as it would be generated right now, before sending (nothing is saved) */
+    public function preview($batchId)
+    {
+        $batch = $this->resolveBatch($batchId);
+
+        return view('quotations.show', [
+            'doc'       => QuotationDocument::build($batch),
+            'backUrl'   => route('admin.quotation_requests.batch_detail', ['batchId' => $batch->id, 'step' => 'document']),
+            'backLabel' => 'Back to Quotation Document',
+            'pdfUrl'    => route('admin.quotation_requests.batch_preview_pdf', $batch->id),
+            'versions'  => collect(),
+            'decision'  => null,
+        ]);
+    }
+
+    public function previewPdf($batchId)
+    {
+        $batch = $this->resolveBatch($batchId);
+
+        return response(QuotationDocument::pdfBytes(QuotationDocument::build($batch)), 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="quotation-' . $batch->reference_no . '-draft.pdf"',
+            'Cache-Control'       => 'private, no-store',
+        ]);
+    }
+
+    /** Admin: a quotation version exactly as it was sent */
+    public function adminVersion($batchId, $version)
+    {
+        $batch    = $this->resolveBatch($batchId);
+        $versions = $batch->versions()->get();
+        $current  = $versions->firstWhere('version', (int) $version);
+        abort_unless($current, 404);
+
+        return view('quotations.show', [
+            'doc'       => $current->snapshot,
+            'backUrl'   => route('admin.quotation_requests.batch_detail', ['batchId' => $batch->id, 'step' => 'document']),
+            'backLabel' => 'Back to Quotation Document',
+            'pdfUrl'    => route('admin.quotation_requests.version_pdf', [$batch->id, $current->version]),
+            'versions'  => $this->versionLinks($versions, $current, fn ($v) => route('admin.quotation_requests.version', [$batch->id, $v->version])),
+            'decision'  => null,
+        ]);
+    }
+
+    public function adminVersionPdf($batchId, $version)
+    {
+        $batch = $this->resolveBatch($batchId);
+
+        return $this->pdfResponse($batch->versions()->where('version', (int) $version)->firstOrFail());
+    }
+
+    /**
+     * Admin takes back a quotation that is with the client but not yet decided (e.g. to fix a mistake):
+     * the sent version is marked superseded and the builder opens for editing; the next send is a revision.
+     */
+    public function withdraw($batchId)
+    {
+        $done = DB::transaction(function () use ($batchId) {
+            QuotationBatch::whereKey($batchId)->lockForUpdate()->first();
+            $updated = QuotationRequest::where('batch_id', $batchId)->where('status', QuotationRequest::STATUS_SENT)
+                ->update(['status' => QuotationRequest::STATUS_IN_PREPARATION]);
+            if ($updated) {
+                QuotationVersion::where('quotation_batch_id', $batchId)->where('status', QuotationVersion::STATUS_SENT)
+                    ->update(['status' => QuotationVersion::STATUS_SUPERSEDED]);
+            }
+            return $updated > 0;
+        });
+
+        if (!$done) {
+            return redirect()->route('admin.quotation_requests.batch_detail', $batchId)
+                ->with('error', 'Only a quotation still waiting for the client\'s decision can be withdrawn.');
+        }
+
+        AuditTrail::record('quotation', $batchId, 'quotation.in_preparation', ['note' => 'Withdrawn from the client for revision']);
+
+        return redirect()->route('admin.quotation_requests.batch_detail', $batchId)
+            ->with('success', 'Quotation withdrawn. Make your changes and send the revised quotation.');
     }
 
     /**
@@ -637,55 +1029,88 @@ class QuotationRequestController extends Controller
         if ($gaps = $this->quotationGaps($batch)) {
             return redirect()
                 ->route('admin.quotation_requests.batch_detail', $batchId)
-                ->with('error', 'Complete the Quotation Builder before sending to the client: ' . implode(', ', $gaps) . '.');
+                ->with('error', 'Complete the Costing before sending to the client: ' . implode(', ', $gaps) . '.');
         }
 
+        // The quotation document is generated by the system — supporting files (e.g. a shop drawing) are optional extras
         $request->validate([
-            'quotation_files'    => 'required|array|min:1|max:5',
+            'quotation_files'    => 'nullable|array|max:5',
             'quotation_files.*'  => 'file|mimes:pdf,jpg,jpeg,png|max:10240',
         ]);
 
-        // Snapshotted here, never recomputed live afterward — see migration comment.
-        // Markup was already saved separately (outside this modal) before sending.
-        $projectBudget = $batch->estimatedBudget()['total'];
-        $markup        = (float) ($batch->markup ?? 0);
-        $contractValue = round($projectBudget + $markup, 2);
+        $attachments = $request->hasFile('quotation_files')
+            ? $this->storage->uploadMultiple($request->file('quotation_files', []), 'quotation-requests/' . $batchId . '/attachments')
+            : null;
 
-        $quotationUrls = $batch->quotation_files;
-        if ($request->hasFile('quotation_files')) {
-            $uploaded = $this->storage->uploadMultiple(
-                $request->file('quotation_files', []),
-                'quotation-requests/' . $batchId . '/quotations'
-            );
-            if (!empty($uploaded)) {
-                $quotationUrls = $uploaded;
+        // Under a lock on the quotation: a double click or two admins sending at once produce ONE version
+        $version = DB::transaction(function () use ($batchId, $attachments) {
+            $batch  = QuotationBatch::whereKey($batchId)->lockForUpdate()->first();
+            $status = QuotationRequest::where('batch_id', $batchId)->value('status');
+            if (!in_array($status, QuotationRequest::EDITABLE_STATUSES, true)) {
+                return null;
             }
+
+            // Snapshotted here, never recomputed live afterward — the version and the batch carry the sent figures
+            $projectBudget = round($batch->estimatedBudget()['total'], 2);
+            $markup        = (float) ($batch->markup ?? 0);
+            $contractValue = round($projectBudget + $markup, 2);
+            $number        = (int) $batch->current_version + 1;
+            $sentAt        = now();
+
+            $batch->update([
+                'project_budget'  => $projectBudget,
+                'markup'          => $markup,
+                'contract_value'  => $contractValue,
+                'current_version' => $number,
+                'quotation_files' => $attachments ?: $batch->quotation_files,
+            ]);
+
+            // The previous version (if the client asked for a revision) stays on record, marked as replaced
+            QuotationVersion::where('quotation_batch_id', $batchId)->where('status', QuotationVersion::STATUS_SENT)
+                ->update(['status' => QuotationVersion::STATUS_SUPERSEDED]);
+
+            $version = QuotationVersion::create([
+                'quotation_batch_id' => $batchId,
+                'version'            => $number,
+                'quotation_number'   => $batch->quotationNumberFor($number),
+                'status'             => QuotationVersion::STATUS_SENT,
+                'snapshot'           => QuotationDocument::build($batch->fresh(), $number, $sentAt),
+                'contract_value'     => $contractValue,
+                'sent_at'            => $sentAt,
+                'sent_by'            => session('name') ?: 'Admin',
+            ]);
+
+            QuotationRequest::where('batch_id', $batchId)->update([
+                'status'            => QuotationRequest::STATUS_SENT,
+                'quotation_sent_at' => $sentAt,
+                // Clear any earlier revision-request reason — this fresh send addresses it (it stays on the old version).
+                'decline_reason'    => null,
+            ]);
+
+            return $version;
+        });
+
+        if (!$version) {
+            return redirect()->route('admin.quotation_requests.batch_detail', $batchId)
+                ->with('success', 'This quotation was already sent to the client.');
         }
 
-        $sentAt = now();
-
-        $batch->update([
-            'project_budget'  => $projectBudget,
-            'markup'          => $markup,
-            'contract_value'  => $contractValue,
-            'quotation_files' => $quotationUrls,
-        ]);
-
-        QuotationRequest::where('batch_id', $batchId)->update([
-            'status'            => 'quotation_sent',
-            'quotation_sent_at' => $sentAt,
-            // Clear any earlier revision-request reason — this fresh send addresses it.
-            'decline_reason'    => null,
-        ]);
-
-        $firstRequest = QuotationRequest::where('batch_id', $batchId)->first();
-        if ($firstRequest) {
-            NotificationService::quotationRequestQuotationSent($firstRequest);
+        // Generate and store the PDF now so the client's first download is instant (a failure here is not fatal —
+        // the PDF is rebuilt from the frozen snapshot on demand)
+        try {
+            QuotationDocument::pdfFor($version);
+        } catch (\Throwable $e) {
+            report($e);
         }
+
+        AuditTrail::record('quotation', $batchId, 'quotation.sent', [
+            'version' => $version->version, 'quotation_number' => $version->quotation_number, 'amount' => $version->contract_value,
+        ]);
+        NotificationService::quotationVersionSent(QuotationRequest::where('batch_id', $batchId)->first(), $version);
 
         return redirect()
             ->route('admin.quotation_requests.batch_detail', $batchId)
-            ->with('success', 'Quotation sent to the client. Waiting for their approval.');
+            ->with('success', "Quotation {$version->quotation_number} generated and sent to the client's portal. Waiting for their decision.");
     }
 
     public function storeMaterials(Request $request, $batchId)
@@ -928,6 +1353,22 @@ class QuotationRequestController extends Controller
             'daily_rate.*'           => 'nullable|numeric|min:0',
             'labor_toggle_id'        => 'nullable|array',
             'labor_toggle_id.*'      => 'integer',
+
+            // what the generated quotation document prints
+            'spec_label'             => 'nullable|array|max:40',
+            'spec_label.*'           => 'nullable|string|max:120',
+            'spec_value'             => 'nullable|array|max:40',
+            'spec_value.*'           => 'nullable|string|max:1000',
+            'doc'                    => 'nullable|array',
+            'doc.project_title'      => 'nullable|string|max:255',
+            'doc.project_location'   => 'nullable|string|max:500',
+            'doc.rfq_ref'            => 'nullable|string|max:100',
+            'doc.validity_days'      => 'nullable|integer|min:1|max:365',
+            'doc.warranty'           => 'nullable|string|max:1000',
+            'doc.notes'              => 'nullable|string|max:4000',
+            'doc.show_breakdown'     => 'nullable|boolean',
+            'doc.signatory_name'     => 'nullable|string|max:120',
+            'doc.signatory_title'    => 'nullable|string|max:120',
         ], [
             'markup_percent.min'     => 'Markup must be between ' . QuotationBatch::MARKUP_MIN . '% and ' . QuotationBatch::MARKUP_MAX . '%.',
             'markup_percent.max'     => 'Markup must be between ' . QuotationBatch::MARKUP_MIN . '% and ' . QuotationBatch::MARKUP_MAX . '%.',
@@ -1044,17 +1485,54 @@ class QuotationRequestController extends Controller
                 'markup_percent'    => $request->input('markup_percent'),
                 'payment_term_type' => $request->input('payment_term_type') ?: $batch->payment_term_type,
             ]);
+
+            // The quotation document: specification lines (in the order shown) and its print settings
+            if ($request->has('spec_label')) {
+                $values = $request->input('spec_value', []);
+                $lines  = [];
+                foreach ($request->input('spec_label', []) as $i => $label) {
+                    $label = trim((string) $label);
+                    $value = trim((string) ($values[$i] ?? ''));
+                    if ($label !== '' || $value !== '') {
+                        $lines[] = ['label' => $label, 'value' => $value];
+                    }
+                }
+                $batch->update(['specifications' => $lines]);
+            }
+            if ($request->has('doc')) {
+                $doc = collect($request->input('doc', []))
+                    ->only(['project_title', 'project_location', 'rfq_ref', 'validity_days', 'warranty', 'notes', 'signatory_name', 'signatory_title'])
+                    ->map(fn ($v) => is_string($v) ? trim($v) : $v)
+                    ->all();
+                $doc['show_breakdown'] = $request->boolean('doc.show_breakdown');
+                $batch->update(['document' => $doc]);
+            }
+
+            // GMD has started on it: Pending → In Preparation
+            QuotationRequest::where('batch_id', $batchId)->where('status', QuotationRequest::STATUS_PENDING)
+                ->update(['status' => QuotationRequest::STATUS_IN_PREPARATION]);
         });
+
+        AuditTrail::record('quotation', $batchId, 'quotation.saved', array_filter([
+            'changes'  => $summary ? implode(', ', $summary) : null,
+            'quantity' => (int) $request->input('tank_quantity'),
+            'markup'   => (float) $request->input('markup_percent'),
+        ]));
 
         // "Send to Client" saves first so the modal always shows what is persisted.
         $routeParams = ['batchId' => $batchId];
+        if ($request->input('step') === 'document') {
+            $routeParams['step'] = 'document';   // back to the step the admin saved from
+        }
         if ($request->boolean('open_send_modal')) {
             $routeParams['open_send'] = 1;
+            $routeParams['step']      = 'document';
         }
 
+        $what = $request->input('step') === 'document' ? 'Quotation document saved' : 'Costing saved';
         return redirect()
             ->route('admin.quotation_requests.batch_detail', $routeParams)
-            ->with('success', $summary ? 'Quotation saved — ' . implode(', ', $summary) . '.' : 'Quotation saved.');
+            ->with('success', $summary ? $what . ' — ' . implode(', ', $summary) . '.' : $what . '.');
     }
 
 

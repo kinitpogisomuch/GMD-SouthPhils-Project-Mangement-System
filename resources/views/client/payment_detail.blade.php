@@ -249,6 +249,119 @@
                 </div>
             </div>
 
+            @if(session('error'))
+            <div class="alert-banner error" role="alert" style="margin-bottom:16px;">
+                <i data-lucide="alert-circle"></i>
+                <span>{{ session('error') }}</span>
+            </div>
+            @endif
+
+            <!-- Pay Online (payment gateway) -->
+            @php
+                $pendingOnline = $onlinePayments->firstWhere('status', \App\Models\OnlinePayment::STATUS_PENDING);
+            @endphp
+            <div class="card" style="margin-bottom:20px;overflow:hidden;">
+                <div class="card-header pf-header-dark">
+                    <div class="card-title">Pay Online</div>
+                </div>
+                <div class="card-body po-body">
+                    @if($payable)
+                    <div class="po-due">
+                        <div>
+                            <div class="po-label">Amount due now</div>
+                            <div class="po-amount">₱{{ number_format($payable['amount'], 2) }}</div>
+                            <div class="po-sub">{{ \App\Models\PaymentTransaction::stageLabel($payable['stage']) }} · {{ $payment->payment_terms }}</div>
+                        </div>
+                        @if($onlineEnabled && $payable['amount'] >= \App\Services\OnlinePayments::MIN_AMOUNT)
+                        <form method="POST" action="{{ route('client.payments.online.pay', $payment->id) }}" class="po-form">
+                            @csrf
+                            <button type="submit" class="save-btn po-btn">
+                                <i data-lucide="landmark"></i>
+                                Pay Now
+                            </button>
+                            <span class="po-secure"><i data-lucide="lock"></i> Secured by PayMongo</span>
+                        </form>
+                        @endif
+                    </div>
+                    @if($onlineEnabled)
+                    <ol class="po-steps">
+                        <li>Press <strong>Pay Now</strong> — you'll go to PayMongo's secure payment page.</li>
+                        <li>Pay through your bank: <strong>BPI, UnionBank, BDO, Landbank or Metrobank</strong> online banking, or scan the <strong>QR Ph</strong> code with any bank app.</li>
+                        <li>Your payment is confirmed directly with the bank and recorded here automatically — no proof upload needed.</li>
+                    </ol>
+                    <p class="po-note">GMD never sees or stores your online banking login, PIN or OTP — you enter them only on your bank's or PayMongo's page.</p>
+                    @else
+                    <div class="alert-banner info" style="margin:0;">
+                        <i data-lucide="info"></i>
+                        <span>Online payment isn't switched on yet. Please pay by bank transfer, cheque or cash and upload your proof of payment below.</span>
+                    </div>
+                    @endif
+                    @if($pendingOnline)
+                    <div class="alert-banner" style="margin:14px 0 0;background:#fffbeb;border:1px solid #fde68a;color:#92400e;align-items:center;">
+                        <i data-lucide="hourglass"></i>
+                        <span style="flex:1;">An online payment of <strong>₱{{ number_format($pendingOnline->amount, 2) }}</strong> ({{ $pendingOnline->reference }}) is waiting for your bank's confirmation. If you completed it, it will be recorded automatically.</span>
+                        <form method="POST" action="{{ route('client.payments.online.check', $pendingOnline->id) }}" style="margin:0;">
+                            @csrf
+                            <button type="submit" class="cancel-btn" style="white-space:nowrap;">Check status</button>
+                        </form>
+                    </div>
+                    @endif
+                    @else
+                    <div style="display:flex;align-items:center;gap:12px;color:var(--muted);">
+                        <i data-lucide="check-circle-2" style="width:22px;height:22px;flex-shrink:0;"></i>
+                        <span style="font-size:13px;">{{ $payment->currentBalance() <= 0 ? 'This project is fully paid. Thank you!' : 'Nothing is due right now. The next payment opens when your project reaches its payment stage.' }}</span>
+                    </div>
+                    @endif
+
+                    @if($onlinePayments->isNotEmpty())
+                    <div class="table-wrap" style="margin-top:16px;">
+                        <table class="po-table">
+                            <thead>
+                                <tr><th>Date</th><th>Stage</th><th>Amount</th><th>Method</th><th>Reference</th><th>Status</th></tr>
+                            </thead>
+                            <tbody>
+                                @foreach($onlinePayments as $op)
+                                <tr>
+                                    <td data-label="Date">{{ ($op->paid_at ?? $op->created_at)->format('M d, Y g:i A') }}</td>
+                                    <td data-label="Stage">{{ \App\Models\PaymentTransaction::stageLabel($op->payment_stage) }}</td>
+                                    <td data-label="Amount"><strong>₱{{ number_format($op->amount, 2) }}</strong></td>
+                                    <td data-label="Method">{{ $op->methodLabel() }}</td>
+                                    <td data-label="Reference" style="font-family:monospace;font-size:11.5px;">{{ $op->provider_payment_id ?: $op->reference }}</td>
+                                    <td data-label="Status"><span class="status-badge {{ $op->badgeClass() }}">{{ $op->statusLabel() }}</span></td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    @endif
+                </div>
+            </div>
+            <style>
+                .po-body { display:flex; flex-direction:column; gap:14px; }
+                .po-due { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; padding:16px 18px; border-radius:16px; background:var(--cream-soft); border:1px solid var(--border); }
+                .po-label { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
+                .po-amount { font-size:26px; font-weight:900; color:var(--dark); letter-spacing:-.4px; }
+                .po-sub { font-size:12.5px; color:var(--muted); font-weight:600; }
+                .po-form { display:flex; flex-direction:column; align-items:flex-end; gap:6px; margin:0; }
+                .po-btn { padding:13px 28px; font-size:14.5px; }
+                .po-secure { display:inline-flex; align-items:center; gap:5px; font-size:11.5px; color:var(--muted); font-weight:700; }
+                .po-secure i, .po-secure svg { width:12px; height:12px; }
+                .po-steps { margin:0; padding-left:20px; font-size:13px; line-height:1.7; color:var(--dark); }
+                .po-note { margin:0; font-size:12px; color:var(--muted); }
+                .po-table { width:100%; border-collapse:collapse; font-size:12.5px; }
+                .po-table th { text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); padding:8px 10px; border-bottom:1px solid var(--border); }
+                .po-table td { padding:9px 10px; border-bottom:1px solid var(--border); }
+                @media (max-width:640px) {
+                    .po-form { align-items:stretch; width:100%; }
+                    .po-btn { justify-content:center; width:100%; }
+                    .po-secure { justify-content:center; }
+                    .po-table thead { display:none; }
+                    .po-table tr { display:block; padding:8px 0; border-bottom:1px solid var(--border); }
+                    .po-table td { display:flex; justify-content:space-between; gap:10px; border:none; padding:3px 0; }
+                    .po-table td::before { content:attr(data-label); font-weight:700; color:var(--muted); }
+                }
+            </style>
+
             <div class="pd-two-col" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(380px, 1fr));gap:20px;align-items:stretch;margin-bottom:20px;">
             <!-- Upload Proof of Payment -->
             <div class="card">

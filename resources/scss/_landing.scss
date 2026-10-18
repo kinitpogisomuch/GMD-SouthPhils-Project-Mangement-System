@@ -1,0 +1,102 @@
+@use 'tokens' as *;
+
+// Landing page enhancements, driven by public/js/landing.js (GSAP + ScrollTrigger).
+
+// When GSAP is running it owns the scroll reveals, so the old CSS transition version stands down
+// (otherwise both would animate the same elements).
+html.ui-gsap {
+    .reveal, .reveal-left, .reveal-right, .reveal-scale {
+        opacity: 1;
+        transform: none;
+        transition: none;
+    }
+}
+
+// ---- Hero headline: a smaller size than landing.css's clamp(40px, 6vw, 76px) ----
+.lp-hero.hero h1 {
+    font-size: clamp(32px, 4.4vw, 56px);
+    letter-spacing: -1.5px;
+}
+
+// Gold underline that sweeps under "Precision."
+.lp-hero h1 .gold {
+    position: relative;
+    display: inline-block;
+
+    &::after {
+        content: '';
+        position: absolute;
+        left: 2%;
+        right: 2%;
+        bottom: 0.02em;
+        height: 0.09em;
+        border-radius: 999px;
+        background: $accent;
+        transform: scaleX(var(--ui-underline, 1));
+        transform-origin: left;
+        opacity: 0.85;
+    }
+}
+
+// ---- Tank cards: light sweep + 3D tilt (tilt is applied by landing.js on mouse devices) ----
+.qt-card {
+    transform-style: preserve-3d;
+    will-change: transform;
+
+    .portfolio-body {
+        position: relative;
+        overflow: hidden;
+
+        &::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            width: 45%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.07), transparent);
+            transform: translateX(-130%) skewX(-18deg);
+            pointer-events: none;
+        }
+    }
+
+    &:hover .portfolio-body::before {
+        @include motion-safe { animation: ui-sheen 0.9s $ease-out; }
+    }
+}
+
+// ---- Stats bar: gold progress line under each number as it counts up ----
+.stat-box::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: 22px;
+    width: 34px;
+    height: 3px;
+    margin-left: -17px;
+    border-radius: 999px;
+    background: $accent;
+    transform: scaleX(var(--ui-progress, 1));
+    transform-origin: left;
+
+    @media (max-width: 640px) { bottom: 12px; }
+}
+
+// ---- Buttons in the hero follow the cursor slightly (landing.js) ----
+.lp-hero .btn-gold,
+.lp-hero .btn-ghost {
+    will-change: transform;
+}
+
+// ---- Quote modal (Alpine.js): fade + pop handled by x-transition ----
+.qt-modal {
+    &.show { opacity: 1; }
+
+    // the page's .btn-gold is white (made for the dark hero) — on the white dialog it needs to be solid
+    .qt-modal-actions .btn-gold {
+        background: $ink;
+        color: #fff;
+
+        &:hover { background: $ink-soft; color: #fff; }
+    }
+}

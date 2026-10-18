@@ -26,6 +26,66 @@
         }
         .quotation-view-tab:hover { color: var(--dark); }
         .quotation-view-tab.active { background: var(--dark); color: var(--white); }
+        .quotation-view-tab { display: inline-flex; align-items: center; gap: 7px; }
+        .qv-count { display: inline-flex; align-items: center; justify-content: center; min-width: 19px; height: 19px; padding: 0 6px; border-radius: 999px; background: #F5B400; color: #1a1a1a; font-size: 10.5px; font-weight: 900; }
+
+        /* ── Overview: what needs attention, at a glance (each card filters the list) ── */
+        .qo-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; }
+        .qo-card { display: flex; align-items: center; gap: 14px; padding: 16px 18px; text-align: left; font: inherit; cursor: pointer;
+                   background: var(--white); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 1px 2px rgba(0,0,0,.03);
+                   transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+        .qo-card:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0,0,0,.07); border-color: #d6d6d6; }
+        .qo-card.is-on { border-color: var(--dark); box-shadow: 0 0 0 3px rgba(0,0,0,.06); }
+        .qo-icon { width: 44px; height: 44px; border-radius: 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .qo-icon svg { width: 21px; height: 21px; }
+        .qo-num { font-size: 24px; font-weight: 900; color: var(--dark); line-height: 1; font-variant-numeric: tabular-nums; }
+        .qo-label { margin-top: 4px; font-size: 12px; font-weight: 800; color: var(--dark); }
+        .qo-sub { font-size: 11px; font-weight: 600; color: var(--muted); margin-top: 1px; }
+        .qo-card.is-urgent .qo-num { color: #B45309; }
+
+        /* ── Requests table polish ── */
+        #quotationRequestsTable { table-layout: fixed; width: 100%; min-width: 980px; }   /* narrower screens scroll sideways in the card */
+        .qr-table-scroll { overflow-x: auto; }
+        #quotationRequestsTable .qr-client { display: flex; align-items: center; gap: 11px; min-width: 0; }
+        #quotationRequestsTable .qr-ref { display: inline-flex; align-items: center; padding: 1px 7px; border-radius: 6px; background: var(--cream-deep, #ebebeb); color: var(--dark);
+                                           font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; font-weight: 700; letter-spacing: .02em; }
+        #quotationRequestsTable .qr-date { font-size: 13px; font-weight: 700; color: var(--dark); white-space: nowrap; }
+        #quotationRequestsTable .qr-ago { font-size: 11px; font-weight: 600; color: var(--muted); margin-top: 2px; white-space: nowrap; }
+        #quotationRequestsTable .status-badge { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; }
+        #quotationRequestsTable .status-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; opacity: .85; }
+        #quotationRequestsTable tbody tr:not([id]) { transition: background .15s ease; }
+
+        /* search and the status tabs share one row (tabs made a little smaller to fit) */
+        #requestsViewContent .table-toolbar { flex-wrap: nowrap; align-items: center; gap: 12px; }
+        #requestsViewContent .table-toolbar .search-box { flex: 0 1 260px; min-width: 180px; max-width: 260px; }
+        #quotationStatusTabs { flex: 0 1 auto; min-width: 0; padding: 3px; margin-left: auto; }
+        #quotationStatusTabs .filter-tab { padding: 6px 10px; font-size: 12px; gap: 5px; white-space: nowrap; }
+        #quotationStatusTabs .filter-count { min-width: 17px; height: 17px; font-size: 10px; padding: 0 5px; }
+
+        @media (max-width: 1100px) { .qo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+        @media (max-width: 1180px) {
+            #requestsViewContent .table-toolbar { flex-wrap: wrap; }
+            #requestsViewContent .table-toolbar .search-box { flex: 1 1 100%; max-width: 100%; }
+            #quotationStatusTabs { margin-left: 0; }
+        }
+        /* phones: the shared stylesheet pins narrow columns (Client 150px) — give Client and Status room
+           and let the table scroll sideways inside the card instead of breaking names mid-word */
+        @media (max-width: 768px) {
+            html #quotationRequestsTable { min-width: 860px !important; }
+            html #quotationRequestsTable colgroup col:nth-child(1) { width: 210px !important; }   /* Client */
+            html #quotationRequestsTable colgroup col:nth-child(2) { width: 200px !important; }   /* Tank + target */
+            html #quotationRequestsTable colgroup col:nth-child(3) { width: 120px !important; }   /* Submitted */
+            html #quotationRequestsTable colgroup col:nth-child(4) { width: 175px !important; }   /* Status */
+            html #quotationRequestsTable colgroup col:nth-child(5) { width: 150px !important; }   /* Actions */
+            html #quotationRequestsTable td { word-break: normal; }
+        }
+        @media (max-width: 640px) {
+            .qo-grid { gap: 10px; }
+            .qo-card { padding: 12px; gap: 10px; }
+            .qo-icon { width: 36px; height: 36px; }
+            .qo-num { font-size: 20px; }
+            .qo-sub { display: none; }
+        }
     </style>
 </head>
 <body class="page-enter">
@@ -70,10 +130,18 @@
             </div>
             @endif
 
+            @php
+                $qoAction    = $requests->whereIn('status', ['pending', 'in_preparation'])->count();
+                $qoPending   = $requests->where('status', 'pending')->count();
+                $qoWaiting   = $requests->where('status', 'quotation_sent')->count();
+                $qoApproved  = $requests->where('status', 'approved')->count();
+                $qoConverted = $requests->where('status', 'converted')->count();
+            @endphp
             <div style="margin-bottom:16px;">
-                <div style="display:inline-flex;background:var(--cream-soft);border:1px solid var(--border);border-radius:999px;padding:4px;gap:2px;">
+                <div style="display:inline-flex;background:var(--white);border:1px solid var(--border);border-radius:999px;padding:4px;gap:2px;box-shadow:0 1px 2px rgba(0,0,0,.04);">
                     <button type="button" class="quotation-view-tab {{ $activeTab === 'requests' ? 'active' : '' }}" data-view="requests" onclick="switchQuotationView('requests', this)">
                         Quotation Requests
+                        @if($qoAction > 0)<span class="qv-count" title="{{ $qoAction }} waiting on you">{{ $qoAction }}</span>@endif
                     </button>
                     <button type="button" class="quotation-view-tab {{ $activeTab === 'projects' ? 'active' : '' }}" data-view="projects" onclick="switchQuotationView('projects', this)">
                         Project Quotations
@@ -83,54 +151,68 @@
 
             {{-- ===================== QUOTATION REQUESTS ===================== --}}
             <div id="requestsViewContent" style="{{ $activeTab === 'requests' ? '' : 'display:none;' }}">
+            <div class="qo-grid">
+                <button type="button" class="qo-card {{ $qoAction > 0 ? 'is-urgent' : '' }}" data-qo-filter="action" title="Pending and In Preparation">
+                    <span class="qo-icon" style="background:#FFF4E0;color:#B45309;"><i data-lucide="inbox"></i></span>
+                    <span><span class="qo-num">{{ $qoAction }}</span><span class="qo-label" style="display:block;">Needs your action</span>
+                        <span class="qo-sub" style="display:block;">{{ $qoPending }} new · {{ $qoAction - $qoPending }} being prepared</span></span>
+                </button>
+                <button type="button" class="qo-card" data-qo-filter="quotation_sent">
+                    <span class="qo-icon" style="background:#EAF0FF;color:#2A4EAA;"><i data-lucide="send"></i></span>
+                    <span><span class="qo-num">{{ $qoWaiting }}</span><span class="qo-label" style="display:block;">Waiting on client</span>
+                        <span class="qo-sub" style="display:block;">Quotation sent, no answer yet</span></span>
+                </button>
+                <button type="button" class="qo-card" data-qo-filter="approved">
+                    <span class="qo-icon" style="background:#E7F6EC;color:#207A3A;"><i data-lucide="folder-plus"></i></span>
+                    <span><span class="qo-num">{{ $qoApproved }}</span><span class="qo-label" style="display:block;">Ready to convert</span>
+                        <span class="qo-sub" style="display:block;">Approved by the client</span></span>
+                </button>
+                <button type="button" class="qo-card" data-qo-filter="converted">
+                    <span class="qo-icon" style="background:#F3E8FF;color:#7C3AED;"><i data-lucide="badge-check"></i></span>
+                    <span><span class="qo-num">{{ $qoConverted }}</span><span class="qo-label" style="display:block;">Converted</span>
+                        <span class="qo-sub" style="display:block;">Now running as projects</span></span>
+                </button>
+            </div>
             <div class="table-card" style="padding-bottom:0;">
                 <div class="table-toolbar">
                     <div class="search-box">
                         <i data-lucide="search"></i>
-                        <input type="text" id="quotationSearch" placeholder="Search client name...">
+                        <input type="text" id="quotationSearch" placeholder="Search client, ref. or tank...">
                     </div>
-                    <div class="filter-tabs" id="quotationStatusTabs">
+                    <div class="filter-tabs" id="quotationStatusTabs" style="overflow-x:auto;max-width:100%;">
                         <button type="button" class="filter-tab active" data-filter="">
                             All
                             <span class="filter-count">{{ $requests->count() }}</span>
                         </button>
-                        <button type="button" class="filter-tab" data-filter="pending">
-                            Pending
-                            <span class="filter-count">{{ $requests->where('status', 'pending')->count() }}</span>
+                        @foreach([
+                            'pending'        => 'Pending',
+                            'in_preparation' => 'In Preparation',
+                            'quotation_sent' => 'Sent to Client',
+                            'approved'       => 'Approved',
+                            'rejected'       => 'Rejected',
+                            'converted'      => 'Converted',
+                            'declined'       => 'Declined',
+                        ] as $statusKey => $statusLabel)
+                        <button type="button" class="filter-tab" data-filter="{{ $statusKey }}">
+                            {{ $statusLabel }}
+                            <span class="filter-count">{{ $requests->where('status', $statusKey)->count() }}</span>
                         </button>
-                        <button type="button" class="filter-tab" data-filter="quotation_sent">
-                            Quotation Sent
-                            <span class="filter-count">{{ $requests->where('status', 'quotation_sent')->count() }}</span>
-                        </button>
-                        <button type="button" class="filter-tab" data-filter="approved">
-                            Approved
-                            <span class="filter-count">{{ $requests->where('status', 'approved')->count() }}</span>
-                        </button>
-                        <button type="button" class="filter-tab" data-filter="converted">
-                            Converted
-                            <span class="filter-count">{{ $requests->where('status', 'converted')->count() }}</span>
-                        </button>
-                        <button type="button" class="filter-tab" data-filter="declined">
-                            Declined
-                            <span class="filter-count">{{ $requests->where('status', 'declined')->count() }}</span>
-                        </button>
+                        @endforeach
                     </div>
                 </div>
                 <div class="qr-table-scroll" style="max-height:570px;overflow-y:auto;">
                     <table class="data-table" id="quotationRequestsTable" style="margin:0;">
                         <colgroup>
-                            <col style="width:20%;">
-                            <col style="width:22%;">
-                            <col style="width:26%;">
-                            <col style="width:9%;">
-                            <col style="width:11%;">
-                            <col style="width:132px;">
+                            <col style="width:36%;">
+                            <col style="width:38%;">
+                            <col style="width:130px;">
+                            <col style="width:190px;">
+                            <col style="width:150px;">
                         </colgroup>
                         <thead style="position:sticky;top:0;z-index:2;">
                             <tr>
                                 <th>Client</th>
                                 <th>Tank</th>
-                                <th>Delivery / Pick-up</th>
                                 <th>Submitted</th>
                                 <th>Status</th>
                                 <th>Actions</th>
@@ -141,11 +223,15 @@
                             <tr
                                 class="{{ $qr->status === 'pending' ? 'row-needs-action' : '' }}"
                                 data-status="{{ $qr->status }}"
-                                data-name="{{ strtolower($qr->client->name ?? '') }}"
+                                data-name="{{ strtolower(($qr->client->name ?? '') . ' ' . ($qr->quotationBatch->reference_no ?? '') . ' ' . $qr->tank_type) }}"
                                 data-request="{{ json_encode([
                                     'id'                => $qr->id,
                                     'batch_id'          => $qr->batch_id,
+                                    'reference_no'      => $qr->quotationBatch->reference_no ?? null,
                                     'status'            => $qr->status,
+                                    'status_label'      => $qr->status_label,
+                                    'status_class'      => $qr->status_class,
+                                    'specs'             => $qr->specificationLines(),
                                     'client_name'       => $qr->client->name ?? '—',
                                     'client_contact'    => $qr->client->contact ?? '—',
                                     'client_email'      => $qr->client->email ?? '—',
@@ -166,8 +252,15 @@
                                 ]) }}"
                                 >
                                 <td>
-                                    <div class="qr-cell-title">{{ $qr->client->name ?? '—' }}</div>
-                                    <div class="qr-cell-sub">{{ $qr->client->contact ?? '—' }}</div>
+                                    <div class="qr-client">
+                                        <div style="min-width:0;">
+                                            <div class="qr-cell-title">{{ $qr->client->name ?? '—' }}</div>
+                                            <div class="qr-cell-sub" style="flex-wrap:wrap;">
+                                                @if($qr->quotationBatch?->reference_no)<span class="qr-ref">{{ $qr->quotationBatch->reference_no }}</span>@endif
+                                                <span>{{ $qr->client->contact ?? '—' }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </td>
                                 <td>
                                     <div class="qr-stack">
@@ -189,51 +282,31 @@
                                                 {{ $qr->capacity }}
                                             </span>
                                             @endif
+                                            {{-- every request is pick-up now, so only the client's target date is worth showing;
+                                                 an older delivery request still shows where it goes (in the tooltip) --}}
+                                            @if(!empty($qr->target_timeline))
+                                            <span class="qr-cell-sub" style="margin-top:0;" @if(($qr->fulfillment ?? 'delivery') !== 'pickup' && $qr->location) title="Delivery: {{ $qr->location }}" @endif>
+                                                <i data-lucide="clock" style="width:11px;height:11px;"></i> Target {{ $qr->target_timeline_display }}
+                                            </span>
+                                            @endif
                                         </span>
                                     </div>
                                 </td>
                                 <td>
-                                    @if(($qr->fulfillment ?? 'delivery') === 'pickup')
-                                    <div class="qr-cell-title" style="display:flex;align-items:center;gap:6px;">
-                                        <i data-lucide="package-check" style="width:14px;height:14px;color:var(--muted);flex-shrink:0;"></i> For pick-up
-                                    </div>
-                                    @else
-                                    <div class="qr-cell-loc" title="{{ $qr->location }}">
-                                        <i data-lucide="truck" style="width:13px;height:13px;color:var(--muted);vertical-align:-2px;"></i>
-                                        {{ $qr->location ?: '—' }}
-                                    </div>
-                                    @endif
-                                    @if(!empty($qr->target_timeline))
-                                    <div class="qr-cell-sub"><i data-lucide="clock" style="width:11px;height:11px;"></i> Target {{ $qr->target_timeline_display }}</div>
-                                    @endif
+                                    <div class="qr-date">{{ $qr->created_at->format('M d, Y') }}</div>
+                                    <div class="qr-ago">{{ $qr->created_at->diffForHumans() }}</div>
                                 </td>
                                 <td>
-                                    <div class="qr-cell-title" style="font-weight:700;">{{ $qr->created_at->format('M d, Y') }}</div>
-                                </td>
-                                <td>
-                                    @if($qr->status === 'pending' && $qr->decline_reason)
-                                    <span class="status-badge revision" title="{{ $qr->decline_reason }}">Revision Requested</span>
-                                    @elseif($qr->status === 'pending')
-                                    <span class="status-badge pending">Pending</span>
-                                    @elseif($qr->status === 'quotation_sent')
-                                    <span class="status-badge ongoing">Quotation Sent</span>
-                                    @elseif($qr->status === 'approved')
-                                    <span class="status-badge approved">Approved</span>
-                                    @elseif($qr->status === 'converted')
-                                    <span class="status-badge active">Converted</span>
-                                    @else
-                                    <span class="status-badge revision">Declined</span>
-                                    @endif
+                                    <span class="status-badge {{ $qr->status_class }}" @if($qr->decline_reason) title="{{ $qr->decline_reason }}" @endif>{{ $qr->status_label }}</span>
                                 </td>
                                 <td class="action-cell">
                                     <div class="qr-actions">
-                                    <button class="action-btn view view-request-btn" type="button" title="View Request">
+                                    <button class="action-btn view view-request-btn" type="button" title="View Request" aria-label="View request">
                                         <i data-lucide="eye"></i>
                                     </button>
-                                    {{-- Pending requests already have a "Build Quotation" button inside the View Request
-                                         modal, so the row icon is only kept for sent / approved quotations (no other way in). --}}
-                                    @if(in_array($qr->status, ['quotation_sent', 'approved']) && $qr->batch_id)
-                                    <a class="action-btn view" type="button" title="Build Quotation"
+                                    @if($qr->batch_id && $qr->status !== 'declined')
+                                    <a class="action-btn view" title="{{ in_array($qr->status, ['pending', 'in_preparation']) ? 'Costing' : 'Open Quotation' }}"
+                                       aria-label="Open quotation builder"
                                        href="{{ route('admin.quotation_requests.batch_detail', $qr->batch_id) }}">
                                         <i data-lucide="calculator"></i>
                                     </a>
@@ -244,7 +317,7 @@
                                         <i data-lucide="folder-plus"></i>
                                     </a>
                                     @endif
-                                    @if(in_array($qr->status, ['pending', 'quotation_sent']))
+                                    @if(in_array($qr->status, ['pending', 'in_preparation', 'quotation_sent']))
                                     <button class="action-btn view decline-request-btn" type="button"
                                             title="Decline Request"
                                             data-id="{{ $qr->batch_id }}"
@@ -257,13 +330,13 @@
                             </tr>
                             @empty
                             <tr id="quotationBladeEmpty">
-                                <td colspan="6" style="text-align:center;padding:40px;color:var(--muted);">
+                                <td colspan="5" style="text-align:center;padding:40px;color:var(--muted);">
                                     No quotation requests yet.
                                 </td>
                             </tr>
                             @endforelse
                             <tr id="quotationEmptyState" style="display:none;">
-                                <td colspan="6" style="text-align:center;padding:48px 20px;">
+                                <td colspan="5" style="text-align:center;padding:48px 20px;">
                                     <div style="display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--muted);">
                                         <i data-lucide="inbox" style="width:36px;height:36px;opacity:0.4;"></i>
                                         <span id="quotationEmptyMsg">No requests match your search.</span>
@@ -413,11 +486,11 @@
                 <div id="sendQuotationSection" style="display:none;">
                     <div class="alert-banner info" style="margin-bottom:14px;">
                         <i data-lucide="info"></i>
-                        Enter materials, labor, and pricing for this quotation, then send it to the client for approval.
+                        Do the costing (materials, labor and pricing), generate the quotation document, then send it to the client for approval.
                     </div>
                     <div class="modal-actions" style="border-top:none;padding-top:0;">
                         <a id="buildQuotationBtn" href="#" class="save-btn" style="text-decoration:none;">
-                            <i data-lucide="calculator"></i> Build Quotation
+                            <i data-lucide="calculator"></i> Start Costing
                         </a>
                     </div>
                 </div>
@@ -524,6 +597,7 @@
                     var row = this.closest('tr');
                     var r   = JSON.parse(row.dataset.request);
 
+                    document.getElementById('viewRequestTitle').textContent = r.reference_no ? 'Quotation Request ' + r.reference_no : 'Quotation Request';
                     document.getElementById('viewRequestSubtitle').textContent = 'Submitted ' + r.submitted_at;
                     document.getElementById('viewRequestClientName').value    = r.client_name;
                     document.getElementById('viewRequestClientContact').value = r.client_contact;
@@ -542,6 +616,17 @@
                             + (item.target_timeline ? '<span class="qr-spec-chip qr-chip-timeline"><i data-lucide="clock" style="width:11px;height:11px;"></i>Target delivery: ' + escapeHtml(item.target_timeline) + '</span>' : '')
                             + '</div>';
                     }).join('') || '<span style="font-size:12.5px;color:var(--muted);">No tank items.</span>';
+
+                    // the client's answers to the tank type's own questions
+                    var specs = r.specs || {};
+                    var specKeys = Object.keys(specs);
+                    if (specKeys.length) {
+                        tankItemsWrap.innerHTML += '<div style="border:1px solid var(--border);border-radius:10px;padding:10px 14px;display:grid;grid-template-columns:minmax(120px,40%) 1fr;gap:6px 12px;font-size:12.5px;">'
+                            + specKeys.map(function (k) {
+                                return '<span style="color:var(--muted);font-weight:700;">' + escapeHtml(k) + '</span><span style="color:var(--dark);font-weight:700;overflow-wrap:anywhere;">' + escapeHtml(specs[k]) + '</span>';
+                            }).join('')
+                            + '</div>';
+                    }
 
                     var notesGroup = document.getElementById('viewRequestNotesGroup');
                     if (r.notes) {
@@ -576,15 +661,12 @@
                         refFilesList.innerHTML = '';
                     }
 
-                    var isRevisionRequest = r.status === 'pending' && !!r.decline_reason;
-                    var meta = isRevisionRequest
-                        ? { label: 'Revision Requested', cls: 'revision' }
-                        : (statusMeta[r.status] || statusMeta.pending);
+                    var isRevisionRequest = (r.status === 'pending' || r.status === 'in_preparation') && !!r.decline_reason;
                     document.getElementById('viewRequestStatusBadge').innerHTML =
-                        '<span class="status-badge ' + meta.cls + '">' + meta.label + '</span>';
+                        '<span class="status-badge ' + escapeHtml(r.status_class) + '">' + escapeHtml(r.status_label) + '</span>';
 
                     var declineWrap = document.getElementById('viewRequestDeclineReasonWrap');
-                    if (r.status === 'declined' && r.decline_reason) {
+                    if ((r.status === 'declined' || r.status === 'rejected') && r.decline_reason) {
                         declineWrap.style.display = '';
                         declineWrap.style.background = '#fee2e2';
                         declineWrap.style.borderColor = '#fca5a5';
@@ -640,7 +722,7 @@
                     document.getElementById('awaitingApprovalSection').style.display = 'none';
                     document.getElementById('readyToConvertSection').style.display   = 'none';
 
-                    if (r.status === 'pending') {
+                    if (r.status === 'pending' || r.status === 'in_preparation') {
                         document.getElementById('sendQuotationSection').style.display = '';
                         document.getElementById('buildQuotationBtn').href = r.build_quotation_url;
                     } else if (r.status === 'quotation_sent') {
@@ -697,7 +779,9 @@
                 var visible = 0;
                 document.querySelectorAll('#quotationRequestsTable tbody tr[data-name]').forEach(function (row) {
                     var matchQ      = !q || row.dataset.name.includes(q);
-                    var matchStatus = !status || row.dataset.status === status;
+                    // "action" (the Needs-your-action card) = new + being prepared
+                    var matchStatus = !status || row.dataset.status === status
+                        || (status === 'action' && (row.dataset.status === 'pending' || row.dataset.status === 'in_preparation'));
                     var show = matchQ && matchStatus;
                     row.style.display = show ? '' : 'none';
                     if (show) visible++;
@@ -711,6 +795,7 @@
                 if (emptyRow) {
                     if (!visible && filterActive) {
                         if (emptyMsg) emptyMsg.textContent =
+                            status === 'action'         ? 'Nothing waiting on you — all caught up.' :
                             status === 'pending'        ? 'No pending requests.' :
                             status === 'quotation_sent' ? 'No requests awaiting client approval.' :
                             status === 'approved'       ? 'No approved requests.' :
@@ -728,9 +813,26 @@
             document.querySelectorAll('#quotationStatusTabs .filter-tab').forEach(function (tab) {
                 tab.addEventListener('click', function () {
                     document.querySelectorAll('#quotationStatusTabs .filter-tab').forEach(function (t) { t.classList.remove('active'); });
+                    document.querySelectorAll('.qo-card').forEach(function (c) { c.classList.remove('is-on'); });
                     this.classList.add('active');
                     currentStatusFilter = this.dataset.filter;
                     filterRequests();
+                });
+            });
+
+            // Overview cards filter the list too; clicking the selected card again shows everything
+            document.querySelectorAll('.qo-card').forEach(function (card) {
+                card.addEventListener('click', function () {
+                    var on = !card.classList.contains('is-on');
+                    var f  = on ? card.dataset.qoFilter : '';
+                    document.querySelectorAll('.qo-card').forEach(function (c) { c.classList.toggle('is-on', c === card && on); });
+                    // keep the status tabs in step ("action" has no single tab, so All stays selected)
+                    document.querySelectorAll('#quotationStatusTabs .filter-tab').forEach(function (t) {
+                        t.classList.toggle('active', t.dataset.filter === (f === 'action' ? '' : f));
+                    });
+                    currentStatusFilter = f;
+                    filterRequests();
+                    document.querySelector('#requestsViewContent .table-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
                 });
             });
 

@@ -24,7 +24,7 @@
 
             <!-- Breadcrumb -->
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;font-size:13px;color:var(--muted);">
-                <a href="{{ route('admin.payments') }}" style="color:var(--muted);text-decoration:none;font-weight:600;">
+                <a href="{{ route('admin.payments', ['tab' => $tab]) }}" style="color:var(--muted);text-decoration:none;font-weight:600;">
                     Payments
                 </a>
                 <i data-lucide="chevron-right" style="width:14px;height:14px;"></i>
@@ -34,7 +34,7 @@
             <div class="page-header">
                 <div>
                     <h1>{{ $clientName }}</h1>
-                    <p>Projects with payments to settle for this client.</p>
+                    <p>Payments for this client's completed and archived projects. Active projects' payments are on the Payments page.</p>
                 </div>
             </div>
 
@@ -66,6 +66,16 @@
                     <div class="search-box">
                         <i data-lucide="search"></i>
                         <input type="text" id="clientPaymentSearch" placeholder="Search project...">
+                    </div>
+                    <div class="filter-tabs" id="clientPaymentTabs">
+                        <button type="button" class="filter-tab {{ $tab === 'completed' ? 'active' : '' }}" data-tab="completed">
+                            Completed Projects
+                            <span class="filter-count">{{ $payments->filter(fn ($p) => $p->project?->status === 'completed')->count() }}</span>
+                        </button>
+                        <button type="button" class="filter-tab {{ $tab === 'archived' ? 'active' : '' }}" data-tab="archived">
+                            Archived
+                            <span class="filter-count">{{ $payments->filter(fn ($p) => $p->project?->status === 'archived')->count() }}</span>
+                        </button>
                     </div>
                 </div>
 
@@ -103,7 +113,7 @@
                                 // due, but no billing statement sent yet — the client hasn't been asked to pay
                                 $billingPending = $status !== 'Fully Paid' ? $payment->billingPendingStage() : null;
                             @endphp
-                            <tr data-search="{{ strtolower($payment->project->name ?? '') }}"
+                            <tr data-search="{{ strtolower($payment->project->name ?? '') }}" data-status="{{ $payment->project?->status }}"
                                 class="{{ $awaitingStage ? 'row-needs-action' : '' }}">
                                 <td style="overflow:hidden;">
                                     <span style="display:inline-flex;flex-direction:column;max-width:100%;min-width:0;">
@@ -149,7 +159,7 @@
                             <tr id="clientPaymentEmptyRow" style="display:none;">
                                 <td colspan="6" style="text-align:center;padding:60px 20px;color:var(--muted);">
                                     <i data-lucide="folder-open" style="width:36px;height:36px;opacity:.35;display:block;margin:0 auto 12px;"></i>
-                                    <div style="font-size:14px;font-weight:700;">No projects match your search.</div>
+                                    <div style="font-size:14px;font-weight:700;" id="clientPaymentEmptyMsg">No projects match your search.</div>
                                 </td>
                             </tr>
                         </tbody>
@@ -163,17 +173,32 @@
     <script>
         lucide.createIcons();
 
-        document.getElementById('clientPaymentSearch').addEventListener('input', function () {
-            var q = this.value.toLowerCase();
+        var currentClientPaymentTab = @json($tab);
+
+        function applyClientPaymentFilters() {
+            var q = document.getElementById('clientPaymentSearch').value.toLowerCase();
             var visible = 0;
             document.querySelectorAll('#clientPaymentsTable tbody tr[data-search]').forEach(function (row) {
-                var show = !q || row.dataset.search.includes(q);
+                var show = (!q || row.dataset.search.includes(q)) && row.dataset.status === currentClientPaymentTab;
                 row.style.display = show ? '' : 'none';
                 if (show) visible++;
             });
             var emptyRow = document.getElementById('clientPaymentEmptyRow');
             if (emptyRow) emptyRow.style.display = visible === 0 ? '' : 'none';
+            var emptyMsg = document.getElementById('clientPaymentEmptyMsg');
+            if (emptyMsg) emptyMsg.textContent = q ? 'No projects match your search.'
+                : (currentClientPaymentTab === 'archived' ? 'No archived projects.' : 'No completed projects.');
+        }
+
+        document.getElementById('clientPaymentSearch').addEventListener('input', applyClientPaymentFilters);
+        document.querySelectorAll('#clientPaymentTabs .filter-tab').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                currentClientPaymentTab = this.dataset.tab;
+                document.querySelectorAll('#clientPaymentTabs .filter-tab').forEach(function (b) { b.classList.toggle('active', b === btn); });
+                applyClientPaymentFilters();
+            });
         });
+        applyClientPaymentFilters();
 
     </script>
 </body>

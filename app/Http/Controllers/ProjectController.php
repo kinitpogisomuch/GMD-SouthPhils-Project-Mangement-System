@@ -468,8 +468,21 @@ class ProjectController extends Controller
             'quotation_batch_id' => 'nullable|string|exists:quotation_batches,id',
         ]);
 
-        // A quotation priced per tank was approved for a set number of tanks — the project must build that many
+        // A quotation can only become a project once the client approved it — and only once
         $quotedBatch = $request->filled('quotation_batch_id') ? \App\Models\QuotationBatch::find($request->quotation_batch_id) : null;
+        if ($quotedBatch) {
+            $quoteStatus = \App\Models\QuotationRequest::where('batch_id', $quotedBatch->id)->value('status');
+            if ($quoteStatus === 'converted' || $quotedBatch->project_id) {
+                return redirect()->route('admin.quotation_requests')
+                    ->with('error', 'Quotation ' . $quotedBatch->reference_no . ' was already converted into a project.');
+            }
+            if ($quoteStatus !== 'approved') {
+                return redirect()->back()->withInput()
+                    ->with('error', 'Quotation ' . $quotedBatch->reference_no . ' must be approved by the client before it can be converted.');
+            }
+        }
+
+        // A quotation priced per tank was approved for a set number of tanks — the project must build that many
         if ($quotedBatch && $quotedBatch->tank_type) {
             $tankCount = collect($request->tank_items)->sum(fn ($t) => (int) ($t['quantity'] ?? 0));
             if ($tankCount !== $quotedBatch->tankQuantity()) {
@@ -505,6 +518,20 @@ class ProjectController extends Controller
         }
         if (!$clientId && $request->client) {
             $clientId = Client::whereRaw('LOWER(name) = LOWER(?)', [trim($request->client)])->value('id');
+        }
+
+        // Everything below — the project, the quotation's materials/labor moving onto it, the payment
+        // record and the tank items — is saved together or not at all.
+        \DB::beginTransaction();
+        try {
+        if ($quotedBatch) {
+            // Locked so a double click / two admins can't turn one quotation into two projects
+            $lockedBatch = \App\Models\QuotationBatch::whereKey($quotedBatch->id)->lockForUpdate()->first();
+            if ($lockedBatch->project_id || \App\Models\QuotationRequest::where('batch_id', $lockedBatch->id)->value('status') !== 'approved') {
+                \DB::rollBack();
+                return redirect()->route('admin.quotation_requests')
+                    ->with('error', 'Quotation ' . $lockedBatch->reference_no . ' was already converted into a project.');
+            }
         }
 
         $project = new Project([
@@ -628,6 +655,9 @@ class ProjectController extends Controller
                 'status'             => 'converted',
                 'related_project_id' => $project->id,
             ]);
+            if ($batch) {
+                $batch->update(['project_id' => $project->id, 'converted_at' => now()]);
+            }
         }
 
         // Save all tank items
@@ -644,9 +674,34 @@ class ProjectController extends Controller
             ]);
         }
 
+            \DB::commit();
+        } catch (\Throwable $e) {
+            \DB::rollBack();
+            throw $e;
+        }
+
+        if ($convertedFromBatch) {
+            \App\Services\AuditTrail::record('quotation', $request->quotation_batch_id, 'quotation.converted', [
+                'project_id' => $project->id, 'project' => $project->name,
+            ]);
+        }
+
         NotificationService::projectCreated($project);
 
-        return redirect()->route('admin.projects.client', $project->client)->with('success', 'Project created successfully!');
+        return redirect()->to($this->projectListUrl($project))->with('success', 'Project created successfully!');
+    }
+
+    /**
+     * Where a project is listed in the admin: active ones on the Projects page itself, completed /
+     * archived ones on their client's page (on the matching tab).
+     */
+    private function projectListUrl(Project $project): string
+    {
+        if (in_array($project->status, ['completed', 'archived'], true)) {
+            return route('admin.projects.client', ['client' => $project->client_id ?: $project->client, 'tab' => $project->status]);
+        }
+
+        return route('admin.projects');
     }
 
     /*
@@ -693,7 +748,7 @@ class ProjectController extends Controller
             'duration'   => $duration,
         ], $request->has('notes') ? ['notes' => $request->notes] : []));
 
-        return redirect()->route('admin.projects.client', $project->client)->with('success', 'Project updated successfully!');
+        return redirect()->to($this->projectListUrl($project))->with('success', 'Project updated successfully!');
     }
 
     /*
@@ -707,11 +762,11 @@ class ProjectController extends Controller
 
         if ($project->status === 'archived') {
             $project->update(['status' => 'planning']);
-            return redirect()->route('admin.projects.client', $project->client)->with('success', 'Project restored successfully.');
+            return redirect()->to($this->projectListUrl($project))->with('success', 'Project restored successfully.');
         }
 
         $project->update(['status' => 'archived']);
-        return redirect()->route('admin.projects.client', $project->client)->with('success', 'Project archived.');
+        return redirect()->to($this->projectListUrl($project))->with('success', 'Project archived.');
     }
 
     /*
@@ -736,7 +791,7 @@ class ProjectController extends Controller
 
         $this->addNewlyAssignedEmployeesToLabor($project, $result['attached']);
 
-        return redirect()->route('admin.projects.client', $project->client)->with('success', "Employee assignments updated for \"{$project->name}\".");
+        return redirect()->to($this->projectListUrl($project))->with('success', "Employee assignments updated for \"{$project->name}\".");
     }
 
     /**
@@ -856,7 +911,16 @@ class ProjectController extends Controller
         $project->setPhaseData('payment_gates.' . $phase, [
             'confirmed_at'    => now()->toDateTimeString(),
             'without_payment' => $unpaid,
+            'authorized_by'   => $unpaid ? (session('name') ?: 'Admin') : null,
         ]);
+
+        if ($unpaid && $phase === 'delivery') {
+            $payment = $project->getPaymentRecord();
+            \App\Services\AuditTrail::record('project', $project->id, 'project.delivered_unpaid', [
+                'project'     => $project->name,
+                'balance_due' => $payment ? $payment->currentBalance() : null,
+            ]);
+        }
 
         $message = match (true) {
             $phase === 'fabrication' => 'Progress payment confirmed. Complete the fabrication checklist below, then click Advance to Inspection.',

@@ -22,9 +22,14 @@
                     Projects
                 </a>
                 <i data-lucide="chevron-right" style="width:14px;height:14px;"></i>
-                <a href="{{ route('admin.projects.client', urlencode($project->client)) }}" style="color:var(--muted);text-decoration:none;font-weight:600;">
+                @if(in_array($project->status, ['completed', 'archived'], true))
+                {{-- finished projects are listed on their client's page; active ones on the Projects page itself --}}
+                <a href="{{ route('admin.projects.client', ['client' => $project->client_id ?: $project->client, 'tab' => $project->status]) }}" style="color:var(--muted);text-decoration:none;font-weight:600;">
                     {{ $clientName }}
                 </a>
+                @else
+                <span style="color:var(--muted);font-weight:600;">{{ $clientName }}</span>
+                @endif
                 <i data-lucide="chevron-right" style="width:14px;height:14px;"></i>
                 <span style="color:var(--dark);font-weight:700;">{{ $project->name }}</span>
             </div>
@@ -149,6 +154,8 @@
                 }
             </style>
             @endif
+
+            @include('partials.project_settlement_status', ['project' => $project, 'portal' => 'admin'])
 
             <!-- Financial Overview Card -->
             @php

@@ -1,0 +1,138 @@
+@use 'tokens' as *;
+
+// Polish for the admin, client and employee portals. Additive only: it adds focus states, motion and
+// depth to the existing components (it never changes their size or layout), so desktop and mobile
+// layouts stay exactly as they are.
+
+// Alpine.js: elements hidden until Alpine has initialised them
+[x-cloak] { display: none !important; }
+
+// ---- Keyboard focus — clearly visible, only when navigating by keyboard ----
+:where(a, button, [role="button"], .emp-tab, .filter-tab, .action-btn, summary):focus-visible {
+    @include focus-ring;
+    border-radius: 10px;
+}
+
+// ---- Buttons: press feedback + a light sheen on the primary ones ----
+:where(.save-btn, .add-btn, .cancel-btn, .btn, .action-btn, .qr-change, .qb-pill-btn) {
+    @include motion-safe {
+        transition: transform $dur-fast ease, box-shadow $dur ease, background-color $dur ease, color $dur ease, border-color $dur ease;
+    }
+    &:active:not(:disabled) {
+        @include motion-safe { transform: scale(0.97); }
+    }
+}
+
+:where(.save-btn, .add-btn) {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+
+    &::after {
+        content: '';
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 40%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.22), transparent);
+        transform: translateX(-120%) skewX(-18deg);
+        pointer-events: none;
+        z-index: -1;
+    }
+    &:hover:not(:disabled)::after {
+        @include motion-safe { animation: ui-sheen 0.75s $ease-out; }
+    }
+}
+
+// ---- Surfaces ----
+.stat-card {
+    @include lift(-3px, $shadow-md);
+}
+
+.stat-card .stat-icon {
+    @include motion-safe { transition: transform $dur $ease-spring; }
+}
+.stat-card:hover .stat-icon {
+    @include motion-safe { transform: scale(1.08) rotate(-4deg); }
+}
+
+// Settings → tank cards
+#tankCardGrid .portfolio-card img {
+    @include motion-safe { transition: transform 0.5s $ease-out; }
+}
+#tankCardGrid .portfolio-card:hover img {
+    @include motion-safe { transform: scale(1.05); }
+}
+
+// ---- Tabs: animated underline / pill ----
+.emp-tab {
+    @include motion-safe { transition: color $dur ease, background-color $dur ease, border-color $dur ease; }
+}
+.filter-tab {
+    @include motion-safe { transition: color $dur ease, background-color $dur ease, box-shadow $dur ease; }
+}
+
+// ---- Modals: softly blurred backdrop, card pops in ----
+.modal-overlay.show {
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    @include motion-safe { animation: ui-fade 0.2s ease both; }
+
+    > .modal-card {
+        @include motion-safe { animation: ui-pop 0.32s $ease-spring both; }
+    }
+}
+
+// ---- Toasts: room for the animated success check (Lottie) ----
+.toast .ui-lottie-icon {
+    width: 26px;
+    height: 26px;
+    flex-shrink: 0;
+    margin: -4px 0;
+
+    svg { width: 100% !important; height: 100% !important; }
+}
+
+// ---- Count badges get attention once when they appear ----
+.notification-count-badge,
+.emp-tab .filter-count[style*="dc2626"] {
+    @include motion-safe { animation: ui-pulse-ring 1.6s ease-out 2; }
+}
+
+// ---- Data tables: a subtle left accent on the hovered row ----
+.data-table tbody tr {
+    @include motion-safe { transition: background-color $dur ease, box-shadow $dur ease; }
+}
+.data-table tbody tr:hover {
+    box-shadow: inset 3px 0 0 $ink-soft;
+}
+.data-table tbody tr.row-needs-action:hover {
+    box-shadow: inset 3px 0 0 #f59e0b;   // keep the "needs action" colour on hover
+}
+
+// ---- Thin, quiet scrollbars inside the portals ----
+.admin-content, .modal-card, .table-wrapper, .qr-table-scroll, .qb-table-wrap {
+    scrollbar-width: thin;
+    scrollbar-color: #c9c9c9 transparent;
+
+    &::-webkit-scrollbar { width: 8px; height: 8px; }
+    &::-webkit-scrollbar-thumb { background: #c9c9c9; border-radius: 999px; border: 2px solid transparent; background-clip: content-box; }
+    &::-webkit-scrollbar-thumb:hover { background-color: #a8a8a8; }
+}
+
+// ---- Empty-state illustrations (inline SVG) ----
+.ui-empty-art {
+    display: block;
+    width: 132px;
+    height: auto;
+    margin: 0 auto 14px;
+    color: #9ca3af;
+
+    @include motion-safe { animation: ui-float 4.5s ease-in-out infinite; }
+
+    .ui-empty-accent { color: $accent; }
+}
+
+// ---- Charts fade in once drawn ----
+canvas.ui-chart-ready {
+    @include motion-safe { animation: ui-fade 0.5s ease both; }
+}

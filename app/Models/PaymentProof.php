@@ -49,6 +49,7 @@ class PaymentProof extends Model
             'bank_transfer' => 'Bank Transfer',
             'cheque'        => 'Cheque',
             'cash'          => 'Cash',
+            'online_bank'   => 'Online Payment',
             default         => '—',
         };
     }

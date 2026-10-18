@@ -18,7 +18,7 @@ class ClientSignupController extends Controller
         if (session('role') === 'client')   return redirect()->route('client.dashboard');
         if (session('role') === 'employee') return redirect()->route('employee.dashboard');
 
-        return view('auth.signup');
+        return view('auth.signup', ['quoteTank' => \App\Support\TankCatalog::find(session('quote_intent'))]);
     }
 
     /**
@@ -82,6 +82,8 @@ class ClientSignupController extends Controller
                 'password'       => null,                                         // set on the Set Up Account page
                 'first_login'    => false,
                 'email_verified_at' => null,
+                // the tank card they clicked on the landing page — their first login opens that quotation form
+                'pending_quote_tank' => \App\Support\TankCatalog::find(session('quote_intent')) ? session('quote_intent') : null,
             ]);
         } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
             // a double-submitted form (or a race on the same email) — never create a duplicate request

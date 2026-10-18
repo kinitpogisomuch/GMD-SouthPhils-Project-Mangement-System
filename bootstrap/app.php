@@ -19,6 +19,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ]);
     // One-time form tokens: a repeated submit (double click, refresh, simultaneous request) is refused
     $middleware->web(append: [\App\Http\Middleware\PreventDuplicateSubmission::class]);
+    // The payment gateway posts here from its own servers; the request is authenticated by its signature instead
+    $middleware->validateCsrfTokens(except: ['webhooks/paymongo']);
 })
     ->withExceptions(function (Exceptions $exceptions): void {
         // A project can't be completed while its Financial Overview is incomplete — whichever code path

@@ -18,7 +18,6 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\SalaryController;
 use App\Http\Controllers\ProjectMaterialController;
 use App\Http\Controllers\MaterialUsageController;
-use App\Http\Controllers\PortfolioItemController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\FundController;
@@ -28,6 +27,7 @@ use App\Http\Controllers\MessageController;
 use App\Http\Controllers\KpiDashboardController;
 use App\Http\Controllers\QuotationRequestController;
 use App\Http\Controllers\PerformanceTestReportController;
+use App\Http\Controllers\OnlinePaymentController;
 
 /*
 |--------------------------------------------------------------------------
@@ -36,6 +36,11 @@ use App\Http\Controllers\PerformanceTestReportController;
 */
 
 Route::get('/', [AuthController::class, 'index'])->name('home');
+// Payment gateway webhook — authenticated by its HMAC signature (exempt from CSRF in bootstrap/app.php)
+Route::post('/webhooks/paymongo', [OnlinePaymentController::class, 'webhook'])->name('webhooks.paymongo')->middleware('throttle:120,1');
+
+// "Our Work" tank card → that tank's quotation form (via login / sign-up for visitors)
+Route::get('/quote/{tank}', [AuthController::class, 'quoteIntent'])->name('quote.start')->where('tank', '[a-z0-9-]+');
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.post')->middleware('throttle:5,1');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
@@ -105,11 +110,11 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::put('/supplier-contacts/{id}', [SupplierContactController::class, 'update'])->name('supplier_contacts.update');
     Route::delete('/supplier-contacts/{id}', [SupplierContactController::class, 'destroy'])->name('supplier_contacts.destroy');
 
-    // Landing Page Portfolio Items (CMS)
-    Route::post('/portfolio-items', [PortfolioItemController::class, 'store'])->name('portfolio.store');
-    Route::put('/portfolio-items/{id}', [PortfolioItemController::class, 'update'])->name('portfolio.update');
-    Route::patch('/portfolio-items/{id}/archive', [PortfolioItemController::class, 'archive'])->name('portfolio.archive');
-    Route::delete('/portfolio-items/{id}', [PortfolioItemController::class, 'destroy'])->name('portfolio.destroy');
+    // Landing Page "Our Work" tank cards (Choose Your Tank, Get a Quotation)
+    Route::post('/tank-cards', [\App\Http\Controllers\TankCardController::class, 'store'])->name('tank_cards.store');
+    Route::delete('/tank-cards/{slug}', [\App\Http\Controllers\TankCardController::class, 'destroy'])->name('tank_cards.destroy')->where('slug', '[a-z0-9-]+');
+    Route::put('/tank-cards/{slug}', [\App\Http\Controllers\TankCardController::class, 'update'])->name('tank_cards.update')->where('slug', '[a-z0-9-]+');
+    Route::patch('/tank-cards/{slug}/toggle', [\App\Http\Controllers\TankCardController::class, 'toggle'])->name('tank_cards.toggle')->where('slug', '[a-z0-9-]+');
 
     // Landing Page Client Reviews (moderation)
     Route::patch('/reviews/{id}/archive', [ReviewController::class, 'archive'])->name('reviews.archive');
@@ -129,12 +134,12 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::get('/payments/{id}/billing-statements/{statementId}', [PaymentController::class, 'showBillingStatement'])->name('payments.billing_statements.show');
     Route::post('/payments/{id}/billing-statements/{statementId}/send', [PaymentController::class, 'sendBillingStatement'])->name('payments.billing_statements.send');
     Route::post('/payments/{id}/proofs/{proofId}/return', [PaymentController::class, 'returnProof'])->name('payments.proofs.return');
+    Route::post('/payments/online/{onlineId}/verify', [OnlinePaymentController::class, 'adminVerify'])->name('payments.online.verify')->whereNumber('onlineId');
     Route::get('/revolving-fund', [FundController::class, 'index'])->name('revolving_fund');
     Route::post('/revolving-fund/setup', [FundController::class, 'setupInitial'])->name('revolving_fund.setup_initial');
     Route::post('/revolving-fund/top-up', [FundController::class, 'topUp'])->name('revolving_fund.top_up');
     Route::get('/projects', [AdminController::class, 'projects'])->name('projects');
     Route::get('/projects/client/{client}', [AdminController::class, 'projectsClient'])->name('projects.client');
-    Route::get('/projects/client-groups', [AdminController::class, 'projectClientGroups'])->name('projects.client_groups');
     Route::get('/settings', [AdminController::class, 'settings'])->name('settings');
     Route::get('/manual', [AdminController::class, 'manual'])->name('manual');
     Route::get('/clients', [AdminController::class, 'clients'])->name('clients');
@@ -146,6 +151,7 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
 
     // Build Quotation — materials/labor entered against a quotation batch, before any Project exists
     Route::get('/quotation-requests/batch/{batchId}', [QuotationRequestController::class, 'batchDetail'])->name('quotation_requests.batch_detail');
+    Route::post('/quotation-requests/batch/{batchId}/live-preview', [QuotationRequestController::class, 'livePreview'])->name('quotation_requests.batch_live_preview');
     Route::post('/quotation-requests/batch/{batchId}/materials', [QuotationRequestController::class, 'storeMaterials'])->name('quotation_requests.batch_materials');
     Route::post('/quotation-requests/batch/{batchId}/materials/{materialId}/delete', [QuotationRequestController::class, 'deleteMaterial'])->name('quotation_requests.batch_material_delete');
     Route::post('/quotation-requests/batch/{batchId}/labor', [QuotationRequestController::class, 'storeLabor'])->name('quotation_requests.batch_labor');
@@ -155,6 +161,12 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::post('/quotation-requests/batch/{batchId}/markup', [QuotationRequestController::class, 'updateMarkup'])->name('quotation_requests.batch_markup');
     Route::post('/quotation-requests/batch/{batchId}/save', [QuotationRequestController::class, 'saveAll'])->name('quotation_requests.batch_save');
     Route::get('/quotation-requests/batch/{batchId}/prefill', [QuotationRequestController::class, 'prefillBatch'])->name('quotation_requests.batch_prefill');
+    // Generated quotation document: draft preview, sent versions, PDFs, and taking a sent quotation back for revision
+    Route::get('/quotation-requests/batch/{batchId}/preview', [QuotationRequestController::class, 'preview'])->name('quotation_requests.batch_preview');
+    Route::get('/quotation-requests/batch/{batchId}/preview.pdf', [QuotationRequestController::class, 'previewPdf'])->name('quotation_requests.batch_preview_pdf');
+    Route::get('/quotation-requests/batch/{batchId}/versions/{version}', [QuotationRequestController::class, 'adminVersion'])->name('quotation_requests.version')->whereNumber('version');
+    Route::get('/quotation-requests/batch/{batchId}/versions/{version}/pdf', [QuotationRequestController::class, 'adminVersionPdf'])->name('quotation_requests.version_pdf')->whereNumber('version');
+    Route::post('/quotation-requests/batch/{batchId}/withdraw', [QuotationRequestController::class, 'withdraw'])->name('quotation_requests.batch_withdraw');
 
     Route::get('/reports', [AdminController::class, 'reports'])->name('reports');
     Route::get('/reports/project/{id}', [AdminController::class, 'projectKpi'])->name('reports.project');
@@ -277,7 +289,10 @@ Route::prefix('client')->name('client.')->middleware(['role:client', 'profile.co
     Route::post('/request-quotation', [QuotationRequestController::class, 'store'])->name('quotation.store');
     Route::get('/request-quotation/status', [QuotationRequestController::class, 'status'])->name('quotation.status');
     Route::post('/request-quotation/batch/{batchId}/approve', [QuotationRequestController::class, 'approveQuotation'])->name('quotation.approve');
+    Route::post('/request-quotation/batch/{batchId}/revision', [QuotationRequestController::class, 'requestRevision'])->name('quotation.revision');
     Route::post('/request-quotation/batch/{batchId}/reject', [QuotationRequestController::class, 'rejectQuotation'])->name('quotation.reject');
+    Route::get('/quotations/{batchId}', [QuotationRequestController::class, 'clientShow'])->name('quotation.show');
+    Route::get('/quotations/{batchId}/v{version}.pdf', [QuotationRequestController::class, 'clientPdf'])->name('quotation.pdf')->whereNumber('version');
     Route::get('/messages', [MessageController::class, 'index'])->name('messages');
     Route::get('/messages/contacts', [MessageController::class, 'contacts'])->name('messages.contacts');
     Route::get('/messages/thread/{type}/{id}', [MessageController::class, 'thread'])->name('messages.thread');
@@ -285,6 +300,11 @@ Route::prefix('client')->name('client.')->middleware(['role:client', 'profile.co
     Route::get('/messages/unread-count', [MessageController::class, 'unreadCount'])->name('messages.unread_count');
     Route::get('/payments', [ClientController::class, 'payments'])->name('payments');
     Route::get('/payments/pending-count', [PaymentController::class, 'pendingProofCount'])->name('payments.pending_count');
+    // Online bank payment (gateway checkout). Return / cancel only re-check with the gateway; they never mark anything paid themselves.
+    Route::post('/payments/{id}/pay-online', [OnlinePaymentController::class, 'pay'])->name('payments.online.pay')->whereNumber('id')->middleware('throttle:10,1');
+    Route::get('/payments/online/{onlineId}/return', [OnlinePaymentController::class, 'returned'])->name('payments.online.return')->whereNumber('onlineId');
+    Route::get('/payments/online/{onlineId}/cancel', [OnlinePaymentController::class, 'cancelled'])->name('payments.online.cancel')->whereNumber('onlineId');
+    Route::post('/payments/online/{onlineId}/check', [OnlinePaymentController::class, 'check'])->name('payments.online.check')->whereNumber('onlineId')->middleware('throttle:20,1');
     Route::get('/payments/{id}', [PaymentController::class, 'clientShow'])->name('payments.show');
     Route::get('/payments/{id}/billing-statements/{statementId}', [PaymentController::class, 'clientShowBillingStatement'])->name('payments.billing_statements.show');
     Route::post('/payments/{id}/proof', [PaymentController::class, 'uploadProof'])->name('payments.proof.store');

@@ -380,7 +380,7 @@
 
                 <div class="qb-head">
                     <div>
-                        <h2 class="qb-title"><i data-lucide="calculator"></i> Quotation Builder</h2>
+                        <h2 class="qb-title"><i data-lucide="calculator"></i> Costing</h2>
                         <p class="qb-sub">Manage this project's materials and labor below, then save everything at once.</p>
                     </div>
                     <div class="qb-head-right">

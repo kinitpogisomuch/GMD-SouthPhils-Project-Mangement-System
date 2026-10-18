@@ -46,6 +46,7 @@ class ForgotPasswordController extends Controller
                 'fp_user_type' => null,
                 'fp_user_id'   => null,
                 'fp_verified'  => false,
+                'fp_code_sent_at' => now()->timestamp,   // same countdowns as a real send, so nothing differs
             ]);
 
             return redirect()->route('password.verify')
@@ -100,6 +101,7 @@ class ForgotPasswordController extends Controller
             'fp_user_type' => $userType,
             'fp_user_id'   => $userId,
             'fp_verified'  => false,
+            'fp_code_sent_at' => now()->timestamp,   // drives the verify page's expiry / resend countdowns
         ]);
 
         return redirect()->route('password.verify')
@@ -115,7 +117,13 @@ class ForgotPasswordController extends Controller
             return redirect()->route('password.request');
         }
 
-        return view('auth.forgot_verify');
+        // Codes last 10 minutes and can be resent after 60 seconds (enforced above); the page counts both down
+        $sentAt = (int) session('fp_code_sent_at', now()->timestamp);
+
+        return view('auth.forgot_verify', [
+            'expiresIn'  => max(0, $sentAt + 600 - now()->timestamp),
+            'resendIn'   => max(0, $sentAt + 60 - now()->timestamp),
+        ]);
     }
 
     // -------------------------------------------------------------------------
@@ -201,6 +209,8 @@ class ForgotPasswordController extends Controller
             Log::error('ForgotPassword: resendCode email failed', ['email' => $email, 'error' => $e->getMessage()]);
             return back()->withErrors(['code' => 'Failed to send email. Please try again.']);
         }
+
+        session(['fp_code_sent_at' => now()->timestamp]);
 
         return back()->with('resent', true);
     }

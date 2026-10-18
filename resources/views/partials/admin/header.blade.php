@@ -1,4 +1,5 @@
 @include('partials.submit_guard')
+@include('partials.ui_assets')
 <header class="admin-header">
     <div class="admin-header-left">
         <button class="sidebar-toggle-btn" type="button" id="sidebarToggleBtn" title="Toggle menu">

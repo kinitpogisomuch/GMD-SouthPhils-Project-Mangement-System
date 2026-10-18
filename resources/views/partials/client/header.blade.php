@@ -1,4 +1,5 @@
 @include('partials.submit_guard')
+@include('partials.ui_assets')
 @php
     // The full client portal (My Projects, Payments) only unlocks once the client
     // has an approved/converted quotation request or an actual project — not while
@@ -53,10 +54,19 @@
             <span id="paymentsNavBadge" class="notification-count-badge" style="display:none;"></span>
         </a>
         @endif
+        @php
+            // quotations waiting for this client's decision
+            $__quotesToReview = isset($__messagingClient)
+                ? \App\Models\QuotationRequest::where('client_id', $__messagingClient->id)->where('status', 'quotation_sent')->distinct('batch_id')->count('batch_id')
+                : 0;
+        @endphp
         <a href="{{ route('client.quotation.create') }}"
-           class="{{ request()->routeIs('client.quotation.*') ? 'active' : '' }}">
+           class="{{ request()->routeIs('client.quotation.*') ? 'active' : '' }}" style="position:relative;">
             <i data-lucide="clipboard-list"></i>
             <span>Quotation</span>
+            @if($__quotesToReview > 0)
+            <span class="notification-count-badge" title="{{ $__quotesToReview }} quotation{{ $__quotesToReview > 1 ? 's' : '' }} waiting for your decision">{{ $__quotesToReview }}</span>
+            @endif
         </a>
     </nav>
 

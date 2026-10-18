@@ -1,4 +1,5 @@
 @include('partials.submit_guard')
+@include('partials.ui_assets')
 <header class="employee-header">
     <div class="employee-header-left">
         {{-- Hamburger toggle — hidden on desktop, shown only in the mobile @media block below --}}

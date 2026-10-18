@@ -1023,15 +1023,23 @@ body {
     background: rgba(0, 0, 0, 0.04);
 }
 
+/* the selected filter: a dark pill with a yellow count (same as the Quotation Requests switch) */
 .filter-tab.active {
-    background: #fff;
-    color: var(--dark);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.10);
+    background: #333333;
+    color: #fff;
+    font-weight: 800;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+.filter-tab.active:hover {
+    background: #333333;
+    color: #fff;
 }
 
 .filter-tab.active .filter-count {
-    background: var(--dark);
-    color: #fff;
+    background: #F5B400;
+    color: #1a1a1a;
+    font-weight: 900;
 }
 
 /* ================= PAGINATION ================= */

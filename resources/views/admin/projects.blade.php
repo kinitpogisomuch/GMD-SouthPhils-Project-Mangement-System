@@ -94,78 +94,165 @@
                 </div>
             </div>
 
-            <div class="table-card" id="clientListCard">
+            {{-- Active: every in-progress project, listed directly. Completed / Archived: grouped by client —
+                 a client's page then lists their finished projects. --}}
+            <div class="table-card" id="projectListCard">
                 <div class="table-toolbar">
                     <div class="search-box">
                         <i data-lucide="search"></i>
-                        <input type="text" id="clientListSearch" placeholder="Search client...">
+                        <input type="text" id="projectListSearch" placeholder="{{ $tab === 'active' ? 'Search project or client...' : 'Search client...' }}">
                     </div>
-                    <select class="filter-select" id="clientSortSelect">
-                        <option value="default">Sort: Active Projects First</option>
-                        <option value="alpha-asc">Sort: A–Z</option>
-                        <option value="alpha-desc">Sort: Z–A</option>
-                    </select>
+                    <div class="filter-tabs" id="projectListTabs">
+                        <button type="button" class="filter-tab {{ $tab === 'active' ? 'active' : '' }}" data-tab="active">
+                            Active
+                            <span class="filter-count">{{ $activeProjects->count() }}</span>
+                        </button>
+                        <button type="button" class="filter-tab {{ $tab === 'completed' ? 'active' : '' }}" data-tab="completed">
+                            Completed
+                            <span class="filter-count">{{ $completedGroups->sum('count') }}</span>
+                        </button>
+                        <button type="button" class="filter-tab {{ $tab === 'archived' ? 'active' : '' }}" data-tab="archived">
+                            Archived
+                            <span class="filter-count">{{ $archivedGroups->sum('count') }}</span>
+                        </button>
+                    </div>
                 </div>
 
-                <div class="table-wrapper">
-                    <table class="data-table" id="clientListTable">
+                {{-- ── Active projects ── --}}
+                <div class="table-wrapper" data-panel="active" @if($tab !== 'active') style="display:none;" @endif>
+                    <table class="data-table">
                         <thead>
                             <tr>
+                                <th>Project Name</th>
                                 <th>Client</th>
-                                <th style="text-align:center;">Total Projects</th>
-                                <th style="text-align:center;">Active</th>
-                                <th style="text-align:center;">Completed</th>
-                                <th style="text-align:center;">Archived</th>
+                                <th style="text-align:center;">End Date</th>
+                                <th style="text-align:center;">Project Status</th>
+                                <th style="text-align:center;">Payment</th>
+                                <th style="text-align:center;">Progress</th>
                                 <th style="text-align:center;">Action</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @forelse($clientGroups as $g)
-                            <tr data-search="{{ strtolower($g['client']) }}" onclick="window.location='{{ route('admin.projects.client', $g['client_key']) }}'" style="cursor:pointer;" class="{{ $g['pending_update_count'] > 0 ? 'row-needs-action' : '' }}">
-                                <td class="td-wrap" style="min-width:180px;">
-                                    <span class="pf-client-name">{{ $g['client'] }}</span>
-                                    @if($g['pending_update_count'] > 0)
-                                    <span title="{{ $g['pending_update_projects']->implode(', ') }} — waiting on your review"
-                                          style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;font-size:10px;font-weight:800;color:#b45309;background:#fff3cd;border-radius:999px;padding:2px 8px;white-space:nowrap;">
-                                        <i data-lucide="bell" style="width:10px;height:10px;"></i>
-                                        @if($g['pending_update_count'] === 1)
-                                            {{ Str::limit($g['pending_update_projects']->first(), 28) }} — Pending Review
-                                        @else
-                                            {{ $g['pending_update_count'] }} Updates Pending Review
+                            @forelse($activeProjects as $project)
+                            @php
+                                $needsReview = in_array($project->id, $pendingUpdateProjectIds);
+                                $namePrefix  = '';
+                                $nameMain    = $project->name;
+                                if (preg_match('/^(Fabrication of)\s+(.+)$/i', $project->name, $nm)) {
+                                    $namePrefix = $nm[1];
+                                    $nameMain   = $nm[2];
+                                }
+                                $overdue = $project->end_date->isPast() && !$project->end_date->isToday();
+                            @endphp
+                            <tr data-search="{{ strtolower($project->name . ' ' . $project->live_client_name) }}"
+                                data-href="{{ url('/admin/project-view/' . $project->id) }}"
+                                class="pl-row {{ $needsReview ? 'row-needs-action' : '' }}">
+                                <td class="td-wrap" style="min-width:200px;">
+                                    <span style="display:inline-flex;flex-direction:column;max-width:100%;min-width:0;">
+                                        @if($namePrefix)
+                                            <span style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:.05em;line-height:1.2;text-transform:uppercase;white-space:nowrap;">{{ $namePrefix }}</span>
+                                        @endif
+                                        <span style="font-size:13px;font-weight:800;color:var(--dark);line-height:1.3;white-space:normal;word-break:break-word;">{{ $nameMain }}</span>
+                                        @if($needsReview)
+                                        <span title="An employee submitted a progress update for this project — waiting on your review"
+                                              style="display:inline-flex;align-items:center;gap:3px;margin-top:4px;font-size:10px;font-weight:800;color:#b45309;background:#fff3cd;border-radius:999px;padding:2px 8px;white-space:nowrap;width:fit-content;">
+                                            <i data-lucide="bell" style="width:10px;height:10px;"></i>
+                                            Update Pending Review
+                                        </span>
                                         @endif
                                     </span>
+                                </td>
+                                <td class="td-wrap" style="min-width:150px;"><span class="pf-client-name" style="font-size:13px;">{{ $project->live_client_name }}</span></td>
+                                <td style="white-space:nowrap;text-align:center;{{ $overdue ? 'color:#dc2626;font-weight:800;' : '' }}" @if($overdue) title="Past the planned completion date" @endif>
+                                    {{ $project->end_date->format('M d, Y') }}
+                                </td>
+                                <td style="text-align:center;">@include('partials.admin.project_badge', ['kind' => 'phase'])</td>
+                                <td style="text-align:center;">@include('partials.admin.project_badge', ['kind' => 'payment'])</td>
+                                <td style="text-align:center;">@include('partials.admin.project_badge', ['kind' => 'progress'])</td>
+                                <td class="action-cell" style="text-align:center;white-space:nowrap;">
+                                    @include('partials.admin.project_action_buttons')
+                                </td>
+                            </tr>
+                            @empty
+                            <tr>
+                                <td colspan="7" style="text-align:center;padding:60px 20px;color:var(--muted);">
+                                    <i data-lucide="inbox" style="width:36px;height:36px;opacity:.35;display:block;margin:0 auto 12px;"></i>
+                                    <div style="font-size:14px;font-weight:700;">No active projects.</div>
+                                    <div style="font-size:13px;margin-top:4px;">Click <strong>Add Project</strong> to start one.</div>
+                                </td>
+                            </tr>
+                            @endforelse
+                            <tr class="pl-no-match" style="display:none;">
+                                <td colspan="7" style="text-align:center;padding:60px 20px;color:var(--muted);">
+                                    <i data-lucide="search-x" style="width:36px;height:36px;opacity:.35;display:block;margin:0 auto 12px;"></i>
+                                    <div style="font-size:14px;font-weight:700;">No active projects match your search.</div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                {{-- ── Completed / Archived: one row per client ── --}}
+                @foreach(['completed' => $completedGroups, 'archived' => $archivedGroups] as $panel => $groups)
+                <div class="table-wrapper" data-panel="{{ $panel }}" @if($tab !== $panel) style="display:none;" @endif>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Client</th>
+                                <th style="text-align:center;">{{ $panel === 'completed' ? 'Completed Projects' : 'Archived Projects' }}</th>
+                                @if($panel === 'completed')
+                                <th style="text-align:center;">Awaiting Delivery</th>
+                                @endif
+                                <th style="text-align:center;">{{ $panel === 'completed' ? 'Last Completed' : 'Last Archived' }}</th>
+                                <th style="text-align:center;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($groups as $g)
+                            @php $clientUrl = route('admin.projects.client', ['client' => $g['client_key'], 'tab' => $panel]); @endphp
+                            <tr data-search="{{ strtolower($g['client']) }}" data-href="{{ $clientUrl }}" class="pl-row">
+                                <td class="td-wrap" style="min-width:180px;"><span class="pf-client-name">{{ $g['client'] }}</span></td>
+                                <td style="text-align:center;">
+                                    @if($panel === 'completed')
+                                    <span class="client-pill" style="background-color:#E7F6EC;color:#207A3A;border-color:#A7E3B8;">{{ $g['count'] }}</span>
+                                    @else
+                                    <span class="client-pill" style="background-color:#F3F4F6;color:#6B7280;border-color:#D1D5DB;">{{ $g['count'] }}</span>
                                     @endif
                                 </td>
-                                <td style="text-align:center;"><span class="client-pill" style="background-color:#F3F4F6;color:#1F2937;border-color:#D1D5DB;">{{ $g['total'] }}</span></td>
-                                <td style="text-align:center;"><span class="client-pill" style="background-color:#EAF0FF;color:#2563EB;border-color:#BFDBFE;">{{ $g['active'] }}</span></td>
-                                <td style="text-align:center;"><span class="client-pill" style="background-color:#E7F6EC;color:#207A3A;border-color:#A7E3B8;">{{ $g['completed'] }}</span></td>
-                                <td style="text-align:center;"><span class="client-pill" style="background-color:#F3F4F6;color:#6B7280;border-color:#D1D5DB;">{{ $g['archived'] }}</span></td>
+                                @if($panel === 'completed')
+                                <td style="text-align:center;">
+                                    @if($g['awaiting_delivery'] > 0)
+                                    <span class="client-pill" style="background-color:#FFF4E0;color:#B45309;border-color:#FCD9A0;">{{ $g['awaiting_delivery'] }}</span>
+                                    @else
+                                    <span style="color:var(--muted);">—</span>
+                                    @endif
+                                </td>
+                                @endif
+                                <td style="text-align:center;white-space:nowrap;color:var(--muted);font-weight:600;">{{ \Carbon\Carbon::parse($g['last_activity'])->format('M d, Y') }}</td>
                                 <td class="action-cell" style="text-align:center;">
-                                    <a href="{{ route('admin.projects.client', $g['client_key']) }}" class="action-btn view" title="View Client's Projects" onclick="event.stopPropagation()">
+                                    <a href="{{ $clientUrl }}" class="action-btn view" title="View {{ $panel }} projects">
                                         <i data-lucide="eye"></i>
                                     </a>
                                 </td>
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="6" style="text-align:center;padding:60px 20px;color:var(--muted);">
-                                    <i data-lucide="inbox" style="width:36px;height:36px;opacity:.35;display:block;margin:0 auto 12px;"></i>
-                                    <div style="font-size:14px;font-weight:700;">No clients with projects yet.</div>
-                                    <div style="font-size:13px;margin-top:4px;">Click <strong>Add Project</strong> to get started.</div>
+                                <td colspan="{{ $panel === 'completed' ? 5 : 4 }}" style="text-align:center;padding:60px 20px;color:var(--muted);">
+                                    <i data-lucide="{{ $panel === 'completed' ? 'circle-check' : 'archive' }}" style="width:36px;height:36px;opacity:.35;display:block;margin:0 auto 12px;"></i>
+                                    <div style="font-size:14px;font-weight:700;">{{ $panel === 'completed' ? 'No completed projects yet.' : 'No archived projects.' }}</div>
                                 </td>
                             </tr>
                             @endforelse
-                            @if($clientGroups->isNotEmpty())
-                            <tr id="clientListEmptyRow" style="display:none;">
-                                <td colspan="6" style="text-align:center;padding:60px 20px;color:var(--muted);">
+                            <tr class="pl-no-match" style="display:none;">
+                                <td colspan="{{ $panel === 'completed' ? 5 : 4 }}" style="text-align:center;padding:60px 20px;color:var(--muted);">
                                     <i data-lucide="search-x" style="width:36px;height:36px;opacity:.35;display:block;margin:0 auto 12px;"></i>
                                     <div style="font-size:14px;font-weight:700;">No clients match your search.</div>
                                 </td>
                             </tr>
-                            @endif
                         </tbody>
                     </table>
                 </div>
+                @endforeach
             </div>
 
         </main>
@@ -365,8 +452,6 @@
         @php $clientListUrl = route('admin.client.list'); @endphp
         const CLIENT_LIST_URL = "{{ $clientListUrl }}";
 
-        const PROJECT_CLIENT_GROUPS_URL = "{{ route('admin.projects.client_groups') }}";
-        const PROJECT_CLIENT_URL_TEMPLATE = "{{ route('admin.projects.client', '__CLIENT__') }}";
 
         var allClients = [];
 
@@ -1017,94 +1102,59 @@
             });
         }
 
-        function applyClientListFilter() {
-            var input   = document.getElementById('clientListSearch');
-            var q       = input ? input.value.toLowerCase() : '';
+        // ── Active / Completed / Archived tabs + search over whichever list is showing ──
+        var currentProjectTab = @json($tab);
+
+        function applyProjectListSearch() {
+            var input = document.getElementById('projectListSearch');
+            var q     = input ? input.value.toLowerCase().trim() : '';
+            var panel = document.querySelector('#projectListCard [data-panel="' + currentProjectTab + '"]');
+            if (!panel) return;
+            var rows    = panel.querySelectorAll('tbody tr[data-search]');
             var visible = 0;
-            document.querySelectorAll('#clientListTable tbody tr[data-search]').forEach(function(row) {
+            rows.forEach(function(row) {
                 var show = row.dataset.search.indexOf(q) !== -1;
                 row.style.display = show ? '' : 'none';
                 if (show) visible++;
             });
-            var emptyRow = document.getElementById('clientListEmptyRow');
-            if (emptyRow) emptyRow.style.display = visible === 0 ? '' : 'none';
+            var noMatch = panel.querySelector('.pl-no-match');
+            if (noMatch) noMatch.style.display = rows.length && visible === 0 ? '' : 'none';
         }
 
-        function buildClientRow(g) {
-            var tr = document.createElement('tr');
-            tr.dataset.search = g.client.toLowerCase();
-            tr.style.cursor = 'pointer';
-            if (g.pending_update_count > 0) tr.classList.add('row-needs-action');
-            var url = PROJECT_CLIENT_URL_TEMPLATE.replace('__CLIENT__', encodeURIComponent(g.client_key));
-            tr.setAttribute('onclick', "window.location='" + url.replace(/'/g, "\\'") + "'");
-            var pendingBadge = g.pending_update_count > 0
-                ? '<span title="' + escapeHtml((g.pending_update_projects || []).join(', ')) + ' — waiting on your review" ' +
-                  'style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;font-size:10px;font-weight:800;color:#b45309;background:#fff3cd;border-radius:999px;padding:2px 8px;white-space:nowrap;">' +
-                  '<i data-lucide="bell" style="width:10px;height:10px;"></i>' + g.pending_update_count + ' Update' + (g.pending_update_count > 1 ? 's' : '') + ' Pending Review</span>'
-                : '';
-            tr.innerHTML =
-                '<td class="td-wrap" style="min-width:180px;"><span class="pf-client-name"></span>' + pendingBadge + '</td>' +
-                '<td style="text-align:center;"><span class="client-pill" style="background-color:#F3F4F6;color:#1F2937;border-color:#D1D5DB;">' + g.total + '</span></td>' +
-                '<td style="text-align:center;"><span class="client-pill" style="background-color:#EAF0FF;color:#2563EB;border-color:#BFDBFE;">' + g.active + '</span></td>' +
-                '<td style="text-align:center;"><span class="client-pill" style="background-color:#E7F6EC;color:#207A3A;border-color:#A7E3B8;">' + g.completed + '</span></td>' +
-                '<td style="text-align:center;"><span class="client-pill" style="background-color:#F3F4F6;color:#6B7280;border-color:#D1D5DB;">' + g.archived + '</span></td>' +
-                '<td class="action-cell" style="text-align:center;">' +
-                    '<a href="' + url + '" class="action-btn view" title="View Client\'s Projects" onclick="event.stopPropagation()">' +
-                        '<i data-lucide="eye"></i>' +
-                    '</a>' +
-                '</td>';
-            tr.querySelector('.pf-client-name').textContent = g.client; // textContent — never trust client names as HTML
-            return tr;
-        }
-
-        function refreshClientList() {
-            fetch(PROJECT_CLIENT_GROUPS_URL, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } })
-                .then(function(r) { return r.json(); })
-                .then(function(groups) {
-                    var tbody = document.querySelector('#clientListTable tbody');
-                    var emptyRow = document.getElementById('clientListEmptyRow');
-                    tbody.querySelectorAll('tr[data-search]').forEach(function(row) { row.remove(); });
-                    groups.forEach(function(g) {
-                        tbody.insertBefore(buildClientRow(g), emptyRow || null);
-                    });
-                    applyClientSortMode(); // server order is "Active Projects First" — reapply A–Z/Z–A if selected
-                    applyClientListFilter();
-                    if (typeof lucide !== 'undefined') lucide.createIcons();
-                })
-                .catch(function(err) { console.error('Failed to refresh client list:', err); });
-        }
-
-        var currentClientSort = 'default';
-
-        function applyClientSortMode() {
-            if (currentClientSort === 'default') return; // rows are already in the server's "Active First" order
-            var tbody    = document.querySelector('#clientListTable tbody');
-            var emptyRow = document.getElementById('clientListEmptyRow');
-            var rows     = Array.prototype.slice.call(tbody.querySelectorAll('tr[data-search]'));
-            rows.sort(function(a, b) {
-                return currentClientSort === 'alpha-asc'
-                    ? a.dataset.search.localeCompare(b.dataset.search)
-                    : b.dataset.search.localeCompare(a.dataset.search);
+        function showProjectTab(tab) {
+            currentProjectTab = tab;
+            document.querySelectorAll('#projectListTabs .filter-tab').forEach(function(t) {
+                t.classList.toggle('active', t.dataset.tab === tab);
             });
-            rows.forEach(function(row) { tbody.insertBefore(row, emptyRow || null); });
+            document.querySelectorAll('#projectListCard [data-panel]').forEach(function(p) {
+                p.style.display = p.dataset.panel === tab ? '' : 'none';
+            });
+            var input = document.getElementById('projectListSearch');
+            if (input) input.placeholder = tab === 'active' ? 'Search project or client...' : 'Search client...';
+            applyProjectListSearch();
+            // keep the tab on refresh / when coming back from a project or client page
+            try {
+                var url = new URL(window.location.href);
+                if (tab === 'active') url.searchParams.delete('tab'); else url.searchParams.set('tab', tab);
+                history.replaceState(null, '', url);
+            } catch (e) {}
         }
 
-        function initializeClientListSearch() {
-            var input = document.getElementById('clientListSearch');
-            if (!input) return;
-            input.addEventListener('keyup', applyClientListFilter);
+        function initializeProjectList() {
+            document.querySelectorAll('#projectListTabs .filter-tab').forEach(function(tab) {
+                tab.addEventListener('click', function() { showProjectTab(this.dataset.tab); });
+            });
+            var input = document.getElementById('projectListSearch');
+            if (input) input.addEventListener('input', applyProjectListSearch);
 
-            var sortSelect = document.getElementById('clientSortSelect');
-            if (sortSelect) {
-                sortSelect.addEventListener('change', function() {
-                    currentClientSort = this.value;
-                    if (currentClientSort === 'default') {
-                        refreshClientList(); // simplest way back to the true server-computed order
-                    } else {
-                        applyClientSortMode();
-                    }
+            // A row opens its project (Active) or client (Completed / Archived) — except clicks on its buttons and links
+            document.querySelectorAll('#projectListCard tr.pl-row').forEach(function(row) {
+                row.style.cursor = 'pointer';
+                row.addEventListener('click', function(e) {
+                    if (e.target.closest('button, a')) return;
+                    window.location.href = row.dataset.href;
                 });
-            }
+            });
         }
 
         document.addEventListener('DOMContentLoaded', function() {
@@ -1351,7 +1401,7 @@
 
             initializeCustomInputs();
             initializeFormValidation();
-            initializeClientListSearch();
+            initializeProjectList();
 
             // Date validation: end date must be >= start date (Add form)
             var addStart = document.getElementById('addProjectStartDate');
@@ -1377,11 +1427,8 @@
 
             if (typeof lucide !== 'undefined') lucide.createIcons();
         });
-
-        // ── Real-time: live-resort the client list when any project's status changes ──
-        // No push channel — just poll the same endpoint the sort/search UI already
-        // uses, so status changes made elsewhere still surface without a refresh.
-        setInterval(refreshClientList, 15000);
     </script>
+
+    @include('partials.admin.project_actions')
 </body>
 </html>

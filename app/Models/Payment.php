@@ -50,6 +50,34 @@ class Payment extends Model
         return $this->hasMany(PaymentProof::class)->latest();
     }
 
+    /** Online (gateway) checkouts, newest first */
+    public function onlinePayments()
+    {
+        return $this->hasMany(OnlinePayment::class)->latest('id');
+    }
+
+    /**
+     * The stage the client can pay online right now and how much — the earliest open stage (same rule
+     * as GMD's Record Payment form) with what is still due on it. Null when nothing is payable.
+     *
+     * @return array{stage: string, amount: float}|null
+     */
+    public function onlinePayableStage(): ?array
+    {
+        if (!$this->payment_term_type || (float) $this->contract_amount <= 0) {
+            return null;
+        }
+
+        $stage = array_search('open', $this->proofStageStates(false), true);
+        if ($stage === false) {
+            return null;
+        }
+
+        $amount = round((float) ($this->stageAmountsDue()[$stage] ?? 0), 2);
+
+        return $amount > 0 ? ['stage' => $stage, 'amount' => $amount] : null;
+    }
+
     // -------------------------------------------------------------------------
     // Computed helpers
     // -------------------------------------------------------------------------

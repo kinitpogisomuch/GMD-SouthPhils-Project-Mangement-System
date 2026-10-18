@@ -68,57 +68,38 @@ class PaymentController extends Controller
         ]))->count();
         $pendingDown = $payments->filter(fn($p) => $p->computeStatus() === 'Pending Down Payment')->count();
 
-        // Every client with at least one active project shows up here — not
-        // just clients who already have a payment record — so admin can spot
-        // who still needs a payment setup done, right from this list.
-        //
-        // Grouped by client_id when a project is linked (so a client rename
-        // or relink is reflected immediately); falls back to the raw name
-        // string for the rare project that predates the client_id link.
-        $groupKey = fn (Project $p) => $p->client_id ? 'id:' . $p->client_id : 'name:' . $p->client;
+        // Same split as the Projects page. Active: one row per in-progress project — including ones with
+        // no payment setup yet, so admin can spot them. Completed / Archived: grouped by client, and the
+        // client's page lists those projects' payments.
+        $projects        = Project::orderBy('created_at', 'desc')->get();
+        $paymentByProject = $payments->filter(fn (Payment $p) => $p->project_id)->keyBy('project_id');
 
-        $paymentsByClient = $payments->groupBy(function (Payment $p) use ($groupKey) {
-            return $p->project ? $groupKey($p->project) : 'name:' . $p->client;
-        });
+        $activeRows = $projects->whereNotIn('status', ['completed', 'archived'])
+            ->map(function (Project $project) use ($paymentByProject) {
+                $payment = $paymentByProject->get($project->id);
+                $status  = $payment?->computeStatus();
 
-        $nonArchivedProjects = Project::where('status', '!=', 'archived')->get();
-        $projectsByClient    = $nonArchivedProjects->groupBy($groupKey);
+                return [
+                    'project'         => $project,
+                    'payment'         => $payment,
+                    'status'          => $status,
+                    'filter'          => self::paymentFilterKey($status),
+                    'contract'        => $payment ? (float) $payment->contract_amount : 0,
+                    'received'        => $payment ? $payment->totalPaid() : 0,
+                    'balance'         => $payment ? $payment->currentBalance() : 0,
+                    'awaiting_stage'  => $project->awaitingPaymentStage(),
+                    // due, but no billing statement sent yet — the client hasn't been asked to pay
+                    'billing_pending' => $payment && $status !== 'Fully Paid' ? $payment->billingPendingStage() : null,
+                ];
+            })
+            // projects held up by a payment stage first, then newest
+            ->sortBy(fn ($row) => $row['awaiting_stage'] ? 0 : 1)
+            ->values();
 
-        // Projects currently stalled waiting on a payment stage, grouped by
-        // client, so the list can flag exactly who admin needs to chase.
-        // (completed-but-undelivered projects included — their final payment can still be pending)
-        $activeProjectsByClient = Project::where('status', '!=', 'archived')
-            ->get()
-            ->groupBy($groupKey);
+        $completedGroups = $this->paymentClientGroups($projects->where('status', 'completed'), $paymentByProject);
+        $archivedGroups  = $this->paymentClientGroups($projects->where('status', 'archived'), $paymentByProject);
 
-        $clientGroups = $projectsByClient->map(function ($group, $key) use ($paymentsByClient, $activeProjectsByClient) {
-            $first      = $group->first();
-            $clientName = $first->live_client_name;
-            $clientKey  = $first->client_id ?: $first->client;
-
-            $paymentGroup = $paymentsByClient->get($key, collect());
-
-            $contractTotal = $paymentGroup->sum('contract_amount');
-            $receivedTotal = $paymentGroup->sum(fn($p) => $p->totalPaid());
-            $statuses      = $paymentGroup->map(fn($p) => $p->computeStatus());
-
-            $needsSettlement = $activeProjectsByClient->get($key, collect())
-                ->contains(fn (Project $p) => $p->awaitingPaymentStage() !== null);
-
-            return [
-                'client'           => $clientName,
-                'client_key'       => $clientKey,
-                'project_count'    => $group->count(),
-                'contract_total'   => $contractTotal,
-                'received_total'   => $receivedTotal,
-                'balance_total'    => max(0, $contractTotal - $receivedTotal),
-                'has_payments'     => $paymentGroup->isNotEmpty(),
-                'has_pending'      => $statuses->contains('Pending Down Payment'),
-                'has_in_progress'  => $statuses->contains(fn($s) => in_array($s, ['Down Payment Paid', 'Progress Payment Partially Paid', 'Progress Payment Paid'])),
-                'all_fully_paid'   => $statuses->isNotEmpty() && $statuses->every(fn($s) => $s === 'Fully Paid'),
-                'needs_settlement' => $needsSettlement,
-            ];
-        })->sortBy(fn ($group) => ($group['needs_settlement'] ? '0_' : '1_') . strtolower($group['client']))->values();
+        $tab = in_array(request('tab'), ['active', 'completed', 'archived'], true) ? request('tab') : 'active';
 
         // Payments with an OR number, plus historical (imported) payments, which have none
         $receipts = PaymentTransaction::with('payment.project')
@@ -142,7 +123,10 @@ class PaymentController extends Controller
             ->values();
 
         return view('admin.payments', compact(
-            'clientGroups',
+            'activeRows',
+            'completedGroups',
+            'archivedGroups',
+            'tab',
             'totalContractValue',
             'totalReceived',
             'outstanding',
@@ -153,16 +137,62 @@ class PaymentController extends Controller
         ));
     }
 
+    /** The Active tab's status filter a payment belongs to ('no_setup' when the project has none yet) */
+    private static function paymentFilterKey(?string $status): string
+    {
+        return match (true) {
+            $status === null                   => 'no_setup',
+            $status === 'Fully Paid'           => 'fully_paid',
+            $status === 'Pending Down Payment' => 'pending',
+            default                            => 'in_progress',
+        };
+    }
+
+    /**
+     * Per-client payment rollup of finished (completed or archived) projects for the Payments page's
+     * Completed / Archived tabs. Clients still owed a payment stage (e.g. a final payment after
+     * "Proceed Anyway") come first, then the rest by name.
+     */
+    private function paymentClientGroups($projects, $paymentByProject)
+    {
+        // Grouped by client_id when a project is linked (so a client rename or relink is reflected
+        // immediately); falls back to the raw name for the rare project that predates the link.
+        return $projects->groupBy(fn (Project $p) => $p->client_id ? 'id:' . $p->client_id : 'name:' . $p->client)
+            ->map(function ($group) use ($paymentByProject) {
+                $first    = $group->first();
+                $payments = $group->map(fn (Project $p) => $paymentByProject->get($p->id))->filter();
+                $contract = $payments->sum('contract_amount');
+                $received = $payments->sum(fn (Payment $p) => $p->totalPaid());
+
+                return [
+                    'client'           => $first->live_client_name,
+                    'client_key'       => $first->client_id ?: $first->client,
+                    'project_count'    => $group->count(),
+                    'contract_total'   => $contract,
+                    'received_total'   => $received,
+                    'balance_total'    => max(0, $contract - $received),
+                    'all_fully_paid'   => $payments->isNotEmpty() && $payments->every(fn (Payment $p) => $p->computeStatus() === 'Fully Paid'),
+                    'needs_settlement' => $group->contains(fn (Project $p) => $p->status !== 'archived' && $p->awaitingPaymentStage() !== null),
+                ];
+            })
+            ->sortBy(fn ($g) => ($g['needs_settlement'] ? '0_' : '1_') . strtolower($g['client']))
+            ->values();
+    }
+
     public function clientPayments($client)
     {
         $decoded = urldecode($client);
+
+        // Active projects' payments live on the Payments page itself; a client's page holds the
+        // finished (completed / archived) projects' payments
+        $finished = fn ($q) => $q->whereIn('status', ['completed', 'archived']);
 
         if (ctype_digit($decoded)) {
             $clientId   = (int) $decoded;
             $clientName = Client::find($clientId)?->full_name ?? 'Unknown Client';
 
             $payments = Payment::with(['project', 'transactions'])
-                ->whereHas('project', fn ($q) => $q->where('client_id', $clientId))
+                ->whereHas('project', fn ($q) => $finished($q->where('client_id', $clientId)))
                 ->orderBy('created_at', 'desc')
                 ->get();
         } else {
@@ -170,11 +200,18 @@ class PaymentController extends Controller
 
             $payments = Payment::with(['project', 'transactions'])
                 ->where('client', $clientName)
+                ->whereHas('project', $finished)
                 ->orderBy('created_at', 'desc')
                 ->get();
         }
 
-        return view('admin.payments_client', compact('payments', 'clientName'));
+        if ($payments->isEmpty()) {
+            return redirect()->route('admin.payments');
+        }
+
+        $tab = request('tab') === 'archived' ? 'archived' : 'completed';
+
+        return view('admin.payments_client', compact('payments', 'clientName', 'tab'));
     }
 
     public function show($id)
@@ -182,13 +219,15 @@ class PaymentController extends Controller
         $payment = Payment::with(['project', 'transactions', 'proofs'])->findOrFail($id);
         $payment->recalculate();
 
-        $paidStages = $payment->paidStages();
-        $proofs     = $payment->proofs;
+        $paidStages     = $payment->paidStages();
+        $proofs         = $payment->proofs;
+        $onlinePayments = $payment->onlinePayments()->get();
 
         return view('admin.payment_detail', compact(
             'payment',
             'paidStages',
-            'proofs'
+            'proofs',
+            'onlinePayments'
         ));
     }
 
@@ -419,12 +458,20 @@ class PaymentController extends Controller
         // only once GMD has actually billed it. Null if nothing's billed yet.
         $currentStage = $payment->currentBilledStage();
 
+        // Online bank payment: what can be paid right now, and every checkout started for this payment
+        $onlineEnabled  = app(\App\Services\OnlinePayments::class)->enabled();
+        $payable        = $payment->onlinePayableStage();
+        $onlinePayments = $payment->onlinePayments()->get();
+
         return view('client.payment_detail', compact(
             'payment',
             'stageAmounts',
             'paidStages',
             'stageTransactions',
-            'currentStage'
+            'currentStage',
+            'onlineEnabled',
+            'payable',
+            'onlinePayments'
         ));
     }
 

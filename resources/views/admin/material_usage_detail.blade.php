@@ -30,9 +30,78 @@
                     <h1>
                         {{ $project->name }}
                     </h1>
-                    <p><span class="client-pill">{{ $project->live_client_name }}</span> &nbsp;&middot;&nbsp; {{ ucfirst(str_replace('_',' ',$project->current_phase ?? 'Planning')) }} phase</p>
+                    <p class="mu-meta"><span class="client-pill">{{ $project->live_client_name }}</span> @include('partials.admin.project_badge', ['kind' => 'phase'])</p>
+                </div>
+                <a href="{{ url('/admin/project-view/' . $project->id) }}" class="cancel-btn" style="text-decoration:none;white-space:nowrap;">
+                    <i data-lucide="folder-open"></i> Open Project
+                </a>
+            </div>
+
+            {{-- ── Overview: where the material budget stands, at a glance ── --}}
+            @php
+                $ovMats   = $plannedMaterials ?? $project->activeMaterials;
+                $ovFactor = $materialFactor ?? ($ovMats->first()?->factor ?? 7);
+                $ovBudget = $ovMats->sum(fn ($m) => round((float) $m->total_cost * (1 + $ovFactor / 100), 2));
+                $ovSpent  = (float) $totalPurchased;
+                $ovPct    = $ovBudget > 0 ? round($ovSpent / $ovBudget * 100) : 0;
+                $ovLeft   = $ovBudget - $ovSpent;
+                $ovTone   = $ovPct > 100 ? 'over' : ($ovPct >= 90 ? 'near' : 'ok');
+
+                // per BOM material: how much of the planned quantity is bought, and whether it went over its budget
+                $ovStatus = [];
+                foreach ($ovMats as $m) {
+                    $rows   = $purchases->where('project_material_id', $m->id);
+                    $bought = (float) $rows->sum('qty_bought');
+                    $paid   = (float) $rows->sum('total_paid');
+                    $budget = round((float) $m->total_cost * (1 + $ovFactor / 100), 2);
+                    $ovStatus[$m->material_name] = $paid > $budget + 0.005 && $budget > 0 ? 'over'
+                        : ($bought <= 0 ? 'none' : ($bought + 0.0001 >= (float) $m->quantity ? 'complete' : 'partial'));
+                }
+                $ovCounts = array_count_values($ovStatus) + ['none' => 0, 'partial' => 0, 'complete' => 0, 'over' => 0];
+                $ovDone   = $ovCounts['complete'] + $ovCounts['over'];
+                $ovTotal  = count($ovStatus);
+            @endphp
+            @if($ovTotal > 0)
+            <div class="mu-overview">
+                <div class="mu-kpi">
+                    <div class="mu-kpi-icon" style="background:#EAF0FF;color:#2A4EAA;"><i data-lucide="clipboard-list"></i></div>
+                    <div>
+                        <div class="mu-kpi-label">Material Budget</div>
+                        <div class="mu-kpi-value">₱{{ number_format($ovBudget, 2) }}</div>
+                        <div class="mu-kpi-sub">BOM incl. +{{ number_format($ovFactor, 0) }}% factor</div>
+                    </div>
+                </div>
+                <div class="mu-kpi">
+                    <div class="mu-kpi-icon" style="background:#E7F6EC;color:#207A3A;"><i data-lucide="shopping-cart"></i></div>
+                    <div style="flex:1;min-width:0;">
+                        <div class="mu-kpi-label">Spent on Materials</div>
+                        <div class="mu-kpi-value">₱{{ number_format($ovSpent, 2) }}</div>
+                        <div class="mu-bar mu-bar--{{ $ovTone }}" title="{{ $ovPct }}% of the material budget"><span style="width:{{ min(100, $ovPct) }}%;"></span></div>
+                        <div class="mu-kpi-sub"><strong class="mu-tone-{{ $ovTone }}">{{ $ovPct }}%</strong> of budget used</div>
+                    </div>
+                </div>
+                <div class="mu-kpi">
+                    <div class="mu-kpi-icon" style="{{ $ovLeft < 0 ? 'background:#FEE2E2;color:#B91C1C;' : 'background:#FFF4E0;color:#B45309;' }}"><i data-lucide="{{ $ovLeft < 0 ? 'trending-up' : 'piggy-bank' }}"></i></div>
+                    <div>
+                        <div class="mu-kpi-label">{{ $ovLeft < 0 ? 'Over Budget' : 'Remaining Budget' }}</div>
+                        <div class="mu-kpi-value" style="{{ $ovLeft < 0 ? 'color:#B91C1C;' : '' }}">₱{{ number_format(abs($ovLeft), 2) }}</div>
+                        <div class="mu-kpi-sub">{{ $ovLeft < 0 ? 'Spent more than the BOM planned' : 'Left to spend within the BOM' }}</div>
+                    </div>
+                </div>
+                <div class="mu-kpi">
+                    <div class="mu-kpi-icon" style="background:#F3E8FF;color:#7C3AED;"><i data-lucide="package-check"></i></div>
+                    <div style="flex:1;min-width:0;">
+                        <div class="mu-kpi-label">Materials Bought</div>
+                        <div class="mu-kpi-value">{{ $ovDone }} <span style="font-size:14px;color:var(--muted);font-weight:700;">of {{ $ovTotal }}</span></div>
+                        <div class="mu-bar mu-bar--ok"><span style="width:{{ $ovTotal ? round($ovDone / $ovTotal * 100) : 0 }}%;"></span></div>
+                        <div class="mu-kpi-sub">
+                            @if($ovCounts['partial'])<span>{{ $ovCounts['partial'] }} partial</span> · @endif
+                            {{ $ovCounts['none'] }} not bought yet
+                        </div>
+                    </div>
                 </div>
             </div>
+            @endif
 
             @if(session('success'))
             {{-- Saved (e.g. purchase recorded, usage logged): the small dark toast below the header
@@ -62,18 +131,24 @@
                 <button class="pm-tab active" data-tab="bom">
                     <i data-lucide="clipboard-list" style="width:14px;height:14px;"></i>
                     BOM &mdash; planned materials
+                    <span class="pm-tab-count">{{ $ovTotal }}</span>
                 </button>
                 <button class="pm-tab" data-tab="purchased">
                     <i data-lucide="shopping-cart" style="width:14px;height:14px;"></i>
                     Purchased materials
+                    <span class="pm-tab-count" title="Purchase transactions">{{ $purchases->count() }}</span>
                 </button>
                 <button class="pm-tab" data-tab="usage">
                     <i data-lucide="activity" style="width:14px;height:14px;"></i>
                     Material usage
+                    <span class="pm-tab-count" title="Usage entries">{{ $usageEntries->where('status', 'active')->count() }}</span>
                 </button>
                 <button class="pm-tab" data-tab="variance">
                     <i data-lucide="git-compare" style="width:14px;height:14px;"></i>
                     Variance summary
+                    @if($ovCounts['over'] > 0)
+                    <span class="pm-tab-count is-alert" title="{{ $ovCounts['over'] }} material{{ $ovCounts['over'] > 1 ? 's' : '' }} over budget">{{ $ovCounts['over'] }} over</span>
+                    @endif
                 </button>
             </div>
 
@@ -193,15 +268,33 @@
                         </div>
                     </div>
 
+                    {{-- Quick filters + search over the rows below --}}
+                    @if($allMaterialRows->isNotEmpty())
+                    <div class="mu-filterbar">
+                        <div class="mu-chips" id="muPurchasedChips">
+                            <button type="button" class="mu-chip active" data-filter="">All <span>{{ $allMaterialRows->count() }}</span></button>
+                            <button type="button" class="mu-chip" data-filter="none">Not bought <span>{{ $ovCounts['none'] }}</span></button>
+                            <button type="button" class="mu-chip" data-filter="partial">Partial <span>{{ $ovCounts['partial'] }}</span></button>
+                            <button type="button" class="mu-chip" data-filter="complete">Complete <span>{{ $ovCounts['complete'] }}</span></button>
+                            <button type="button" class="mu-chip is-alert" data-filter="over">Over budget <span>{{ $ovCounts['over'] }}</span></button>
+                        </div>
+                        <div class="mu-search">
+                            <i data-lucide="search"></i>
+                            <input type="text" id="muPurchasedSearch" placeholder="Search material...">
+                        </div>
+                    </div>
+                    @endif
+
                     <div class="pm-purchased-scroll">
-                        <table class="pm-purchased-table">
+                        <table class="pm-purchased-table" id="muPurchasedTable">
                             <colgroup>
-                                <col style="width:28%;">
-                                <col style="width:11%;">
-                                <col style="width:13%;">
-                                <col style="width:15%;">
-                                <col style="width:15%;">
-                                <col style="width:18%;">
+                                <col style="width:24%;">
+                                <col style="width:8%;">
+                                <col style="width:9%;">
+                                <col style="width:17%;">
+                                <col style="width:14%;">
+                                <col style="width:14%;">
+                                <col style="width:14%;">
                             </colgroup>
                             <thead>
                                 <tr>
@@ -211,6 +304,7 @@
                                     <th>Qty Bought</th>
                                     <th style="text-align:right;">Total Paid (₱)</th>
                                     <th>VS BOM</th>
+                                    <th>Status</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -225,14 +319,31 @@
                                     $vsPct     = $budgeted > 0 ? min(150, round(($totalPaid / $budgeted) * 100)) : null;
                                     $vsColor   = $vsPct !== null ? ($vsPct <= 100 ? '#16a34a' : '#ef4444') : 'var(--muted)';
                                     $unit      = $group ? $group->first()->unit : ($bomMat->unit ?? null);
+                                    // bought outside the BOM: no plan to compare against
+                                    $rowStatus = $ovStatus[$matName] ?? 'extra';
+                                    $qtyPct    = $planned ? min(100, round($totalQty / $planned * 100)) : null;
+                                    $statusMap = [
+                                        'none'     => ['Not bought', 'pending'],
+                                        'partial'  => ['Partial', 'partial'],
+                                        'complete' => ['Complete', 'purchased'],
+                                        'over'     => ['Over budget', 'over'],
+                                        'extra'    => ['Not in BOM', 'extra'],
+                                    ];
                                 @endphp
-                                <tr>
+                                <tr data-status="{{ $rowStatus }}" data-search="{{ strtolower($matName) }}">
                                     <td style="text-align:left;padding-left:14px;">
                                         <strong style="font-size:13px;font-weight:700;color:var(--dark);">{{ $matName }}</strong>
                                     </td>
                                     <td style="font-size:12px;color:var(--muted);">{{ $unit ?: '—' }}</td>
                                     <td>{{ $planned !== null ? number_format($planned, 0) : '—' }}</td>
-                                    <td>{{ number_format($totalQty, 0) }}</td>
+                                    <td>
+                                        <div class="mu-qty">
+                                            <span><strong>{{ number_format($totalQty, 0) }}</strong>@if($planned) <em>/ {{ number_format($planned, 0) }}</em>@endif</span>
+                                            @if($qtyPct !== null)
+                                            <div class="mu-bar mu-bar--{{ $totalQty >= $planned ? 'ok' : 'near' }}"><span style="width:{{ $qtyPct }}%;"></span></div>
+                                            @endif
+                                        </div>
+                                    </td>
                                     <td style="text-align:right;font-weight:700;">₱{{ number_format($totalPaid, 2) }}</td>
                                     <td>
                                         @if($vsPct !== null)
@@ -246,15 +357,22 @@
                                         <span style="color:var(--muted);">—</span>
                                         @endif
                                     </td>
+                                    <td><span class="pm-status {{ $statusMap[$rowStatus][1] }}">{{ $statusMap[$rowStatus][0] }}</span></td>
                                 </tr>
                                 @empty
                                 <tr>
-                                    <td colspan="6" style="padding:48px 20px;color:var(--muted);">
+                                    <td colspan="7" style="padding:48px 20px;color:var(--muted);">
                                         <i data-lucide="shopping-cart" style="width:32px;height:32px;color:var(--border);display:block;margin:0 auto 10px;"></i>
                                         No materials planned or purchased yet.
                                     </td>
                                 </tr>
                                 @endforelse
+                                <tr id="muPurchasedNoMatch" style="display:none;">
+                                    <td colspan="7" style="padding:40px 20px;color:var(--muted);">
+                                        <i data-lucide="search-x" style="width:28px;height:28px;color:var(--border);display:block;margin:0 auto 8px;"></i>
+                                        No materials match this filter.
+                                    </td>
+                                </tr>
                             </tbody>
                             @if($allMaterialRows->isNotEmpty())
                             <tfoot>
@@ -264,6 +382,7 @@
                                     <td style="color:var(--muted);">—</td>
                                     <td style="font-weight:900;">{{ number_format($purchases->sum('qty_bought'), 0) }}</td>
                                     <td style="text-align:right;font-weight:900;">&#x20B1;{{ number_format($totalPurchased, 2) }}</td>
+                                    <td></td>
                                     <td></td>
                                 </tr>
                             </tfoot>
@@ -1001,6 +1120,32 @@
             p.classList.toggle('active', p.id === 'tab-' + ACTIVE_TAB);
         });
 
+        // ---- Purchased materials: status filter chips + search ----
+        (function () {
+            var table = document.getElementById('muPurchasedTable');
+            var chips = document.querySelectorAll('#muPurchasedChips .mu-chip');
+            var input = document.getElementById('muPurchasedSearch');
+            if (!table || !chips.length) return;
+            var filter = '';
+            function apply() {
+                var q = (input && input.value || '').toLowerCase().trim(), shown = 0;
+                table.querySelectorAll('tbody tr[data-status]').forEach(function (row) {
+                    var ok = (!filter || row.dataset.status === filter) && (!q || row.dataset.search.indexOf(q) !== -1);
+                    row.style.display = ok ? '' : 'none';
+                    if (ok) shown++;
+                });
+                document.getElementById('muPurchasedNoMatch').style.display = shown ? 'none' : '';
+            }
+            chips.forEach(function (chip) {
+                chip.addEventListener('click', function () {
+                    chips.forEach(function (c) { c.classList.toggle('active', c === chip); });
+                    filter = chip.dataset.filter;
+                    apply();
+                });
+            });
+            if (input) input.addEventListener('input', apply);
+        })();
+
         // ---- Multi-row material purchase log ----
 
         // ---- Add Material: pick several BOM materials with checkboxes (like Build Quotation) ----
@@ -1625,6 +1770,57 @@
         .pp-custom:hover { border-color:#fff; color:#fff; }
         .pp-custom i, .pp-custom svg { width:14px; height:14px; }
         #confirmPickPurchase:disabled { opacity:.5; cursor:not-allowed; }
+
+        /* ── Header meta + overview cards ── */
+        .mu-meta { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+        .mu-overview { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:14px; margin:4px 0 20px; }
+        .mu-kpi { display:flex; align-items:flex-start; gap:14px; padding:16px 18px; background:var(--white); border:1px solid var(--border); border-radius:16px; box-shadow:0 1px 2px rgba(0,0,0,.03); }
+        .mu-kpi-icon { width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .mu-kpi-icon svg { width:20px; height:20px; }
+        .mu-kpi-label { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
+        .mu-kpi-value { margin-top:3px; font-size:20px; font-weight:900; color:var(--dark); letter-spacing:-.3px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+        .mu-kpi-sub { margin-top:4px; font-size:11.5px; font-weight:600; color:var(--muted); }
+        .mu-bar { height:6px; margin-top:8px; border-radius:999px; background:var(--cream-deep, #ebebeb); overflow:hidden; }
+        .mu-bar span { display:block; height:100%; border-radius:inherit; transition:width .5s ease; }
+        .mu-bar--ok span   { background:linear-gradient(90deg, #22c55e, #16a34a); }
+        .mu-bar--near span { background:linear-gradient(90deg, #fbbf24, #f59e0b); }
+        .mu-bar--over span { background:linear-gradient(90deg, #f87171, #dc2626); }
+        .mu-tone-ok { color:#16a34a; } .mu-tone-near { color:#b45309; } .mu-tone-over { color:#dc2626; }
+
+        /* tab counts */
+        .pm-tab-count { display:inline-flex; align-items:center; justify-content:center; min-width:20px; height:20px; padding:0 7px; border-radius:999px; background:var(--cream-deep, #ebebeb); color:var(--muted); font-size:11px; font-weight:800; }
+        .pm-tab.active .pm-tab-count { background:var(--dark); color:#fff; }
+        .pm-tab-count.is-alert, .pm-tab.active .pm-tab-count.is-alert { background:#fee2e2; color:#b91c1c; }
+
+        /* purchased: filters, qty progress, extra statuses */
+        .mu-filterbar { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:12px 20px; border-bottom:1px solid var(--border); background:var(--cream-soft, #fafafa); }
+        .mu-chips { display:flex; gap:6px; flex-wrap:wrap; }
+        .mu-chip { display:inline-flex; align-items:center; gap:6px; height:32px; padding:0 12px; border-radius:999px; border:1px solid var(--border); background:var(--white); color:var(--muted); font:inherit; font-size:12.5px; font-weight:700; cursor:pointer; transition:background .15s, color .15s, border-color .15s; }
+        .mu-chip span { font-size:11px; font-weight:800; padding:1px 7px; border-radius:999px; background:var(--cream-deep, #ebebeb); color:var(--muted); }
+        .mu-chip:hover { color:var(--dark); border-color:#cfcfcf; }
+        .mu-chip.active { background:#333333; border-color:#333333; color:#fff; font-weight:800; }
+        .mu-chip.active span { background:#F5B400; color:#1a1a1a; font-weight:900; }
+        .mu-chip.is-alert.active { background:#b91c1c; border-color:#b91c1c; }
+        .mu-search { display:flex; align-items:center; gap:8px; height:34px; padding:0 12px; min-width:220px; border:1px solid var(--border); border-radius:999px; background:var(--white); }
+        .mu-search svg { width:15px; height:15px; color:var(--muted); flex-shrink:0; }
+        .mu-search input { border:none; outline:none; background:transparent; font:inherit; font-size:13px; width:100%; color:var(--dark); }
+        .mu-qty { display:flex; flex-direction:column; align-items:center; gap:2px; }
+        .mu-qty em { font-style:normal; color:var(--muted); font-weight:600; }
+        .mu-qty .mu-bar { width:70px; margin-top:4px; height:5px; }
+        .pm-status.partial { background:#FEF3C7; color:#92400E; }
+        .pm-status.extra   { background:#EAF0FF; color:#2A4EAA; }
+
+        @media (max-width: 1100px) { .mu-overview { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+        @media (max-width: 640px) {
+            .mu-overview { grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; }
+            .mu-kpi { padding:12px; }
+            .mu-kpi-icon { display:none; }
+            .mu-kpi-value { font-size:16px; }
+            .mu-kpi-label { font-size:10px; }
+            .mu-search { min-width:0; width:100%; }
+            .mu-filterbar { padding:12px 14px; }
+            .page-header .cancel-btn { align-self:flex-start; }
+        }
     </style>
 </body>
 </html>
