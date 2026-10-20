@@ -6,6 +6,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Employees | GMD South Phils</title>
     <link href="{{ asset('css/admin.css') }}" rel="stylesheet">
+    <style>
+        /* Salary table: even columns — name and role a little wider, the seven figures share the rest
+           and sit centered under their headers. Phones keep their card layout (admin.css, ≤640px). */
+        @media (min-width: 641px) {
+            #salaryTable { table-layout: fixed; width: 100%; }
+            #salaryTable th { width: 10.28%; }
+            #salaryTable th:nth-child(1) { width: 16%; }
+            #salaryTable th:nth-child(2) { width: 12%; }
+            #salaryTable th:nth-child(n+3), #salaryTable td:nth-child(n+3) { text-align: center; }
+            #salaryTable td:nth-child(1), #salaryTable td:nth-child(2) { white-space: normal; overflow-wrap: anywhere; }
+            #salaryTable td.action-cell { justify-content: center; }
+        }
+    </style>
 </head>
 <body class="page-enter">
 

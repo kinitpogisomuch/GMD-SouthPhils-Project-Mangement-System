@@ -28,7 +28,7 @@ class AdminController extends Controller
         $projectsWithMaterials  = ProjectMaterial::where('status', 'active')
             ->distinct('project_id')->count('project_id');
         $projects               = Project::with('clientAccount')->whereNotIn('status', ['archived'])
-            ->orderBy('created_at', 'desc')->take(6)->get();
+            ->orderBy('created_at', 'desc')->take(10)->get();   // the dashboard card scrolls past ~6
 
         // Payment stats
         $allPayments            = Payment::with('transactions', 'project')->get();
@@ -216,6 +216,7 @@ class AdminController extends Controller
             $yFullyPaidRate = $yTotalPayments > 0 ? round(($yFullyPaid / $yTotalPayments) * 100, 1) : 0;
             $yPaymentStatusCounts = $yPayments->countBy(fn($p) => $p->computeStatus());
 
+
             $kpiCardsByYear[$y] = [
                 [
                     'key'        => 'revenue',
@@ -353,6 +354,21 @@ class AdminController extends Controller
             ['label' => 'Completed', 'count' => $completedProjects, 'badge' => 'completed'],
         ];
 
+        // ── Quotation pipeline: where client requests stand right now ──
+        $quotationCounts   = \App\Models\QuotationRequest::selectRaw('status, COUNT(*) as c')->groupBy('status')->pluck('c', 'status');
+        $quotationPipeline = [
+            ['label' => 'New requests',      'sub' => 'Waiting to be costed',   'count' => (int) $quotationCounts->get('pending', 0),        'icon' => 'inbox',       'color' => '#B45309', 'bg' => '#FFF4E0'],
+            ['label' => 'In costing',        'sub' => 'Being prepared',         'count' => (int) $quotationCounts->get('in_preparation', 0), 'icon' => 'calculator',  'color' => '#2A4EAA', 'bg' => '#EAF0FF'],
+            ['label' => 'Waiting on client', 'sub' => 'Quotation sent',         'count' => (int) $quotationCounts->get('quotation_sent', 0), 'icon' => 'send',        'color' => '#6D28D9', 'bg' => '#F3E8FF'],
+            ['label' => 'Ready to convert',  'sub' => 'Approved by the client', 'count' => (int) $quotationCounts->get('approved', 0),       'icon' => 'folder-plus', 'color' => '#207A3A', 'bg' => '#E7F6EC'],
+        ];
+
+        // ── Client sign-ups that verified their email and wait for the admin's approval ──
+        $pendingClientApprovals = Client::awaitingApproval()->count();
+
+        // ── Recent activity (quotations & online payments) from the audit trail ──
+        $recentActivity = \App\Models\AuditLog::latest('id')->limit(15)->get();   // the card scrolls
+
         return view('admin.dashboard', compact(
             'totalProjects',
             'activeProjects',
@@ -386,7 +402,10 @@ class AdminController extends Controller
             'topClientByYear',
             'topSupplierByYear',
             'availableYears',
-            'currentYear'
+            'currentYear',
+            'quotationPipeline',
+            'recentActivity',
+            'pendingClientApprovals'
         ));
     }
 

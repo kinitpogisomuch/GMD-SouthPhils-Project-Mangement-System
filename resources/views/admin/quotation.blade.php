@@ -29,20 +29,6 @@
         .quotation-view-tab { display: inline-flex; align-items: center; gap: 7px; }
         .qv-count { display: inline-flex; align-items: center; justify-content: center; min-width: 19px; height: 19px; padding: 0 6px; border-radius: 999px; background: #F5B400; color: #1a1a1a; font-size: 10.5px; font-weight: 900; }
 
-        /* ── Overview: what needs attention, at a glance (each card filters the list) ── */
-        .qo-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; }
-        .qo-card { display: flex; align-items: center; gap: 14px; padding: 16px 18px; text-align: left; font: inherit; cursor: pointer;
-                   background: var(--white); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 1px 2px rgba(0,0,0,.03);
-                   transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
-        .qo-card:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0,0,0,.07); border-color: #d6d6d6; }
-        .qo-card.is-on { border-color: var(--dark); box-shadow: 0 0 0 3px rgba(0,0,0,.06); }
-        .qo-icon { width: 44px; height: 44px; border-radius: 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-        .qo-icon svg { width: 21px; height: 21px; }
-        .qo-num { font-size: 24px; font-weight: 900; color: var(--dark); line-height: 1; font-variant-numeric: tabular-nums; }
-        .qo-label { margin-top: 4px; font-size: 12px; font-weight: 800; color: var(--dark); }
-        .qo-sub { font-size: 11px; font-weight: 600; color: var(--muted); margin-top: 1px; }
-        .qo-card.is-urgent .qo-num { color: #B45309; }
-
         /* ── Requests table polish ── */
         #quotationRequestsTable { table-layout: fixed; width: 100%; min-width: 980px; }   /* narrower screens scroll sideways in the card */
         .qr-table-scroll { overflow-x: auto; }
@@ -62,7 +48,6 @@
         #quotationStatusTabs .filter-tab { padding: 6px 10px; font-size: 12px; gap: 5px; white-space: nowrap; }
         #quotationStatusTabs .filter-count { min-width: 17px; height: 17px; font-size: 10px; padding: 0 5px; }
 
-        @media (max-width: 1100px) { .qo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
         @media (max-width: 1180px) {
             #requestsViewContent .table-toolbar { flex-wrap: wrap; }
             #requestsViewContent .table-toolbar .search-box { flex: 1 1 100%; max-width: 100%; }
@@ -78,13 +63,6 @@
             html #quotationRequestsTable colgroup col:nth-child(4) { width: 175px !important; }   /* Status */
             html #quotationRequestsTable colgroup col:nth-child(5) { width: 150px !important; }   /* Actions */
             html #quotationRequestsTable td { word-break: normal; }
-        }
-        @media (max-width: 640px) {
-            .qo-grid { gap: 10px; }
-            .qo-card { padding: 12px; gap: 10px; }
-            .qo-icon { width: 36px; height: 36px; }
-            .qo-num { font-size: 20px; }
-            .qo-sub { display: none; }
         }
     </style>
 </head>
@@ -131,11 +109,7 @@
             @endif
 
             @php
-                $qoAction    = $requests->whereIn('status', ['pending', 'in_preparation'])->count();
-                $qoPending   = $requests->where('status', 'pending')->count();
-                $qoWaiting   = $requests->where('status', 'quotation_sent')->count();
-                $qoApproved  = $requests->where('status', 'approved')->count();
-                $qoConverted = $requests->where('status', 'converted')->count();
+                $qoAction = $requests->whereIn('status', ['pending', 'in_preparation'])->count();
             @endphp
             <div style="margin-bottom:16px;">
                 <div style="display:inline-flex;background:var(--white);border:1px solid var(--border);border-radius:999px;padding:4px;gap:2px;box-shadow:0 1px 2px rgba(0,0,0,.04);">
@@ -151,28 +125,6 @@
 
             {{-- ===================== QUOTATION REQUESTS ===================== --}}
             <div id="requestsViewContent" style="{{ $activeTab === 'requests' ? '' : 'display:none;' }}">
-            <div class="qo-grid">
-                <button type="button" class="qo-card {{ $qoAction > 0 ? 'is-urgent' : '' }}" data-qo-filter="action" title="Pending and In Preparation">
-                    <span class="qo-icon" style="background:#FFF4E0;color:#B45309;"><i data-lucide="inbox"></i></span>
-                    <span><span class="qo-num">{{ $qoAction }}</span><span class="qo-label" style="display:block;">Needs your action</span>
-                        <span class="qo-sub" style="display:block;">{{ $qoPending }} new · {{ $qoAction - $qoPending }} being prepared</span></span>
-                </button>
-                <button type="button" class="qo-card" data-qo-filter="quotation_sent">
-                    <span class="qo-icon" style="background:#EAF0FF;color:#2A4EAA;"><i data-lucide="send"></i></span>
-                    <span><span class="qo-num">{{ $qoWaiting }}</span><span class="qo-label" style="display:block;">Waiting on client</span>
-                        <span class="qo-sub" style="display:block;">Quotation sent, no answer yet</span></span>
-                </button>
-                <button type="button" class="qo-card" data-qo-filter="approved">
-                    <span class="qo-icon" style="background:#E7F6EC;color:#207A3A;"><i data-lucide="folder-plus"></i></span>
-                    <span><span class="qo-num">{{ $qoApproved }}</span><span class="qo-label" style="display:block;">Ready to convert</span>
-                        <span class="qo-sub" style="display:block;">Approved by the client</span></span>
-                </button>
-                <button type="button" class="qo-card" data-qo-filter="converted">
-                    <span class="qo-icon" style="background:#F3E8FF;color:#7C3AED;"><i data-lucide="badge-check"></i></span>
-                    <span><span class="qo-num">{{ $qoConverted }}</span><span class="qo-label" style="display:block;">Converted</span>
-                        <span class="qo-sub" style="display:block;">Now running as projects</span></span>
-                </button>
-            </div>
             <div class="table-card" style="padding-bottom:0;">
                 <div class="table-toolbar">
                     <div class="search-box">
@@ -779,9 +731,7 @@
                 var visible = 0;
                 document.querySelectorAll('#quotationRequestsTable tbody tr[data-name]').forEach(function (row) {
                     var matchQ      = !q || row.dataset.name.includes(q);
-                    // "action" (the Needs-your-action card) = new + being prepared
-                    var matchStatus = !status || row.dataset.status === status
-                        || (status === 'action' && (row.dataset.status === 'pending' || row.dataset.status === 'in_preparation'));
+                    var matchStatus = !status || row.dataset.status === status;
                     var show = matchQ && matchStatus;
                     row.style.display = show ? '' : 'none';
                     if (show) visible++;
@@ -795,7 +745,6 @@
                 if (emptyRow) {
                     if (!visible && filterActive) {
                         if (emptyMsg) emptyMsg.textContent =
-                            status === 'action'         ? 'Nothing waiting on you — all caught up.' :
                             status === 'pending'        ? 'No pending requests.' :
                             status === 'quotation_sent' ? 'No requests awaiting client approval.' :
                             status === 'approved'       ? 'No approved requests.' :
@@ -813,26 +762,9 @@
             document.querySelectorAll('#quotationStatusTabs .filter-tab').forEach(function (tab) {
                 tab.addEventListener('click', function () {
                     document.querySelectorAll('#quotationStatusTabs .filter-tab').forEach(function (t) { t.classList.remove('active'); });
-                    document.querySelectorAll('.qo-card').forEach(function (c) { c.classList.remove('is-on'); });
                     this.classList.add('active');
                     currentStatusFilter = this.dataset.filter;
                     filterRequests();
-                });
-            });
-
-            // Overview cards filter the list too; clicking the selected card again shows everything
-            document.querySelectorAll('.qo-card').forEach(function (card) {
-                card.addEventListener('click', function () {
-                    var on = !card.classList.contains('is-on');
-                    var f  = on ? card.dataset.qoFilter : '';
-                    document.querySelectorAll('.qo-card').forEach(function (c) { c.classList.toggle('is-on', c === card && on); });
-                    // keep the status tabs in step ("action" has no single tab, so All stays selected)
-                    document.querySelectorAll('#quotationStatusTabs .filter-tab').forEach(function (t) {
-                        t.classList.toggle('active', t.dataset.filter === (f === 'action' ? '' : f));
-                    });
-                    currentStatusFilter = f;
-                    filterRequests();
-                    document.querySelector('#requestsViewContent .table-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
                 });
             });
 

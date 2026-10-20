@@ -255,7 +255,7 @@
                                         <span style="color:var(--muted);">—</span>
                                         @endif
                                     </td>
-                                    <td style="font-size:13px;color:var(--muted);white-space:normal;word-break:break-word;max-width:320px;line-height:1.5;">
+                                    <td style="font-size:13px;color:var(--muted);white-space:normal;word-break:break-word;line-height:1.5;">
                                         {{ $tx->purpose ?? $tx->description ?? '—' }}
                                         @if($tx->type === 'topup' && $tx->recorded_by)
                                         <div style="font-size:11px;">by {{ $tx->recorded_by }}</div>
@@ -276,7 +276,7 @@
                                         <div style="font-size:11px;">{{ $tx->created_at->format('g:i A') }}</div>
                                         @endif
                                     </td>
-                                    <td style="text-align:right;padding-right:24px;font-weight:700;font-size:13px;color:{{ $tx->type === 'release' ? '#b91c1c' : '#16a34a' }};">
+                                    <td style="font-weight:700;font-size:13px;color:{{ $tx->type === 'release' ? '#b91c1c' : '#16a34a' }};">
                                         {{ $tx->type === 'release' ? '' : '+' }}₱{{ $rfMoney($tx->amount) }}
                                     </td>
                                 </tr>
@@ -644,16 +644,13 @@
         }
         #fundLedgerTable th { font-size: 12px; font-weight: 800; padding: 10px 10px; }
         #fundLedgerTable td { font-size: 12px; padding: 10px 10px; }
-        #fundLedgerTable th:nth-child(1),
-        #fundLedgerTable td:nth-child(1) { width: 26%; }
-        #fundLedgerTable th:nth-child(2) { width: 28%; }
-        #fundLedgerTable td:nth-child(2) { width: 28%; white-space: normal; word-break: break-word; line-height: 1.5; font-weight: 400; font-size: 12px; color: var(--muted); }
-        #fundLedgerTable th:nth-child(3),
-        #fundLedgerTable td:nth-child(3) { width: 16%; text-align: center; }
-        #fundLedgerTable th:nth-child(4),
-        #fundLedgerTable td:nth-child(4) { width: 16%; text-align: center; }
-        #fundLedgerTable th:nth-child(5),
-        #fundLedgerTable td:nth-child(5) { width: 14%; text-align: right; padding-right: 20px; font-weight: 700; }
+        /* five even columns; Type, Date and Amount sit centered under their headers */
+        #fundLedgerTable th, #fundLedgerTable td { width: 20%; }
+        #fundLedgerTable th:first-child, #fundLedgerTable td:first-child { padding-left: 20px; }
+        #fundLedgerTable td:nth-child(2) { white-space: normal; word-break: break-word; line-height: 1.5; font-weight: 400; font-size: 12px; color: var(--muted); }
+        #fundLedgerTable th:nth-child(n+3),
+        #fundLedgerTable td:nth-child(n+3) { text-align: center; }
+        #fundLedgerTable td:nth-child(5) { font-weight: 700; }
 
         /* client-pill inside ledger — wraps long names */
         #fundLedgerTable .client-pill {

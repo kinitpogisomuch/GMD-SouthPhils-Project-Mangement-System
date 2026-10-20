@@ -105,9 +105,6 @@
         }
         .lg-eye:hover { background: #f0f0f0; color: var(--dark); }
         .lg-eye svg { width: 17px; height: 17px; }
-        .lg-caps { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; font-weight: 700; color: #92400e; }
-        .lg-caps svg { width: 14px; height: 14px; }
-        .lg-caps[hidden] { display: none; }
 
         /* buttons */
         .lg-btn {
@@ -303,7 +300,6 @@
                                 <i data-lucide="eye"></i>
                             </button>
                         </div>
-                        <div class="lg-caps" id="capsWarn" hidden><i data-lucide="triangle-alert"></i> Caps Lock is on</div>
                     </div>
 
                     <button type="submit" class="lg-btn" id="loginBtn">
@@ -340,15 +336,6 @@
             if (typeof lucide !== 'undefined') lucide.createIcons();
             pwInput.focus();
         });
-
-        // Caps Lock warning while typing the password
-        (function () {
-            var warn = document.getElementById('capsWarn');
-            function update(e) { if (e.getModifierState) warn.hidden = !e.getModifierState('CapsLock'); }
-            pwInput.addEventListener('keydown', update);
-            pwInput.addEventListener('keyup', update);
-            pwInput.addEventListener('blur', function () { warn.hidden = true; });
-        })();
 
         // A wrong-credentials error clears its red outline as soon as the user edits a field
         document.querySelectorAll('.lg-input.error').forEach(function (input) {

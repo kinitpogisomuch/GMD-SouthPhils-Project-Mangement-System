@@ -6,6 +6,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Materials | GMD South Phils</title>
     <link href="{{ asset('css/admin.css') }}" rel="stylesheet">
+    <style>
+        /* Project Material Usage: seven columns — tighter cells so Actions stays in view without scrolling sideways */
+        #usageActiveTable th, #usageActiveTable td,
+        #usageGroupTable th, #usageGroupTable td { padding-left: 14px; padding-right: 14px; }
+        #usageActiveTable th:first-child, #usageActiveTable td:first-child,
+        #usageGroupTable th:first-child, #usageGroupTable td:first-child { padding-left: 24px; }
+        #usageActiveTable td:nth-child(1) { min-width: 170px; max-width: 220px; white-space: normal; }
+        #usageActiveTable td:nth-child(2) { max-width: 230px; white-space: normal; }
+        #usageActiveTable .client-pill { white-space: normal; line-height: 1.3; }
+        /* every column after the name sits centered under its header */
+        #usageActiveTable th:not(:first-child), #usageActiveTable td:not(:first-child),
+        #usageGroupTable th:not(:first-child), #usageGroupTable td:not(:first-child) { text-align: center; }
+        #usageActiveTable td:nth-child(2) .client-pill { display: inline-block; }
+        #usageActiveTable .action-cell, #usageGroupTable .action-cell { justify-content: center; }
+    </style>
 </head>
 <body class="page-enter">
 
@@ -109,7 +124,7 @@
                 @endif
             </div>
 
-            {{-- ── Clients Table ─────────────────────────────────────────── --}}
+            {{-- ── Project Material Usage: active projects listed directly; completed / archived grouped by client ── --}}
             <div class="table-card">
                 <div style="display:flex;align-items:center;gap:16px;padding:0 20px 14px;border-bottom:1px solid var(--border);margin-bottom:0;">
                     <div style="flex-shrink:0;">
@@ -119,28 +134,88 @@
                     <div style="flex:1;display:flex;justify-content:center;">
                         <div style="display:flex;align-items:center;gap:8px;background:#f5f6f8;border-radius:999px;padding:0 18px;border:1px solid var(--border);width:280px;height:42px;">
                             <i data-lucide="search" style="width:15px;height:15px;color:#888;flex-shrink:0;"></i>
-                            <input type="text" id="projectSearch" placeholder="Search client..."
+                            <input type="text" id="projectSearch" placeholder="{{ $tab === 'active' ? 'Search project or client...' : 'Search client...' }}"
                                 style="border:none;background:transparent;font-size:13px;outline:none;width:100%;color:var(--dark);height:100%;">
                         </div>
                     </div>
                     <div class="filter-tabs" id="usageFilterTabs" style="flex-shrink:0;">
-                        <button type="button" class="filter-tab active" data-filter="active">
+                        <button type="button" class="filter-tab {{ $tab === 'active' ? 'active' : '' }}" data-filter="active">
                             Active
-                            <span class="filter-count">{{ $clientGroups->where('has_active', true)->count() }}</span>
+                            <span class="filter-count">{{ $activeProjects->count() }}</span>
                         </button>
-                        <button type="button" class="filter-tab" data-filter="completed">
+                        <button type="button" class="filter-tab {{ $tab === 'completed' ? 'active' : '' }}" data-filter="completed">
                             Completed
-                            <span class="filter-count">{{ $clientGroups->where('has_completed', true)->count() }}</span>
+                            <span class="filter-count">{{ $completedGroups->sum('project_count') }}</span>
                         </button>
-                        <button type="button" class="filter-tab" data-filter="archived">
+                        <button type="button" class="filter-tab {{ $tab === 'archived' ? 'active' : '' }}" data-filter="archived">
                             Archived
-                            <span class="filter-count">{{ $clientGroups->where('has_archived', true)->count() }}</span>
+                            <span class="filter-count">{{ $archivedGroups->sum('project_count') }}</span>
                         </button>
                     </div>
                 </div>
 
-                <div style="max-height:399px;overflow-y:auto;overflow-x:auto;">
-                    <table class="data-table" id="usageTable" style="margin:0;">
+                {{-- Active: one row per project --}}
+                <div class="usage-pane" data-pane="active" style="max-height:399px;overflow-y:auto;overflow-x:auto;{{ $tab === 'active' ? '' : 'display:none;' }}">
+                    <table class="data-table" id="usageActiveTable" style="margin:0;">
+                        <thead style="position:sticky;top:0;z-index:2;">
+                            <tr>
+                                <th>Project Name</th>
+                                <th>Client</th>
+                                <th>Current Phase</th>
+                                <th>Planned Materials</th>
+                                <th>Usage Entries Logged</th>
+                                <th>Total Qty Used</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($activeProjects as $project)
+                            @php
+                                $namePrefix = '';
+                                $nameMain   = $project->name;
+                                if (preg_match('/^(Fabrication of)\s+(.+)$/i', $project->name, $nm)) {
+                                    $namePrefix = $nm[1];
+                                    $nameMain   = $nm[2];
+                                }
+                                $matCount   = $project->activeMaterials->count();
+                                $usageCount = $project->activeMaterialUsages->count();
+                            @endphp
+                            <tr data-search="{{ strtolower($project->name . ' ' . $project->live_client_name) }}">
+                                <td style="overflow:hidden;">
+                                    <span style="display:inline-flex;flex-direction:column;max-width:100%;min-width:0;">
+                                        @if($namePrefix)
+                                            <span style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:.05em;line-height:1.2;text-transform:uppercase;white-space:nowrap;">{{ $namePrefix }}</span>
+                                        @endif
+                                        <span style="font-size:12.5px;font-weight:800;color:var(--dark);line-height:1.3;white-space:normal;word-break:break-word;">{{ $nameMain }}</span>
+                                    </span>
+                                </td>
+                                <td><span class="client-pill">{{ $project->live_client_name }}</span></td>
+                                <td>
+                                    <span class="status-badge ongoing">{{ ucfirst(str_replace('_', ' ', $project->current_phase ?? 'Planning')) }}</span>
+                                </td>
+                                <td>
+                                    <span style="font-size:14px;font-weight:700;color:var(--dark);">{{ $matCount }}</span>
+                                    <span style="font-size:13px;font-weight:400;color:var(--muted);"> material{{ $matCount !== 1 ? 's' : '' }}</span>
+                                </td>
+                                <td>
+                                    <span style="font-size:14px;font-weight:700;color:var(--dark);">{{ $usageCount }}</span>
+                                    <span style="font-size:13px;font-weight:400;color:var(--muted);"> entr{{ $usageCount !== 1 ? 'ies' : 'y' }}</span>
+                                </td>
+                                <td><strong style="font-size:14px;font-weight:700;color:var(--dark);">{{ number_format($project->activeMaterialUsages->sum('quantity_used'), 0) }}</strong></td>
+                                <td class="action-cell">
+                                    <a href="{{ route('admin.material_usage.detail', $project->id) }}" class="action-btn view" title="View Materials">
+                                        <i data-lucide="eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+
+                {{-- Completed / Archived: one row per client --}}
+                <div class="usage-pane" data-pane="groups" style="max-height:399px;overflow-y:auto;overflow-x:auto;{{ $tab === 'active' ? 'display:none;' : '' }}">
+                    <table class="data-table" id="usageGroupTable" style="margin:0;">
                         <thead style="position:sticky;top:0;z-index:2;">
                             <tr>
                                 <th>Client</th>
@@ -153,15 +228,9 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @forelse($clientGroups as $group)
-                            @php
-                                $filterKeys = trim(
-                                    ($group['has_active'] ? 'active ' : '') .
-                                    ($group['has_completed'] ? 'completed ' : '') .
-                                    ($group['has_archived'] ? 'archived ' : '')
-                                );
-                            @endphp
-                            <tr data-status="{{ $filterKeys }}" data-search="{{ strtolower($group['client']) }}">
+                            @foreach(['completed' => $completedGroups, 'archived' => $archivedGroups] as $groupStatus => $groups)
+                            @foreach($groups as $group)
+                            <tr data-status="{{ $groupStatus }}" data-search="{{ strtolower($group['client']) }}" style="{{ $tab === $groupStatus ? '' : 'display:none;' }}">
                                 <td><span class="client-pill">{{ $group['client'] }}</span></td>
                                 <td style="text-align:center;">{{ $group['project_count'] }}</td>
                                 <td>
@@ -175,21 +244,14 @@
                                 <td><strong style="font-size:14px;font-weight:700;color:var(--dark);">{{ number_format($group['total_qty_used'], 0) }}</strong></td>
                                 <td style="font-size:14px;font-weight:700;color:var(--dark);">{{ $group['last_created_at']?->format('M d, Y') ?? '—' }}</td>
                                 <td class="action-cell">
-                                    <a href="{{ route('admin.material_usage.client', urlencode($group['client_key'])) }}"
+                                    <a href="{{ route('admin.material_usage.client', urlencode($group['client_key'])) }}?tab={{ $groupStatus }}"
                                        class="action-btn view" title="View Client's Projects">
                                         <i data-lucide="eye"></i>
                                     </a>
                                 </td>
                             </tr>
-                            @empty
-                            <tr>
-                                <td colspan="7" style="text-align:center;padding:60px 20px;color:var(--muted);">
-                                    <i data-lucide="inbox" style="width:36px;height:36px;opacity:.35;display:block;margin:0 auto 12px;"></i>
-                                    <div style="font-size:14px;font-weight:700;">No projects found.</div>
-                                    <div style="font-size:13px;margin-top:4px;">Add projects via the <strong>Projects</strong> page.</div>
-                                </td>
-                            </tr>
-                            @endforelse
+                            @endforeach
+                            @endforeach
                         </tbody>
                     </table>
                 </div>
@@ -375,7 +437,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             if (typeof lucide !== 'undefined') lucide.createIcons();
 
-            var currentStatusFilter = 'active';
+            var currentStatusFilter = @json($tab);
 
             var usageFilterMessages = {
                 'active':    'No active projects yet.',
@@ -383,16 +445,23 @@
                 'archived':  'No archived projects.'
             };
 
+            // Active shows the project list; Completed / Archived show the client groups for that status
             function applyUsageFilters() {
-                var q            = (document.getElementById('projectSearch').value || '').toLowerCase();
-                var tbody        = document.querySelector('#usageTable tbody');
-                var noMatchRow   = document.getElementById('usageNoMatch');
+                var q          = (document.getElementById('projectSearch').value || '').toLowerCase().trim();
+                var isActive   = currentStatusFilter === 'active';
+                var tableId    = isActive ? 'usageActiveTable' : 'usageGroupTable';
+                var tbody      = document.querySelector('#' + tableId + ' tbody');
+                var noMatchRow = tbody.querySelector('.usage-no-match');
                 var visibleCount = 0;
 
-                document.querySelectorAll('#usageTable tbody tr:not(#usageNoMatch)').forEach(function(row) {
-                    var statuses    = (row.dataset.status || '').toLowerCase().split(' ').filter(Boolean);
-                    var matchSearch = row.textContent.toLowerCase().indexOf(q) !== -1;
-                    var matchFilter = statuses.indexOf(currentStatusFilter) !== -1;
+                document.querySelectorAll('.usage-pane').forEach(function (pane) {
+                    pane.style.display = (pane.dataset.pane === 'active') === isActive ? '' : 'none';
+                });
+                document.getElementById('projectSearch').placeholder = isActive ? 'Search project or client...' : 'Search client...';
+
+                tbody.querySelectorAll('tr:not(.usage-no-match)').forEach(function(row) {
+                    var matchSearch = !q || (row.dataset.search || '').indexOf(q) !== -1;
+                    var matchFilter = isActive || row.dataset.status === currentStatusFilter;
                     var show = matchSearch && matchFilter;
                     row.style.display = show ? '' : 'none';
                     if (show) visibleCount++;
@@ -401,7 +470,7 @@
                 // Build / update styled empty state row
                 if (!noMatchRow) {
                     noMatchRow = document.createElement('tr');
-                    noMatchRow.id = 'usageNoMatch';
+                    noMatchRow.className = 'usage-no-match';
                     tbody.appendChild(noMatchRow);
                 }
                 var msg = q
@@ -425,6 +494,11 @@
                     this.classList.add('active');
                     currentStatusFilter = this.dataset.filter;
                     applyUsageFilters();
+                    try {
+                        var url = new URL(location.href);
+                        url.searchParams.set('tab', currentStatusFilter);
+                        history.replaceState(null, '', url);
+                    } catch (e) {}
                 });
             });
 

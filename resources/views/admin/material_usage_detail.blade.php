@@ -18,10 +18,14 @@
         <main class="admin-content">
 
             <div class="mu-breadcrumb" style="display:flex;align-items:center;gap:8px;margin-bottom:20px;font-size:13px;color:var(--muted);">
-                <a href="{{ route('admin.material_usage') }}" style="color:var(--muted);text-decoration:none;font-weight:600;">Materials</a>
+                {{-- active projects are listed directly on Materials; completed / archived sit inside their client --}}
+                @php $muClosed = in_array($project->status, ['completed', 'archived']); @endphp
+                <a href="{{ route('admin.material_usage', $muClosed ? ['tab' => $project->status] : []) }}" style="color:var(--muted);text-decoration:none;font-weight:600;">Materials</a>
                 <i data-lucide="chevron-right" style="width:14px;height:14px;"></i>
-                <a href="{{ route('admin.material_usage.client', urlencode($project->client)) }}" style="color:var(--muted);text-decoration:none;font-weight:600;">{{ $project->live_client_name }}</a>
+                @if($muClosed)
+                <a href="{{ route('admin.material_usage.client', urlencode($project->client_id ?: $project->client)) }}?tab={{ $project->status }}" style="color:var(--muted);text-decoration:none;font-weight:600;">{{ $project->live_client_name }}</a>
                 <i data-lucide="chevron-right" style="width:14px;height:14px;"></i>
+                @endif
                 <span style="font-weight:700;color:var(--dark);">{{ $project->name }}</span>
             </div>
 
@@ -175,12 +179,13 @@
                     <div class="table-wrapper bom-scroll">
                         <table class="pm-table" style="table-layout:fixed;width:100%;">
                             <colgroup>
-                                <col style="width:26%;">
-                                <col style="width:8%;">
-                                <col style="width:9%;">
-                                <col style="width:14%;">
-                                <col style="width:14%;">
-                                <col style="width:16%;">
+                                {{-- Material a little wider for long names; the six value columns share the rest evenly --}}
+                                <col style="width:22%;">
+                                <col style="width:13%;">
+                                <col style="width:13%;">
+                                <col style="width:13%;">
+                                <col style="width:13%;">
+                                <col style="width:13%;">
                                 <col style="width:13%;">
                             </colgroup>
                             <thead>
@@ -258,9 +263,6 @@
                             <div class="pm-card-sub">Aggregated totals per material &middot; updates KPI automatically</div>
                         </div>
                         <div class="pm-purchased-header-right" style="display:flex;align-items:center;gap:14px;">
-                            @if($allMaterialRows->isNotEmpty())
-                            <span style="font-size:12px;font-weight:700;color:var(--muted);">{{ $allMaterialRows->count() }} material{{ $allMaterialRows->count() !== 1 ? 's' : '' }} &nbsp;·&nbsp; Total: <strong style="color:#16a34a;">&#x20B1;{{ number_format($totalPurchased,2) }}</strong></span>
-                            @endif
                             <button type="button" class="add-btn" id="openLogPurchaseModal" style="white-space:nowrap;">
                                 <i data-lucide="plus"></i>
                                 Log New Purchase
@@ -288,13 +290,14 @@
                     <div class="pm-purchased-scroll">
                         <table class="pm-purchased-table" id="muPurchasedTable">
                             <colgroup>
-                                <col style="width:24%;">
-                                <col style="width:8%;">
-                                <col style="width:9%;">
-                                <col style="width:17%;">
-                                <col style="width:14%;">
-                                <col style="width:14%;">
-                                <col style="width:14%;">
+                                {{-- same split as the Bill of Materials: Material a little wider, the rest even --}}
+                                <col style="width:22%;">
+                                <col style="width:13%;">
+                                <col style="width:13%;">
+                                <col style="width:13%;">
+                                <col style="width:13%;">
+                                <col style="width:13%;">
+                                <col style="width:13%;">
                             </colgroup>
                             <thead>
                                 <tr>
@@ -302,7 +305,7 @@
                                     <th>Unit</th>
                                     <th>Planned Qty</th>
                                     <th>Qty Bought</th>
-                                    <th style="text-align:right;">Total Paid (₱)</th>
+                                    <th>Total Paid (₱)</th>
                                     <th>VS BOM</th>
                                     <th>Status</th>
                                 </tr>
@@ -321,7 +324,6 @@
                                     $unit      = $group ? $group->first()->unit : ($bomMat->unit ?? null);
                                     // bought outside the BOM: no plan to compare against
                                     $rowStatus = $ovStatus[$matName] ?? 'extra';
-                                    $qtyPct    = $planned ? min(100, round($totalQty / $planned * 100)) : null;
                                     $statusMap = [
                                         'none'     => ['Not bought', 'pending'],
                                         'partial'  => ['Partial', 'partial'],
@@ -339,12 +341,9 @@
                                     <td>
                                         <div class="mu-qty">
                                             <span><strong>{{ number_format($totalQty, 0) }}</strong>@if($planned) <em>/ {{ number_format($planned, 0) }}</em>@endif</span>
-                                            @if($qtyPct !== null)
-                                            <div class="mu-bar mu-bar--{{ $totalQty >= $planned ? 'ok' : 'near' }}"><span style="width:{{ $qtyPct }}%;"></span></div>
-                                            @endif
                                         </div>
                                     </td>
-                                    <td style="text-align:right;font-weight:700;">₱{{ number_format($totalPaid, 2) }}</td>
+                                    <td style="font-weight:700;">₱{{ number_format($totalPaid, 2) }}</td>
                                     <td>
                                         @if($vsPct !== null)
                                         <div style="display:flex;align-items:center;gap:6px;justify-content:center;">
@@ -381,7 +380,7 @@
                                     <td></td>
                                     <td style="color:var(--muted);">—</td>
                                     <td style="font-weight:900;">{{ number_format($purchases->sum('qty_bought'), 0) }}</td>
-                                    <td style="text-align:right;font-weight:900;">&#x20B1;{{ number_format($totalPurchased, 2) }}</td>
+                                    <td style="font-weight:900;">&#x20B1;{{ number_format($totalPurchased, 2) }}</td>
                                     <td></td>
                                     <td></td>
                                 </tr>
@@ -740,9 +739,6 @@
                             <div class="pm-card-sub">Aggregated usage per material &middot; logged by employees</div>
                         </div>
                         <div class="pm-purchased-header-right" style="display:flex;align-items:center;gap:14px;">
-                            @if($allUsageRows->isNotEmpty())
-                            <span style="font-size:12px;font-weight:700;color:var(--muted);">{{ $allUsageRows->count() }} material{{ $allUsageRows->count() !== 1 ? 's' : '' }} &nbsp;·&nbsp; Total: <strong style="color:var(--dark);">{{ number_format($activeUsageEntries->sum('quantity_used'), 0) }}</strong></span>
-                            @endif
                             <button type="button" class="add-btn" id="openLogUsageModal" style="white-space:nowrap;">
                                 <i data-lucide="plus"></i>
                                 Log Material Usage
@@ -753,12 +749,13 @@
                     <div class="pm-purchased-scroll">
                         <table class="pm-purchased-table">
                             <colgroup>
-                                <col style="width:25%;">
-                                <col style="width:11%;">
-                                <col style="width:14%;">
-                                <col style="width:14%;">
-                                <col style="width:12%;">
-                                <col style="width:24%;">
+                                {{-- same split as the other tables: Material a little wider, the rest even --}}
+                                <col style="width:22%;">
+                                <col style="width:15.6%;">
+                                <col style="width:15.6%;">
+                                <col style="width:15.6%;">
+                                <col style="width:15.6%;">
+                                <col style="width:15.6%;">
                             </colgroup>
                             <thead>
                                 <tr>
@@ -1806,7 +1803,6 @@
         .mu-search input { border:none; outline:none; background:transparent; font:inherit; font-size:13px; width:100%; color:var(--dark); }
         .mu-qty { display:flex; flex-direction:column; align-items:center; gap:2px; }
         .mu-qty em { font-style:normal; color:var(--muted); font-weight:600; }
-        .mu-qty .mu-bar { width:70px; margin-top:4px; height:5px; }
         .pm-status.partial { background:#FEF3C7; color:#92400E; }
         .pm-status.extra   { background:#EAF0FF; color:#2A4EAA; }
 

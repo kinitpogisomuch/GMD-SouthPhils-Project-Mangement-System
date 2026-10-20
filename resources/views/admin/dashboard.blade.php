@@ -26,39 +26,67 @@
 
                 $hour = (int) now()->timezone('Asia/Manila')->format('G');
                 $greeting = $hour < 12 ? 'Good morning' : ($hour < 18 ? 'Good afternoon' : 'Good evening');
+
+                $qNew      = $quotationPipeline[0]['count'] + $quotationPipeline[1]['count'];
+                $attnTotal = $overdueCount + $pendingPaymentsCount + $unreadMessages;
             @endphp
 
-            <!-- ── Hero greeting ── -->
-            <div class="db-hero">
-                <div class="db-hero-left">
-                    <div>
-                        <div class="db-greeting">{{ $greeting }}, {{ $adminFirstName }}</div>
-                        <div class="db-subgreeting">Here's what's happening with your projects today.</div>
-                    </div>
+            {{-- ── Header bar: greeting, date and the year every figure below is scoped to ── --}}
+            <div class="ad-head">
+                <div>
+                    <div class="ad-eyebrow">Admin Dashboard</div>
+                    <h1 class="ad-title">{{ $greeting }}, {{ $adminFirstName }}</h1>
+                    <p class="ad-sub">
+                        @if($attnTotal > 0)
+                            <strong>{{ $attnTotal }}</strong> {{ $attnTotal === 1 ? 'thing needs' : 'things need' }} your attention today.
+                        @else
+                            Everything is on track today.
+                        @endif
+                    </p>
                 </div>
-                <div class="db-hero-meta">
-                    <div class="db-hero-date">
-                        <i data-lucide="calendar-days"></i>
-                        {{ now()->format('l, F j, Y') }}
-                    </div>
+                <div class="ad-head-right">
+                    <div class="ad-chip"><i data-lucide="calendar-days"></i> {{ now()->format('D, M j, Y') }}</div>
+                    <label class="ad-year">
+                        <i data-lucide="calendar-range"></i>
+                        <span>Year</span>
+                        <select id="dbYearFilterSelect" aria-label="Filter by year">
+                            @foreach($availableYears as $yr)
+                            <option value="{{ $yr }}" {{ $yr == $currentYear ? 'selected' : '' }}>{{ $yr }}</option>
+                            @endforeach
+                        </select>
+                    </label>
                 </div>
             </div>
 
-            {{-- ── Year filter ── --}}
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
-                <span style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--muted);">
-                    <i data-lucide="calendar-range" style="width:14px;height:14px;"></i>
-                    Filter by year:
-                </span>
-                <select id="dbYearFilterSelect" class="filter-select">
-                    @foreach($availableYears as $yr)
-                    <option value="{{ $yr }}" {{ $yr == $currentYear ? 'selected' : '' }}>{{ $yr }}</option>
-                    @endforeach
-                </select>
+            {{-- ── Quick actions ── --}}
+            <div class="ad-actions">
+                <a href="{{ route('admin.projects') }}" class="ad-action">
+                    <span class="ad-action-icon" style="background:#EAF0FF;color:#2A4EAA;"><i data-lucide="folder-plus"></i></span>
+                    <span><strong>Projects</strong><small>{{ $activeProjects }} active</small></span>
+                    <i data-lucide="chevron-right" class="ad-action-go"></i>
+                </a>
+                <a href="{{ route('admin.project_materials') }}" class="ad-action">
+                    <span class="ad-action-icon" style="background:#FFF4E0;color:#B45309;"><i data-lucide="file-text"></i></span>
+                    <span><strong>Quotations</strong><small>{{ $qNew > 0 ? $qNew . ' to cost' : 'All caught up' }}</small></span>
+                    @if($qNew > 0)<span class="ad-badge">{{ $qNew }}</span>@endif
+                    <i data-lucide="chevron-right" class="ad-action-go"></i>
+                </a>
+                <a href="{{ route('admin.payments') }}" class="ad-action">
+                    <span class="ad-action-icon" style="background:#E7F6EC;color:#207A3A;"><i data-lucide="wallet"></i></span>
+                    <span><strong>Payments</strong><small>{{ $pendingPaymentsCount }} with a balance</small></span>
+                    <i data-lucide="chevron-right" class="ad-action-go"></i>
+                </a>
+                {{-- new client sign-ups (email verified) waiting for the admin's approval --}}
+                <a href="{{ route('admin.clients', ['status' => 'Pending']) }}" class="ad-action">
+                    <span class="ad-action-icon" style="background:#F3E8FF;color:#7C3AED;"><i data-lucide="user-check"></i></span>
+                    <span><strong>Client Approvals</strong><small>{{ $pendingClientApprovals > 0 ? $pendingClientApprovals . ' waiting for approval' : 'No sign-ups waiting' }}</small></span>
+                    @if($pendingClientApprovals > 0)<span class="ad-badge">{{ $pendingClientApprovals }}</span>@endif
+                    <i data-lucide="chevron-right" class="ad-action-go"></i>
+                </a>
             </div>
 
-            {{-- ── Interactive KPI cards ── --}}
-            <div class="db-kpi-row" id="kpiCardRow" style="margin-bottom:16px;">
+            {{-- ── Interactive KPI cards (click one to change the chart) ── --}}
+            <div class="db-kpi-row" id="kpiCardRow" style="margin-bottom:18px;">
                 @foreach($kpiCards as $i => $card)
                 <div class="db-kpi-card db-kpi-card-interactive{{ $i === 0 ? ' selected' : '' }}"
                      data-kpi-key="{{ $card['key'] }}"
@@ -66,9 +94,6 @@
                      tabindex="0"
                      aria-pressed="{{ $i === 0 ? 'true' : 'false' }}"
                      style="--kpi-accent:{{ $card['color'] }};">
-                    <div class="db-kpi-icon" style="background:{{ $card['bg'] }};color:{{ $card['color'] }};">
-                        <i data-lucide="{{ $card['icon'] }}"></i>
-                    </div>
                     <div class="db-kpi-body">
                         <div class="db-kpi-value">{{ $card['valueText'] }}</div>
                         <div class="db-kpi-label">{{ $card['name'] }}</div>
@@ -92,338 +117,167 @@
                 @endforeach
             </div>
 
-            {{-- ── KPI detail chart (updates based on selected card above) ── --}}
-            <div class="table-card" style="margin-bottom:20px;">
-                <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 24px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:10px;">
-                    <div style="display:flex;align-items:center;gap:10px;">
-                        <div id="kpiChartIconWrap" style="width:36px;height:36px;background:{{ $kpiCards[0]['bg'] }};color:{{ $kpiCards[0]['color'] }};border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                            <i data-lucide="{{ $kpiCards[0]['icon'] }}" style="width:18px;height:18px;"></i>
-                        </div>
-                        <div>
-                            <div id="kpiChartTitle" style="font-size:15px;font-weight:800;color:var(--dark);">{{ $kpiCards[0]['chart']['title'] }}</div>
-                            <div id="kpiChartSubtitle" style="font-size:12px;color:var(--muted);margin-top:2px;">{{ $kpiCards[0]['chart']['subtitle'] }}</div>
-                        </div>
-                    </div>
-                </div>
-                <div style="padding:20px 24px;">
-                    <div id="kpiChartWrap" style="position:relative;height:280px;transition:opacity .18s ease;">
-                        <canvas id="kpiDetailChart"></canvas>
-                    </div>
-                </div>
-            </div>
-
-            {{-- ── Needs Attention ── --}}
-            <div class="db-attn-row">
-            <div class="table-card" style="margin-bottom:0;">
-                <div style="display:flex;align-items:center;gap:10px;padding:20px 24px 16px;border-bottom:1px solid var(--border);">
-                    <div style="width:36px;height:36px;background:#FFF3D6;color:#8A6100;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                        <i data-lucide="alert-triangle" style="width:18px;height:18px;"></i>
-                    </div>
-                    <div>
-                        <div style="font-size:15px;font-weight:800;color:var(--dark);">Needs Attention</div>
-                        <div style="font-size:12px;color:var(--muted);margin-top:2px;">Overdue projects, unpaid balances, and unread messages</div>
-                    </div>
-                </div>
-
-                @if($overdueProjectsList->isEmpty() && $pendingPaymentsList->isEmpty() && $unreadMessages == 0)
-                <div style="text-align:center;padding:36px 20px;color:var(--muted);">
-                    <i data-lucide="check-circle-2" style="width:32px;height:32px;color:#16a34a;display:block;margin:0 auto 10px;"></i>
-                    <div style="font-size:13.5px;font-weight:700;color:var(--dark);">All caught up</div>
-                    <div style="font-size:12px;margin-top:2px;">No overdue projects, unpaid balances, or unread messages.</div>
-                </div>
-                @else
-                <div class="db-attention-grid" style="display:grid;grid-template-columns:1fr 1fr;">
-                    {{-- Overdue projects --}}
-                    <div style="padding:18px 24px;border-right:1px solid var(--border);min-width:0;">
-                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-                            <span style="font-size:11px;font-weight:800;color:var(--muted-light);text-transform:uppercase;letter-spacing:.4px;">Overdue Projects</span>
-                            <span class="icon-chip-danger" style="font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px;">{{ $overdueCount }}</span>
-                        </div>
-                        @forelse($overdueProjectsList as $project)
-                        <a href="{{ route('admin.project_view', $project->id) }}" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;text-decoration:none;color:inherit;border-bottom:1px solid var(--border);">
+            {{-- ── Row: chart (2/3) + quotation pipeline & needs attention (1/3) ── --}}
+            <div class="ad-grid ad-row-main">
+                <div class="ad-card">
+                    <div class="ad-card-head">
+                        <div style="display:flex;align-items:center;gap:10px;min-width:0;">
                             <div style="min-width:0;">
-                                <div style="font-size:12.5px;font-weight:700;color:var(--dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ $project->name }}</div>
-                                <div style="font-size:11px;color:var(--muted-light);margin-top:1px;">{{ $project->live_client_name }}</div>
+                                <div id="kpiChartTitle" class="ad-card-title">{{ $kpiCards[0]['chart']['title'] }}</div>
+                                <div id="kpiChartSubtitle" class="ad-card-sub">{{ $kpiCards[0]['chart']['subtitle'] }}</div>
                             </div>
-                            <span style="font-size:11px;font-weight:800;color:#B42318;white-space:nowrap;flex-shrink:0;">{{ (int) $project->end_date->diffInDays(now(), true) }}d late</span>
-                        </a>
-                        @empty
-                        <div style="font-size:12px;color:var(--muted-light);padding:6px 0;">No overdue projects.</div>
-                        @endforelse
-                    </div>
-
-                    {{-- Pending payments --}}
-                    <div style="padding:18px 24px;min-width:0;">
-                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-                            <span style="font-size:11px;font-weight:800;color:var(--muted-light);text-transform:uppercase;letter-spacing:.4px;">Pending Payments</span>
-                            <span class="icon-chip-warning" style="font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px;">{{ $pendingPaymentsCount }}</span>
                         </div>
-                        @forelse($pendingPaymentsList as $payment)
-                        <a href="{{ route('admin.payments') }}" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;text-decoration:none;color:inherit;border-bottom:1px solid var(--border);">
-                            <div style="min-width:0;">
-                                <div style="font-size:12.5px;font-weight:700;color:var(--dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ $payment->client }}</div>
-                                <div style="font-size:11px;color:var(--muted-light);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ $payment->project->name ?? 'Unknown project' }}</div>
-                            </div>
-                            <span style="font-size:11px;font-weight:800;color:#8A6100;white-space:nowrap;flex-shrink:0;">₱{{ number_format($payment->currentBalance(), 0) }}</span>
-                        </a>
-                        @empty
-                        <div style="font-size:12px;color:var(--muted-light);padding:6px 0;">No pending payments.</div>
-                        @endforelse
+                        <span class="ad-hint"><i data-lucide="mouse-pointer-click"></i> Pick a card above to switch</span>
+                    </div>
+                    {{-- the chart fills the card, which is as tall as the column beside it --}}
+                    <div style="padding:18px 22px 20px;flex:1;display:flex;flex-direction:column;">
+                        <div id="kpiChartWrap" style="position:relative;flex:1;min-height:300px;transition:opacity .18s ease;">
+                            <canvas id="kpiDetailChart"></canvas>
+                        </div>
                     </div>
                 </div>
 
-                @if($unreadMessages > 0)
-                <a href="{{ route('admin.messages') }}" style="display:flex;align-items:center;gap:8px;padding:12px 24px;border-top:1px solid var(--border);background:var(--cream-soft);text-decoration:none;color:var(--dark);font-size:12.5px;font-weight:700;">
-                    <i data-lucide="message-square" style="width:14px;height:14px;color:#8A6100;"></i>
-                    {{ $unreadMessages }} unread message{{ $unreadMessages !== 1 ? 's' : '' }} waiting for a reply
-                    <i data-lucide="arrow-right" style="width:13px;height:13px;margin-left:auto;"></i>
-                </a>
-                @endif
-                @endif
-            </div>
-
-            </div>{{-- /.db-attn-row --}}
-
-            {{-- ── Top Client + Top Supplier ── --}}
-            <div class="db-top-cards-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
-
-                {{-- Top Client --}}
-                <div class="db-top-card" style="background:linear-gradient(135deg,var(--dark) 0%,var(--dark-deep) 100%);border-radius:18px;padding:24px;box-shadow:0 8px 24px rgba(14,20,40,.25);">
-                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:14px;">
-                        <div style="width:36px;height:36px;background:rgba(255,255,255,.1);border-radius:10px;display:flex;align-items:center;justify-content:center;">
-                            <i data-lucide="crown" style="width:18px;height:18px;color:#FDE74C;"></i>
-                        </div>
-                        <div>
-                            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:rgba(255,255,255,.4);">Top Client</div>
-                            <div style="font-size:13px;font-weight:800;color:#fff;">By number of projects</div>
-                        </div>
-                    </div>
-                    <div id="topClientName" style="font-size:22px;font-weight:900;color:#fff;margin-bottom:12px;">{{ $topClient['name'] ?? '—' }}</div>
-                    <div id="topClientStats" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;" {{ !$topClient ? 'style="display:none;"' : '' }}>
-                        <div style="background:rgba(255,255,255,.06);border-radius:10px;padding:10px 12px;text-align:center;">
-                            <div id="topClientProjects" style="font-size:18px;font-weight:900;color:#FDE74C;">{{ $topClient['projects'] ?? 0 }}</div>
-                            <div id="topClientProjectsLabel" style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;margin-top:2px;">Projects</div>
-                        </div>
-                        <div style="background:rgba(255,255,255,.06);border-radius:10px;padding:10px 12px;text-align:center;">
-                            <div id="topClientCompleted" style="font-size:18px;font-weight:900;color:#4ade80;">{{ $topClient['completed'] ?? 0 }}</div>
-                            <div id="topClientCompletedLabel" style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;margin-top:2px;">Completed</div>
-                        </div>
-                        <div style="background:rgba(255,255,255,.06);border-radius:10px;padding:10px 12px;text-align:center;">
-                            <div id="topClientReceived" style="font-size:14px;font-weight:900;color:#60a5fa;">₱{{ number_format(($topClient['received'] ?? 0) / 1000, 0) }}k</div>
-                            <div id="topClientReceivedLabel" style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;margin-top:2px;">Received</div>
-                        </div>
-                    </div>
-                    <div id="topClientEmpty" style="color:rgba(255,255,255,.3);font-size:13px;text-align:center;padding:20px 0;{{ $topClient ? 'display:none;' : '' }}">No client data yet.</div>
-                    <a href="{{ route('admin.clients') }}" style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:rgba(255,255,255,.5);text-decoration:none;margin-top:16px;">
-                        View all clients <i data-lucide="arrow-right" style="width:13px;height:13px;"></i>
-                    </a>
-                </div>
-
-                {{-- Top Supplier --}}
-                <div class="db-top-card" style="background:linear-gradient(135deg,#333333 0%,#2a2a2a 100%);border-radius:18px;padding:24px;box-shadow:0 8px 24px rgba(0,0,0,.2);">
-                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:14px;">
-                        <div style="width:36px;height:36px;background:rgba(255,255,255,.1);border-radius:10px;display:flex;align-items:center;justify-content:center;">
-                            <i data-lucide="truck" style="width:18px;height:18px;color:#10B981;"></i>
-                        </div>
-                        <div>
-                            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:rgba(255,255,255,.4);">Top Supplier</div>
-                            <div style="font-size:13px;font-weight:800;color:#fff;">By total materials purchased</div>
-                        </div>
-                    </div>
-                    <div id="topSupplierName" style="font-size:22px;font-weight:900;color:#fff;margin-bottom:12px;">{{ $topSupplier['name'] ?? '—' }}</div>
-                    <div id="topSupplierStats" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;" {{ !$topSupplier ? 'style="display:none;"' : '' }}>
-                        <div style="background:rgba(255,255,255,.06);border-radius:10px;padding:10px 12px;text-align:center;">
-                            <div id="topSupplierCount" style="font-size:18px;font-weight:900;color:#10B981;">{{ $topSupplier['purchase_count'] ?? 0 }}</div>
-                            <div id="topSupplierCountLabel" style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;margin-top:2px;">Purchases</div>
-                        </div>
-                        <div style="background:rgba(255,255,255,.06);border-radius:10px;padding:10px 12px;text-align:center;">
-                            <div id="topSupplierSpent" style="font-size:14px;font-weight:900;color:#4ade80;">₱{{ number_format($topSupplier['total_spent'] ?? 0, 2) }}</div>
-                            <div id="topSupplierSpentLabel" style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;margin-top:2px;">Total Spent</div>
-                        </div>
-                    </div>
-                    <div id="topSupplierEmpty" style="color:rgba(255,255,255,.3);font-size:13px;text-align:center;padding:20px 0;{{ $topSupplier ? 'display:none;' : '' }}">No supplier data yet.</div>
-                    <a href="{{ route('admin.material_usage') }}" style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:rgba(255,255,255,.5);text-decoration:none;margin-top:16px;">
-                        View suppliers <i data-lucide="arrow-right" style="width:13px;height:13px;"></i>
-                    </a>
-                </div>
-            </div>
-
-            {{-- sections removed per user request --}}
-            <div class="db-outer-grid" style="display:none;">
-
-            <!-- Right: Three-panel column -->
-            <div>
-
-            <!-- ── Three-card horizontal row moved here ── -->
-            <div class="db-chart-panels-grid">
-
-            <div class="db-chart-card" style="margin-bottom:0;">
-                <div class="db-chart-head">
-                    <div>
-                        <div style="display:flex;align-items:center;gap:8px;">
-                            <div class="db-section-title">Revenue Trend</div>
-                            <button id="chartBackBtn" style="display:none;font-size:11px;font-weight:600;color:var(--muted);background:none;border:1px solid var(--border);border-radius:6px;padding:2px 8px;cursor:pointer;">← Back</button>
-                        </div>
-                        <div id="chartSubtitle" style="font-size:12px;color:var(--muted-light);font-weight:500;margin-top:2px;">Monthly payments received — last 6 months</div>
-                        <div id="chartDrillHint" style="font-size:11px;color:var(--muted-light);margin-top:2px;">Click a bar to see weekly breakdown</div>
-                    </div>
-                    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-                        <!-- Filter buttons -->
-                        <div class="db-chart-filters">
-                            <button class="db-chart-filter-btn" data-range="1">1M</button>
-                            <button class="db-chart-filter-btn" data-range="3">3M</button>
-                            <button class="db-chart-filter-btn active" data-range="6">6M</button>
-                            <button class="db-chart-filter-btn" data-range="12">12M</button>
-                            <button class="db-chart-filter-btn" data-range="year">This Year</button>
-                        </div>
-                        <div class="db-chart-total">
-                            <span style="font-size:11px;font-weight:700;color:var(--muted-light);text-transform:uppercase;letter-spacing:0.4px;" id="chartTotalLabel">6-Month Total</span>
-                            <span style="font-size:18px;font-weight:900;color:var(--dark);" id="chartTotalValue">
-                                ₱{{ number_format(array_sum(array_column(array_slice($monthlyRevenue, -6), 'amount')), 0) }}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-                <div class="db-chart-wrap">
-                    <canvas id="revenueChart"></canvas>
-                </div>
-            </div>
-
-
-            </div><!-- end grid wrapper -->
-
-            <!-- ── Three-card horizontal row ── -->
-            <div class="db-three-panel-row">
-
-                    <!-- Top Client -->
-                    @if($topClient)
-                    <div class="db-panel-card db-top-client-card">
-                        <div class="db-panel-title">
-                            <i data-lucide="trophy"></i>
-                            Top Client
-                        </div>
-
-                        <div class="db-tc-identity">
-                            <div class="db-tc-avatar">
-                                {{ strtoupper(substr($topClient['name'], 0, 1)) }}
-                            </div>
+                <div class="ad-stack">
+                    {{-- Quotation pipeline --}}
+                    <div class="ad-card">
+                        <div class="ad-card-head">
                             <div>
-                                <div class="db-tc-name">{{ $topClient['name'] }}</div>
-                                <div class="db-tc-sub">{{ $topClient['projects'] }} project{{ $topClient['projects'] !== 1 ? 's' : '' }} &nbsp;·&nbsp; {{ $topClient['completed'] }} completed</div>
+                                <div class="ad-card-title">Quotation Pipeline</div>
+                                <div class="ad-card-sub">Client requests, right now</div>
                             </div>
+                            <a href="{{ route('admin.project_materials') }}" class="ad-link">Open <i data-lucide="arrow-right"></i></a>
                         </div>
-
-                        <div class="db-panel-divider"></div>
-
-                        <div class="db-mat-grid">
-                            <div class="db-mat-stat">
-                                <div class="db-mat-stat-val">{{ $topClient['projects'] }}</div>
-                                <div class="db-mat-stat-label">Projects</div>
-                            </div>
-                            <div class="db-mat-stat">
-                                <div class="db-mat-stat-val" style="color:#16a34a;">₱{{ number_format($topClient['received'], 0) }}</div>
-                                <div class="db-mat-stat-label">Received</div>
-                            </div>
+                        <div class="ad-pipe ad-scroll">
+                            @foreach($quotationPipeline as $stage)
+                            <a href="{{ route('admin.project_materials') }}" class="ad-pipe-row">
+                                <span class="ad-pipe-icon" style="background:{{ $stage['bg'] }};color:{{ $stage['color'] }};"><i data-lucide="{{ $stage['icon'] }}"></i></span>
+                                <span class="ad-pipe-text"><strong>{{ $stage['label'] }}</strong><small>{{ $stage['sub'] }}</small></span>
+                                <span class="ad-pipe-count" style="{{ $stage['count'] > 0 ? 'color:' . $stage['color'] . ';' : '' }}">{{ $stage['count'] }}</span>
+                            </a>
+                            @endforeach
                         </div>
-
-                        <a href="{{ route('admin.clients') }}" class="db-panel-link" style="margin-top:14px;">
-                            View all clients <i data-lucide="arrow-right"></i>
-                        </a>
-                    </div>
-                    @endif
-
-                    <!-- Payment Overview -->
-                    <div class="db-panel-card">
-                        <div class="db-panel-title">
-                            <i data-lucide="bar-chart-2"></i>
-                            Payment Overview
-                        </div>
-                        @php
-                            $pct = $totalContractValue > 0
-                                ? min(100, round(($totalReceived / $totalContractValue) * 100))
-                                : 0;
-                        @endphp
-
-                        <!-- Big received number -->
-                        <div class="db-pay-big">₱{{ number_format($totalReceived, 0) }}</div>
-                        <div class="db-pay-big-label">Total Received</div>
-
-                        <!-- Progress bar -->
-                        <div class="db-pay-bar-wrap" style="margin-top:14px;">
-                            <div class="db-pay-bar-track">
-                                <div class="db-pay-bar-fill" data-width="{{ $pct }}"></div>
-                            </div>
-                            <span class="db-pay-pct">{{ $pct }}%</span>
-                        </div>
-
-                        <!-- Contract total row -->
-                        <div class="db-pay-contract-row">
-                            <span>Contract Total</span>
-                            <span>₱{{ number_format($totalContractValue, 0) }}</span>
-                        </div>
-
-                        <!-- Divider -->
-                        <div class="db-panel-divider"></div>
-
-                        <!-- Pills -->
-                        <div style="display:flex;gap:8px;">
-                            <div class="db-pay-pill green">
-                                <i data-lucide="check-circle"></i>
-                                {{ $fullyPaidPayments }} Fully Paid
-                            </div>
-                            <div class="db-pay-pill orange">
-                                <i data-lucide="clock"></i>
-                                {{ $pendingPayments }} Pending
-                            </div>
-                        </div>
-
-                        <a href="{{ route('admin.payments') }}" class="db-panel-link" style="margin-top:14px;">
-                            View payments <i data-lucide="arrow-right"></i>
-                        </a>
                     </div>
 
-                    <!-- Materials -->
-                    <div class="db-panel-card">
-                        <div class="db-panel-title">
-                            <i data-lucide="package"></i>
-                            Materials
-                        </div>
-
-                        <!-- Stat grid -->
-                        <div class="db-mat-grid">
-                            <div class="db-mat-stat">
-                                <div class="db-mat-stat-val">{{ $totalMaterialEntries }}</div>
-                                <div class="db-mat-stat-label">Total Entries</div>
-                            </div>
-                            <div class="db-mat-stat">
-                                <div class="db-mat-stat-val">{{ $projectsWithMaterials }}</div>
-                                <div class="db-mat-stat-label">Projects</div>
+                    {{-- Needs attention --}}
+                    <div class="ad-card">
+                        <div class="ad-card-head">
+                            <div style="display:flex;align-items:center;gap:10px;">
+                                <div class="ad-card-icon" style="background:#FFF3D6;color:#8A6100;"><i data-lucide="alert-triangle" style="width:18px;height:18px;"></i></div>
+                                <div>
+                                    <div class="ad-card-title">Needs Attention</div>
+                                    <div class="ad-card-sub">{{ $attnTotal > 0 ? $attnTotal . ' item' . ($attnTotal === 1 ? '' : 's') : 'All caught up' }}</div>
+                                </div>
                             </div>
                         </div>
-
-                        <div class="db-panel-divider"></div>
-
-                        <div class="db-mat-cost-row">
-                            <span class="db-pay-label">Estimated Cost</span>
-                            <span class="db-mat-cost-val">₱{{ number_format($totalMaterialCost, 0) }}</span>
+    
+                        @if($attnTotal === 0)
+                        <div class="ad-empty ad-scroll">
+                            <i data-lucide="check-circle-2"></i>
+                            <strong>All caught up</strong>
+                            <span>No overdue projects, unpaid balances, or unread messages.</span>
                         </div>
+                        @else
+                        <div class="ad-attn ad-scroll">
+                            <div class="ad-attn-group">
+                                <div class="ad-attn-label">Overdue projects <span class="ad-pill is-red">{{ $overdueCount }}</span></div>
+                                @forelse($overdueProjectsList as $project)
+                                <a href="{{ route('admin.project_view', $project->id) }}" class="ad-attn-row">
+                                    <span class="ad-attn-main"><strong>{{ $project->name }}</strong><small>{{ $project->live_client_name }}</small></span>
+                                    <span class="ad-attn-val is-red">{{ (int) $project->end_date->diffInDays(now(), true) }}d late</span>
+                                </a>
+                                @empty
+                                <div class="ad-attn-none">No overdue projects.</div>
+                                @endforelse
+                            </div>
+                            <div class="ad-attn-group">
+                                <div class="ad-attn-label">Unpaid balances <span class="ad-pill is-amber">{{ $pendingPaymentsCount }}</span></div>
+                                @forelse($pendingPaymentsList as $payment)
+                                <a href="{{ route('admin.payments.show', $payment->id) }}" class="ad-attn-row">
+                                    <span class="ad-attn-main"><strong>{{ $payment->client }}</strong><small>{{ $payment->project->name ?? 'Unknown project' }}</small></span>
+                                    <span class="ad-attn-val is-amber">₱{{ number_format($payment->currentBalance(), 0) }}</span>
+                                </a>
+                                @empty
+                                <div class="ad-attn-none">No unpaid balances.</div>
+                                @endforelse
+                            </div>
+                            @if($unreadMessages > 0)
+                            <a href="{{ route('admin.messages') }}" class="ad-attn-msg">
+                                <i data-lucide="message-square"></i>
+                                {{ $unreadMessages }} unread message{{ $unreadMessages !== 1 ? 's' : '' }}
+                                <i data-lucide="arrow-right" style="margin-left:auto;"></i>
+                            </a>
+                            @endif
+                        </div>
+                        @endif
+                    </div>
+                </div>
+            </div>
 
-                        <a href="{{ route('admin.material_usage') }}" class="db-panel-link" style="margin-top:14px;">
-                            View material usage <i data-lucide="arrow-right"></i>
-                        </a>
+            {{-- ── Row: top client & supplier (2/3) + operations (1/3) ── --}}
+            <div class="ad-grid ad-row-mid">
+                <div class="ad-top-pair">
+                    {{-- Top Client --}}
+                    <div class="ad-top ad-top--client">
+                        <i data-lucide="crown" class="ad-top-bg" aria-hidden="true"></i>
+                        <div class="ad-top-head">
+                            <span class="ad-top-icon"><i data-lucide="crown" style="color:#F5B400;"></i></span>
+                            <div style="min-width:0;"><div class="ad-top-eyebrow">Top Client</div><div class="ad-top-by">By number of projects</div></div>
+                            <span class="ad-top-year" data-top-year>{{ $currentYear }}</span>
+                        </div>
+                        <div class="ad-top-id" id="topClientId" style="{{ !$topClient ? 'display:none;' : '' }}">
+                            <span class="ad-top-avatar" id="topClientInitial">{{ strtoupper(mb_substr($topClient['name'] ?? '—', 0, 1)) }}</span>
+                            <div id="topClientName" class="ad-top-name" title="{{ $topClient['name'] ?? '' }}">{{ $topClient['name'] ?? '—' }}</div>
+                        </div>
+                        <div id="topClientStats" class="ad-top-stats" style="grid-template-columns:repeat(3,1fr);{{ !$topClient ? 'display:none;' : '' }}">
+                            <div><div id="topClientProjects" style="color:#F5B400;">{{ $topClient['projects'] ?? 0 }}</div><span id="topClientProjectsLabel">Projects</span></div>
+                            <div><div id="topClientCompleted" style="color:#4ade80;">{{ $topClient['completed'] ?? 0 }}</div><span id="topClientCompletedLabel">Completed</span></div>
+                            <div><div id="topClientReceived" style="color:#60a5fa;">₱{{ number_format(($topClient['received'] ?? 0) / 1000, 0) }}k</div><span id="topClientReceivedLabel">Received</span></div>
+                        </div>
+                        <div id="topClientEmpty" class="ad-top-empty" style="{{ $topClient ? 'display:none;' : '' }}">No client data yet.</div>
+                        <a href="{{ route('admin.clients') }}" class="ad-top-link">View all clients <i data-lucide="arrow-right"></i></a>
                     </div>
 
-            </div><!-- end db-three-panel-row -->
+                    {{-- Top Supplier --}}
+                    <div class="ad-top ad-top--supplier">
+                        <i data-lucide="truck" class="ad-top-bg" aria-hidden="true"></i>
+                        <div class="ad-top-head">
+                            <span class="ad-top-icon"><i data-lucide="truck" style="color:#10B981;"></i></span>
+                            <div style="min-width:0;"><div class="ad-top-eyebrow">Top Supplier</div><div class="ad-top-by">By total materials purchased</div></div>
+                            <span class="ad-top-year" data-top-year>{{ $currentYear }}</span>
+                        </div>
+                        <div class="ad-top-id" id="topSupplierId" style="{{ !$topSupplier ? 'display:none;' : '' }}">
+                            <span class="ad-top-avatar is-green" id="topSupplierInitial">{{ strtoupper(mb_substr($topSupplier['name'] ?? '—', 0, 1)) }}</span>
+                            <div id="topSupplierName" class="ad-top-name" title="{{ $topSupplier['name'] ?? '' }}">{{ $topSupplier['name'] ?? '—' }}</div>
+                        </div>
+                        <div id="topSupplierStats" class="ad-top-stats" style="grid-template-columns:1fr 1.4fr;{{ !$topSupplier ? 'display:none;' : '' }}">
+                            <div><div id="topSupplierCount" style="color:#10B981;">{{ $topSupplier['purchase_count'] ?? 0 }}</div><span id="topSupplierCountLabel">Purchases</span></div>
+                            <div><div id="topSupplierSpent" style="color:#4ade80;">₱{{ number_format($topSupplier['total_spent'] ?? 0, 2) }}</div><span id="topSupplierSpentLabel">Total Spent</span></div>
+                        </div>
+                        <div id="topSupplierEmpty" class="ad-top-empty" style="{{ $topSupplier ? 'display:none;' : '' }}">No supplier data yet.</div>
+                        <a href="{{ route('admin.material_usage') }}" class="ad-top-link">View suppliers <i data-lucide="arrow-right"></i></a>
+                    </div>
+                </div>
 
-            </div><!-- end right column -->
-            </div><!-- end kpi + three-panel wrapper -->
+                {{-- Operations snapshot --}}
+                <div class="ad-card">
+                    <div class="ad-card-head">
+                        <div>
+                            <div class="ad-card-title">Operations</div>
+                            <div class="ad-card-sub">Across the whole company</div>
+                        </div>
+                    </div>
+                    <div class="ad-ops">
+                        <a href="{{ route('admin.projects') }}" class="ad-op"><i data-lucide="hammer"></i><strong>{{ $activeProjects }}</strong><span>Active projects</span></a>
+                        <a href="{{ route('admin.employees') }}" class="ad-op"><i data-lucide="hard-hat"></i><strong>{{ $totalEmployees }}</strong><span>Active employees</span></a>
+                        <a href="{{ route('admin.clients') }}" class="ad-op"><i data-lucide="building-2"></i><strong>{{ $totalClients }}</strong><span>Clients</span></a>
+                        <a href="{{ route('admin.projects', ['tab' => 'completed']) }}" class="ad-op"><i data-lucide="badge-check"></i><strong>{{ $completedProjects }}</strong><span>Completed</span></a>
+                    </div>
+                </div>
+            </div>
 
-            <!-- ── Main content: projects (full width) ── -->
-            <div class="db-main-grid" style="margin-bottom:24px;">
-
-                <!-- Recent Projects -->
-                <div class="db-project-card">
-                    <!-- Card header -->
+            {{-- ── Row: recent projects (2/3) + recent activity (1/3) ── --}}
+            <div class="ad-grid ad-row-low" style="margin-bottom:24px;">
+                <div class="db-project-card ad-card" style="margin:0;">
                     <div class="db-project-card-head">
                         <div style="display:flex;align-items:center;gap:8px;">
                             <i data-lucide="folder-kanban" style="width:16px;height:16px;color:var(--muted);"></i>
@@ -432,7 +286,6 @@
                         <span class="db-project-count">{{ $projects->count() }} shown</span>
                     </div>
 
-                    <!-- Table header -->
                     <div class="db-proj-table-head">
                         <span></span>
                         <span>Project</span>
@@ -442,8 +295,7 @@
                         <span>Progress</span>
                     </div>
 
-                    <!-- Rows -->
-                    <div class="db-project-list">
+                    <div class="db-project-list ad-scroll">
                         @forelse($projects as $project)
                         @php
                             $progress = $project->progress ?? 0;
@@ -457,18 +309,13 @@
                             $progressColor = $progress >= 100 ? '#16a34a' : ($progress >= 50 ? '#2A4EAA' : '#e8900a');
                         @endphp
                         <a href="{{ route('admin.project_view', $project->id) }}" class="db-project-row" style="text-decoration:none;color:inherit;">
-                            <!-- Status accent strip -->
                             <div class="db-row-accent" style="background:{{ $badge['color'] }};"></div>
-
                             <div class="db-project-info">
                                 <span class="db-project-name">{{ $project->name }}</span>
                             </div>
-
                             <div class="db-project-client">{{ $project->live_client_name }}</div>
                             <div class="db-project-date">{{ $project->start_date->format('M j, Y') }}</div>
-
                             <span class="status-badge {{ $badge['css'] }}" style="justify-self:start;">{{ $badge['label'] }}</span>
-
                             <div class="db-progress-wrap">
                                 <div class="db-progress-bar">
                                     <div class="db-progress-fill" data-width="{{ $progress }}" data-color="{{ $progressColor }}"></div>
@@ -483,14 +330,48 @@
                         @endforelse
                     </div>
 
-                    <!-- Card footer -->
                     <a href="{{ route('admin.projects') }}" class="db-project-card-footer">
                         <span>View all projects</span>
                         <i data-lucide="arrow-right"></i>
                     </a>
                 </div>
 
-            </div><!-- end db-main-grid -->
+                {{-- Recent activity --}}
+                <div class="ad-card">
+                    <div class="ad-card-head">
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <div class="ad-card-icon" style="background:#F1F5F9;color:#334155;"><i data-lucide="activity" style="width:18px;height:18px;"></i></div>
+                            <div>
+                                <div class="ad-card-title">Recent Activity</div>
+                                <div class="ad-card-sub">Quotations &amp; online payments</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="ad-feed ad-scroll">
+                        @forelse($recentActivity as $log)
+                        @php
+                            $feedUrl = match ($log->auditable_type) {
+                                'quotation' => route('admin.quotation_requests.batch_detail', $log->auditable_id),
+                                'payment'   => route('admin.payments.show', $log->auditable_id),
+                                default     => null,
+                            };
+                            $tone = str_contains($log->action, 'approved') || str_contains($log->action, 'paid') || str_contains($log->action, 'converted') ? 'is-green'
+                                  : (str_contains($log->action, 'rejected') || str_contains($log->action, 'failed') || str_contains($log->action, 'declined') ? 'is-red'
+                                  : (str_contains($log->action, 'sent') ? 'is-violet' : ''));
+                        @endphp
+                        <a @if($feedUrl) href="{{ $feedUrl }}" @endif class="ad-feed-row {{ $feedUrl ? '' : 'is-static' }}">
+                            <span class="ad-feed-dot {{ $tone }}"></span>
+                            <span class="ad-feed-main">
+                                <strong>{{ $log->label }}</strong>
+                                <small>{{ $log->created_at?->diffForHumans() }}{{ $log->actor_name ? ' · ' . $log->actor_name : '' }}</small>
+                            </span>
+                        </a>
+                        @empty
+                        <div class="ad-attn-none" style="padding:16px 20px;">No activity yet.</div>
+                        @endforelse
+                    </div>
+                </div>
+            </div>
 
         </main>
     </div>
@@ -654,10 +535,12 @@
 
                 titleEl.textContent    = card.chart.title;
                 subtitleEl.textContent = card.chart.subtitle;
-                iconWrap.style.background = card.bg;
-                iconWrap.style.color      = card.color;
-                iconWrap.innerHTML = '<i data-lucide="' + card.icon + '" style="width:18px;height:18px;"></i>';
-                if (window.lucide) lucide.createIcons();
+                if (iconWrap) {   // the chart title no longer has an icon; kept safe if one is added back
+                    iconWrap.style.background = card.bg;
+                    iconWrap.style.color      = card.color;
+                    iconWrap.innerHTML = '<i data-lucide="' + card.icon + '" style="width:18px;height:18px;"></i>';
+                    if (window.lucide) lucide.createIcons();
+                }
 
                 if (animate) {
                     wrapEl.style.opacity = '0.25';
@@ -692,182 +575,6 @@
             };
         })();
 
-        // Revenue chart with filters
-        (function() {
-            // All data sets
-            var all12Labels   = @json(array_column($monthlyRevenue, 'label'));
-            var all12Amounts  = @json(array_column($monthlyRevenue, 'amount'));
-            var yearLabels    = @json(array_column($yearlyRevenue, 'label'));
-            var yearAmounts   = @json(array_column($yearlyRevenue, 'amount'));
-            var weeklyLabels  = @json(array_column($weeklyRevenue, 'label'));
-            var weeklyAmounts = @json(array_column($weeklyRevenue, 'amount'));
-
-            var ctx         = document.getElementById('revenueChart').getContext('2d');
-            var subtitleEl  = document.getElementById('chartSubtitle');
-            var totalLblEl  = document.getElementById('chartTotalLabel');
-            var totalValEl  = document.getElementById('chartTotalValue');
-            var backBtn     = document.getElementById('chartBackBtn');
-            var drillHint   = document.getElementById('chartDrillHint');
-            var WEEKLY_URL  = '{{ route("admin.revenue.weekly") }}';
-            var CSRF        = '{{ csrf_token() }}';
-
-            // Track drill-down state
-            var drillActive    = false;
-            var lastRange      = '6';
-            var lastFilterMeta = null;
-
-            function makeColors(data, highlight) {
-                return data.map(function(v, i) {
-                    if (highlight !== undefined) return i === highlight ? '#333333' : 'rgba(51,51,51,0.12)';
-                    return i === data.length - 1 ? '#333333' : 'rgba(51,51,51,0.15)';
-                });
-            }
-
-            function formatPHP(v) {
-                return '₱' + Math.round(v).toLocaleString();
-            }
-
-            function updateChart(labels, amounts, subtitle, totalLabel) {
-                chart.data.labels                      = labels;
-                chart.data.datasets[0].data            = amounts;
-                chart.data.datasets[0].backgroundColor = makeColors(amounts);
-                chart.update();
-                subtitleEl.textContent = subtitle;
-                totalLblEl.textContent = totalLabel;
-                var total = amounts.reduce(function(s, v) { return s + v; }, 0);
-                totalValEl.textContent = formatPHP(total);
-            }
-
-            function enterDrill(monthLabel, labels, amounts) {
-                drillActive = true;
-                backBtn.style.display  = '';
-                drillHint.style.display = 'none';
-                document.querySelectorAll('.db-chart-filter-btn').forEach(function(b) { b.disabled = true; b.style.opacity = '.4'; });
-                updateChart(labels, amounts, 'Weekly breakdown — ' + monthLabel, monthLabel + ' Total');
-                chart.data.datasets[0].backgroundColor = makeColors(amounts);
-                chart.update();
-            }
-
-            function exitDrill() {
-                drillActive = false;
-                backBtn.style.display   = 'none';
-                drillHint.style.display = '';
-                document.querySelectorAll('.db-chart-filter-btn').forEach(function(b) { b.disabled = false; b.style.opacity = ''; });
-                if (lastFilterMeta) updateChart(lastFilterMeta.labels, lastFilterMeta.amounts, lastFilterMeta.subtitle, lastFilterMeta.totalLabel);
-            }
-
-            var chart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: all12Labels.slice(-6),
-                    datasets: [{
-                        label: 'Received (₱)',
-                        data: all12Amounts.slice(-6),
-                        backgroundColor: makeColors(all12Amounts.slice(-6)),
-                        borderRadius: 8,
-                        borderSkipped: false,
-                        maxBarThickness: 52,
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    cursor: 'pointer',
-                    onClick: function(e, elements) {
-                        // Only drill down when viewing monthly data (not already drilled)
-                        if (drillActive || lastRange === '1') return;
-                        if (!elements || elements.length === 0) return;
-
-                        var idx       = elements[0].index;
-                        var label     = chart.data.labels[idx]; // e.g. "Jun 2026"
-                        var parts     = label.split(' ');        // ["Jun", "2026"]
-                        if (parts.length < 2) return;
-
-                        var monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-                        var monthNum   = monthNames.indexOf(parts[0]) + 1;
-                        var year       = parseInt(parts[1]);
-                        if (!monthNum || !year) return;
-
-                        // Highlight clicked bar while loading
-                        chart.data.datasets[0].backgroundColor = makeColors(chart.data.datasets[0].data, idx);
-                        chart.update();
-
-                        fetch(WEEKLY_URL + '?year=' + year + '&month=' + monthNum, {
-                            headers: { 'X-CSRF-TOKEN': CSRF, 'X-Requested-With': 'XMLHttpRequest' }
-                        })
-                        .then(function(r) { return r.json(); })
-                        .then(function(data) {
-                            enterDrill(data.month, data.labels, data.amounts);
-                        });
-                    },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                label: function(c) { return ' ₱' + c.parsed.y.toLocaleString(); },
-                                afterTitle: function() { return drillActive ? '' : 'Click to see weekly'; }
-                            },
-                            backgroundColor: '#1a1a1a',
-                            padding: 10,
-                            cornerRadius: 8,
-                            titleFont: { weight: '700' },
-                            bodyFont:  { weight: '600' },
-                        }
-                    },
-                    scales: {
-                        x: {
-                            grid: { display: false },
-                            border: { display: false },
-                            ticks: { color: '#999', font: { size: 12, weight: '600' } }
-                        },
-                        y: {
-                            grid: { color: 'rgba(0,0,0,0.05)', drawBorder: false },
-                            border: { display: false, dash: [4, 4] },
-                            ticks: {
-                                color: '#999',
-                                font: { size: 12, weight: '600' },
-                                callback: function(v) {
-                                    return v >= 1000 ? '₱' + (v/1000).toFixed(0) + 'k' : '₱' + v;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-
-            // Back button
-            backBtn.addEventListener('click', exitDrill);
-
-            var filterMeta = {
-                '1':    { labels: weeklyLabels, amounts: weeklyAmounts, subtitle: 'Weekly payments received — {{ now()->format("F Y") }}', totalLabel: '{{ now()->format("M Y") }} Total' },
-                '3':    { labels: all12Labels.slice(-3),  amounts: all12Amounts.slice(-3),  subtitle: 'Monthly payments received — last 3 months',  totalLabel: '3-Month Total' },
-                '6':    { labels: all12Labels.slice(-6),  amounts: all12Amounts.slice(-6),  subtitle: 'Monthly payments received — last 6 months',  totalLabel: '6-Month Total' },
-                '12':   { labels: all12Labels.slice(-12), amounts: all12Amounts.slice(-12), subtitle: 'Monthly payments received — last 12 months', totalLabel: '12-Month Total' },
-                'year': { labels: yearLabels,             amounts: yearAmounts,             subtitle: 'Monthly payments received — {{ now()->year }}', totalLabel: '{{ now()->year }} Total' },
-            };
-
-            document.querySelectorAll('.db-chart-filter-btn').forEach(function(btn) {
-                btn.addEventListener('click', function() {
-                    var range = this.dataset.range;
-                    var meta  = filterMeta[range];
-                    if (!meta) return;
-
-                    lastRange      = range;
-                    lastFilterMeta = meta;
-                    drillActive    = false;
-                    backBtn.style.display   = 'none';
-                    drillHint.style.display = range === '1' ? 'none' : '';
-
-                    document.querySelectorAll('.db-chart-filter-btn').forEach(function(b) { b.classList.remove('active'); });
-                    this.classList.add('active');
-
-                    updateChart(meta.labels, meta.amounts, meta.subtitle, meta.totalLabel);
-                });
-            });
-
-            // Set initial state
-            lastFilterMeta = filterMeta['6'];
-        })();
 
         var currentYear = {{ now()->year }};
 
@@ -875,50 +582,50 @@
         var topClientByYear  = @json($topClientByYear);
         var topSupplierByYear = @json($topSupplierByYear);
 
+        // ── Top client / supplier cards: name, avatar initial, and stats ──
+        function setText(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; }
+        function setShown(id, show, disp) { var el = document.getElementById(id); if (el) el.style.display = show ? (disp || '') : 'none'; }
+        function shortPeso(n) {
+            n = Number(n) || 0;
+            return n >= 1e6 ? '₱' + (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M' : '₱' + Math.round(n / 1000).toLocaleString() + 'k';
+        }
+        function initialOf(name) { return (String(name || '').trim().charAt(0) || '—').toUpperCase(); }
+
         function updateTopClient(year) {
             var data = topClientByYear[year];
-            var nameEl = document.getElementById('topClientName');
-            var wrapEl = document.getElementById('topClientStats');
-            var emptyEl = document.getElementById('topClientEmpty');
-            if (!data) {
-                if (nameEl)  nameEl.textContent = '—';
-                if (wrapEl)  wrapEl.style.display = 'none';
-                if (emptyEl) { emptyEl.style.display = ''; emptyEl.textContent = 'No client data for ' + year + '.'; }
-                return;
-            }
-            if (nameEl)  nameEl.textContent = data.name;
-            if (wrapEl)  wrapEl.style.display = 'grid';
-            if (emptyEl) emptyEl.style.display = 'none';
-            var fmt = function(n) { return '₱' + Math.round(n / 1000).toLocaleString() + 'k'; };
-            var el;
-            el = document.getElementById('topClientProjects');      if(el) el.textContent = data.projects;
-            el = document.getElementById('topClientProjectsLabel'); if(el) el.textContent = year + ' Projects';
-            el = document.getElementById('topClientCompleted');     if(el) el.textContent = data.completed;
-            el = document.getElementById('topClientCompletedLabel');if(el) el.textContent = year + ' Completed';
-            el = document.getElementById('topClientReceived');      if(el) el.textContent = fmt(data.received);
-            el = document.getElementById('topClientReceivedLabel'); if(el) el.textContent = year + ' Received';
+            document.querySelectorAll('.ad-top--client [data-top-year]').forEach(function (el) { el.textContent = year; });
+            setShown('topClientId', !!data, 'flex');
+            setShown('topClientStats', !!data, 'grid');
+            setShown('topClientEmpty', !data);
+            if (!data) { setText('topClientEmpty', 'No client data for ' + year + '.'); return; }
+
+            setText('topClientName', data.name);
+            var nameEl = document.getElementById('topClientName'); if (nameEl) nameEl.title = data.name;
+            setText('topClientInitial', initialOf(data.name));
+            setText('topClientProjects', data.projects);
+            setText('topClientProjectsLabel', 'Projects');
+            setText('topClientCompleted', data.completed);
+            setText('topClientCompletedLabel', 'Completed');
+            setText('topClientReceived', shortPeso(data.received));
+            setText('topClientReceivedLabel', 'Received');
         }
         updateTopClient(currentYear);
 
         function updateTopSupplier(year) {
             var data = topSupplierByYear[year];
-            var nameEl  = document.getElementById('topSupplierName');
-            var wrapEl  = document.getElementById('topSupplierStats');
-            var emptyEl = document.getElementById('topSupplierEmpty');
-            if (!data) {
-                if (nameEl)  nameEl.textContent = '—';
-                if (wrapEl)  wrapEl.style.display = 'none';
-                if (emptyEl) { emptyEl.style.display = ''; emptyEl.textContent = 'No supplier data for ' + year + '.'; }
-                return;
-            }
-            if (nameEl)  nameEl.textContent = data.name;
-            if (wrapEl)  wrapEl.style.display = 'grid';
-            if (emptyEl) emptyEl.style.display = 'none';
-            var el;
-            el = document.getElementById('topSupplierCount');       if(el) el.textContent = data.purchase_count;
-            el = document.getElementById('topSupplierCountLabel');  if(el) el.textContent = year + ' Purchases';
-            el = document.getElementById('topSupplierSpent');       if(el) el.textContent = '₱' + parseFloat(data.total_spent).toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2});
-            el = document.getElementById('topSupplierSpentLabel');  if(el) el.textContent = year + ' Total Spent';
+            document.querySelectorAll('.ad-top--supplier [data-top-year]').forEach(function (el) { el.textContent = year; });
+            setShown('topSupplierId', !!data, 'flex');
+            setShown('topSupplierStats', !!data, 'grid');
+            setShown('topSupplierEmpty', !data);
+            if (!data) { setText('topSupplierEmpty', 'No supplier data for ' + year + '.'); return; }
+
+            setText('topSupplierName', data.name);
+            var nameEl = document.getElementById('topSupplierName'); if (nameEl) nameEl.title = data.name;
+            setText('topSupplierInitial', initialOf(data.name));
+            setText('topSupplierCount', data.purchase_count);
+            setText('topSupplierCountLabel', 'Purchases');
+            setText('topSupplierSpent', '₱' + parseFloat(data.total_spent).toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2}));
+            setText('topSupplierSpentLabel', 'Total Spent');
         }
         updateTopSupplier(currentYear);
 
@@ -1623,6 +1330,194 @@
         /* Very small (≤380px): KPIs → 1-col */
         @media (max-width: 380px) {
             .db-kpi-row            { grid-template-columns: 1fr; }
+        }
+
+        /* ══════════ Admin dashboard layout (ad-*) ══════════ */
+        .ad-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+        .ad-eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+        .ad-eyebrow::before { content: ''; width: 22px; height: 3px; border-radius: 999px; background: #F5B400; }
+        .ad-title { margin: 6px 0 4px; font-size: 28px; font-weight: 900; letter-spacing: -.5px; color: var(--dark); }
+        .ad-sub { margin: 0; font-size: 13.5px; color: var(--muted); }
+        .ad-sub strong { color: #B45309; }
+        .ad-head-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .ad-chip, .ad-year { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--border);
+                             background: var(--white); font-size: 13px; font-weight: 700; color: var(--dark); }
+        .ad-chip svg, .ad-year svg { width: 15px; height: 15px; color: var(--muted); }
+        .ad-year span { color: var(--muted); font-weight: 700; }
+        .ad-year select { border: none; outline: none; background: transparent; font: inherit; font-weight: 900; color: var(--dark); cursor: pointer; padding-right: 2px; }
+        .ad-year:focus-within { border-color: var(--dark); box-shadow: 0 0 0 3px rgba(245,180,0,.25); }
+
+        .ad-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+        .ad-action { position: relative; display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--border);
+                     background: var(--white); color: var(--dark); text-decoration: none; transition: border-color .15s, box-shadow .15s, transform .15s; }
+        .ad-action:hover { border-color: #cfcfcf; box-shadow: 0 8px 20px rgba(0,0,0,.06); transform: translateY(-1px); }
+        .ad-action-icon { width: 38px; height: 38px; border-radius: 11px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+        .ad-action-icon svg { width: 18px; height: 18px; }
+        .ad-action strong { display: block; font-size: 13.5px; font-weight: 800; }
+        .ad-action small { display: block; margin-top: 1px; font-size: 11.5px; font-weight: 600; color: var(--muted); }
+        .ad-action-go { width: 16px; height: 16px; margin-left: auto; color: #c4c4c4; flex-shrink: 0; transition: transform .15s, color .15s; }
+        .ad-action:hover .ad-action-go { color: var(--dark); transform: translateX(2px); }
+        .ad-badge { position: absolute; top: -7px; right: -7px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; background: #F5B400; color: #1a1a1a;
+                    font-size: 11px; font-weight: 900; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 3px var(--cream, #f5f5f5); }
+
+
+        .ad-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 18px; margin-bottom: 18px; align-items: stretch; }
+        .ad-stack { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+        .ad-card { background: var(--white); border: 1px solid var(--border); border-radius: 18px; min-width: 0; overflow: hidden;
+                   box-shadow: 0 1px 2px rgba(0,0,0,.03); display: flex; flex-direction: column; }
+        .ad-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+        .ad-card-icon { width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+        .ad-card-title { font-size: 14.5px; font-weight: 800; color: var(--dark); }
+        .ad-card-sub { margin-top: 2px; font-size: 12px; color: var(--muted); }
+        .ad-hint { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+        .ad-hint svg { width: 13px; height: 13px; }
+        .ad-link { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 800; color: var(--dark); text-decoration: none; }
+        .ad-link svg { width: 13px; height: 13px; transition: transform .15s; }
+        .ad-link:hover svg { transform: translateX(2px); }
+
+        .ad-pipe { padding: 6px 10px 10px; }
+        .ad-pipe-row { display: flex; align-items: center; gap: 12px; padding: 9px 10px; border-radius: 12px; text-decoration: none; color: var(--dark); transition: background .15s; }
+        .ad-pipe-row:hover { background: var(--cream-soft, #fafafa); }
+        .ad-pipe-icon { width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+        .ad-pipe-icon svg { width: 16px; height: 16px; }
+        .ad-pipe-text { flex: 1; min-width: 0; }
+        .ad-pipe-text strong { display: block; font-size: 13px; font-weight: 800; }
+        .ad-pipe-text small { display: block; font-size: 11.5px; color: var(--muted); }
+        .ad-pipe-count { font-size: 20px; font-weight: 900; color: #c4c4c4; font-variant-numeric: tabular-nums; }
+
+        .ad-ops { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 14px; }
+        .ad-op { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: 14px; background: var(--cream-soft, #fafafa); border: 1px solid var(--border);
+                 text-decoration: none; color: var(--dark); transition: border-color .15s, background .15s; }
+        .ad-op:hover { border-color: #cfcfcf; background: var(--white); }
+        .ad-op svg { width: 16px; height: 16px; color: var(--muted); margin-bottom: 4px; }
+        .ad-op strong { font-size: 22px; font-weight: 900; line-height: 1.1; font-variant-numeric: tabular-nums; }
+        .ad-op span { font-size: 11.5px; font-weight: 600; color: var(--muted); }
+        /* beside Recent Projects the card is tall — the four tiles share the height evenly */
+        .ad-grid > .ad-card > .ad-ops { flex: 1; grid-auto-rows: 1fr; }
+        .ad-grid > .ad-card > .ad-ops .ad-op { justify-content: center; }
+        /* beside the top cards the row is short — icon moves to the tile's corner so all four fit */
+        .ad-row-mid .ad-ops { gap: 8px; padding: 10px 14px 14px; }
+        .ad-row-mid .ad-op { position: relative; padding: 8px 14px; }
+        .ad-row-mid .ad-op svg { position: absolute; top: 10px; right: 12px; margin: 0; }
+
+        .ad-grid > .db-project-card { display: flex; flex-direction: column; }
+        .ad-grid > .db-project-card .db-project-card-footer { margin-top: auto; }
+
+        .ad-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; padding: 36px 20px; color: var(--muted); font-size: 12.5px; }
+        .ad-empty svg { width: 32px; height: 32px; color: #16a34a; margin-bottom: 6px; }
+        .ad-empty strong { color: var(--dark); font-size: 13.5px; }
+        .ad-attn { padding: 6px 0 4px; flex: 1; }
+        .ad-attn-group { padding: 10px 20px; }
+        .ad-attn-group + .ad-attn-group { border-top: 1px dashed var(--border); }
+        .ad-attn-label { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+        .ad-pill { font-size: 11px; font-weight: 900; padding: 2px 9px; border-radius: 999px; letter-spacing: 0; }
+        .ad-pill.is-red { background: #FEE2E2; color: #B91C1C; }
+        .ad-pill.is-amber { background: #FFF4E0; color: #B45309; }
+        .ad-attn-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 8px; margin: 0 -8px; border-radius: 10px; text-decoration: none; color: inherit; }
+        .ad-attn-row:hover { background: var(--cream-soft, #fafafa); }
+        .ad-attn-main { min-width: 0; }
+        .ad-attn-main strong { display: block; font-size: 12.5px; font-weight: 700; color: var(--dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .ad-attn-main small { display: block; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .ad-attn-val { font-size: 12px; font-weight: 900; white-space: nowrap; flex-shrink: 0; }
+        .ad-attn-val.is-red { color: #B42318; }
+        .ad-attn-val.is-amber { color: #8A6100; }
+        .ad-attn-none { font-size: 12px; color: var(--muted); padding: 4px 0; }
+        .ad-attn-msg { display: flex; align-items: center; gap: 8px; margin: 6px 20px 10px; padding: 10px 12px; border-radius: 12px; background: #F3E8FF; color: #6D28D9;
+                       font-size: 12.5px; font-weight: 800; text-decoration: none; }
+        .ad-attn-msg svg { width: 14px; height: 14px; }
+
+        .ad-top-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; min-width: 0; }
+        .ad-top { display: flex; flex-direction: column; padding: 20px; border-radius: 18px; color: #fff; min-width: 0;
+                  background: linear-gradient(135deg, #333 0%, #1a1a1a 100%); box-shadow: 0 8px 24px rgba(0,0,0,.18); position: relative; overflow: hidden; }
+        .ad-top::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: repeating-linear-gradient(135deg, #F5B400 0 10px, rgba(0,0,0,.5) 10px 20px); opacity: .9; }
+        .ad-top > *:not(.ad-top-bg) { position: relative; z-index: 1; }
+        .ad-top-bg { position: absolute; right: -26px; top: -22px; width: 150px; height: 150px; color: #fff; opacity: .045; stroke-width: 1.4; pointer-events: none; transform: rotate(-12deg); }
+        .ad-top--client  { background: radial-gradient(120% 90% at 100% 0%, rgba(245,180,0,.16) 0%, transparent 55%), linear-gradient(135deg, #333 0%, #1a1a1a 100%); }
+        .ad-top--supplier { background: radial-gradient(120% 90% at 100% 0%, rgba(16,185,129,.15) 0%, transparent 55%), linear-gradient(135deg, #333 0%, #1a1a1a 100%); }
+        .ad-top-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+        .ad-top-icon { width: 34px; height: 34px; border-radius: 10px; background: rgba(255,255,255,.1); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .ad-top-icon svg { width: 17px; height: 17px; }
+        .ad-top-eyebrow { font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: rgba(255,255,255,.45); }
+        .ad-top-by { font-size: 12.5px; font-weight: 800; color: #fff; }
+        .ad-top-year { margin-left: auto; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 800; color: #F5B400; background: rgba(245,180,0,.12); border: 1px solid rgba(245,180,0,.28); }
+        .ad-top--supplier .ad-top-year { color: #34D399; background: rgba(16,185,129,.12); border-color: rgba(16,185,129,.3); }
+        .ad-top-id { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; min-width: 0; }
+        .ad-top-avatar { width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+                         font-size: 18px; font-weight: 900; color: #1a1a1a; background: linear-gradient(135deg, #FFD54A, #F5B400); box-shadow: 0 4px 12px rgba(245,180,0,.3); }
+        .ad-top-avatar.is-green { color: #fff; background: linear-gradient(135deg, #34D399, #059669); box-shadow: 0 4px 12px rgba(16,185,129,.3); }
+        .ad-top-name { font-size: 18px; font-weight: 900; line-height: 1.25; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .ad-top-stats { display: grid; gap: 0; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.07); border-radius: 12px; overflow: hidden; }
+        .ad-top-stats > div { padding: 10px 8px; text-align: center; min-width: 0; }
+        .ad-top-stats > div + div { border-left: 1px solid rgba(255,255,255,.08); }
+        .ad-top-stats > div > div { font-size: 16px; font-weight: 900; overflow-wrap: anywhere; }
+        .ad-top-stats span { display: block; margin-top: 2px; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: rgba(255,255,255,.45); }
+        .ad-top-bar { height: 6px; border-radius: 999px; background: rgba(255,255,255,.08); overflow: hidden; }
+        .ad-top-bar > span { display: block; height: 100%; border-radius: inherit; transition: width .6s ease; }
+        .ad-top-empty { color: rgba(255,255,255,.35); font-size: 13px; text-align: center; padding: 16px 0; }
+        .ad-top-link { display: inline-flex; align-items: center; gap: 5px; margin-top: auto; padding-top: 12px; font-size: 12px; font-weight: 700; color: rgba(255,255,255,.55); text-decoration: none; align-self: flex-start; }
+        .ad-top-link:hover { color: #F5B400; }
+        .ad-top-link svg { width: 13px; height: 13px; }
+
+        .ad-feed { padding: 8px 10px 10px; }
+        .ad-feed-row { display: flex; align-items: flex-start; gap: 11px; padding: 8px 10px; border-radius: 10px; text-decoration: none; color: inherit; position: relative; }
+        a.ad-feed-row[href]:hover { background: var(--cream-soft, #fafafa); }
+        .ad-feed-row.is-static { cursor: default; }
+        .ad-feed-row:not(:last-child)::after { content: ''; position: absolute; left: 14px; top: 22px; bottom: -8px; width: 2px; background: var(--border); }
+        .ad-feed-dot { position: relative; z-index: 1; width: 10px; height: 10px; margin-top: 4px; border-radius: 50%; flex-shrink: 0; background: #F5B400; box-shadow: 0 0 0 3px #fff; }
+        .ad-feed-dot.is-green { background: #16a34a; }
+        .ad-feed-dot.is-red { background: #dc2626; }
+        .ad-feed-dot.is-violet { background: #7c3aed; }
+        .ad-feed-main strong { display: block; font-size: 12.5px; font-weight: 700; color: var(--dark); }
+        .ad-feed-main small { display: block; margin-top: 1px; font-size: 11px; color: var(--muted); }
+
+        /* ── Fixed-size cards: each row has a set height; a list that is too long scrolls inside its card ── */
+        .ad-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+                     scrollbar-width: thin; scrollbar-color: #d4d4d4 transparent; }
+        .ad-scroll::-webkit-scrollbar { width: 8px; }
+        .ad-scroll::-webkit-scrollbar-thumb { background: #d4d4d4; border-radius: 999px; border: 2px solid #fff; }
+        .ad-scroll::-webkit-scrollbar-thumb:hover { background: #b5b5b5; }
+        .ad-scroll::-webkit-scrollbar-track { background: transparent; }
+        .ad-grid > * { min-height: 0; }
+
+        .ad-row-main { height: 560px; }
+        .ad-row-main .ad-pipe { padding: 4px 10px 6px; }
+        .ad-row-main .ad-pipe-row { padding: 6px 10px; }
+        .ad-row-main > .ad-card, .ad-row-main > .ad-stack { height: 100%; }
+        .ad-row-main .ad-stack > .ad-card:first-child { flex: 0 0 auto; }        /* pipeline: its four rows */
+        .ad-row-main .ad-stack > .ad-card:last-child  { flex: 1 1 auto; min-height: 0; }   /* needs attention: the rest */
+
+        .ad-row-mid { height: 250px; }
+        .ad-row-mid > * { height: 100%; }
+        .ad-row-mid .ad-top-pair > .ad-top { height: 100%; }
+
+        .ad-row-low { height: 470px; }
+        .ad-row-low > .ad-card { height: 100%; }
+        .ad-row-low .db-project-card-head, .ad-row-low .db-proj-table-head, .ad-row-low .db-project-card-footer { flex-shrink: 0; }
+
+        @media (max-width: 1200px) {
+            .ad-grid { grid-template-columns: 1fr; }
+            .ad-stack { display: grid; grid-template-columns: 1fr 1fr; }
+            /* stacked: each card keeps its own fixed height instead of the row's */
+            .ad-row-main, .ad-row-mid, .ad-row-low { height: auto; }
+            .ad-row-main > .ad-card { height: 400px; }
+            .ad-row-main > .ad-stack { height: auto; }
+            .ad-row-main .ad-stack > .ad-card { height: 330px; }
+            .ad-row-mid > .ad-top-pair, .ad-row-mid .ad-top-pair > .ad-top, .ad-row-mid > .ad-card { height: 250px; }
+            .ad-row-low > .ad-card { height: 460px; }
+        }
+        @media (max-width: 900px) {
+            .ad-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .ad-stack, .ad-top-pair { grid-template-columns: 1fr; }
+            .ad-row-mid > .ad-top-pair { height: auto; }   /* the two dark cards stack — each keeps its 250px */
+        }
+        @media (max-width: 640px) {
+            .ad-title { font-size: 22px; }
+            .ad-head-right { width: 100%; }
+            .ad-chip { display: none; }
+            .ad-year { flex: 1; }
+            .ad-hint { display: none; }
+            .ad-action small { display: none; }
+            .ad-action { padding: 10px 12px; }
         }
     </style>
 

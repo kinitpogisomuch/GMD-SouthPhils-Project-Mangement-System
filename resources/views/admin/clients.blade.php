@@ -665,8 +665,13 @@
                     filterClients();
                 });
             });
-            // Apply default filter (All) on load
-            filterClients();
+            // Apply default filter (All) on load — or the tab named in the link (e.g. ?status=Pending from the dashboard)
+            var linkedTab = document.querySelector('#clientStatusTabs .filter-tab[data-filter="' + (new URLSearchParams(location.search).get('status') || '') + '"]');
+            if (linkedTab && linkedTab.dataset.filter) {
+                linkedTab.click();
+            } else {
+                filterClients();
+            }
 
             // ---- Credential preview (Add Client modal) ----
             (function () {

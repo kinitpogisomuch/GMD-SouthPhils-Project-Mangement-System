@@ -25,10 +25,28 @@ class MaterialUsageController extends Controller
     {
         $projects = Project::with('activeMaterials', 'activeMaterialUsages')->get();
 
-        // Group by client_id when a project is linked (so a client rename or
-        // relink is reflected immediately); fall back to the raw name string
-        // for the rare project that predates the client_id link.
-        $clientGroups = $projects->groupBy(fn ($p) => $p->client_id ? 'id:' . $p->client_id : 'name:' . $p->client)
+        // Same layout as the Projects page: active projects are listed on their own;
+        // completed and archived ones are grouped by client.
+        $activeProjects  = $projects->reject(fn ($p) => in_array($p->status, ['completed', 'archived']))
+            ->sortByDesc('created_at')->values();
+        $completedGroups = $this->usageClientGroups($projects->where('status', 'completed'));
+        $archivedGroups  = $this->usageClientGroups($projects->where('status', 'archived'));
+
+        $tab = in_array(request('tab'), ['active', 'completed', 'archived']) ? request('tab') : 'active';
+
+        $suppliers = SupplierContact::orderBy('name')->get();
+
+        return view('admin.material_usage', compact('activeProjects', 'completedGroups', 'archivedGroups', 'tab', 'suppliers'));
+    }
+
+    /**
+     * Groups projects by client_id when a project is linked (so a client rename or
+     * relink is reflected immediately); falls back to the raw name string for the
+     * rare project that predates the client_id link.
+     */
+    private function usageClientGroups($projects)
+    {
+        return $projects->groupBy(fn ($p) => $p->client_id ? 'id:' . $p->client_id : 'name:' . $p->client)
             ->map(function ($group) {
                 $first = $group->first();
                 return [
@@ -39,15 +57,8 @@ class MaterialUsageController extends Controller
                     'usage_count'     => $group->sum(fn ($p) => $p->activeMaterialUsages->count()),
                     'total_qty_used'  => $group->sum(fn ($p) => $p->activeMaterialUsages->sum('quantity_used')),
                     'last_created_at' => $group->max('created_at'),
-                    'has_active'      => $group->contains(fn ($p) => !in_array($p->status, ['completed', 'archived'])),
-                    'has_completed'   => $group->contains(fn ($p) => $p->status === 'completed'),
-                    'has_archived'    => $group->contains(fn ($p) => $p->status === 'archived'),
                 ];
             })->sortBy(fn ($g) => strtolower($g['client']))->values();
-
-        $suppliers = SupplierContact::orderBy('name')->get();
-
-        return view('admin.material_usage', compact('clientGroups', 'suppliers'));
     }
 
     public function clientIndex($client)
@@ -61,13 +72,17 @@ class MaterialUsageController extends Controller
             $query->where('client', $decoded);
         }
 
-        $projects = $query->orderBy('name')->get();
+        // Only completed and archived projects live inside a client — active ones are on the main list
+        $projects = $query->whereIn('status', ['completed', 'archived'])->orderBy('name')->get();
 
-        abort_if($projects->isEmpty(), 404);
+        if ($projects->isEmpty()) {
+            return redirect()->route('admin.material_usage');
+        }
 
         $clientName = $projects->first()->live_client_name;
+        $tab = request('tab') === 'archived' || !$projects->contains('status', 'completed') ? 'archived' : 'completed';
 
-        return view('admin.material_usage_client', compact('projects', 'clientName'));
+        return view('admin.material_usage_client', compact('projects', 'clientName', 'tab'));
     }
 
     public function adminDetail($projectId)

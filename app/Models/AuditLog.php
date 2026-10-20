@@ -39,7 +39,7 @@ class AuditLog extends Model
     public const ACTION_LABELS = [
         'quotation.requested'          => 'Quotation requested',
         'quotation.in_preparation'     => 'Quotation being prepared',
-        'quotation.saved'              => 'Quotation builder saved',
+        'quotation.saved'              => 'Costing saved',
         'quotation.sent'               => 'Quotation sent to client',
         'quotation.approved'           => 'Client approved the quotation',
         'quotation.revision_requested' => 'Client requested a revision',

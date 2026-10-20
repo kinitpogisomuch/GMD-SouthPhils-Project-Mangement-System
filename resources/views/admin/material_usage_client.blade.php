@@ -17,16 +17,19 @@
         <main class="admin-content">
 
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;font-size:13px;color:var(--muted);">
-                <a href="{{ route('admin.material_usage') }}" style="color:var(--muted);text-decoration:none;font-weight:600;">Materials</a>
+                <a href="{{ route('admin.material_usage', ['tab' => $tab]) }}" style="color:var(--muted);text-decoration:none;font-weight:600;">Materials</a>
                 <i data-lucide="chevron-right" style="width:14px;height:14px;"></i>
                 <span style="font-weight:700;color:var(--dark);">{{ $clientName }}</span>
             </div>
 
-            @php $activeProjectCount = $projects->whereNotIn('status', ['completed', 'archived'])->count(); @endphp
+            @php
+                $completedCount = $projects->where('status', 'completed')->count();
+                $archivedCount  = $projects->where('status', 'archived')->count();
+            @endphp
             <div class="page-header">
                 <div>
                     <h1>{{ $clientName }}</h1>
-                    <p>{{ $activeProjectCount }} active project{{ $activeProjectCount !== 1 ? 's' : '' }} for this client.</p>
+                    <p>{{ $completedCount }} completed · {{ $archivedCount }} archived project{{ $archivedCount !== 1 ? 's' : '' }} for this client.</p>
                 </div>
             </div>
 
@@ -67,17 +70,13 @@
                         </div>
                     </div>
                     <div class="filter-tabs" id="usageFilterTabs" style="flex-shrink:0;">
-                        <button type="button" class="filter-tab active" data-filter="active">
-                            Active
-                            <span class="filter-count">{{ $projects->whereNotIn('status', ['completed', 'archived'])->count() }}</span>
-                        </button>
-                        <button type="button" class="filter-tab" data-filter="completed">
+                        <button type="button" class="filter-tab {{ $tab === 'completed' ? 'active' : '' }}" data-filter="completed">
                             Completed
-                            <span class="filter-count">{{ $projects->where('status', 'completed')->count() }}</span>
+                            <span class="filter-count">{{ $completedCount }}</span>
                         </button>
-                        <button type="button" class="filter-tab" data-filter="archived">
+                        <button type="button" class="filter-tab {{ $tab === 'archived' ? 'active' : '' }}" data-filter="archived">
                             Archived
-                            <span class="filter-count">{{ $projects->where('status', 'archived')->count() }}</span>
+                            <span class="filter-count">{{ $archivedCount }}</span>
                         </button>
                     </div>
                 </div>
@@ -163,10 +162,9 @@
         document.addEventListener('DOMContentLoaded', function() {
             if (typeof lucide !== 'undefined') lucide.createIcons();
 
-            var currentStatusFilter = 'active';
+            var currentStatusFilter = @json($tab);
 
             var usageFilterMessages = {
-                'active':    'No active projects yet.',
                 'completed': 'No completed projects yet.',
                 'archived':  'No archived projects.'
             };
@@ -180,11 +178,7 @@
                 document.querySelectorAll('#usageTable tbody tr:not(#usageNoMatch)').forEach(function(row) {
                     var status      = (row.dataset.status || '').toLowerCase();
                     var matchSearch = !q || (row.dataset.search || '').indexOf(q) !== -1;
-                    var matchFilter = currentStatusFilter === 'active'
-                        ? status !== 'archived' && status !== 'completed'
-                        : currentStatusFilter === 'completed'
-                        ? status === 'completed'
-                        : status === 'archived';
+                    var matchFilter = status === currentStatusFilter;
                     var show = matchSearch && matchFilter;
                     row.style.display = show ? '' : 'none';
                     if (show) visibleCount++;
