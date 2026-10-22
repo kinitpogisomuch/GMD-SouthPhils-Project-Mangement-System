@@ -29,18 +29,39 @@ class AuthController extends Controller
      * quotation form; a visitor is sent to log in or sign up with the choice remembered, so after
      * authentication (and, for new accounts, approval and setup) they land on the same form.
      */
+    /** A tank card's full details (sizes, what's included, what the form asks) before requesting a quotation */
+    public function tankDetails(string $tank)
+    {
+        // a type that is now part of a combined card (e.g. re-piping → Fuel Pipeline) opens that card
+        if ($merged = \App\Support\TankCatalog::mergedInto($tank)) {
+            return redirect()->route('tanks.show', $merged, 301);
+        }
+        $card = \App\Support\TankCatalog::card($tank);
+        abort_unless($card, 404);
+
+        $others = array_values(array_filter(\App\Support\TankCatalog::cards(), fn ($c) => $c['slug'] !== $tank));
+
+        return view('tanks.show', ['card' => $card, 'others' => array_slice($others, 0, 3)]);
+    }
+
     public function quoteIntent(Request $request, string $tank)
     {
+        $tank = \App\Support\TankCatalog::mergedInto($tank) ?? $tank;
         abort_unless(in_array($tank, \App\Support\TankCatalog::requestableSlugs(), true), 404);
 
+        // a standard size picked on the details page travels with the tank (anything else is ignored)
+        $capacity = \App\Support\TankCatalog::standardCapacity($tank, $request->query('capacity'));
+        // …and so does the option picked on a combined card (e.g. Fuel Pipeline → Re-piping)
+        $choice   = \App\Support\TankCatalog::validChoice($tank, $request->query('choice'));
+
         if (session('role') === 'client') {
-            return redirect()->route('client.quotation.create', ['tank' => $tank]);
+            return redirect()->route('client.quotation.create', array_filter(['tank' => $tank, 'capacity' => $capacity, 'choice' => $choice]));
         }
         if (session('role')) {
             return redirect()->route('home');
         }
 
-        session(['quote_intent' => $tank]);
+        session(['quote_intent' => $tank, 'quote_capacity' => $capacity, 'quote_choice' => $choice]);
 
         return $request->query('then') === 'signup'
             ? redirect()->route('signup')
@@ -183,6 +204,8 @@ class AuthController extends Controller
             // A tank picked on the landing page — in this browser, or before signing up — survives the login
             $quoteIntent = session('quote_intent') ?: $client->pending_quote_tank;
             $quoteIntent = \App\Support\TankCatalog::find($quoteIntent) ? $quoteIntent : null;
+            $quoteCapacity = $quoteIntent ? \App\Support\TankCatalog::standardCapacity($quoteIntent, session('quote_capacity')) : null;
+            $quoteChoice   = $quoteIntent ? \App\Support\TankCatalog::validChoice($quoteIntent, session('quote_choice')) : null;
             $request->session()->flush();
             session([
                 'user_id'       => $client->id,
@@ -194,11 +217,12 @@ class AuthController extends Controller
                 'profile_photo' => $client->profile_photo,
             ]);
             if ($quoteIntent) {
-                session(['quote_intent' => $quoteIntent]);   // used (and forgotten) by the quotation page
+                // used (and forgotten) by the quotation page
+                session(['quote_intent' => $quoteIntent, 'quote_capacity' => $quoteCapacity, 'quote_choice' => $quoteChoice]);
             }
             if ($client->first_login) return redirect()->route('setup.credentials');
             if ($quoteIntent) {
-                return redirect()->route('client.quotation.create', ['tank' => $quoteIntent])
+                return redirect()->route('client.quotation.create', array_filter(['tank' => $quoteIntent, 'capacity' => $quoteCapacity, 'choice' => $quoteChoice]))
                     ->with('success', 'Welcome back! Tell us about the ' . \App\Support\TankCatalog::find($quoteIntent)['type'] . ' you need.');
             }
             return redirect()->route('client.dashboard');

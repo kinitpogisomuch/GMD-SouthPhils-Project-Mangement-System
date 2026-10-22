@@ -61,11 +61,20 @@ class QuotationRequestController extends Controller
         // The tank picked on the landing page ("Our Work") — passed in the link, or remembered through
         // login / sign-up — opens straight to that tank's form. Used once, then forgotten.
         $requestable  = TankCatalog::requestableSlugs();
-        $selectedTank = in_array($request->query('tank'), $requestable, true)
-            ? $request->query('tank')
-            : (in_array(session('quote_intent'), $requestable, true) ? session('quote_intent') : null);
-        if (session()->has('quote_intent') || $client->pending_quote_tank) {
-            session()->forget('quote_intent');
+        $asked        = fn ($s) => TankCatalog::mergedInto($s) ?? $s;   // older links to a now-combined type
+        $selectedTank = in_array($asked($request->query('tank')), $requestable, true)
+            ? $asked($request->query('tank'))
+            : (in_array($asked(session('quote_intent')), $requestable, true) ? $asked(session('quote_intent')) : null);
+        // …and the standard size picked on the tank's details page, if any
+        $selectedCapacity = $selectedTank
+            ? TankCatalog::standardCapacity($selectedTank, $request->query('capacity') ?: session('quote_capacity'))
+            : null;
+        // …and the option picked on a combined card (e.g. Fuel Pipeline → Re-piping), pre-answered in the form
+        $selectedChoice = $selectedTank
+            ? TankCatalog::validChoice($selectedTank, $request->query('choice') ?: session('quote_choice'))
+            : null;
+        if (session()->has('quote_intent') || session()->has('quote_capacity') || session()->has('quote_choice') || $client->pending_quote_tank) {
+            session()->forget(['quote_intent', 'quote_capacity', 'quote_choice']);
             if ($client->pending_quote_tank) {
                 $client->forceFill(['pending_quote_tank' => null])->save();
             }
@@ -75,7 +84,10 @@ class QuotationRequestController extends Controller
             'client'         => $client,
             'tankTypes'      => ProjectTankItem::TANK_TYPES,
             'tankCards'      => TankCatalog::cards(),
-            'selectedTank'   => $selectedTank,
+            'selectedTank'     => $selectedTank,
+            'selectedCapacity' => $selectedCapacity,
+            // pre-answers the card's first question, e.g. ['service' => 'Re-piping (replace existing lines)']
+            'selectedSpecs'    => $selectedChoice ? [TankCatalog::card($selectedTank)['choice']['key'] => $selectedChoice] : [],
             'pendingBatches' => $pendingBatches,
             'historyBatches' => $historyBatches,
         ]);
@@ -126,7 +138,7 @@ class QuotationRequestController extends Controller
         $first = reset($items);
         $recentDuplicate = QuotationRequest::where('client_id', $client->id)
             ->where('created_at', '>=', now()->subMinutes(2))
-            ->where('tank_type', TankCatalog::find($first['tank_slug'])['type'] ?? null)
+            ->where('tank_type', TankCatalog::find(TankCatalog::storedSlug($first['tank_slug'], (array) ($first['specs'] ?? [])))['type'] ?? null)
             ->where('capacity', ProjectTankItem::normalizeCapacity($first['capacity'] ?? null) ?? ($first['capacity'] ?? null))
             ->where('quantity', (int) ($first['quantity'] ?? 0))
             ->exists();
@@ -152,7 +164,8 @@ class QuotationRequestController extends Controller
         $created = DB::transaction(function () use ($prepared, $client, $request) {
             $created = collect();
             foreach ($prepared as [$batchId, $item, $designUrls]) {
-                $def      = TankCatalog::find($item['tank_slug']);
+                // a combined card (Fuel Pipeline) is saved as the service the client picked
+                $def      = TankCatalog::find(TankCatalog::storedSlug($item['tank_slug'], (array) ($item['specs'] ?? [])));
 
                 // The quotation (and its GMDSP reference number) exists from the moment the request is made
                 QuotationBatch::create([

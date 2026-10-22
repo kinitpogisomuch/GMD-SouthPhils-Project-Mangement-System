@@ -238,20 +238,13 @@
             <h2 class="section-title reveal">Choose Your Tank, Get a Quotation</h2>
             <p class="section-sub reveal">Pick what you need below. Tell us your capacity and requirements in your client portal, and GMD South Phils sends your quotation there — no calls or messages needed.</p>
 
-            {{-- Tank cards: the start of a quotation request. Guests are asked to log in or sign up first
-                 (the choice is remembered); a logged-in client goes straight to that tank's form. --}}
+            {{-- Tank cards: each opens the tank's details page (sizes, what's included, what the form asks),
+                 where the client picks a capacity and starts the quotation request. --}}
             <div class="portfolio-grid qt-grid">
                 @foreach($tankCards as $card)
-                {{-- A real link to /quote/{tank} (works even without JavaScript); for visitors, Alpine opens
-                     the log-in / sign-up dialog instead of navigating straight away. --}}
-                <a href="{{ route('quote.start', $card['slug']) }}" class="portfolio-card qt-card reveal"
-                   data-tank-slug="{{ $card['slug'] }}" data-tank-name="{{ $card['type'] }}"
-                   @if(session('role') !== 'client')
-                   x-data @click.prevent="$dispatch('quote-open', { slug: $el.dataset.tankSlug, name: $el.dataset.tankName, el: $el })"
-                   @endif
-                   aria-label="Request a quotation for {{ $card['type'] }}">
+                <a href="{{ route('tanks.show', $card['slug']) }}" class="portfolio-card qt-card reveal"
+                   data-tank-slug="{{ $card['slug'] }}" aria-label="View details of {{ $card['type'] }}">
                     <div class="portfolio-media" @if($card['image']) style="background-image:url('{{ $card['image'] }}')" @endif>
-                        <span class="portfolio-spec">{{ $card['badge'] }}</span>
                         @if($card['image'])
                             <img src="{{ $card['image'] }}" alt="{{ $card['type'] }}" loading="lazy">
                         @else
@@ -261,7 +254,7 @@
                     <div class="portfolio-body">
                         <div class="portfolio-title">{{ $card['type'] }}</div>
                         <p class="portfolio-desc">{{ $card['blurb'] }}</p>
-                        <span class="qt-cta">Request a Quotation <i data-lucide="arrow-right"></i></span>
+                        <span class="qt-cta">View Details <i data-lucide="arrow-right"></i></span>
                     </div>
                 </a>
                 @endforeach
@@ -273,40 +266,6 @@
         </div>
     </section>
 
-    {{-- Log in / sign up prompt for a tank card --}}
-    {{-- Alpine.js component: opened by a tank card's "quote-open" event --}}
-    <div class="qt-modal" id="quoteAuthModal" role="dialog" aria-modal="true" aria-labelledby="quoteAuthTitle"
-         x-data="{
-             open: false, slug: '', name: '', opener: null,
-             show(detail) {
-                 this.slug = detail.slug; this.name = detail.name; this.opener = detail.el;
-                 this.open = true;
-                 document.body.style.overflow = 'hidden';
-                 this.$nextTick(() => this.$refs.login.focus());
-             },
-             close() {
-                 this.open = false;
-                 document.body.style.overflow = '';
-                 if (this.opener) this.opener.focus();
-             },
-             link(then) { return @js(url('/quote')) + '/' + encodeURIComponent(this.slug) + '?then=' + then; }
-         }"
-         x-cloak x-show="open" :class="{ show: open }"
-         x-transition.opacity.duration.200ms
-         @quote-open.window="show($event.detail)"
-         @keydown.escape.window="open && close()"
-         @click.self="close()">
-        <div class="qt-modal-card" x-show="open" x-transition.scale.92.origin.bottom.duration.260ms>
-            <button type="button" class="qt-modal-close" aria-label="Close" @click="close()"><i data-lucide="x"></i></button>
-            <div class="qt-modal-icon"><i data-lucide="file-text"></i></div>
-            <h3 id="quoteAuthTitle">Request a quotation for <span x-text="name"></span></h3>
-            <p>Log in to your GMD client portal to describe what you need — we'll keep your tank selected. New here? Sign up; once your account is approved, your first login takes you straight to this tank's form.</p>
-            <div class="qt-modal-actions">
-                <a :href="link('login')" class="btn-gold" x-ref="login"><i data-lucide="log-in"></i> Log In</a>
-                <a :href="link('signup')" class="btn-ghost qt-signup">Sign Up</a>
-            </div>
-        </div>
-    </div>
 
 
     <!-- ============================================================

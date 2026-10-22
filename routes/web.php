@@ -40,6 +40,7 @@ Route::get('/', [AuthController::class, 'index'])->name('home');
 Route::post('/webhooks/paymongo', [OnlinePaymentController::class, 'webhook'])->name('webhooks.paymongo')->middleware('throttle:120,1');
 
 // "Our Work" tank card → that tank's quotation form (via login / sign-up for visitors)
+Route::get('/tanks/{tank}', [AuthController::class, 'tankDetails'])->name('tanks.show')->where('tank', '[a-z0-9-]+');
 Route::get('/quote/{tank}', [AuthController::class, 'quoteIntent'])->name('quote.start')->where('tank', '[a-z0-9-]+');
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.post')->middleware('throttle:5,1');

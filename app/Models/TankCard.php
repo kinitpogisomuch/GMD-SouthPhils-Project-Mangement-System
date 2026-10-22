@@ -15,10 +15,12 @@ class TankCard extends Model
     public $incrementing  = false;
     protected $keyType    = 'string';
 
-    protected $fillable = ['slug', 'image_url', 'badge', 'blurb', 'sort_order', 'is_visible', 'is_custom', 'type', 'capacity_label'];
+    protected $fillable = ['slug', 'image_url', 'badge', 'blurb', 'sort_order', 'is_visible', 'is_custom', 'type', 'capacity_label', 'sizes'];
 
     protected $casts = [
         'sort_order' => 'integer',
+        // [['capacity' => '10,000 liters', 'dimensions' => '2.4 m Ø × 2.4 m L'], …]; null = the catalog's default sizes
+        'sizes'      => 'array',
         'is_visible' => PostgresBoolean::class,
         'is_custom'  => PostgresBoolean::class,
     ];

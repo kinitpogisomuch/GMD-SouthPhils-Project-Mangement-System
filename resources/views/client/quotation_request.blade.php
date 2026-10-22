@@ -58,6 +58,16 @@
         .qr-fields .qr-wide { grid-column:1 / -1; }
         .field-error { margin-top:6px; font-size:12px; font-weight:700; color:#b91c1c; }
         .qr-hint { font-size:11.5px; color:var(--muted); margin-top:5px; line-height:1.45; }
+        /* standard sizes: tap one to fill Capacity (and Preferred Dimensions when the type asks for it) */
+        .qr-sizes { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+        .qr-sizes[hidden] { display:none; }
+        .qr-size { display:inline-flex; flex-direction:column; align-items:flex-start; gap:1px; padding:6px 11px; border-radius:10px; cursor:pointer;
+                   font:inherit; text-align:left; background:var(--white); border:1px solid var(--border); color:var(--dark); transition:border-color .15s, background .15s; }
+        .qr-size strong { font-size:12px; font-weight:800; }
+        .qr-size small { font-size:10.5px; color:var(--muted); font-weight:600; }
+        .qr-size:hover { border-color:#bdbdbd; }
+        .qr-size.is-on { background:#333; border-color:#333; color:#fff; }
+        .qr-size.is-on small { color:#F5B400; }
         .qr-divider { height:1px; background:var(--border); margin:22px 0; }
 
         .qr-design-btn {
@@ -300,8 +310,10 @@
                         <div class="form-group">
                             <label for="capacityInput"><span id="capacityLabel">Capacity / Size</span> <span style="color:#dc2626;">*</span></label>
                             <input type="text" name="tank_items[0][capacity]" id="capacityInput" required maxlength="255" autocomplete="off"
-                                   value="{{ $oldItem['capacity'] ?? '' }}" oninput="formatCapacity(this)">
+                                   value="{{ $oldItem['capacity'] ?? $selectedCapacity ?? '' }}" oninput="formatCapacity(this); markSize()">
                             @error('tank_items.0.capacity')<div class="field-error">{{ $message }}</div>@enderror
+                            <div class="qr-sizes" id="sizeChips" hidden aria-label="Standard sizes"></div>
+                            <div class="qr-hint" id="sizeHint" hidden>Pick a standard size or type your own.</div>
                         </div>
                         <div class="form-group">
                             <label for="quantityInput">Quantity <span style="color:#dc2626;">*</span></label>
@@ -360,7 +372,8 @@
         });
 
         var TANKS       = @json(collect($tankCards)->keyBy('slug'));
-        var OLD_SPECS   = @json((object) ($oldItem['specs'] ?? []));
+        {{-- answers typed before a failed submit, else the option picked on the tank's details page --}}
+        var OLD_SPECS   = @json((object) ($oldItem['specs'] ?? ($selectedSpecs ?? [])));
         var SPEC_ERRORS = @json((object) $specErrors);
 
         function esc(s) {
@@ -418,6 +431,38 @@
             });
         }
 
+        // ── standard sizes: a tap fills Capacity, and Preferred Dimensions if the type asks for it ──
+        function renderSizes(t) {
+            var box   = document.getElementById('sizeChips');
+            var sizes = t.sizes || [];
+            box.innerHTML = sizes.map(function (s) {
+                return '<button type="button" class="qr-size" data-capacity="' + esc(s.capacity) + '" data-dimensions="' + esc(s.dimensions) + '">' +
+                    '<strong>' + esc(s.capacity) + '</strong>' + (s.dimensions ? '<small>' + esc(s.dimensions) + '</small>' : '') + '</button>';
+            }).join('');
+            box.hidden = !sizes.length;
+            document.getElementById('sizeHint').hidden = !sizes.length;
+            box.querySelectorAll('.qr-size').forEach(function (b) { b.addEventListener('click', function () { pickSize(b); }); });
+            markSize();
+            // arrived with a size picked on the tank's details page: fill its dimensions too
+            var on = box.querySelector('.qr-size.is-on'), dims = document.getElementById('spec_dimensions');
+            if (on && dims && !dims.value && on.dataset.dimensions) { dims.value = on.dataset.dimensions; dims.dataset.fromSize = '1'; }
+        }
+        function pickSize(btn) {
+            document.getElementById('capacityInput').value = btn.dataset.capacity;
+            var dims = document.getElementById('spec_dimensions');
+            // only replace dimensions the client hasn't typed themselves
+            if (dims && (!dims.value || dims.dataset.fromSize === '1')) {
+                dims.value = btn.dataset.dimensions;
+                dims.dataset.fromSize = btn.dataset.dimensions ? '1' : '';
+            }
+            markSize();
+        }
+        function markSize() {
+            var v = document.getElementById('capacityInput').value.trim();
+            document.querySelectorAll('#sizeChips .qr-size').forEach(function (b) { b.classList.toggle('is-on', b.dataset.capacity === v); });
+        }
+        document.addEventListener('input', function (e) { if (e.target && e.target.id === 'spec_dimensions') e.target.dataset.fromSize = ''; });
+
         function chooseTank(slug, scroll) {
             var t = TANKS[slug];
             if (!t) return;
@@ -446,6 +491,7 @@
             OLD_SPECS = {};
             document.querySelectorAll('#typeFields [data-spec]').forEach(function (el) { el.addEventListener('change', applyConditions); });
             applyConditions();
+            renderSizes(t);
 
             var card = document.getElementById('quotationCard');
             card.hidden = false;

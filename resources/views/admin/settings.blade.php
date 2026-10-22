@@ -329,7 +329,7 @@
                     <div class="table-toolbar" style="flex-wrap:wrap;gap:6px;">
                         <div>
                             <div style="font-weight:700;font-size:15px;">"Our Work" — Choose Your Tank, Get a Quotation</div>
-                            <div style="font-size:12px;color:var(--muted);margin-top:2px;">The tank cards on the landing page and the client's quotation form. Click a card to change its picture, badge, description or order; hide a tank you don't offer right now.</div>
+                            <div style="font-size:12px;color:var(--muted);margin-top:2px;">The tank cards on the landing page and the client's quotation form. Each card opens its own details page, where clients choose a standard size and request a quotation. Click a card to change its picture, description, order or sizes; hide a tank you don't offer right now.</div>
                         </div>
                         <button class="add-btn" type="button" id="openAddTankCard">
                             <i data-lucide="plus"></i>
@@ -353,7 +353,17 @@
                                 <div class="portfolio-card-title">{{ $card['type'] }}</div>
                                 <div class="portfolio-card-chips">
                                     <span class="portfolio-chip"><i data-lucide="hash"></i>Order {{ $card['sort_order'] }}</span>
-                                    <span class="portfolio-chip"><i data-lucide="tag"></i>{{ $card['badge'] }}</span>
+                                    {{-- what the details page offers: services (Fuel Pipeline), standard sizes, or a typed capacity --}}
+                                    @if($card['choice'])
+                                    <span class="portfolio-chip" title="{{ implode(' / ', array_column($card['choice']['options'], 'value')) }}"><i data-lucide="list-checks"></i>{{ count($card['choice']['options']) }} services</span>
+                                    @endif
+                                    @if(count($card['sizes']))
+                                    <span class="portfolio-chip" title="{{ implode(', ', array_column($card['sizes'], 'capacity')) }}"><i data-lucide="ruler"></i>{{ count($card['sizes']) }} size{{ count($card['sizes']) !== 1 ? 's' : '' }}</span>
+                                    @elseif($card['project_based'])
+                                    <span class="portfolio-chip"><i data-lucide="ruler"></i>Per project</span>
+                                    @else
+                                    <span class="portfolio-chip"><i data-lucide="ruler"></i>Any size</span>
+                                    @endif
                                 </div>
                                 <p class="portfolio-card-desc">{{ Str::limit($card['blurb'], 90) }}</p>
                             </div>
@@ -363,16 +373,25 @@
                                         data-type="{{ $card['type'] }}"
                                         data-image="{{ $card['image'] }}"
                                         data-custom-image="{{ $card['custom_image'] ? '1' : '0' }}"
-                                        data-badge="{{ $card['badge'] === $card['default_badge'] ? '' : $card['badge'] }}"
-                                        data-default-badge="{{ $card['default_badge'] }}"
                                         data-blurb="{{ $card['blurb'] === $card['default_blurb'] ? '' : $card['blurb'] }}"
                                         data-default-blurb="{{ $card['default_blurb'] }}"
                                         data-order="{{ $card['sort_order'] }}"
                                         data-custom="{{ $card['custom'] ? '1' : '0' }}"
                                         data-capacity-label="{{ $card['capacity_label'] }}"
+                                        data-sizes="{{ json_encode($card['sizes']) }}"
+                                        data-default-sizes="{{ json_encode($card['default_sizes']) }}"
+                                        data-sizes-edited="{{ $card['sizes_edited'] ? '1' : '0' }}"
+                                        data-capacity-name="{{ $card['capacity']['label'] }}"
+                                        data-project-based="{{ $card['project_based'] ? '1' : '0' }}"
                                         title="Edit" aria-label="Edit {{ $card['type'] }}">
                                     <i data-lucide="pencil"></i>
                                 </button>
+                                @if($card['visible'])
+                                <a class="action-btn view" href="{{ route('tanks.show', $card['slug']) }}" target="_blank" rel="noopener"
+                                   title="View its details page" aria-label="View the {{ $card['type'] }} details page">
+                                    <i data-lucide="external-link"></i>
+                                </a>
+                                @endif
                                 <button class="action-btn view toggle-visibility-btn" type="button"
                                         data-archive-url="{{ route('admin.tank_cards.toggle', $card['slug']) }}"
                                         data-hidden="{{ $card['visible'] ? '0' : '1' }}"
@@ -513,7 +532,7 @@
             <div class="modal-header">
                 <div>
                     <h2>Add Tank Card</h2>
-                    <p>Adds a tank to "Our Work" on the landing page and to the client's quotation form. Clients request it with a general form: capacity, quantity, their requirements and optional dimensions.</p>
+                    <p>Adds a tank to "Our Work" on the landing page, with its own details page where clients pick one of your standard sizes (or type their own) and request a quotation: capacity, quantity, their requirements and optional dimensions. It is added at the end — change its order later with Edit.</p>
                 </div>
                 <button class="modal-close" type="button" id="closeAddTankCard" aria-label="Close">
                     <i data-lucide="x"></i>
@@ -532,15 +551,9 @@
                 </div>
                 @endif
 
-                <div class="tank-card-grid" style="display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:14px;">
-                    <div class="form-group">
-                        <label for="addTankName">Tank Name <span style="color:#dc2626;">*</span></label>
-                        <input type="text" name="type" id="addTankName" required maxlength="100" value="{{ old('type') }}" placeholder="e.g. Septic Tank">
-                    </div>
-                    <div class="form-group">
-                        <label for="addTankOrder">Order</label>
-                        <input type="number" name="sort_order" id="addTankOrder" min="1" max="99" value="{{ old('sort_order') }}" placeholder="Last">
-                    </div>
+                <div class="form-group" style="margin-bottom:14px;">
+                    <label for="addTankName">Tank Name <span style="color:#dc2626;">*</span></label>
+                    <input type="text" name="type" id="addTankName" required maxlength="100" value="{{ old('type') }}" placeholder="e.g. Septic Tank">
                 </div>
 
                 <div class="form-group form-group-full" style="margin-bottom:14px;">
@@ -552,20 +565,25 @@
                     </div>
                 </div>
 
-                <div class="tank-card-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
-                    <div class="form-group">
-                        <label for="addTankBadge">Badge</label>
-                        <input type="text" name="badge" id="addTankBadge" maxlength="50" value="{{ old('badge') }}" placeholder="e.g. Up to 10,000 L">
-                    </div>
-                    <div class="form-group">
-                        <label for="addTankCapacity">Capacity Label</label>
-                        <input type="text" name="capacity_label" id="addTankCapacity" maxlength="50" value="{{ old('capacity_label') }}" placeholder="Capacity / Size">
-                    </div>
+                <div class="form-group" style="margin-bottom:14px;">
+                    <label for="addTankCapacity">Capacity Label <span style="font-weight:400;color:var(--muted);">— what the capacity is called, e.g. Tank Volume</span></label>
+                    <input type="text" name="capacity_label" id="addTankCapacity" maxlength="50" value="{{ old('capacity_label') }}" placeholder="Capacity / Size">
                 </div>
 
                 <div class="form-group" style="margin-bottom:14px;">
                     <label for="addTankBlurb">Description <span style="color:#dc2626;">*</span></label>
                     <textarea name="blurb" id="addTankBlurb" rows="3" required maxlength="500" style="resize:none;" placeholder="One or two sentences shown on the card">{{ old('blurb') }}</textarea>
+                </div>
+
+                {{-- same editor as Edit Tank Card; a new card always saves its own list (empty = clients type the capacity) --}}
+                <div class="form-group" style="margin-bottom:14px;">
+                    <label>Standard Sizes <span style="font-weight:400;color:var(--muted);">— optional; shown on the details page</span></label>
+                    <div class="ts-head" id="addTankSizesHead"><span>Capacity</span><span>Dimensions</span><span></span></div>
+                    <div id="addTankSizesRows"></div>
+                    <div id="addTankSizesEmpty" class="ts-empty">No standard sizes — clients type the capacity in the form.</div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+                        <button type="button" class="cancel-btn ts-btn" id="addTankSizeAdd"><i data-lucide="plus"></i> Add size</button>
+                    </div>
                 </div>
 
                 <div class="modal-actions" style="margin-top:20px;">
@@ -618,20 +636,28 @@
                     <button type="button" class="cancel-btn" id="tankCardUseDefault" style="margin-top:10px;display:none;">Use default picture</button>
                 </div>
 
-                <div style="display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:14px;" class="tank-card-grid">
-                    <div class="form-group">
-                        <label for="tankCardBadge">Badge</label>
-                        <input type="text" name="badge" id="tankCardBadge" maxlength="50">
-                    </div>
-                    <div class="form-group">
-                        <label for="tankCardOrder">Order</label>
-                        <input type="number" name="sort_order" id="tankCardOrder" min="1" max="99">
-                    </div>
+                <div class="form-group" style="margin-bottom:14px;max-width:220px;">
+                    <label for="tankCardOrder">Order <span style="font-weight:400;color:var(--muted);">— position on the page</span></label>
+                    <input type="number" name="sort_order" id="tankCardOrder" min="1" max="99">
                 </div>
 
                 <div class="form-group" style="margin-bottom:14px;">
                     <label for="tankCardBlurb">Description</label>
                     <textarea name="blurb" id="tankCardBlurb" rows="3" maxlength="500" style="resize:none;"></textarea>
+                </div>
+
+                {{-- the standard sizes clients pick from on the tank's details page (and as quick picks in the form) --}}
+                <div class="form-group" style="margin-bottom:14px;">
+                    <label>Standard Sizes <span style="font-weight:400;color:var(--muted);">— shown on the details page; clients can still type their own</span></label>
+                    <input type="hidden" name="sizes_mode" id="tankSizesMode" value="default">
+                    <div class="ts-head" id="tankSizesHead"><span id="tankSizesCapName">Capacity</span><span>Dimensions</span><span></span></div>
+                    <div id="tankSizesRows"></div>
+                    <div id="tankSizesEmpty" class="ts-empty">No standard sizes — clients type the capacity in the form.</div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+                        <button type="button" class="cancel-btn ts-btn" id="tankSizeAdd"><i data-lucide="plus"></i> Add size</button>
+                        <button type="button" class="cancel-btn ts-btn" id="tankSizesReset"><i data-lucide="rotate-ccw"></i> Use default sizes</button>
+                    </div>
+                    <div id="tankSizesNote" class="ts-note"></div>
                 </div>
 
                 <div class="modal-actions" style="margin-top:20px;">
@@ -644,7 +670,20 @@
             </form>
         </div>
     </div>
-    <style>@media (max-width: 560px) { .tank-card-grid { grid-template-columns: 1fr !important; } }</style>
+    <style>
+        @media (max-width: 560px) { .tank-card-grid { grid-template-columns: 1fr !important; } }
+        /* Edit Tank Card → Standard Sizes rows */
+        .ts-head, .ts-row { display: grid; grid-template-columns: 1fr 1.3fr 36px; gap: 8px; align-items: center; }
+        .ts-head { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin: 4px 0 6px; }
+        .ts-row { margin-bottom: 8px; }
+        .ts-row input { min-width: 0; }
+        .ts-row .action-btn { width: 36px; height: 36px; }
+        .ts-empty { font-size: 12.5px; color: var(--muted); padding: 12px 14px; border: 1px dashed var(--border); border-radius: 10px; }
+        .ts-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; font-size: 12.5px; }
+        .ts-btn svg, .ts-btn i { width: 14px; height: 14px; }
+        .ts-note { font-size: 11.5px; color: var(--muted); margin-top: 8px; line-height: 1.5; }
+        .ts-note:empty { display: none; }
+    </style>
 
     <!-- ===== TOGGLE VISIBILITY (HIDE/SHOW) MODAL ===== -->
     <div class="modal-overlay" id="visibilityModal">
@@ -771,9 +810,6 @@
                 var d = this.dataset;
                 document.getElementById('editTankCardForm').action = d.url;
                 document.getElementById('editTankCardTitle').textContent = d.type;
-                var badge = document.getElementById('tankCardBadge');
-                badge.value = d.badge || '';
-                badge.placeholder = d.defaultBadge || '';
                 var blurb = document.getElementById('tankCardBlurb');
                 blurb.value = d.blurb || '';
                 blurb.placeholder = d.defaultBlurb || '';
@@ -798,9 +834,82 @@
                 useDefault.disabled = false;
                 useDefault.textContent = 'Use default picture';
                 useDefault.style.display = !isCustom && d.customImage === '1' ? '' : 'none';
+
+                // standard sizes: an added card always saves its own list; a built-in one keeps the defaults until edited
+                tankSizes.defaults = JSON.parse(d.defaultSizes || '[]');
+                tankSizes.custom   = isCustom;
+                document.getElementById('tankSizesCapName').textContent = d.capacityName || 'Capacity';
+                document.getElementById('tankSizesReset').style.display = isCustom ? 'none' : '';
+                document.getElementById('tankSizesNote').textContent = d.projectBased === '1'
+                    ? 'This one is priced per project, so it usually has no standard sizes.' : '';
+                tankSizes.render(JSON.parse(d.sizes || '[]'), isCustom || d.sizesEdited === '1' ? 'custom' : 'default');
                 openModal('editTankCardModal');
             });
         });
+
+        // ---- Standard Sizes editor (Edit Tank Card: ids "tankSizes…", Add Tank Card: "addTankSizes…") ----
+        function makeSizesEditor(p) {
+          var ed = {
+            defaults: [], custom: false,
+            rows: function () { return document.getElementById(p + 'SizesRows'); },
+            // Edit only: "default" keeps the built-in list, "custom" saves the rows (Add has no mode — always its own list)
+            setMode: function (mode) {
+                var input = document.getElementById(p + 'SizesMode');
+                var reset = document.getElementById(p + 'SizesReset');
+                if (!input || !reset) return;
+                input.value = mode;
+                reset.disabled = mode === 'default';
+                reset.innerHTML = '<i data-lucide="rotate-ccw"></i> ' + (mode === 'default' ? 'Using default sizes' : 'Use default sizes');
+                if (window.lucide) lucide.createIcons();
+            },
+            row: function (size) {
+                var row = document.createElement('div');
+                row.className = 'ts-row';
+                row.innerHTML = '<input type="text" maxlength="60" data-f="capacity" placeholder="e.g. 10,000 liters">' +
+                    '<input type="text" maxlength="80" data-f="dimensions" placeholder="e.g. 2.4 m Ø × 2.4 m L (optional)">' +
+                    '<button type="button" class="action-btn" title="Remove this size" aria-label="Remove this size" style="color:#dc2626;"><i data-lucide="x"></i></button>';
+                row.querySelector('[data-f=capacity]').value   = size.capacity || '';
+                row.querySelector('[data-f=dimensions]').value = size.dimensions || '';
+                row.querySelector('button').addEventListener('click', function () { row.remove(); ed.changed(); });
+                row.querySelectorAll('input').forEach(function (el) { el.addEventListener('input', function () { ed.changed(); }); });
+                return row;
+            },
+            // field names follow the row order, so removing a row leaves no gaps
+            reindex: function () {
+                var rows = this.rows().querySelectorAll('.ts-row');
+                rows.forEach(function (row, i) {
+                    row.querySelector('[data-f=capacity]').name   = 'sizes[' + i + '][capacity]';
+                    row.querySelector('[data-f=dimensions]').name = 'sizes[' + i + '][dimensions]';
+                });
+                document.getElementById(p + 'SizesEmpty').style.display = rows.length ? 'none' : '';
+                document.getElementById(p + 'SizesHead').style.display  = rows.length ? '' : 'none';
+                document.getElementById(p + 'SizeAdd').disabled = rows.length >= 12;
+            },
+            render: function (sizes, mode) {
+                var box = this.rows();
+                box.innerHTML = '';
+                sizes.forEach(function (s) { box.appendChild(ed.row(s)); });
+                this.reindex();
+                this.setMode(mode);
+                if (window.lucide) lucide.createIcons();
+            },
+            changed: function () { this.reindex(); this.setMode('custom'); }
+          };
+          document.getElementById(p + 'SizeAdd').addEventListener('click', function () {
+              var row = ed.row({});
+              ed.rows().appendChild(row);
+              ed.changed();
+              if (window.lucide) lucide.createIcons();
+              row.querySelector('input').focus();
+          });
+          var reset = document.getElementById(p + 'SizesReset');
+          if (reset) reset.addEventListener('click', function () { ed.render(ed.defaults, 'default'); });
+          return ed;
+        }
+        var tankSizes    = makeSizesEditor('tank');
+        var addTankSizes = makeSizesEditor('addTank');
+        // a failed add comes back with the sizes that were typed
+        addTankSizes.render({!! json_encode($errors->hasBag('tankCardAdd') ? array_values((array) old('sizes', [])) : [], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}, 'custom');
 
         // ---- Add Tank Card Modal ----
         document.getElementById('openAddTankCard').addEventListener('click', function () { openModal('addTankCardModal'); });

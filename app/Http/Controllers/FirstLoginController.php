@@ -154,7 +154,11 @@ class FirstLoginController extends Controller
 
         // Came from a tank card on the landing page — continue to that tank's quotation form
         if ($role === 'client' && \App\Support\TankCatalog::find(session('quote_intent'))) {
-            return redirect()->route('client.quotation.create', ['tank' => session('quote_intent')])
+            return redirect()->route('client.quotation.create', array_filter([
+                    'tank'     => session('quote_intent'),
+                    'capacity' => \App\Support\TankCatalog::standardCapacity(session('quote_intent'), session('quote_capacity')),
+                    'choice'   => \App\Support\TankCatalog::validChoice(session('quote_intent'), session('quote_choice')),
+                ]))
                 ->with('success', 'Account setup complete! Now tell us about the tank you need.');
         }
 

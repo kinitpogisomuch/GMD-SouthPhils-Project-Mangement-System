@@ -58,13 +58,17 @@ class TankCardController extends Controller
         $data = $request->validateWithBag('tankCardAdd', [
             'type'           => ['required', 'string', 'max:100', $this->nameRule()],
             'image'          => 'required|image|max:10240',
-            'badge'          => 'nullable|string|max:50',
             'blurb'          => 'required|string|max:500',
             'capacity_label' => 'nullable|string|max:50',
-            'sort_order'     => 'nullable|integer|min:1|max:99',
+            'sizes'              => 'nullable|array|max:12',
+            'sizes.*.capacity'   => 'nullable|string|max:60',
+            'sizes.*.dimensions' => 'nullable|string|max:80',
         ], self::IMAGE_MESSAGES + [
             'type.required'  => 'Enter the tank name.',
             'blurb.required' => 'Enter a short description.',
+            'sizes.max'              => 'Up to 12 sizes per tank.',
+            'sizes.*.capacity.max'   => 'A capacity can be up to 60 characters.',
+            'sizes.*.dimensions.max' => 'Dimensions can be up to 80 characters.',
         ]);
 
         $url = app(SupabaseStorageService::class)->upload($request->file('image'), 'tank-cards');
@@ -79,10 +83,10 @@ class TankCardController extends Controller
             'is_custom'      => true,
             'type'           => $type,
             'image_url'      => $url,
-            'badge'          => trim((string) ($data['badge'] ?? '')) ?: null,
             'blurb'          => trim($data['blurb']),
             'capacity_label' => trim((string) ($data['capacity_label'] ?? '')) ?: null,
-            'sort_order'     => $data['sort_order'] ?? null,
+            'sizes'          => TankCatalog::cleanSizes($data['sizes'] ?? []),
+            'sort_order'     => null,   // added at the end; reorder later with Edit
             'is_visible'     => true,
         ]);
 
@@ -111,12 +115,25 @@ class TankCardController extends Controller
             'capacity_label' => 'nullable|string|max:50',
             'image'          => 'nullable|image|max:10240',
             'reset_image'    => 'nullable|boolean',
-            'badge'          => 'nullable|string|max:50',
             'blurb'          => ($isCustom ? 'required' : 'nullable') . '|string|max:500',
             'sort_order'     => 'nullable|integer|min:1|max:99',
-        ], self::IMAGE_MESSAGES);
+            // standard sizes shown on the details page: "default" keeps the built-in list
+            'sizes_mode'         => 'nullable|in:default,custom',
+            'sizes'              => 'nullable|array|max:12',
+            'sizes.*.capacity'   => 'nullable|string|max:60',
+            'sizes.*.dimensions' => 'nullable|string|max:80',
+        ], self::IMAGE_MESSAGES + [
+            'sizes.max'                => 'Up to 12 sizes per tank.',
+            'sizes.*.capacity.max'     => 'A capacity can be up to 60 characters.',
+            'sizes.*.dimensions.max'   => 'Dimensions can be up to 80 characters.',
+        ]);
 
         $card = TankCard::firstOrNew(['slug' => $slug]);
+        if (($data['sizes_mode'] ?? null) === 'custom' || ($isCustom && $request->has('sizes_mode'))) {
+            $card->sizes = TankCatalog::cleanSizes($data['sizes'] ?? []);
+        } elseif (($data['sizes_mode'] ?? null) === 'default') {
+            $card->sizes = null;
+        }
         if ($isCustom) {
             // the slug stays the same, so links and earlier requests are unaffected by a rename
             $card->type           = trim($data['type']);
@@ -135,7 +152,6 @@ class TankCardController extends Controller
         }
 
         // Blank = use the default wording
-        $card->badge      = trim((string) ($data['badge'] ?? '')) ?: null;
         $card->blurb      = trim((string) ($data['blurb'] ?? '')) ?: null;
         $card->sort_order = $data['sort_order'] ?? $card->sort_order;
         if (!$card->exists) {
