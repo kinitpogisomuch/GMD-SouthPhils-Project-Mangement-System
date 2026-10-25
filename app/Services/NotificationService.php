@@ -44,6 +44,7 @@ class NotificationService
     const TYPE_QUOTATION_REQUEST_QUOTATION_SENT = 'quotation_request_quotation_sent';
     const TYPE_QUOTATION_REQUEST_APPROVED       = 'quotation_request_approved';
     const TYPE_QUOTATION_REQUEST_REJECTED       = 'quotation_request_rejected';
+    const TYPE_PURCHASE_ORDER_RECEIVED          = 'purchase_order_received';
     const TYPE_MONTHLY_EXPENSE_REMINDER         = 'monthly_expense_reminder';
     const TYPE_MATERIAL_LOGGING_REMINDER        = 'material_logging_reminder';
     const TYPE_SALARY_RECORDING_REMINDER        = 'salary_recording_reminder';
@@ -626,7 +627,7 @@ class NotificationService
 
         $message = "Project: {$project->name}"
             . ($stage ? "\nPayment phase: " . PaymentTransaction::stageLabel($stage) : "\nStatement: Full statement")
-            . ($due > 0 ? "\nAmount due: " . self::peso($due) . "\nPlease review the statement, settle the amount and upload your proof of payment." : "\nPlease review the statement.");
+            . ($due > 0 ? "\nAmount due: " . self::peso($due) . "\nPlease review the statement and settle the amount — pay online with Pay Now, or pay GMD by cash or cheque." : "\nPlease review the statement.");
 
         self::notifyProjectClient(
             $project,
@@ -683,7 +684,7 @@ class NotificationService
             "Project: {$project->name}\nPayment phase: {$label}\nAmount due: " . self::peso($amountDue)
                 . "\nPayment status: " . $payment->computeStatus()
                 . ($paidSoFar > 0 ? ' (' . self::peso($paidSoFar) . ' of ' . self::peso((float) $payment->contract_amount) . ' received)' : '')
-                . "\nPlease settle it and upload your proof of payment.",
+                . "\nPlease settle it — pay online with Pay Now, or pay GMD by cash or cheque.",
             self::TYPE_PAYMENT_DUE,
             'warning',
             null,
@@ -982,7 +983,7 @@ class NotificationService
 
         self::notifyAdmins(
             'Quotation Approved by Client',
-            "{$request->client->name} approved quotation " . ($ref ? "{$ref} " : '') . "for their {$request->tank_summary} request. It's ready to be converted into a project.",
+            "{$request->client->name} approved quotation " . ($ref ? "{$ref} " : '') . "for their {$request->tank_summary} request. Waiting for their Purchase Order before it can be converted into a project.",
             self::TYPE_QUOTATION_REQUEST_APPROVED,
             'success',
             null,
@@ -990,6 +991,24 @@ class NotificationService
             '/admin/quotation-requests/batch/' . $request->batch_id,
             $request->approved_at,
             'quotation_approved:' . $request->batch_id
+        );
+    }
+
+    /** Client sent (or re-sent) the Purchase Order for an approved quotation → notify admins: ready to convert */
+    public static function purchaseOrderReceived(\App\Models\QuotationBatch $batch, bool $resent = false): void
+    {
+        $client = $batch->client?->name ?? 'The client';
+
+        self::notifyAdmins(
+            $resent ? 'Purchase Order Updated' : 'Purchase Order Received',
+            "{$client} " . ($resent ? 're-sent' : 'sent') . " Purchase Order {$batch->po_number} for quotation {$batch->reference_no}. It's ready to be converted into a project — the down payment opens once you do.",
+            self::TYPE_PURCHASE_ORDER_RECEIVED,
+            'success',
+            null,
+            null,
+            '/admin/quotation-requests/batch/' . $batch->id,
+            $batch->po_submitted_at,
+            'purchase_order:' . $batch->id . ':' . $batch->po_submitted_at?->timestamp
         );
     }
 

@@ -64,7 +64,7 @@
                     'inspection'  => 'Inspection',
                     'painting'    => 'Painting',
                     'completion'  => 'Completion',
-                    'delivery'    => 'Delivery',
+                    'delivery'    => 'For Pickup',
                 ];
             @endphp
             <div class="card" style="margin-bottom:12px;" data-status="{{ $project->status }}">

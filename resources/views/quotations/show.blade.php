@@ -123,7 +123,7 @@
     <div class="qv-modal" id="qvApprove" role="dialog" aria-modal="true" aria-labelledby="qvApproveTitle">
         <div class="qv-modal-card">
             <h3 id="qvApproveTitle">Approve this quotation?</h3>
-            <p>You are approving <strong>{{ $doc['quotation_number'] }}</strong> for <strong>₱{{ number_format($doc['totals']['total'], 2) }}</strong>. GMD South Phils will be notified and will set up your project and payment schedule.</p>
+            <p>You are approving <strong>{{ $doc['quotation_number'] }}</strong> for <strong>₱{{ number_format($doc['totals']['total'], 2) }}</strong>. Next, you'll send GMD South Phils your Purchase Order — they set up your project and payment schedule once they receive it.</p>
             <form method="POST" action="{{ $decision['approve_url'] }}">
                 @csrf
                 <input type="hidden" name="version_id" value="{{ $decision['version_id'] }}">

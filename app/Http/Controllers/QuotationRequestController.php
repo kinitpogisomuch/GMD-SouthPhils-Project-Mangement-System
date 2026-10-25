@@ -93,6 +93,21 @@ class QuotationRequestController extends Controller
         ]);
     }
 
+    /**
+     * A standard size comes with fixed dimensions: whatever the browser sent, they are the size's own.
+     * A size the client typed ("Other size") keeps the dimensions they typed.
+     */
+    private function withStandardDimensions(array $item): array
+    {
+        $specs = (array) ($item['specs'] ?? []);
+        $size  = TankCatalog::standardSize($item['tank_slug'] ?? null, $item['capacity'] ?? null);
+        if ($size && $size['dimensions'] !== '') {
+            $specs['dimensions'] = $size['dimensions'];
+        }
+
+        return $specs;
+    }
+
     public function store(Request $request)
     {
         $client = Client::findOrFail(session('user_id'));
@@ -117,6 +132,9 @@ class QuotationRequestController extends Controller
             'tank_items.*.capacity'             => 'required|string|max:255',
             'tank_items.*.quantity'             => 'required|integer|min:1|max:1000',
             'tank_items.*.target_timeline'      => 'nullable|date|after_or_equal:today',
+            // picked up at the shop, unless the client asks GMD to assemble it on site — then where
+            'tank_items.*.onsite_assembly'      => 'nullable|boolean',
+            'tank_items.*.site_location'        => 'nullable|required_if_accepted:tank_items.*.onsite_assembly|string|max:500',
             'tank_items.*.design_files'         => 'nullable|array|max:5',
             // "extensions" (not "mimes") because CAD tools like AutoCAD don't produce a
             // MIME type PHP's file-info can reliably sniff — Laravel's "mimes" rule would
@@ -130,6 +148,7 @@ class QuotationRequestController extends Controller
             'tank_items.*.tank_slug.in'               => 'Choose one of the tank types shown.',
             'tank_items.*.capacity.required'          => 'Enter the capacity / size.',
             'tank_items.*.quantity.required'          => 'Enter the quantity.',
+            'tank_items.*.site_location.required_if_accepted' => 'Enter where the tank will be assembled.',
             'tank_items.*.target_timeline.after_or_equal' => 'The target date cannot be in the past.',
         ], $specNames);
 
@@ -180,12 +199,12 @@ class QuotationRequestController extends Controller
                     'capacity'        => ProjectTankItem::normalizeCapacity($item['capacity']) ?? $item['capacity'],
                     'quantity'        => (int) $item['quantity'],
                     'target_timeline' => $item['target_timeline'] ?? null,
-                    // GMD's tanks are picked up at the Calauan, Laguna shop — there is no delivery option
-                    'fulfillment'     => 'pickup',
-                    'location'        => null,
+                    // picked up at the Calauan, Laguna shop (no delivery option) — or assembled on site by GMD
+                    'fulfillment'     => !empty($item['onsite_assembly']) ? QuotationRequest::FULFILLMENT_ONSITE : QuotationRequest::FULFILLMENT_PICKUP,
+                    'location'        => !empty($item['onsite_assembly']) ? trim((string) ($item['site_location'] ?? '')) : null,
                     'notes'           => $request->notes,
                     'reference_files' => !empty($designUrls) ? $designUrls : null,
-                    'specifications'  => TankCatalog::cleanAnswers($item['tank_slug'], (array) ($item['specs'] ?? [])) ?: null,
+                    'specifications'  => TankCatalog::cleanAnswers($item['tank_slug'], $this->withStandardDimensions($item)) ?: null,
                     'status'          => QuotationRequest::STATUS_PENDING,
                 ]));
             }
@@ -291,7 +310,53 @@ class QuotationRequestController extends Controller
         NotificationService::quotationRequestApproved(QuotationRequest::where('batch_id', $batchId)->first());
 
         return redirect()->route('client.quotation.create', ['tab' => 'pending'])
-            ->with('success', "Quotation {$version->quotation_number} approved! GMD South Phils will set up your project shortly.");
+            ->with('success', "Quotation {$version->quotation_number} approved! Next, send GMD South Phils your Purchase Order so they can set up your project and start the down payment.");
+    }
+
+    /**
+     * Client sends their Purchase Order for an approved quotation (PO number + the PO file). GMD can only
+     * convert the quotation into a project — which opens the down payment — once it is received. It can be
+     * re-sent (replacing the earlier one) until the project is created.
+     */
+    public function submitPurchaseOrder(Request $request, $batchId)
+    {
+        $batch = $this->clientBatch($batchId);
+
+        $request->validate([
+            'po_number'   => 'required|string|max:80',
+            'po_files'    => 'required|array|min:1|max:5',
+            'po_files.*'  => 'file|mimes:pdf,jpg,jpeg,png|max:10240',
+            'po_notes'    => 'nullable|string|max:1000',
+        ], [
+            'po_number.required' => 'Enter your Purchase Order number.',
+            'po_files.required'  => 'Attach your Purchase Order (PDF or photo).',
+            'po_files.*.mimes'   => 'The Purchase Order must be a PDF, JPG or PNG file.',
+            'po_files.*.max'     => 'Each file can be up to 10 MB.',
+        ]);
+
+        $status = QuotationRequest::where('batch_id', $batch->id)->value('status');
+        if ($status !== QuotationRequest::STATUS_APPROVED || $batch->project_id) {
+            return redirect()->route('client.quotation.create', ['tab' => 'pending'])
+                ->with('error', $status === QuotationRequest::STATUS_CONVERTED || $batch->project_id
+                    ? 'Your project has already been created for this quotation.'
+                    : 'You can send a Purchase Order once you have approved the quotation.');
+        }
+
+        $resent = $batch->hasPurchaseOrder();
+        $files  = $this->storage->uploadMultiple($request->file('po_files', []), 'quotation-requests/' . $batch->id . '/purchase-order');
+
+        $batch->update([
+            'po_number'       => trim($request->input('po_number')),
+            'po_files'        => $files,
+            'po_notes'        => trim((string) $request->input('po_notes')) ?: null,
+            'po_submitted_at' => now(),
+        ]);
+
+        AuditTrail::record('quotation', $batch->id, $resent ? 'quotation.po_resent' : 'quotation.po_submitted', ['po_number' => $batch->po_number]);
+        NotificationService::purchaseOrderReceived($batch, $resent);
+
+        return redirect()->route('client.quotation.create', ['tab' => 'pending'])
+            ->with('success', "Purchase Order {$batch->po_number} sent! GMD South Phils will set up your project, then your down payment opens under Payments.");
     }
 
     /**
@@ -502,6 +567,13 @@ class QuotationRequestController extends Controller
         }
 
         $batch = $this->resolveBatch($batchId);
+
+        // The down payment starts with the project — and the project starts with the client's Purchase Order
+        if (!$batch->hasPurchaseOrder()) {
+            return response()->json([
+                'message' => 'Waiting for the client\'s Purchase Order. The quotation can be converted once they send it.',
+            ], 422);
+        }
         $batch->load('client');
         $client = $batch->client;
 
@@ -519,17 +591,18 @@ class QuotationRequestController extends Controller
         // Dimensions the client (or GMD, in the builder's specification lines) already gave carry over,
         // so the Add Project form starts with them instead of asking again.
         $specLines  = QuotationDocument::specifications($batch);
-        $dimensions = $this->projectDimensions(
-            collect($specLines)->first(fn ($l) => stripos((string) ($l['label'] ?? ''), 'dimension') !== false)['value']
-                ?? ($requests->first()->specifications['dimensions'] ?? null)
-        );
+        $dimensionText = collect($specLines)->first(fn ($l) => stripos((string) ($l['label'] ?? ''), 'dimension') !== false)['value']
+            ?? ($requests->first()->specifications['dimensions'] ?? null);
+        $dimensions = $this->projectDimensions($dimensionText);
 
         $tankItem = fn (?string $type, $quantity, ?string $capacity, $timeline) => [
             'tank_type'        => in_array($type, ProjectTankItem::TANK_TYPES, true) ? $type : ($type ? 'Others' : null),
             'tank_type_custom' => in_array($type, ProjectTankItem::TANK_TYPES, true) ? null : $type,
+            'shape'            => $this->defaultShape($type, $dimensions),
             'quantity'         => $quantity,
             'capacity'         => $capacity,
             'dimensions'       => $dimensions,
+            'dimensions_text'  => $dimensionText,
             'target_timeline'  => $timeline,
         ];
 
@@ -539,8 +612,15 @@ class QuotationRequestController extends Controller
             ? collect([$tankItem($batch->tank_type, $batch->tankQuantity(), $batch->capacity, $requests->first()->target_timeline_display)])
             : $requests->map(fn ($qr) => $tankItem($qr->tank_type, $qr->quantity, $qr->capacity, $qr->target_timeline_display));
 
+        $firstType = $tankItems->first()['tank_type_custom'] ?? $tankItems->first()['tank_type'] ?? null;
+
         return response()->json([
             'quotation_batch_id'      => $batchId,
+            'reference_no'            => $batch->reference_no,
+            'quotation_number'        => $batch->latestVersion()?->quotation_number ?? $batch->reference_no,
+            'contract_value'          => (float) $batch->contract_value,
+            'po_number'               => $batch->po_number,
+            'project_name'            => $this->projectNameFor($firstType),
             // the builder's working days are for one tank — the project builds all of them
             'estimated_working_days'  => $batch->estimated_working_days ? $batch->estimated_working_days * $batch->tankQuantity() : null,
             'tank_quantity'           => $batch->tank_type ? $batch->tankQuantity() : null,
@@ -563,6 +643,64 @@ class QuotationRequestController extends Controller
                 ]))),
             ],
         ]);
+    }
+
+    /**
+     * Admin: turn an approved quotation (with the client's Purchase Order) into a project in one step — only the
+     * estimated schedule is asked; the tank, specifications, materials, labor and payment terms all come from
+     * the quotation. Runs the same project creation as the Add Project form.
+     */
+    public function convertBatch(Request $request, $batchId)
+    {
+        $request->validate([
+            'start_date' => 'required|date',
+            'end_date'   => 'required|date|after_or_equal:start_date',
+        ], ['end_date.after_or_equal' => 'The estimated end date can\'t be before the start date.']);
+
+        $prefill = $this->prefillBatch($batchId);
+        if ($prefill->getStatusCode() !== 200) {
+            return redirect()->back()->with('error', $prefill->getData(true)['message'] ?? 'This quotation can\'t be converted yet.');
+        }
+        $data = $prefill->getData(true);
+
+        $request->merge([
+            'name'               => $data['project_name'],
+            'client'             => $data['client']['name'],
+            'contact_number'     => $data['client']['contact'],
+            'email'              => $data['client']['email'],
+            'address'            => $data['client']['address'],
+            'quotation_batch_id' => $batchId,
+            'notes'              => $data['summary']['notes'] ?? null,
+            'tank_items'         => array_map(fn ($item) => [
+                'tank_type'  => $item['tank_type_custom'] ?: $item['tank_type'] ?: 'Others',
+                'shape'      => $item['shape'],
+                'capacity'   => $item['capacity'] ?: '—',
+                'dimensions' => $item['dimensions'] ?: ($item['dimensions_text'] ?: 'As per approved quotation'),
+                'quantity'   => max(1, (int) $item['quantity']),
+            ], $data['tank_items']),
+        ]);
+
+        return app(\App\Http\Controllers\ProjectController::class)->store($request);
+    }
+
+    /** The tank's shape for its type, read from the dimensions when the type allows more than one */
+    private function defaultShape(?string $type, ?string $dimensions): string
+    {
+        return match (true) {
+            in_array($type, ['Fuel Pipe Line Installation', 'Re-piping of Fuel Pipe Line'], true) => 'N/A',
+            $type === 'Tetrapod'                                                                   => '3-Legged Pod',
+            in_array($type, ['Cooking Oil Storage Tank', 'Polymer Tank'], true)                    => 'Rectangular',
+            $dimensions !== null && str_starts_with($dimensions, 'L')                              => 'Rectangular',
+            default                                                                                => 'Cylindrical',
+        };
+    }
+
+    /** "Fabrication of Fuel Day Tanks" — or the service itself for pipeline work */
+    private function projectNameFor(?string $type): string
+    {
+        $type = $type ?: 'Storage Tank';
+
+        return in_array($type, ['Fuel Pipe Line Installation', 'Re-piping of Fuel Pipe Line'], true) ? $type : 'Fabrication of ' . $type;
     }
 
     /**
@@ -686,9 +824,9 @@ class QuotationRequestController extends Controller
             ->orderBy('last_name')
             ->get();
 
-        // "Choose a Starting Point" — past projects whose materials, labor and pricing can be
-        // copied into this quotation. Only offered while the quotation can still be edited.
-        $quotationTemplates = $isLocked ? collect() : $this->quotationTemplates();
+        // Every standard tank size has a default costing (materials, labor, pricing) worked out from GMD's
+        // estimated price — a new costing for a standard size starts from it. Only while it can still be edited.
+        $standardCostings = $isLocked ? [] : \App\Support\StandardCosting::all();
 
         // The tank this quotation prices. Until it is saved it starts from the client's request; the
         // quantity only starts from the request while the builder is still empty — a quotation that
@@ -700,7 +838,16 @@ class QuotationRequestController extends Controller
             'capacity'  => $batch->capacity ?: ProjectTankItem::normalizeCapacity($requested->capacity ?? null),
             'quantity'  => $batch->tank_type || !$isBlank ? $batch->tankQuantity() : max(1, (int) ($requested->quantity ?? 1)),
         ];
-        $tankTypeOptions = $this->builderTankOptions($quotationTemplates, $builderTank);
+        $tankTypeOptions = $this->builderTankOptions($builderTank);
+
+        // GMD's estimated prices per tank type (standard sizes, or a rate per meter) — the costing compares its
+        // computed unit price with the one for the tank being quoted, live as the type / capacity change
+        $priceGuide = collect(TankCatalog::all())->mapWithKeys(fn ($def) => [$def['type'] => [
+            'sizes' => array_values(array_filter(array_map(fn ($s) => ['capacity' => $s['capacity'], 'price' => $s['price'] ?? null], $def['sizes'] ?? []), fn ($s) => $s['price'])),
+            'rate'  => $def['rate'] ?? null,
+        ]])->filter(fn ($g) => $g['sizes'] || $g['rate'])->all();
+        // a costing that was never saved starts from GMD's defaults
+        $costingIsNew = $batch->markup_percent === null;
 
         // Two steps: 1 · Costing (tank, pricing, materials, labor) → 2 · Quotation Document (what the
         // client receives). The document step opens once the costing is complete and saved.
@@ -712,8 +859,8 @@ class QuotationRequestController extends Controller
             'batch', 'tankItems', 'batchStatus', 'isLocked',
             'materials', 'totalMaterials', 'estimatedCost', 'materialFactor',
             'laborEntries', 'totalLaborEntries', 'totalLaborCost',
-            'estimatedBudget', 'regularEmployees', 'quotationTemplates',
-            'builderTank', 'tankTypeOptions',
+            'estimatedBudget', 'regularEmployees', 'standardCostings',
+            'builderTank', 'tankTypeOptions', 'priceGuide', 'costingIsNew',
             'specLines', 'docSettings', 'versions', 'activity',
             'costingReady', 'costingGaps', 'step'
         ));
@@ -850,34 +997,28 @@ class QuotationRequestController extends Controller
     }
 
     /**
-     * Tank types for the builder's picker, each with the capacities GMD has built for it (from the
-     * templates) — the standard list first, then any other type a template or this quotation uses.
+     * Tank types for the builder's picker, each with its standard capacities (the sizes GMD lists for it) —
+     * plus the capacity this quotation already has, when it isn't one of them.
      *
      * @return array<string, string[]> type => capacities
      */
-    private function builderTankOptions($templates, array $builderTank): array
+    private function builderTankOptions(array $builderTank): array
     {
         $options = [];
         foreach (ProjectTankItem::TANK_TYPES as $type) {
             if ($type !== 'Others') {
-                $options[$type] = [];
+                $options[$type] = array_column(TankCatalog::forType($type)['sizes'] ?? [], 'capacity');
             }
         }
 
-        $add = function (?string $type, ?string $capacity) use (&$options) {
-            if (!$type) {
-                return;
-            }
+        $type     = $builderTank['tank_type'];
+        $capacity = $builderTank['capacity'];
+        if ($type) {
             $options[$type] = $options[$type] ?? [];
             if ($capacity && !in_array($capacity, $options[$type], true)) {
                 $options[$type][] = $capacity;
             }
-        };
-
-        foreach ($templates as $tpl) {
-            $add($tpl['tank_type'], $tpl['capacity']);
         }
-        $add($builderTank['tank_type'], $builderTank['capacity']);
 
         // smallest to largest capacity
         foreach ($options as &$capacities) {
@@ -885,77 +1026,6 @@ class QuotationRequestController extends Controller
         }
 
         return $options;
-    }
-
-    /**
-     * Every completed project that has a bill of materials, newest first, shaped for the Quotation
-     * Builder's template picker: its tank type and capacity (the picker only offers templates of the
-     * tank being quoted), its active materials and labor, plus the material factor, working days,
-     * markup % and payment terms it was quoted with.
-     *
-     * A project's BOM covers all of its tanks, but the builder prices ONE tank — so material
-     * quantities and working days are divided by the project's number of tanks. Prices and daily
-     * rates are per unit / per day and stay as they were.
-     */
-    private function quotationTemplates()
-    {
-        $materials = ProjectMaterial::whereNotNull('project_id')->where('status', 'active')
-            ->orderBy('id')->get()->groupBy('project_id');
-        $labor     = ProjectLabor::whereNotNull('project_id')->where('status', 'active')
-            ->orderBy('id')->get()->groupBy('project_id');
-        $payments  = \App\Models\Payment::whereIn('project_id', $materials->keys())->get()->keyBy('project_id');
-        $tanks     = ProjectTankItem::whereIn('project_id', $materials->keys())->orderBy('sort_order')->get()->groupBy('project_id');
-
-        return Project::whereIn('id', $materials->keys())
-            ->where('status', 'completed')
-            ->orderByDesc('updated_at')
-            ->get()
-            ->map(function (Project $project) use ($materials, $labor, $payments, $tanks) {
-                $projectMaterials = $materials->get($project->id, collect());
-                $payment          = $payments->get($project->id);
-                $projectTanks     = $tanks->get($project->id, collect());
-                $firstTank        = $projectTanks->first();
-                $tankQty          = max(1, (int) $projectTanks->sum('quantity'));
-                $perTank          = fn ($v) => round((float) $v / $tankQty, 2);
-                $markupPct        = $payment && (float) $payment->project_budget > 0
-                    ? round((float) $payment->markup / (float) $payment->project_budget * 100, 2)
-                    : null;
-
-                return [
-                    'id'                     => $project->id,
-                    'name'                   => $project->name,
-                    'client'                 => $project->client,
-                    'status'                 => $project->status,
-                    'tank_type'              => ProjectTankItem::canonicalType($firstTank->tank_type ?? $project->tank_type),
-                    'capacity'               => ProjectTankItem::normalizeCapacity($firstTank->capacity ?? $project->capacity),
-                    'tank_qty'               => $tankQty,
-                    'factor'                 => (float) ($projectMaterials->first()->factor ?? ProjectMaterial::DEFAULT_FACTOR),
-                    'estimated_working_days' => $project->estimated_working_days ? max(1, $perTank($project->estimated_working_days)) : null,
-                    // the builder only accepts a markup within the allowed range
-                    'markup_percent'         => $markupPct === null ? null
-                        : min(QuotationBatch::MARKUP_MAX, max(QuotationBatch::MARKUP_MIN, $markupPct)),
-                    'payment_term_type'      => $payment->payment_term_type ?? null,
-                    'materials'              => $projectMaterials->map(fn ($m) => [
-                        'name'  => $m->material_name,
-                        'unit'  => $m->unit,
-                        'qty'   => max(0.01, $perTank($m->quantity)),
-                        'price' => (float) $m->price_per_unit,
-                    ])->values(),
-                    // Labor is saved as "Name (Role)" — split it back so the builder can match the employee
-                    'labor'                  => $labor->get($project->id, collect())->map(function ($l) {
-                        $name = trim((string) $l->description);
-                        $role = '';
-                        if (preg_match('/^(.*?)\s*\(([^()]*)\)\s*$/', $name, $m)) {
-                            [$name, $role] = [trim($m[1]), trim($m[2])];
-                        }
-                        return ['name' => $name, 'role' => $role, 'rate' => (float) $l->daily_rate];
-                    })->values(),
-                ];
-            })
-            // One template per kind of project and capacity — when the same one was completed more
-            // than once, only the most recently completed one is offered.
-            ->unique(fn (array $tpl) => mb_strtolower(trim($tpl['name'])) . '|' . mb_strtolower((string) $tpl['tank_type']) . '|' . $tpl['capacity'])
-            ->values();
     }
 
     /**
@@ -980,14 +1050,11 @@ class QuotationRequestController extends Controller
             'markup_percent.max' => 'Markup must be between ' . QuotationBatch::MARKUP_MIN . '% and ' . QuotationBatch::MARKUP_MAX . '%.',
         ]);
 
-        $projectBudget = $batch->estimatedBudget()['total'];
-        $markup        = round($projectBudget * $validated['markup_percent'] / 100, 2);
-
         $batch->update([
-            'markup'             => $markup,
             'markup_percent'     => $validated['markup_percent'],
             'payment_term_type'  => $validated['payment_term_type'] ?? $batch->payment_term_type,
         ]);
+        $batch->update(['markup' => $batch->fresh()->markupAmount()]);
 
         // "Send to Client" submits this form first (so whatever's currently typed is
         // actually saved) before the modal opens — this flag tells the redirected
@@ -1334,13 +1401,20 @@ class QuotationRequestController extends Controller
         $batch = $this->resolveBatch($batchId);
 
         // Price / Unit (and the daily rates) are shown with thousands separators — "15,000.00" is 15000
-        $this->stripThousandsSeparators($request, ['price_per_unit', 'daily_rate', 'quantity']);
+        $this->stripThousandsSeparators($request, ['price_per_unit', 'daily_rate', 'quantity', 'other_amount']);
 
         $request->validate([
             'tank_type'              => 'required|string|max:255',
             'capacity'               => 'required|string|max:255',
             'tank_quantity'          => 'required|integer|min:1|max:1000',
             'markup_percent'         => 'required|numeric|min:' . QuotationBatch::MARKUP_MIN . '|max:' . QuotationBatch::MARKUP_MAX,
+            'contingency_percent'    => 'nullable|numeric|min:0|max:' . QuotationBatch::CONTINGENCY_MAX,
+            // other costs when GMD assembles the tank on site (for the whole job)
+            'onsite_assembly'        => 'nullable|boolean',
+            'other_label'            => 'nullable|array|max:20',
+            'other_label.*'          => 'nullable|string|max:120',
+            'other_amount'           => 'nullable|array|max:20',
+            'other_amount.*'         => 'nullable|numeric|min:0|max:100000000',
             'payment_term_type'      => 'required|in:big_project,small_project',
             'factor'                 => 'required|numeric|min:0|max:100',
             'estimated_working_days' => 'required|numeric|gt:0',
@@ -1350,7 +1424,8 @@ class QuotationRequestController extends Controller
             'material_name'          => 'nullable|array',
             'material_name.*'        => 'nullable|string|max:255',
             'quantity'               => 'nullable|array',
-            'quantity.*'             => 'nullable|numeric|min:0',
+            // materials are counted in whole units (pieces, kilos, gallons…) — "20.00" from a saved row is fine
+            'quantity.*'             => 'nullable|numeric|min:0|multiple_of:1',
             'price_per_unit'         => 'nullable|array',
             'price_per_unit.*'       => 'nullable|numeric|min:0',
             'unit'                   => 'nullable|array',
@@ -1385,6 +1460,9 @@ class QuotationRequestController extends Controller
         ], [
             'markup_percent.min'     => 'Markup must be between ' . QuotationBatch::MARKUP_MIN . '% and ' . QuotationBatch::MARKUP_MAX . '%.',
             'markup_percent.max'     => 'Markup must be between ' . QuotationBatch::MARKUP_MIN . '% and ' . QuotationBatch::MARKUP_MAX . '%.',
+            'contingency_percent.max' => 'Contingency can be up to ' . QuotationBatch::CONTINGENCY_MAX . '%.',
+            'quantity.*.multiple_of' => 'Materials: the quantity must be a whole number.',
+            'other_amount.*.numeric' => 'Other costs: enter an amount in pesos.',
             'tank_quantity.integer'  => 'Tank quantity must be a whole number.',
             'tank_quantity.min'      => 'Tank quantity must be at least 1.',
         ], [
@@ -1491,13 +1569,30 @@ class QuotationRequestController extends Controller
                 'tank_quantity' => (int) $request->input('tank_quantity'),
             ]);
 
-            // Markup last — it is a percentage of the Project Budget, which the rows above just changed
-            $projectBudget = $batch->fresh()->estimatedBudget()['total'];
+            // Other costs (on-site assembly, for the whole job) and contingency — both part of the Project Budget
+            $otherLabels  = $request->input('other_label', []);
+            $otherAmounts = $request->input('other_amount', []);
+            $otherCosts   = [];
+            foreach ($otherLabels as $i => $label) {
+                $label  = trim((string) $label);
+                $amount = round((float) ($otherAmounts[$i] ?? 0), 2);
+                if ($label !== '' || $amount > 0) {
+                    $otherCosts[] = ['label' => $label !== '' ? $label : 'Other', 'amount' => $amount];
+                }
+            }
             $batch->update([
-                'markup'            => round($projectBudget * (float) $request->input('markup_percent') / 100, 2),
+                'contingency_percent' => $request->filled('contingency_percent') ? round((float) $request->input('contingency_percent'), 2) : null,
+                'onsite_assembly'     => $request->boolean('onsite_assembly'),
+                'other_costs'         => $otherCosts ?: null,
+            ]);
+
+            // Markup last — a percentage of the Project Budget, which the rows above just changed (a standard costing
+            // left as it is lands exactly on GMD's estimated price — see QuotationBatch::markupAmount)
+            $batch->update([
                 'markup_percent'    => $request->input('markup_percent'),
                 'payment_term_type' => $request->input('payment_term_type') ?: $batch->payment_term_type,
             ]);
+            $batch->update(['markup' => $batch->fresh()->markupAmount()]);
 
             // The quotation document: specification lines (in the order shown) and its print settings
             if ($request->has('spec_label')) {

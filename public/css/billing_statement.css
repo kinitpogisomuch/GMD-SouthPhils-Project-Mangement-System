@@ -130,19 +130,26 @@ body {
     font-size: 12.5px;
 }
 
-.bs-field-label {
+/* td.-qualified so the `.bs-fields td` padding reset (screen + print) can't wipe the gap
+   between a label and its value */
+.bs-fields td.bs-field-label {
     font-weight: 700;
     color: #1a1a1a;
     white-space: nowrap;
-    padding-right: 10px;
+    padding-right: 14px;
     width: 1%;
 }
 
-.bs-field-value {
+.bs-fields td.bs-field-value {
     border-bottom: 1px solid #999;
-    padding-left: 6px;
+    padding-left: 8px;
     padding-right: 24px;
     min-width: 120px;
+}
+
+/* the right-hand labels (Statement Date, Reference No.) also need room from the value before them */
+.bs-fields td.bs-field-value + td.bs-field-label {
+    padding-left: 24px;
 }
 
 /* Particulars table */

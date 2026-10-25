@@ -68,6 +68,9 @@
                     $isBigProject   = $payment->payment_term_type === 'big_project';
                     $phasePercents  = $isBigProject ? ['50%', '30%', '20%'] : ['50%', '50%'];
                     $phaseTermsText = count($phasePercents) . ' Phases (' . implode(' / ', $phasePercents) . ')';
+                    // Online payment (PayMongo): the stage due right now, if it can be paid online
+                    $payable        = $onlineEnabled ? $payment->onlinePayableStage() : null;
+                    $canPayOnline   = $payable && $payable['amount'] >= \App\Services\OnlinePayments::MIN_AMOUNT;
                 @endphp
                 <div class="card pay-card">
                     <div class="card-header pay-card-header">
@@ -81,6 +84,16 @@
                             <a href="{{ route('client.payments.show', $payment->id) }}" class="btn btn-outline btn-sm">
                                 <i data-lucide="external-link"></i> View Details
                             </a>
+                            @if($canPayOnline)
+                            <form method="POST" action="{{ route('client.payments.online.pay', $payment->id) }}" style="margin:0;">
+                                @csrf
+                                @php $payBilled = $payment->isStageBilled($payable['stage']); @endphp
+                                <button type="submit" class="btn btn-primary btn-sm" @unless($payBilled) style="background:var(--info);border-color:var(--info);" @endunless title="{{ \App\Models\PaymentTransaction::stageLabel($payable['stage']) }} — secured by PayMongo">
+                                    <i data-lucide="{{ $payBilled ? 'landmark' : 'fast-forward' }}"></i>
+                                    {{ $payBilled ? 'Pay' : 'Pay in Advance' }} ₱{{ number_format($payable['amount'], 2) }}
+                                </button>
+                            </form>
+                            @endif
                         </div>
                     </div>
                     <div class="card-body">

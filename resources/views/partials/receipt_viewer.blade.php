@@ -9,6 +9,8 @@
     .rv-stage { display: flex; align-items: center; justify-content: center; max-width: 100%; max-height: 100%; }
     .rv-stage img { display: block; max-width: 90vw; max-height: 90vh; border-radius: 8px; box-shadow: 0 24px 60px rgba(0,0,0,.4); }
     .rv-stage iframe { width: min(900px, 90vw); height: 90vh; border: 0; border-radius: 8px; background: #fff; box-shadow: 0 24px 60px rgba(0,0,0,.4); }
+    .rv-stage iframe.rv-page { width: min(1000px, 92vw); height: min(650px, 90vh); }   /* landscape: acknowledgement receipt */
+    .rv-stage iframe.rv-doc  { width: min(920px, 92vw);  height: 90vh; }                /* portrait: billing statement */
     .rv-note { max-width: 360px; padding: 28px 24px; border-radius: 12px; background: #fff; text-align: center; font-size: 14px; line-height: 1.6; color: #444; }
     .rv-note a { display: inline-block; margin-top: 10px; font-weight: 700; color: #1a1a1a; }
     .rv-round { position: absolute; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border: none; border-radius: 50%; background: rgba(255,255,255,.12); color: #fff; font-size: 20px; line-height: 1; cursor: pointer; }
@@ -36,9 +38,12 @@
     var prevBtn = document.getElementById('receiptViewerPrev');
     var nextBtn = document.getElementById('receiptViewerNext');
     var count   = document.getElementById('receiptViewerCount');
-    var urls = [], index = 0;
+    var urls = [], pages = [], index = 0;
 
     function kind(url) {
+        // a system-generated document: data-receipt="page" (landscape, e.g. an Acknowledgement Receipt)
+        // or data-receipt="doc" (portrait, e.g. a Billing Statement)
+        if (pages[index]) return 'page';
         // blob: URLs (local, not-yet-uploaded file previews) carry no extension — in every
         // place that hands this viewer a blob: URL it's an image picked via accept="image/*".
         if (/^blob:/i.test(String(url))) return 'image';
@@ -61,6 +66,11 @@
             var frame = document.createElement('iframe');
             frame.src = url; frame.title = 'Attached file';
             stage.appendChild(frame);
+        } else if (k === 'page') {
+            var page = document.createElement('iframe');
+            page.src = url + (url.indexOf('?') === -1 ? '?' : '&') + 'embed=1';
+            page.title = 'Document'; page.className = pages[index] === 'doc' ? 'rv-doc' : 'rv-page';
+            stage.appendChild(page);
         } else {
             var note = document.createElement('div');
             note.className = 'rv-note';
@@ -80,8 +90,8 @@
         count.textContent = (index + 1) + ' / ' + urls.length;
     }
 
-    function open(list, start) {
-        urls = list; index = start;
+    function open(list, start, pageFlags) {
+        urls = list; pages = pageFlags || []; index = start;
         render();
         overlay.classList.add('show');
         document.body.style.overflow = 'hidden';
@@ -109,7 +119,8 @@
 
         var set = link.closest('[data-receipt-set]');
         var links = set ? Array.prototype.slice.call(set.querySelectorAll('a[data-receipt]')) : [link];
-        open(links.map(function (a) { return a.getAttribute('href'); }), Math.max(0, links.indexOf(link)));
+        open(links.map(function (a) { return a.getAttribute('href'); }), Math.max(0, links.indexOf(link)),
+             links.map(function (a) { var t = a.getAttribute('data-receipt'); return (t === 'page' || t === 'doc') ? t : false; }));
     });
 
     document.getElementById('receiptViewerClose').addEventListener('click', close);

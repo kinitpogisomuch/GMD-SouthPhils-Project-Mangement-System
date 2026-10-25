@@ -65,27 +65,7 @@
         .td-cta-note strong { color: rgba(255,255,255,.8); }
 
         .td-more { padding: 64px 52px 80px; }
-        .td-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
-        .td-box { background: #fff; border: 1px solid var(--border); border-radius: 20px; padding: 26px 28px; }
-        .td-box h2 { display: flex; align-items: center; gap: 10px; font-size: 17px; font-weight: 900; margin: 0 0 4px; color: var(--dark-deep); }
-        .td-box h2 svg, .td-box h2 i { width: 18px; height: 18px; }
-        .td-box > p { font-size: 13px; color: var(--muted); margin: 0 0 18px; line-height: 1.6; }
-        .td-specs { list-style: none; margin: 0; padding: 0; }
-        .td-specs li { display: grid; grid-template-columns: 150px 1fr; gap: 14px; padding: 12px 0; border-top: 1px solid var(--cream-deep); font-size: 13px; line-height: 1.6; }
-        .td-specs li:first-child { border-top: none; padding-top: 0; }
-        .td-specs b { font-weight: 800; color: var(--dark-deep); }
-        .td-specs span { color: var(--muted); }
-        .td-asks { display: flex; flex-wrap: wrap; gap: 8px; }
-        .td-ask { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 700;
-                  background: var(--cream); border: 1px solid var(--border); color: var(--dark); }
-        .td-ask.is-req::after { content: '*'; color: #dc2626; }
-        .td-steps { list-style: none; margin: 22px 0 0; padding: 18px 0 0; border-top: 1px solid var(--cream-deep); display: grid; gap: 12px; }
-        .td-steps li { display: flex; gap: 12px; align-items: flex-start; font-size: 13px; color: var(--muted); line-height: 1.55; }
-        .td-steps b { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%;
-                      background: var(--dark-deep); color: var(--accent); font-size: 11.5px; font-weight: 900; }
-        .td-steps strong { color: var(--dark-deep); }
-
-        .td-others { margin-top: 56px; }
+        .td-others { margin-top: 0; }
         .td-others-head { display: flex; align-items: end; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
         .td-others-head h2 { font-size: 22px; font-weight: 900; margin: 0; color: var(--dark-deep); }
         .td-others-head a { font-size: 13px; font-weight: 700; color: var(--dark); text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
@@ -97,15 +77,13 @@
         .td-foot { background: #1a1a1a; color: rgba(255,255,255,.45); font-size: 12.5px; text-align: center; padding: 22px 16px; }
 
         @media (max-width: 960px) {
-            .td-grid, .td-cols { grid-template-columns: 1fr; }
+            .td-grid { grid-template-columns: 1fr; }
             .td-media { position: static; }
         }
         @media (max-width: 640px) {
             .td-hero { padding: 92px 16px 44px; }
             .td-more { padding: 40px 16px 56px; }
             .td-sizes { grid-template-columns: 1fr 1fr; }
-            .td-box { padding: 22px 18px; }
-            .td-specs li { grid-template-columns: 1fr; gap: 2px; }
             .td-cta .btn-gold { width: 100%; justify-content: center; }
         }
     </style>
@@ -143,14 +121,6 @@
     @php
         $sizes   = $card['sizes'];
         $isGuest = session('role') !== 'client';
-        $noun    = ['unit' => 'tank', 'lot' => 'service', 'set' => 'set'][$card['unit']] ?? 'tank';
-        // what the client's quotation form will ask (capacity and quantity always come first)
-        $asks = array_merge(
-            [['label' => $card['capacity']['label'], 'required' => true], ['label' => 'Quantity', 'required' => true]],
-            // a field that only appears for one answer (e.g. Routing for a new pipeline) isn't marked required here
-            array_map(fn ($f) => ['label' => $f['label'], 'required' => !empty($f['required']) && empty($f['show_if'])], $card['fields']),
-            [['label' => 'Target Date', 'required' => false], ['label' => 'Design / reference files', 'required' => false]]
-        );
     @endphp
 
     {{-- Alpine: the size the client picks rides along to the quotation form (/quote/{tank}?capacity=…);
@@ -253,39 +223,6 @@
 
         <section class="td-more">
             <div class="td-inner">
-                <div class="td-cols">
-                    <div class="td-box">
-                        <h2><i data-lucide="badge-check"></i> What's included</h2>
-                        <p>GMD's standard build for this {{ $noun }} — your quotation can adjust any of it.</p>
-                        @if(count($card['specs']))
-                        <ul class="td-specs">
-                            @foreach($card['specs'] as $spec)
-                            <li><b>{{ $spec['label'] }}</b><span>{{ $spec['value'] }}</span></li>
-                            @endforeach
-                        </ul>
-                        @else
-                        <div class="td-note" style="color:var(--muted);background:var(--cream);border-color:var(--border);margin:0;">
-                            <i data-lucide="message-square-text"></i><span>Every job is different — describe what you need and the quotation will list exactly what is included.</span>
-                        </div>
-                        @endif
-                    </div>
-
-                    <div class="td-box">
-                        <h2><i data-lucide="clipboard-list"></i> What we'll ask you</h2>
-                        <p>The quotation form only asks what applies to this {{ $noun }}. <span style="color:#dc2626;">*</span> required.</p>
-                        <div class="td-asks">
-                            @foreach($asks as $a)
-                            <span class="td-ask {{ $a['required'] ? 'is-req' : '' }}">{{ $a['label'] }}</span>
-                            @endforeach
-                        </div>
-                        <ol class="td-steps">
-                            <li><b>1</b><span><strong>Send your request</strong> from the client portal — it takes a few minutes.</span></li>
-                            <li><b>2</b><span><strong>GMD prepares your quotation</strong> and sends it to the portal.</span></li>
-                            <li><b>3</b><span><strong>Approve it online</strong> and your project starts.</span></li>
-                        </ol>
-                    </div>
-                </div>
-
                 @if(count($others))
                 <div class="td-others">
                     <div class="td-others-head">

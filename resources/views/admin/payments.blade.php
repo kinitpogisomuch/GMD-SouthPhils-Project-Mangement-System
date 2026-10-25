@@ -368,7 +368,7 @@
                                     @endphp
                                     <td>
                                         @if($r['or_number'])
-                                        <span class="rc-or"><span class="rc-or-tag">OR</span>{{ $r['or_number'] }}</span>
+                                        <span class="rc-or"><span class="rc-or-tag">{{ $r['or_tag'] ?? 'OR' }}</span>{{ $r['or_number'] }}</span>
                                         @else
                                         {{-- historical payment — no OR number on record --}}
                                         <span style="color:var(--muted);">—</span>
@@ -393,6 +393,10 @@
                                             </a>
                                             @endforeach
                                         </div>
+                                        @elseif(!empty($r['ar_url']))
+                                        <a href="{{ $r['ar_url'] }}" target="_blank" data-receipt="page" class="action-btn view" title="Acknowledgement Receipt">
+                                            <i data-lucide="eye"></i>
+                                        </a>
                                         @else
                                         <span style="color:var(--muted);">—</span>
                                         @endif

@@ -259,45 +259,80 @@
             <!-- Pay Online (payment gateway) -->
             @php
                 $pendingOnline = $onlinePayments->firstWhere('status', \App\Models\OnlinePayment::STATUS_PENDING);
+                // Records list only real payments — cancelled / expired / declined checkouts moved no money
+                $onlinePayments = $onlinePayments->whereIn('status', [\App\Models\OnlinePayment::STATUS_PAID, \App\Models\OnlinePayment::STATUS_PENDING])->values();
+                // The stage payable now: billed = GMD sent its statement ("Pay Now"); not billed yet = "Pay in Advance"
+                $payStage      = $payable['stage'] ?? null;
+                $payBilled     = $payStage ? $payment->isStageBilled($payStage) : false;
+                $proofInReview = $payStage && $payment->proofs
+                    ->where('payment_stage', $payStage)
+                    ->where('status', \App\Models\PaymentProof::STATUS_PENDING)
+                    ->isNotEmpty();
+                $canPayOnline  = $onlineEnabled && $payable && !$proofInReview
+                    && $payable['amount'] >= \App\Services\OnlinePayments::MIN_AMOUNT;
+                $poMethods     = collect(config('services.paymongo.payment_methods'))
+                    ->map(fn ($m) => \App\Models\OnlinePayment::METHOD_LABELS[$m] ?? strtoupper($m));
+                // proofs sent back for correction before uploads were retired — they can still be resubmitted
+                $needsFixing   = $payment->proofs->filter(fn ($p) => $p->needsCorrection())->count();
             @endphp
-            <div class="card" style="margin-bottom:20px;overflow:hidden;">
+            {{-- ===== Make a Payment: online through PayMongo. Cash and cheque are handed to GMD, who records them. ===== --}}
+            <div class="card po-card">
                 <div class="card-header pf-header-dark">
-                    <div class="card-title">Pay Online</div>
+                    <div class="card-title">Make a Payment</div>
                 </div>
                 <div class="card-body po-body">
+
+                    {{-- What to pay now (or ahead of time) --}}
                     @if($payable)
-                    <div class="po-due">
-                        <div>
-                            <div class="po-label">Amount due now</div>
+                    <div class="po-due {{ $payBilled ? 'is-due' : 'is-upcoming' }}">
+                        <div class="po-due-info">
+                            <div class="po-label">
+                                @if($payBilled)
+                                <i data-lucide="file-check-2"></i> Amount due now
+                                @else
+                                <i data-lucide="calendar-clock"></i> Upcoming bill
+                                @endif
+                            </div>
                             <div class="po-amount">₱{{ number_format($payable['amount'], 2) }}</div>
-                            <div class="po-sub">{{ \App\Models\PaymentTransaction::stageLabel($payable['stage']) }} · {{ $payment->payment_terms }}</div>
+                            <div class="po-sub">
+                                {{ \App\Models\PaymentTransaction::stageLabel($payStage) }} ·
+                                {{ $payBilled ? 'Billed by GMD' : 'Not billed yet — you can settle it early' }}
+                            </div>
                         </div>
-                        @if($onlineEnabled && $payable['amount'] >= \App\Services\OnlinePayments::MIN_AMOUNT)
+                        @if($canPayOnline)
                         <form method="POST" action="{{ route('client.payments.online.pay', $payment->id) }}" class="po-form">
                             @csrf
-                            <button type="submit" class="save-btn po-btn">
-                                <i data-lucide="landmark"></i>
-                                Pay Now
+                            <button type="submit" class="save-btn po-btn {{ $payBilled ? '' : 'is-advance' }}">
+                                <i data-lucide="{{ $payBilled ? 'landmark' : 'fast-forward' }}"></i>
+                                {{ $pendingOnline && $pendingOnline->payment_stage === $payStage ? 'Continue Payment' : ($payBilled ? 'Pay Now' : 'Pay in Advance') }}
                             </button>
                             <span class="po-secure"><i data-lucide="lock"></i> Secured by PayMongo</span>
                         </form>
                         @endif
                     </div>
-                    @if($onlineEnabled)
-                    <ol class="po-steps">
-                        <li>Press <strong>Pay Now</strong> — you'll go to PayMongo's secure payment page.</li>
-                        <li>Pay through your bank: <strong>BPI, UnionBank, BDO, Landbank or Metrobank</strong> online banking, or scan the <strong>QR Ph</strong> code with any bank app.</li>
-                        <li>Your payment is confirmed directly with the bank and recorded here automatically — no proof upload needed.</li>
-                    </ol>
-                    <p class="po-note">GMD never sees or stores your online banking login, PIN or OTP — you enter them only on your bank's or PayMongo's page.</p>
-                    @else
+
+                    @if($proofInReview)
+                    <div class="alert-banner info" style="margin:0;">
+                        <i data-lucide="hourglass"></i>
+                        <span>Your proof of payment for the {{ \App\Models\PaymentTransaction::stageLabel($payStage) }} is being reviewed by GMD — no need to pay it again.</span>
+                    </div>
+                    @elseif(!$onlineEnabled)
                     <div class="alert-banner info" style="margin:0;">
                         <i data-lucide="info"></i>
-                        <span>Online payment isn't switched on yet. Please pay by bank transfer, cheque or cash and upload your proof of payment below.</span>
+                        <span>Online payment isn't available right now. Please pay GMD by cash or cheque — GMD records it and it appears in your Payment History.</span>
+                    </div>
+                    @elseif(!$payBilled)
+                    <p class="po-note"><i data-lucide="info"></i> Paying in advance is optional. GMD will still send the billing statement for this phase — it will simply show as paid.</p>
+                    @endif
+                    @else
+                    <div class="po-done">
+                        <i data-lucide="{{ $payment->currentBalance() <= 0 ? 'party-popper' : 'check-circle-2' }}"></i>
+                        <span>{{ $payment->currentBalance() <= 0 ? 'This project is fully paid. Thank you!' : 'Nothing is due right now. The next payment opens when your project reaches its payment stage.' }}</span>
                     </div>
                     @endif
+
                     @if($pendingOnline)
-                    <div class="alert-banner" style="margin:14px 0 0;background:#fffbeb;border:1px solid #fde68a;color:#92400e;align-items:center;">
+                    <div class="alert-banner" style="margin:0;background:#fffbeb;border:1px solid #fde68a;color:#92400e;align-items:center;">
                         <i data-lucide="hourglass"></i>
                         <span style="flex:1;">An online payment of <strong>₱{{ number_format($pendingOnline->amount, 2) }}</strong> ({{ $pendingOnline->reference }}) is waiting for your bank's confirmation. If you completed it, it will be recorded automatically.</span>
                         <form method="POST" action="{{ route('client.payments.online.check', $pendingOnline->id) }}" style="margin:0;">
@@ -306,52 +341,84 @@
                         </form>
                     </div>
                     @endif
-                    @else
-                    <div style="display:flex;align-items:center;gap:12px;color:var(--muted);">
-                        <i data-lucide="check-circle-2" style="width:22px;height:22px;flex-shrink:0;"></i>
-                        <span style="font-size:13px;">{{ $payment->currentBalance() <= 0 ? 'This project is fully paid. Thank you!' : 'Nothing is due right now. The next payment opens when your project reaches its payment stage.' }}</span>
-                    </div>
-                    @endif
 
-                    @if($onlinePayments->isNotEmpty())
-                    <div class="table-wrap" style="margin-top:16px;">
-                        <table class="po-table">
-                            <thead>
-                                <tr><th>Date</th><th>Stage</th><th>Amount</th><th>Method</th><th>Reference</th><th>Status</th></tr>
-                            </thead>
-                            <tbody>
-                                @foreach($onlinePayments as $op)
-                                <tr>
-                                    <td data-label="Date">{{ ($op->paid_at ?? $op->created_at)->format('M d, Y g:i A') }}</td>
-                                    <td data-label="Stage">{{ \App\Models\PaymentTransaction::stageLabel($op->payment_stage) }}</td>
-                                    <td data-label="Amount"><strong>₱{{ number_format($op->amount, 2) }}</strong></td>
-                                    <td data-label="Method">{{ $op->methodLabel() }}</td>
-                                    <td data-label="Reference" style="font-family:monospace;font-size:11.5px;">{{ $op->provider_payment_id ?: $op->reference }}</td>
-                                    <td data-label="Status"><span class="status-badge {{ $op->badgeClass() }}">{{ $op->statusLabel() }}</span></td>
-                                </tr>
+                    @if($onlineEnabled)
+                    <details class="po-how">
+                        <summary><i data-lucide="help-circle"></i> How online payment works <i data-lucide="chevron-down" class="po-how-caret"></i></summary>
+                        <div class="po-how-body">
+                            <div class="po-methods">
+                                @foreach($poMethods as $label)
+                                <span class="po-method">{{ $label }}</span>
                                 @endforeach
-                            </tbody>
-                        </table>
-                    </div>
+                            </div>
+                            <ol class="po-steps">
+                                <li>Press <strong>Pay Now</strong> (or <strong>Pay in Advance</strong>) — you'll go to PayMongo's secure payment page.</li>
+                                <li>Choose how to pay: <strong>{{ $poMethods->join(', ', ' or ') }}</strong>.</li>
+                                <li>Your payment is confirmed directly with the bank and recorded here automatically — no proof upload needed.</li>
+                            </ol>
+                            <p class="po-note">GMD never sees or stores your online banking login, PIN or OTP — you enter them only on your bank's or PayMongo's page.</p>
+                        </div>
+                    </details>
+                    <p class="po-note"><i data-lucide="banknote"></i> Paying by cash or cheque instead? Hand it to GMD — they'll record it and it will appear in your Payment History. No upload needed.</p>
                     @endif
                 </div>
-            </div>
             <style>
-                .po-body { display:flex; flex-direction:column; gap:14px; }
-                .po-due { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; padding:16px 18px; border-radius:16px; background:var(--cream-soft); border:1px solid var(--border); }
-                .po-label { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
-                .po-amount { font-size:26px; font-weight:900; color:var(--dark); letter-spacing:-.4px; }
+                .po-card { margin-bottom:20px; overflow:hidden; }
+
+                /* Tabs inside a card (Make a Payment / Payment Records) */
+                .pd-records { overflow:hidden; }
+                .pd-tabs { display:flex; gap:4px; padding:6px 16px 0; border-bottom:1px solid var(--border); background:var(--white); overflow-x:auto; scrollbar-width:none; }
+                .pd-tabs::-webkit-scrollbar { display:none; }
+                .pd-tab { display:inline-flex; align-items:center; gap:7px; padding:13px 14px 12px; margin-bottom:-1px; border:0; border-bottom:2px solid transparent; background:none; font:inherit; font-size:13px; font-weight:800; color:var(--muted); white-space:nowrap; cursor:pointer; transition:color .15s ease, border-color .15s ease; }
+                .pd-tab svg { width:15px; height:15px; }
+                .pd-tab:hover { color:var(--dark); }
+                .pd-tab.is-active { color:var(--dark); border-bottom-color:var(--dark); }
+                .pd-count { min-width:20px; padding:1px 7px; border-radius:999px; background:var(--accent-soft); font-size:10.5px; font-weight:800; color:var(--muted); text-align:center; }
+                .pd-tab.is-active .pd-count { background:var(--dark); color:#fff; }
+                .pd-count.is-alert, .pd-tab.is-active .pd-count.is-alert { background:var(--danger); color:#fff; }
+                .pd-panel[hidden] { display:none !important; }
+                .pd-panel-foot { padding:12px 20px; border-top:1px solid var(--border); background:var(--surface-2); font-size:12px; font-weight:600; color:var(--muted); display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+                .po-body { display:flex; flex-direction:column; gap:16px; }
+
+                /* The pay panel */
+                .po-due { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; padding:18px 20px; border-radius:18px; background:var(--cream-soft); border:1px solid var(--border); border-left:4px solid var(--dark); }
+                .po-due.is-upcoming { background:#f7f9ff; border-color:#dbe4fb; border-left-color:var(--info); }
+                .po-label { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
+                .po-due.is-upcoming .po-label { color:var(--info); }
+                .po-label svg { width:14px; height:14px; }
+                .po-amount { font-size:28px; font-weight:900; color:var(--dark); letter-spacing:-.5px; margin-top:2px; }
                 .po-sub { font-size:12.5px; color:var(--muted); font-weight:600; }
                 .po-form { display:flex; flex-direction:column; align-items:flex-end; gap:6px; margin:0; }
                 .po-btn { padding:13px 28px; font-size:14.5px; }
+                .po-btn.is-advance { background:var(--info); border-color:var(--info); }
+                .po-btn.is-advance:hover { background:#203d88; }
                 .po-secure { display:inline-flex; align-items:center; gap:5px; font-size:11.5px; color:var(--muted); font-weight:700; }
-                .po-secure i, .po-secure svg { width:12px; height:12px; }
+                .po-secure svg { width:12px; height:12px; }
+                .po-done { display:flex; align-items:center; gap:12px; padding:16px 18px; border-radius:16px; background:#E7F6EC; color:var(--success); font-size:13px; font-weight:700; }
+                .po-done svg { width:22px; height:22px; flex-shrink:0; }
+                .po-note { display:flex; align-items:flex-start; gap:6px; margin:0; font-size:12px; line-height:1.5; color:var(--muted); }
+                .po-note svg { width:14px; height:14px; flex-shrink:0; margin-top:1px; }
+
+                /* How it works (collapsed) */
+                .po-how { border:1px solid var(--border); border-radius:14px; background:var(--white); }
+                .po-how summary { display:flex; align-items:center; gap:8px; padding:12px 16px; cursor:pointer; list-style:none; font-size:13px; font-weight:800; color:var(--dark); }
+                .po-how summary::-webkit-details-marker { display:none; }
+                .po-how summary svg { width:15px; height:15px; }
+                .po-how-caret { margin-left:auto; transition:transform .2s ease; }
+                .po-how[open] .po-how-caret { transform:rotate(180deg); }
+                .po-how-body { display:flex; flex-direction:column; gap:12px; padding:0 16px 16px; }
                 .po-steps { margin:0; padding-left:20px; font-size:13px; line-height:1.7; color:var(--dark); }
-                .po-note { margin:0; font-size:12px; color:var(--muted); }
+                .po-methods { display:flex; flex-wrap:wrap; gap:6px; }
+                .po-method { padding:5px 11px; border-radius:999px; border:1px solid var(--border); background:var(--cream-soft); font-size:11.5px; font-weight:800; color:var(--dark); }
+
+                .po-section-title { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:6px; }
                 .po-table { width:100%; border-collapse:collapse; font-size:12.5px; }
                 .po-table th { text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); padding:8px 10px; border-bottom:1px solid var(--border); }
                 .po-table td { padding:9px 10px; border-bottom:1px solid var(--border); }
+
                 @media (max-width:640px) {
+                    .po-due { padding:16px; }
+                    .po-amount { font-size:24px; }
                     .po-form { align-items:stretch; width:100%; }
                     .po-btn { justify-content:center; width:100%; }
                     .po-secure { justify-content:center; }
@@ -362,132 +429,44 @@
                 }
             </style>
 
-            <div class="pd-two-col" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(380px, 1fr));gap:20px;align-items:stretch;margin-bottom:20px;">
-            <!-- Upload Proof of Payment -->
-            <div class="card">
-                <div class="card-header pf-header-dark">
-                    <div class="card-title">Upload Proof of Payment</div>
-                </div>
-                <div class="card-body" style="display:flex;flex-direction:column;gap:20px;">
-                    @php
-                        $selectableStages = collect($payment->stagesOpenForProof());
-                        // Every stage stays listed; only the one currently open can be chosen
-                        $stageStates      = $payment->proofStageStates();
-                        $stageStateLabels = [
-                            'paid'    => ' — paid',
-                            'carried' => ' — closed, balance added to Final Payment',
-                            'locked'  => ' — locked',
-                            'open'    => '',
-                        ];
-                        $amountsDue       = $payment->stageAmountsDue();
-                        // Unpaid progress payment that has rolled into the final payment
-                        $finalCarryOver   = max(0, round(($amountsDue['final_payment'] ?? 0) - ($stageAmounts['final_payment'] ?? 0), 2));
-                        // The next stage is only payable once GMD has sent its billing statement
-                        $openStageNow     = $selectableStages->first();
-                        $awaitingBilling  = $openStageNow && !$payment->isStageBilled($openStageNow);
-                        $returnedProofs   = $payment->proofs->filter(fn ($p) => $p->needsCorrection());
-                    @endphp
-
-                    @if($returnedProofs->isNotEmpty())
-                    <div class="alert-banner" style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;align-items:flex-start;">
-                        <i data-lucide="file-warning" style="margin-top:2px;"></i>
-                        <div>
-                            <strong>{{ $returnedProofs->count() === 1 ? 'A submission needs' : $returnedProofs->count() . ' submissions need' }} your correction.</strong>
-                            See the reason under Submitted Proofs and press <strong>Resubmit</strong> to send the corrected details.
-                        </div>
-                    </div>
-                    @endif
-
-                    @if($selectableStages->isNotEmpty() && $awaitingBilling)
-                    {{-- Due, but not billed yet: the client isn't asked to pay until the statement is sent --}}
-                    <div style="text-align:center;padding:24px 16px;color:var(--muted);">
-                        <i data-lucide="file-clock" style="width:28px;height:28px;opacity:.45;display:block;margin:0 auto 10px;"></i>
-                        <p style="font-size:13.5px;font-weight:700;color:var(--dark);margin-bottom:4px;">Waiting for GMD's billing statement</p>
-                        <p style="font-size:12.5px;line-height:1.6;max-width:360px;margin:0 auto;">
-                            The next payment is the <strong>{{ \App\Models\PaymentTransaction::stageLabel($openStageNow) }}</strong>.
-                            You'll be notified with the amount due as soon as the billing statement is sent — you can submit your proof of payment then.
-                        </p>
-                    </div>
-                    @elseif($selectableStages->isEmpty())
-                    <div style="text-align:center;padding:24px 16px;color:var(--muted);">
-                        <i data-lucide="check-circle-2" style="width:28px;height:28px;opacity:.4;display:block;margin:0 auto 10px;"></i>
-                        <p style="font-size:13.5px;font-weight:700;color:var(--dark);margin-bottom:4px;">All payment stages are settled</p>
-                        <p style="font-size:12.5px;">There's nothing left to submit proof for on this project.</p>
-                    </div>
-                    @else
-                    @if($errors->any())
-                    <div class="alert-banner error" style="align-items:flex-start;">
-                        <i data-lucide="alert-circle" style="margin-top:2px;"></i>
-                        <div>@foreach($errors->all() as $message)<div>{{ $message }}</div>@endforeach</div>
-                    </div>
-                    @endif
-                    <form method="POST" action="{{ route('client.payments.proof.store', $payment->id) }}" enctype="multipart/form-data" id="proofUploadForm" novalidate>
-                        @csrf
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label>Payment Stage <span style="color:#dc2626;">*</span></label>
-                                <select name="payment_stage" id="proofStageSelect" required>
-                                    @foreach($stageStates as $stage => $state)
-                                    <option value="{{ $stage }}" data-due="{{ $amountsDue[$stage] ?? 0 }}" data-max="{{ $stage === 'progress_payment' ? ($amountsDue['final_payment'] ?? 0) : ($amountsDue[$stage] ?? 0) }}" data-carry="{{ $stage === 'final_payment' ? $finalCarryOver : 0 }}" {{ $state === 'open' ? 'selected' : 'disabled' }}>{{ \App\Models\PaymentTransaction::stageLabel($stage) }}{{ $stageStateLabels[$state] }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Amount Paid (₱) <span style="color:#dc2626;">*</span></label>
-                                <input type="text" inputmode="decimal" name="amount_paid" id="proofAmountInput"
-                                       placeholder="e.g. 50,000" value="{{ old('amount_paid') }}">
-                                <small id="proofAmountHint" style="display:none;margin-top:6px;font-size:10.5px;line-height:1.45;color:var(--muted);"></small>
-                            </div>
-                            <div class="form-group form-group-full">
-                                <label>Mode of Payment <span style="color:#dc2626;">*</span></label>
-                                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;" id="proofMopGroup">
-                                    <label class="mop-option" for="proofMopBank">
-                                        <input type="radio" name="mode_of_payment" id="proofMopBank" value="bank_transfer" {{ old('mode_of_payment') === 'bank_transfer' ? 'checked' : '' }} required style="display:none;">
-                                        <i data-lucide="building-2" style="width:16px;height:16px;"></i>
-                                        Bank Transfer
-                                    </label>
-                                    <label class="mop-option" for="proofMopCheque">
-                                        <input type="radio" name="mode_of_payment" id="proofMopCheque" value="cheque" {{ old('mode_of_payment') === 'cheque' ? 'checked' : '' }} style="display:none;">
-                                        <i data-lucide="file-text" style="width:16px;height:16px;"></i>
-                                        Cheque
-                                    </label>
-                                    <label class="mop-option" for="proofMopCash">
-                                        <input type="radio" name="mode_of_payment" id="proofMopCash" value="cash" {{ old('mode_of_payment') === 'cash' ? 'checked' : '' }} style="display:none;">
-                                        <i data-lucide="banknote" style="width:16px;height:16px;"></i>
-                                        Cash
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="form-group form-group-full">
-                                <label>Attach Image / File <span id="proofFileReq" style="color:#dc2626;">*</span></label>
-                                <label for="proofFileInput" class="qr-upload-dropzone" id="proofDropzone" style="margin-bottom:0;">
-                                    <i data-lucide="file-plus" style="width:18px;height:18px;color:var(--accent);"></i>
-                                    <span style="font-size:12px;font-weight:700;color:var(--dark);" id="proofDropzoneText">Click to upload receipt/screenshot</span>
-                                    <span style="font-size:10.5px;color:var(--muted);">PDF or image, max 10MB</span>
-                                </label>
-                                <input type="file" name="proof_file" id="proofFileInput" accept=".pdf,image/*" style="display:none;">
-                                <div id="proofFilePreview" class="qr-file-list" style="display:none;"></div>
-                            </div>
-                            <div class="form-group form-group-full">
-                                <label>Note <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
-                                <textarea name="notes" rows="2" placeholder="e.g. reference number" style="resize:none;">{{ old('notes') }}</textarea>
-                            </div>
-                        </div>
-                        <button type="submit" class="save-btn" style="margin-top:14px;">
-                            <i data-lucide="send" style="width:14px;height:14px;"></i>
-                            Submit Proof
-                        </button>
-                    </form>
-                    @endif
-                </div>
             </div>
 
-            @if($payment->proofs->isNotEmpty())
-            <!-- Submitted Proofs -->
-            <div class="card" style="overflow:hidden;display:flex;flex-direction:column;">
+            {{-- ===== Payment Records: History | Billing Statements | Submitted Proofs | Online Payments ===== --}}
+            @php
+                $recordTabs = [
+                    'history'    => ['Payment History',    'receipt',     $payment->transactions->count()],
+                    'statements' => ['Billing Statements', 'file-text',   $payment->billingStatements->count()],
+                    'proofs'     => ['Submitted Proofs',   'file-check',  $payment->proofs->count()],
+                    'checkouts'  => ['Online Payments',    'credit-card', $onlinePayments->count()],
+                ];
+                // proof uploads are retired — the tab only stays for projects that still have older submissions
+                if ($payment->proofs->isEmpty()) {
+                    unset($recordTabs['proofs']);
+                }
+                // a returned proof is what the client most needs to see
+                $recordTab = $needsFixing ? 'proofs' : 'history';
+            @endphp
+            <div class="card pd-records" data-tabs>
                 <div class="card-header pf-header-dark">
-                    <div class="card-title">Submitted Proofs</div>
+                    <div class="card-title">Payment Records</div>
                 </div>
+                <div class="pd-tabs" role="tablist">
+                    @foreach($recordTabs as $key => [$label, $icon, $count])
+                    <button type="button" class="pd-tab {{ $recordTab === $key ? 'is-active' : '' }}" data-tab="{{ $key }}" role="tab">
+                        <i data-lucide="{{ $icon }}"></i> {{ $label }}
+                        <span class="pd-count {{ $key === 'proofs' && $needsFixing ? 'is-alert' : '' }}">{{ $count }}</span>
+                    </button>
+                    @endforeach
+                </div>
+
+            <!-- Submitted Proofs -->
+            <div class="pd-panel" data-panel="proofs" @if($recordTab !== 'proofs') hidden @endif>
+                @if($payment->proofs->isEmpty())
+                <div class="empty-state">
+                    <i data-lucide="file-check" style="display:block;margin:0 auto;"></i>
+                    <p>No proof of payment submitted yet.</p>
+                </div>
+                @else
                 <div class="table-wrap">
                     <table class="pf-proofs-table">
                         <thead>
@@ -542,23 +521,21 @@
                         </tbody>
                     </table>
                 </div>
-                {{-- Pinned to the bottom of the card (via margin-top:auto below) so a short list
-                     doesn't just trail off into empty space under a table that stopped early. --}}
-                <div style="margin-top:auto;padding:12px 20px;border-top:1px solid var(--border);background:var(--surface-2);font-size:12px;font-weight:600;color:var(--muted);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+                <div class="pd-panel-foot">
                     <span>{{ $payment->proofs->count() }} submission{{ $payment->proofs->count() !== 1 ? 's' : '' }}</span>
                     <span>₱{{ number_format($payment->proofs->sum('amount'), 2) }} total submitted</span>
                 </div>
-            </div>
-            @endif
+                @endif
             </div>
 
-            <div class="pd-two-col" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));gap:20px;align-items:start;">
-            @if($payment->billingStatements->isNotEmpty())
             <!-- Billing Statements -->
-            <div class="card" style="overflow:hidden;">
-                <div class="card-header pf-header-dark">
-                    <div class="card-title">Billing Statements</div>
+            <div class="pd-panel" data-panel="statements" @if($recordTab !== 'statements') hidden @endif>
+                @if($payment->billingStatements->isEmpty())
+                <div class="empty-state">
+                    <i data-lucide="file-text" style="display:block;margin:0 auto;"></i>
+                    <p>No billing statements yet. GMD sends one when a payment phase is due.</p>
                 </div>
+                @else
                 <div class="table-wrap">
                     <table>
                         <thead>
@@ -581,7 +558,7 @@
                                     <span style="display:inline-flex;align-items:center;font-size:11px;font-weight:700;color:var(--accent);background:var(--accent-soft, rgba(0,0,0,.05));border-radius:20px;padding:3px 10px;">{{ $stmtStageLabel }}</span>
                                 </td>
                                 <td>
-                                    <a href="{{ route('client.payments.billing_statements.show', [$payment->id, $statement->id]) }}" style="display:inline-flex;align-items:center;gap:5px;color:var(--accent);font-weight:700;text-decoration:none;">
+                                    <a href="{{ route('client.payments.billing_statements.show', [$payment->id, $statement->id]) }}" target="_blank" data-receipt="doc" style="display:inline-flex;align-items:center;gap:5px;color:var(--accent);font-weight:700;text-decoration:none;">
                                         <i data-lucide="file-text" style="width:14px;height:14px;"></i> View
                                     </a>
                                 </td>
@@ -590,14 +567,11 @@
                         </tbody>
                     </table>
                 </div>
+                @endif
             </div>
-            @endif
 
             <!-- Payment History -->
-            <div class="card" style="overflow:hidden;">
-                <div class="card-header pf-header-dark">
-                    <div class="card-title">Payment History</div>
-                </div>
+            <div class="pd-panel" data-panel="history" @if($recordTab !== 'history') hidden @endif>
                 @if($payment->transactions->isEmpty())
                     <div class="empty-state">
                         <i data-lucide="receipt" style="display:block;margin:0 auto;"></i>
@@ -632,6 +606,11 @@
                                                 </a>
                                                 @endforeach
                                             </div>
+                                            @elseif($tx->isOnline())
+                                            {{-- paid online: the system generates the Acknowledgement Receipt --}}
+                                            <a href="{{ route('client.payments.receipts.show', [$payment->id, $tx->id]) }}" target="_blank" data-receipt="page" style="display:inline-flex;align-items:center;gap:5px;color:var(--accent);font-weight:700;text-decoration:none;">
+                                                <i data-lucide="receipt" style="width:14px;height:14px;"></i> View
+                                            </a>
                                             @else
                                             —
                                             @endif
@@ -641,6 +620,36 @@
                             </tbody>
                         </table>
                     </div>
+                @endif
+            </div>
+
+            <!-- Online Payments (PayMongo checkouts) -->
+            <div class="pd-panel" data-panel="checkouts" @if($recordTab !== 'checkouts') hidden @endif>
+                @if($onlinePayments->isEmpty())
+                <div class="empty-state">
+                    <i data-lucide="credit-card" style="display:block;margin:0 auto;"></i>
+                    <p>No online payments yet.</p>
+                </div>
+                @else
+                <div class="table-wrap">
+                    <table class="po-table">
+                        <thead>
+                            <tr><th>Date</th><th>Stage</th><th>Amount</th><th>Method</th><th>Reference</th><th>Status</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach($onlinePayments as $op)
+                            <tr>
+                                <td data-label="Date">{{ ($op->paid_at ?? $op->created_at)->format('M d, Y') }}</td>
+                                <td data-label="Stage">{{ \App\Models\PaymentTransaction::stageLabel($op->payment_stage) }}</td>
+                                <td data-label="Amount"><strong>₱{{ number_format($op->amount, 2) }}</strong></td>
+                                <td data-label="Method">{{ $op->methodLabel() }}</td>
+                                <td data-label="Reference" style="font-family:monospace;font-size:11.5px;">{{ $op->provider_payment_id ?: $op->reference }}</td>
+                                <td data-label="Status"><span class="status-badge {{ $op->badgeClass() }}">{{ $op->statusLabel() }}</span></td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
                 @endif
             </div>
             </div>
@@ -721,11 +730,13 @@
 
         // a bank transfer needs a screenshot — required only when this submission has no file yet
         function syncFileRule() {
-            var needs = mode.value === 'bank_transfer' && !hasFile;
+            var needs = mode.value !== 'cash' && !hasFile;
             document.getElementById('resubmitFileReq').hidden = !needs;
             document.getElementById('resubmitFileNote').textContent = hasFile
                 ? 'Leave empty to keep the file you sent before.'
-                : (needs ? 'Attach the transfer screenshot or receipt (PDF, JPG or PNG, max 10MB).' : 'Optional for cheque and cash.');
+                : (needs
+                    ? (mode.value === 'cheque' ? 'Attach a photo of the cheque (PDF, JPG or PNG, max 10MB).' : 'Attach the transfer screenshot or receipt (PDF, JPG or PNG, max 10MB).')
+                    : 'Optional for cash.');
         }
         mode.addEventListener('change', syncFileRule);
 
@@ -785,6 +796,29 @@
     <script>
         lucide.createIcons();
 
+        // ── Card tabs: each [data-tabs] card switches its own panels; [data-goto-tab] links jump to a tab ──
+        (function () {
+            function activate(card, name) {
+                card.querySelectorAll('.pd-tab').forEach(function (t) { t.classList.toggle('is-active', t.dataset.tab === name); });
+                card.querySelectorAll('.pd-panel').forEach(function (p) { p.hidden = p.dataset.panel !== name; });
+            }
+            document.querySelectorAll('[data-tabs]').forEach(function (card) {
+                card.querySelectorAll('.pd-tab').forEach(function (tab) {
+                    tab.addEventListener('click', function () { activate(card, tab.dataset.tab); });
+                });
+            });
+            document.querySelectorAll('[data-goto-tab]').forEach(function (link) {
+                link.addEventListener('click', function (e) {
+                    var tab  = document.querySelector('.pd-tab[data-tab="' + link.dataset.gotoTab + '"]');
+                    if (!tab) return;
+                    e.preventDefault();
+                    var card = tab.closest('[data-tabs]');
+                    activate(card, link.dataset.gotoTab);
+                    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                });
+            });
+        })();
+
         // ── Proof-of-payment upload — one form covering every open stage. The dropzone
         // swaps for a single preview chip once a file is picked (mirrors the "Request a
         // Quotation" reference-files upload, just capped at one file per submission). ──
@@ -807,9 +841,9 @@
                 return checked ? checked.value : null;
             }
             function fileIsRequired() {
-                // A screenshot is the proof for a bank/online transfer; cash and cheque are
-                // often a physical handover with nothing to photograph, so it's optional there.
-                return selectedMode() !== 'cheque' && selectedMode() !== 'cash';
+                // A bank transfer needs its screenshot and a cheque a photo of the cheque; cash is often
+                // a physical handover with nothing to photograph, so it's optional only for cash.
+                return selectedMode() !== 'cash';
             }
 
             function formatSize(bytes) {
@@ -924,9 +958,9 @@
             function syncFileRequirement() {
                 var required = fileIsRequired();
                 fileReq.style.display = required ? '' : 'none';
-                dropzoneText.textContent = required
-                    ? 'Click to upload receipt/screenshot'
-                    : 'Click to upload receipt/screenshot (optional for cash/cheque)';
+                dropzoneText.textContent = selectedMode() === 'cheque'
+                    ? 'Click to upload a photo of the cheque'
+                    : (required ? 'Click to upload receipt/screenshot' : 'Click to upload a receipt (optional for cash)');
                 if (!required) dropzone.classList.remove('is-invalid');
             }
 

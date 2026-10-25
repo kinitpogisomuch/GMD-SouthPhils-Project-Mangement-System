@@ -578,7 +578,7 @@
                 {{-- same editor as Edit Tank Card; a new card always saves its own list (empty = clients type the capacity) --}}
                 <div class="form-group" style="margin-bottom:14px;">
                     <label>Standard Sizes <span style="font-weight:400;color:var(--muted);">— optional; shown on the details page</span></label>
-                    <div class="ts-head" id="addTankSizesHead"><span>Capacity</span><span>Dimensions</span><span></span></div>
+                    <div class="ts-head" id="addTankSizesHead"><span>Capacity</span><span>Dimensions</span><span>Est. Price (₱)</span><span></span></div>
                     <div id="addTankSizesRows"></div>
                     <div id="addTankSizesEmpty" class="ts-empty">No standard sizes — clients type the capacity in the form.</div>
                     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
@@ -650,7 +650,7 @@
                 <div class="form-group" style="margin-bottom:14px;">
                     <label>Standard Sizes <span style="font-weight:400;color:var(--muted);">— shown on the details page; clients can still type their own</span></label>
                     <input type="hidden" name="sizes_mode" id="tankSizesMode" value="default">
-                    <div class="ts-head" id="tankSizesHead"><span id="tankSizesCapName">Capacity</span><span>Dimensions</span><span></span></div>
+                    <div class="ts-head" id="tankSizesHead"><span id="tankSizesCapName">Capacity</span><span>Dimensions</span><span>Est. Price (₱)</span><span></span></div>
                     <div id="tankSizesRows"></div>
                     <div id="tankSizesEmpty" class="ts-empty">No standard sizes — clients type the capacity in the form.</div>
                     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
@@ -673,7 +673,7 @@
     <style>
         @media (max-width: 560px) { .tank-card-grid { grid-template-columns: 1fr !important; } }
         /* Edit Tank Card → Standard Sizes rows */
-        .ts-head, .ts-row { display: grid; grid-template-columns: 1fr 1.3fr 36px; gap: 8px; align-items: center; }
+        .ts-head, .ts-row { display: grid; grid-template-columns: 1fr 1.3fr 0.9fr 36px; gap: 8px; align-items: center; }
         .ts-head { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin: 4px 0 6px; }
         .ts-row { margin-bottom: 8px; }
         .ts-row input { min-width: 0; }
@@ -867,9 +867,11 @@
                 row.className = 'ts-row';
                 row.innerHTML = '<input type="text" maxlength="60" data-f="capacity" placeholder="e.g. 10,000 liters">' +
                     '<input type="text" maxlength="80" data-f="dimensions" placeholder="e.g. 2.4 m Ø × 2.4 m L (optional)">' +
+                    '<input type="text" maxlength="20" data-f="price" inputmode="decimal" placeholder="e.g. 210,000" title="GMD\'s estimated price for one tank of this size — the costing compares with it">' +
                     '<button type="button" class="action-btn" title="Remove this size" aria-label="Remove this size" style="color:#dc2626;"><i data-lucide="x"></i></button>';
                 row.querySelector('[data-f=capacity]').value   = size.capacity || '';
                 row.querySelector('[data-f=dimensions]').value = size.dimensions || '';
+                row.querySelector('[data-f=price]').value      = size.price ? Number(size.price).toLocaleString('en-PH') : '';
                 row.querySelector('button').addEventListener('click', function () { row.remove(); ed.changed(); });
                 row.querySelectorAll('input').forEach(function (el) { el.addEventListener('input', function () { ed.changed(); }); });
                 return row;
@@ -880,6 +882,7 @@
                 rows.forEach(function (row, i) {
                     row.querySelector('[data-f=capacity]').name   = 'sizes[' + i + '][capacity]';
                     row.querySelector('[data-f=dimensions]').name = 'sizes[' + i + '][dimensions]';
+                    row.querySelector('[data-f=price]').name      = 'sizes[' + i + '][price]';
                 });
                 document.getElementById(p + 'SizesEmpty').style.display = rows.length ? 'none' : '';
                 document.getElementById(p + 'SizesHead').style.display  = rows.length ? '' : 'none';

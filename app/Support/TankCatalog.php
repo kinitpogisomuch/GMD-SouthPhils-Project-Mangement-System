@@ -20,6 +20,9 @@ class TankCatalog
     private const THICKNESS = ['Recommend for me', '4.5 mm', '6.0 mm', '8.0 mm', '10.0 mm'];
     private const FUEL      = ['Diesel', 'Gasoline', 'Kerosene', 'Bunker fuel', 'Other'];
     private const PIPE_DIA  = ['1"', '1-1/2"', '2"', '3"', '4"', 'Other / not sure'];
+    /** The only type-specific questions the client's form asks: the service (Fuel Pipeline) and, for "Other size", dimensions */
+    private const CLIENT_ASKS = ['service', 'dimensions'];
+
     private const PIPE_INSTALL = 'Fuel Pipe Line Installation';
     private const PIPE_REPIPE  = 'Re-piping of Fuel Pipe Line';
 
@@ -104,17 +107,17 @@ class TankCatalog
         $types = [
             'underground-fuel-storage-tanks' => [
                 'type'     => 'Underground Fuel Storage Tanks',
+                'product'  => 'Fuel',   // what it stores — automatic, shown on the quotation as Product Stored
                 'icon'     => 'fuel',
                 'blurb'    => 'Buried steel tanks for gas stations and depots — coated, pressure-tested and built to your capacity.',
                 'keywords' => ['underground', 'ufst'],
                 'image'    => 'images/portfolio/fuel-tank-1.jpg',
                 'capacity' => ['label' => 'Tank Capacity', 'placeholder' => 'e.g. 18,000 liters'],
-                'sizes'    => [['10,000 liters', '2.4 m Ø × 2.4 m L'], ['16,000 liters', '2.1 m Ø × 4.8 m L'], ['24,000 liters', '2.3 m Ø × 6.0 m L']],
+                'sizes'    => [['10,000 liters', '2.4 m Ø × 2.4 m L', 160000], ['16,000 liters', '2.1 m Ø × 4.8 m L', 210000], ['24,000 liters', '2.3 m Ø × 6.0 m L', 280000]],
                 'fields'   => [
-                    ['key' => 'product_stored', 'label' => 'Product Stored', 'type' => 'select', 'options' => self::FUEL, 'required' => true],
+                    ['key' => 'product_stored', 'label' => 'Product Stored', 'type' => 'select', 'options' => self::FUEL, 'ask' => false],
                     ['key' => 'wall_type', 'label' => 'Wall Construction', 'type' => 'select', 'options' => ['Single wall', 'Double wall'], 'required' => true],
                     ['key' => 'compartments', 'label' => 'Number of Compartments', 'type' => 'number', 'min' => 1, 'max' => 4, 'default' => 1, 'required' => true],
-                    ['key' => 'shell_thickness', 'label' => 'Shell Plate Thickness', 'type' => 'select', 'options' => self::THICKNESS, 'required' => false],
                     self::DIMENSIONS_FIELD,
                 ],
                 'scope'    => 'fabrication of an underground fuel storage tank',
@@ -122,16 +125,15 @@ class TankCatalog
             ],
             'aboveground-fuel-storage-tanks' => [
                 'type'     => 'Aboveground Fuel Storage Tanks',
+                'product'  => 'Fuel',
                 'icon'     => 'container',
                 'blurb'    => 'Saddle-mounted or vertical fuel tanks for plants, farms and generator sets.',
                 'keywords' => ['aboveground fuel', 'above ground fuel', 'agfst'],
                 'capacity' => ['label' => 'Tank Capacity', 'placeholder' => 'e.g. 10,000 liters'],
-                'sizes'    => [['10,000 liters', '2.4 m Ø × 2.4 m L']],
+                'sizes'    => [['10,000 liters', '2.4 m Ø × 2.4 m L', 180000], ['16,000 liters', '2.1 m Ø × 4.8 m L', 230000], ['24,000 liters', '2.3 m Ø × 6.0 m L', 300000]],
                 'fields'   => [
-                    ['key' => 'product_stored', 'label' => 'Product Stored', 'type' => 'select', 'options' => self::FUEL, 'required' => true],
+                    ['key' => 'product_stored', 'label' => 'Product Stored', 'type' => 'select', 'options' => self::FUEL, 'ask' => false],
                     ['key' => 'orientation', 'label' => 'Orientation', 'type' => 'select', 'options' => ['Horizontal (saddle-mounted)', 'Vertical'], 'required' => true],
-                    ['key' => 'shell_thickness', 'label' => 'Shell Plate Thickness', 'type' => 'select', 'options' => self::THICKNESS, 'required' => false],
-                    ['key' => 'accessories', 'label' => 'Accessories Needed', 'type' => 'text', 'required' => false, 'placeholder' => 'e.g. ladder, level gauge, containment bund'],
                     self::DIMENSIONS_FIELD,
                 ],
                 'scope'    => 'fabrication of an aboveground fuel storage tank',
@@ -139,11 +141,12 @@ class TankCatalog
             ],
             'fuel-day-tanks' => [
                 'type'     => 'Fuel Day Tanks',
+                'product'  => 'Fuel',
                 'icon'     => 'gauge',
                 'blurb'    => 'Compact day tanks that feed generators and boilers, with gauges and stands.',
                 'keywords' => ['day tank'],
                 'capacity' => ['label' => 'Tank Capacity', 'placeholder' => 'e.g. 1,000 liters'],
-                'sizes'    => [['2,000 liters', '1.2 m Ø × 1.8 m L'], ['2,500 liters', '1.2 m Ø × 2.0 m L'], ['3,000 liters', '1.3 m Ø × 2.4 m L']],
+                'sizes'    => [['2,000 liters', '1.2 m Ø × 1.8 m L', 110000], ['2,500 liters', '1.2 m Ø × 2.0 m L', 115000], ['3,000 liters', '1.3 m Ø × 2.4 m L', 125000]],
                 'fields'   => [
                     ['key' => 'mounting', 'label' => 'Mounting', 'type' => 'select', 'options' => ['Floor-standing with steel stand', 'Skid-mounted', 'Wall-mounted'], 'required' => true],
                     ['key' => 'level_gauge', 'label' => 'Level Gauge', 'type' => 'select', 'options' => ['Sight glass', 'Float gauge', 'None'], 'required' => true],
@@ -159,11 +162,12 @@ class TankCatalog
             ],
             'cooking-oil-storage-tank' => [
                 'type'     => 'Cooking Oil Storage Tank',
+                'product'  => 'Cooking oil',
                 'icon'     => 'droplet',
                 'blurb'    => 'Food-grade tanks for edible oil storage and processing.',
                 'keywords' => ['cooking oil', 'edible oil', 'oil storage'],
                 'capacity' => ['label' => 'Tank Capacity', 'placeholder' => 'e.g. 5,000 liters'],
-                'sizes'    => [['10,000 liters', '2.4 m Ø × 2.4 m L']],
+                'sizes'    => [['10,000 liters', '2.4 m Ø × 2.4 m L', 198000]],
                 'fields'   => [
                     ['key' => 'material', 'label' => 'Tank Material', 'type' => 'select', 'options' => ['Stainless steel 304', 'Mild steel with food-grade epoxy lining', 'Recommend for me'], 'required' => true],
                     ['key' => 'orientation', 'label' => 'Orientation', 'type' => 'select', 'options' => ['Vertical', 'Horizontal'], 'required' => true],
@@ -182,7 +186,7 @@ class TankCatalog
                 'blurb'    => 'Tanks built for the chemical you store — material and lining matched to it.',
                 'keywords' => ['chemical'],
                 'capacity' => ['label' => 'Tank Capacity', 'placeholder' => 'e.g. 3,000 liters'],
-                'sizes'    => [['1,000 liters', '1.2 m Ø × 1.2 m L'], ['2,000 liters', '1.2 m Ø × 1.8 m L']],
+                'sizes'    => [['1,000 liters', '1.2 m Ø × 1.2 m L', 180000], ['2,000 liters', '1.2 m Ø × 1.8 m L', 230000]],
                 'fields'   => [
                     ['key' => 'chemical_stored', 'label' => 'Chemical Stored', 'type' => 'text', 'required' => true, 'placeholder' => 'e.g. Sodium hypochlorite'],
                     ['key' => 'concentration', 'label' => 'Concentration / Temperature', 'type' => 'text', 'required' => false, 'placeholder' => 'e.g. 12%, ambient'],
@@ -203,7 +207,7 @@ class TankCatalog
                 'blurb'    => 'Mixing and storage tanks for polymer and water-treatment dosing.',
                 'keywords' => ['polymer'],
                 'capacity' => ['label' => 'Tank Capacity', 'placeholder' => 'e.g. 2,000 liters'],
-                'sizes'    => [['60,000 liters', '12 m L × 2.2 m W × 2.2 m H']],
+                'sizes'    => [['60,000 liters', '12 m L × 2.2 m W × 2.2 m H', 525000]],
                 'fields'   => [
                     ['key' => 'material', 'label' => 'Tank Material', 'type' => 'select', 'options' => ['Stainless steel 304', 'Mild steel with epoxy lining', 'Recommend for me'], 'required' => true],
                     ['key' => 'agitator', 'label' => 'Agitator / Mixer Mount', 'type' => 'select', 'options' => ['With agitator mounting', 'None'], 'required' => true],
@@ -217,11 +221,12 @@ class TankCatalog
             ],
             'aboveground-water-storage-tanks' => [
                 'type'     => 'Aboveground Water Storage Tanks',
+                'product'  => 'Water',
                 'icon'     => 'droplets',
                 'blurb'    => 'Ground-level or elevated water tanks for buildings, farms and communities.',
                 'keywords' => ['water'],
                 'capacity' => ['label' => 'Tank Capacity', 'placeholder' => 'e.g. 20,000 liters'],
-                'sizes'    => [['10,000 liters', '2.4 m Ø × 2.4 m L']],
+                'sizes'    => [['10,000 liters', '2.4 m Ø × 2.4 m L', 210000]],
                 'fields'   => [
                     ['key' => 'installation', 'label' => 'Installation', 'type' => 'select', 'options' => ['Ground-level', 'Elevated on steel tower'], 'required' => true],
                     ['key' => 'tower_height', 'label' => 'Tower Height (meters)', 'type' => 'number', 'min' => 1, 'max' => 60, 'required' => false, 'show_if' => ['installation', 'Elevated on steel tower']],
@@ -241,7 +246,7 @@ class TankCatalog
                 'blurb'    => 'Steel tetrapod molds for coastal protection and breakwater projects.',
                 'keywords' => ['tetrapod'],
                 'capacity' => ['label' => 'Tetrapod Size', 'placeholder' => 'e.g. 2 tons'],
-                'sizes'    => [['1.2 cubic meters', ''], ['0.8 cubic meters', '']],
+                'sizes'    => [['1.2 cubic meters', '', 93000], ['0.8 cubic meters', '', 85000]],
                 'unit'     => 'set',
                 'fields'   => [
                     ['key' => 'plate_thickness', 'label' => 'Mold Plate Thickness', 'type' => 'select', 'options' => self::THICKNESS, 'required' => false],
@@ -262,6 +267,7 @@ class TankCatalog
                 'keywords' => ['pipe line', 'pipeline', 're-piping', 'repiping'],
                 'capacity' => ['label' => 'Total Pipe Length', 'placeholder' => 'e.g. 120 meters'],
                 'project_based' => 'Priced per project — dimensions and total length depend on your layout.',
+                'rate'     => [750, 'linear meter'],   // estimated price per meter of pipe line
                 'unit'     => 'lot',
                 'fields'   => [
                     ['key' => 'service', 'label' => 'Service Needed', 'type' => 'select', 'options' => [self::PIPE_INSTALL, self::PIPE_REPIPE], 'required' => true],
@@ -294,6 +300,7 @@ class TankCatalog
                 'keywords' => ['pipe line installation', 'pipeline installation', 'pipe line'],
                 'capacity' => ['label' => 'Total Pipe Length', 'placeholder' => 'e.g. 120 meters'],
                 'project_based' => 'Priced per project — dimensions and total length depend on your layout.',
+                'rate'     => [750, 'linear meter'],   // estimated price per meter of pipe line
                 'unit'     => 'lot',
                 'fields'   => [
                     ['key' => 'pipe_diameter', 'label' => 'Pipe Diameter', 'type' => 'select', 'options' => self::PIPE_DIA, 'required' => true],
@@ -316,6 +323,7 @@ class TankCatalog
                 'keywords' => ['re-piping', 'repiping'],
                 'capacity' => ['label' => 'Total Pipe Length', 'placeholder' => 'e.g. 60 meters'],
                 'project_based' => 'Priced per project — dimensions and total length depend on your layout.',
+                'rate'     => [750, 'linear meter'],   // estimated price per meter of pipe line
                 'unit'     => 'lot',
                 'fields'   => [
                     ['key' => 'pipe_diameter', 'label' => 'Pipe Diameter', 'type' => 'select', 'options' => self::PIPE_DIA, 'required' => true],
@@ -350,7 +358,8 @@ class TankCatalog
             $def['slug'] = $slug;
             $def['unit'] = $def['unit'] ?? 'unit';
             // standard sizes GMD builds (clients pick one on the tank's details page or type their own)
-            $def['sizes'] = array_map(fn ($s) => ['capacity' => $s[0], 'dimensions' => $s[1]], $def['sizes'] ?? []);
+            // [capacity, dimensions, estimated price per unit (₱)]
+            $def['sizes'] = array_map(fn ($s) => ['capacity' => $s[0], 'dimensions' => $s[1], 'price' => $s[2] ?? null], $def['sizes'] ?? []);
         }
 
         return $types;
@@ -379,6 +388,19 @@ class TankCatalog
         return self::forType($type)['slug'] ?? null;
     }
 
+    /**
+     * The fields the form asks. A retired field ('ask' => false, e.g. Product Stored, now automatic from the type)
+     * is no longer asked or stored, but describeAnswers() still shows it on requests that have it.
+     */
+    private static function askedFields(array $def): array
+    {
+        // Clients often don't know tank construction (panel feedback), so the form asks only the size and quantity
+        // — plus, on a combined card, which service they need. GMD decides the rest when it prepares the quotation;
+        // the other fields stay defined so answers on earlier requests still show.
+        return array_values(array_filter($def['fields'],
+            fn ($f) => ($f['ask'] ?? true) !== false && in_array($f['key'], self::CLIENT_ASKS, true)));
+    }
+
     /** A field whose show_if condition isn't met is ignored entirely (neither required nor stored) */
     private static function fieldApplies(array $field, array $answers): bool
     {
@@ -401,7 +423,7 @@ class TankCatalog
         $rules = [];
         $names = [];
 
-        foreach ($def['fields'] as $field) {
+        foreach (self::askedFields($def) as $field) {
             $key = "{$prefix}.{$field['key']}";
             $names[$key] = mb_strtolower($field['label']);
 
@@ -435,7 +457,7 @@ class TankCatalog
     {
         $def   = self::find($slug) ?? self::all()['others'];
         $clean = [];
-        foreach ($def['fields'] as $field) {
+        foreach (self::askedFields($def) as $field) {
             if (!self::fieldApplies($field, $answers)) {
                 continue;
             }
@@ -475,6 +497,10 @@ class TankCatalog
 
         if ($capacity) {
             $lines[] = ['label' => $def['capacity']['label'], 'value' => $capacity];
+        }
+        // what the tank stores follows from its type (no longer asked) — an older request keeps the client's answer
+        if (!empty($def['product']) && empty($answers['product_stored'])) {
+            $lines[] = ['label' => 'Product Stored', 'value' => $def['product']];
         }
         foreach (self::describeAnswers($type, $answers) as $label => $value) {
             $lines[] = ['label' => $label, 'value' => $value];
@@ -545,7 +571,7 @@ class TankCatalog
                 'default_badge' => $def['capacity']['label'],
                 'capacity'      => $def['capacity'],
                 'unit'          => $def['unit'],
-                'fields'        => $def['fields'],
+                'fields'        => self::askedFields($def),
                 'sizes'         => $def['sizes'] ?? [],
                 'default_sizes' => $def['default_sizes'] ?? [],
                 'sizes_edited'  => $edit && $edit->sizes !== null,
@@ -619,14 +645,52 @@ class TankCatalog
         return self::find($slug)['merged_into'] ?? null;
     }
 
+    /**
+     * GMD's estimated price for ONE unit of this tank type and capacity — the target the costing is compared with:
+     *  - a standard size → its estimated price (e.g. Underground 16,000 liters → ₱210,000)
+     *  - a priced-per-meter type (pipe lines) → the rate × the meters in the capacity ("120 meters" → 120 × ₱750)
+     * Returns ['amount', 'basis'] or null when there is no estimate (a size the client typed, a card without prices).
+     */
+    public static function estimatedUnitPrice(?string $type, ?string $capacity): ?array
+    {
+        $def = self::forType($type);
+        if (!$capacity || ($def['slug'] === 'others' && ProjectTankItem::canonicalType($type) !== 'Others')) {
+            return null;
+        }
+        $digits = fn ($s) => preg_replace('/[^0-9.]/', '', (string) preg_replace('/(\d),(\d)/', '$1$2', (string) $s));
+
+        // the card a stored-only type is requested through carries the sizes (none today, but kept general)
+        $sizes = $def['sizes'] ?? [];
+        foreach ($sizes as $size) {
+            if (!empty($size['price']) && $digits($size['capacity']) !== '' && (float) $digits($size['capacity']) === (float) $digits($capacity)) {
+                return ['amount' => (float) $size['price'], 'basis' => $size['capacity'] . ' standard size'];
+            }
+        }
+
+        if (!empty($def['rate']) && preg_match('/(\d[\d,]*(?:\.\d+)?)/', $capacity, $m)) {
+            [$rate, $per] = $def['rate'];
+            $qty = (float) str_replace(',', '', $m[1]);
+            if ($qty > 0) {
+                return ['amount' => round($rate * $qty, 2), 'basis' => number_format($qty, $qty == (int) $qty ? 0 : 2) . ' × ₱' . number_format($rate) . ' per ' . $per];
+            }
+        }
+
+        return null;
+    }
+
     /** Sizes as saved in Settings, trimmed, without blank rows: [['capacity' => …, 'dimensions' => …], …] */
     public static function cleanSizes($sizes): array
     {
         $clean = [];
         foreach ((array) $sizes as $size) {
             $capacity = trim((string) ($size['capacity'] ?? ''));
+            $price    = str_replace([',', ' ', '₱'], '', (string) ($size['price'] ?? ''));
             if ($capacity !== '') {
-                $clean[] = ['capacity' => $capacity, 'dimensions' => trim((string) ($size['dimensions'] ?? ''))];
+                $clean[] = [
+                    'capacity'   => $capacity,
+                    'dimensions' => trim((string) ($size['dimensions'] ?? '')),
+                    'price'      => is_numeric($price) && (float) $price > 0 ? round((float) $price, 2) : null,
+                ];
             }
         }
 
@@ -648,10 +712,16 @@ class TankCatalog
     /** The standard capacity exactly as listed for this type, or null when it isn't one of them */
     public static function standardCapacity(?string $slug, ?string $capacity): ?string
     {
+        return self::standardSize($slug, $capacity)['capacity'] ?? null;
+    }
+
+    /** The standard size ['capacity', 'dimensions'] matching this capacity exactly, or null for a size the client typed */
+    public static function standardSize(?string $slug, ?string $capacity): ?array
+    {
         $def = self::find($slug);
         foreach ($def['sizes'] ?? [] as $size) {
             if ($capacity !== null && $size['capacity'] === trim($capacity)) {
-                return $size['capacity'];
+                return $size;
             }
         }
 

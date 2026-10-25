@@ -41,13 +41,13 @@
         <tr>
             <td class="bs-field-label">Attention:</td>
             <td class="bs-field-value">{{ $statement->attention ?: '—' }}</td>
-            <td class="bs-field-label">Statement Date</td>
+            <td class="bs-field-label">Statement Date:</td>
             <td class="bs-field-value">{{ $statement->statement_date->format('F d, Y') }}</td>
         </tr>
         <tr>
             <td class="bs-field-label">Bill to:</td>
             <td class="bs-field-value">{{ $statement->bill_to ?: $payment->client }}</td>
-            <td class="bs-field-label">Reference No.</td>
+            <td class="bs-field-label">Reference No.:</td>
             <td class="bs-field-value">{{ $statement->reference_no ?: '—' }}</td>
         </tr>
         <tr><td colspan="4" style="height:14px;"></td></tr>
@@ -135,13 +135,6 @@
             </tr>
         </tbody>
     </table>
-
-    @if($statement->billing_stage)
-    <div class="bs-final-balance" style="background:#fff3d6;border:1px solid #f0c674;border-radius:6px;padding:10px 14px;">
-        This statement bills you for: <strong>{{ \App\Models\PaymentTransaction::stageLabel($statement->billing_stage) }}</strong>
-        &nbsp;—&nbsp; Amount Due: <strong>PHP {{ number_format($stageAmounts[$statement->billing_stage] ?? 0, 2) }}</strong>
-    </div>
-    @endif
 
     <div class="bs-final-balance">
         Final Amount balance: &nbsp; <strong>PHP {{ number_format($balance, 2) }}</strong>

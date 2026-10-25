@@ -193,7 +193,11 @@
                                         'quantity'        => $qr->quantity,
                                         'target_timeline' => $qr->target_timeline_display,
                                     ]],
-                                    'location'          => (($qr->fulfillment ?? 'delivery') === 'pickup') ? 'For pick-up (no delivery address)' : $qr->location,
+                                    'location'          => match ($qr->fulfillmentInfo()['key']) {
+                                        'pickup' => 'For pick-up (no delivery address)',
+                                        'onsite' => 'Assembled on site at: ' . ($qr->location ?: '—'),
+                                        default  => $qr->location,
+                                    },
                                     'notes'             => $qr->notes,
                                     'reference_files'   => $qr->reference_files ?? [],
                                     'quotation_files'   => !empty($qr->quotation_files) ? [$qr->quotation_files] : [],
@@ -201,6 +205,10 @@
                                     'submitted_at'      => $qr->created_at->format('M d, Y'),
                                     'build_quotation_url' => route('admin.quotation_requests.batch_detail', $qr->batch_id),
                                     'convert_url'         => route('admin.projects', ['prefill_quotation_batch' => $qr->batch_id]),
+                                    'has_po'              => $qr->hasPurchaseOrder(),
+                                    'po_number'           => $qr->quotationBatch?->po_number,
+                                    'po_files'            => $qr->quotationBatch?->po_files ?? [],
+                                    'po_submitted_at'     => $qr->quotationBatch?->po_submitted_at?->format('M d, Y'),
                                 ]) }}"
                                 >
                                 <td>
@@ -234,6 +242,11 @@
                                                 {{ $qr->capacity }}
                                             </span>
                                             @endif
+                                            @if($qr->isOnsite())
+                                            <span class="qr-spec-chip" style="background:#FFFBEB;border-color:#FDE68A;color:#92400E;" title="Site: {{ $qr->location }}">
+                                                <i data-lucide="hard-hat" style="width:11px;height:11px;"></i> On site
+                                            </span>
+                                            @endif
                                             {{-- every request is pick-up now, so only the client's target date is worth showing;
                                                  an older delivery request still shows where it goes (in the tooltip) --}}
                                             @if(!empty($qr->target_timeline))
@@ -263,7 +276,7 @@
                                         <i data-lucide="calculator"></i>
                                     </a>
                                     @endif
-                                    @if($qr->status === 'approved')
+                                    @if($qr->status === 'approved' && $qr->hasPurchaseOrder())
                                     <a class="action-btn view" type="button" title="Convert to Project"
                                        href="{{ route('admin.projects', ['prefill_quotation_batch' => $qr->batch_id]) }}">
                                         <i data-lucide="folder-plus"></i>
@@ -453,12 +466,19 @@
                     Waiting for the client to review and approve this quotation.
                 </div>
 
-                <!-- Approved — ready to convert -->
+                <!-- Approved — waiting for the client's Purchase Order -->
+                <div id="awaitingPoSection" style="display:none;" class="alert-banner info">
+                    <i data-lucide="file-signature"></i>
+                    The client approved this quotation. Waiting for their Purchase Order — you can convert it into a project once they send it.
+                </div>
+
+                <!-- Approved + PO received — ready to convert -->
                 <div id="readyToConvertSection" style="display:none;">
                     <div class="alert-banner success" style="margin-bottom:14px;">
                         <i data-lucide="check-circle"></i>
-                        The client approved this quotation. You may now convert it into a project.
+                        <span>The client approved this quotation and sent Purchase Order <strong id="readyToConvertPo"></strong>. You may now convert it into a project — the down payment opens for the client.</span>
                     </div>
+                    <div id="readyToConvertPoFiles" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;"></div>
                     <div class="modal-actions" style="border-top:none;padding-top:0;">
                         <a id="readyToConvertBtn" href="#" class="save-btn" style="text-decoration:none;">
                             <i data-lucide="folder-plus"></i> Convert to Project
@@ -673,15 +693,29 @@
                     document.getElementById('sendQuotationSection').style.display    = 'none';
                     document.getElementById('awaitingApprovalSection').style.display = 'none';
                     document.getElementById('readyToConvertSection').style.display   = 'none';
+                    document.getElementById('awaitingPoSection').style.display       = 'none';
 
                     if (r.status === 'pending' || r.status === 'in_preparation') {
                         document.getElementById('sendQuotationSection').style.display = '';
                         document.getElementById('buildQuotationBtn').href = r.build_quotation_url;
                     } else if (r.status === 'quotation_sent') {
                         document.getElementById('awaitingApprovalSection').style.display = '';
+                    } else if (r.status === 'approved' && !r.has_po) {
+                        document.getElementById('awaitingPoSection').style.display = '';
                     } else if (r.status === 'approved') {
                         document.getElementById('readyToConvertSection').style.display = '';
                         document.getElementById('readyToConvertBtn').href = r.convert_url;
+                        document.getElementById('readyToConvertPo').textContent = r.po_number + (r.po_submitted_at ? ' (' + r.po_submitted_at + ')' : '');
+                        var poWrap = document.getElementById('readyToConvertPoFiles');
+                        poWrap.innerHTML = '';
+                        (r.po_files || []).forEach(function (url, i) {
+                            var a = document.createElement('a');
+                            a.href = url; a.target = '_blank'; a.className = 'cancel-btn';
+                            a.style.cssText = 'text-decoration:none;display:inline-flex;align-items:center;gap:6px;';
+                            a.innerHTML = '<i data-lucide="paperclip"></i>';
+                            a.appendChild(document.createTextNode(r.po_files.length > 1 ? 'PO file ' + (i + 1) : 'View Purchase Order'));
+                            poWrap.appendChild(a);
+                        });
                     }
 
                     openModal('viewRequestModal');

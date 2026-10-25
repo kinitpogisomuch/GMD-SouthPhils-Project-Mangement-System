@@ -111,7 +111,10 @@ class PaymentController extends Controller
                 $receiptUrls = !empty($tx->receipt_urls) ? $tx->receipt_urls : array_filter([$tx->receipt_url]);
 
                 return [
-                    'or_number'    => $tx->reference_number,
+                    // online payments carry the gateway's payment id; their receipt is the system-generated AR
+                    'or_number'    => $tx->isOnline() ? $tx->receiptNumber() : $tx->reference_number,
+                    'or_tag'       => 'OR',
+                    'ar_url'       => $tx->isOnline() ? route('admin.payments.receipts.show', [$tx->payment_id, $tx->id]) : null,
                     'client'       => $tx->payment->project?->live_client_name ?? $tx->payment->client ?? '—',
                     'project'      => $tx->payment->project->name ?? '—',
                     'stage'        => PaymentTransaction::stageLabel($tx->payment_stage),
@@ -384,7 +387,25 @@ class PaymentController extends Controller
 
         $statement = $payment->billingStatements()->create($validated);
 
-        return redirect()->route('admin.payments.billing_statements.show', [$payment->id, $statement->id]);
+        // Generated only — the admin reviews it on the statement page and sends it from there
+        return redirect()->route('admin.payments.billing_statements.show', [$payment->id, $statement->id])
+            ->with('success', 'Billing statement generated. Review it, then press Send to deliver it to the client.');
+    }
+
+    /** Mark a statement sent and notify the client — once */
+    private function markStatementSent(Payment $payment, BillingStatement $statement): void
+    {
+        $statement->sent_at = now();
+        $statement->save();
+
+        if ($payment->project) {
+            // A statement that bills a new stage tells the client which phase is due and how much;
+            // otherwise (e.g. a reminder for a stage already announced) the client gets the usual
+            // "billing statement sent" notice. Either way, once.
+            if (!NotificationService::syncPaymentDue($payment)) {
+                NotificationService::billingStatementSent($payment->project, $payment->id, $statement->id);
+            }
+        }
     }
 
     public function showBillingStatement($id, $statementId)
@@ -407,17 +428,7 @@ class PaymentController extends Controller
                 ->with('success', 'This billing statement was already sent to the client on ' . $statement->sent_at->format('M d, Y') . '.');
         }
 
-        $statement->sent_at = now();
-        $statement->save();
-
-        if ($payment->project) {
-            // A statement that bills a new stage tells the client which phase is due and how much;
-            // otherwise (e.g. a reminder for a stage already announced) the client gets the usual
-            // "billing statement sent" notice. Either way, once.
-            if (!NotificationService::syncPaymentDue($payment)) {
-                NotificationService::billingStatementSent($payment->project, $payment->id, $statement->id);
-            }
-        }
+        $this->markStatementSent($payment, $statement);
 
         return redirect()->route('admin.payments.billing_statements.show', [$payment->id, $statement->id])
             ->with('success', 'Billing statement sent to the client.');
@@ -434,6 +445,39 @@ class PaymentController extends Controller
         $statement = $payment->billingStatements()->findOrFail($statementId);
 
         return view('client.billing_statement', compact('payment', 'statement'));
+    }
+
+    /** Admin: the system-generated Acknowledgement Receipt of an online payment */
+    public function showReceipt($id, $transactionId)
+    {
+        $payment = Payment::with(['project', 'transactions'])->findOrFail($id);
+
+        return $this->receiptView($payment, $transactionId, route('admin.payments.show', $payment->id));
+    }
+
+    /** Client: the same receipt, for their own payment only */
+    public function clientShowReceipt($id, $transactionId)
+    {
+        $payment = Payment::with(['project', 'transactions'])->findOrFail($id);
+        if (!$this->paymentBelongsToSessionClient($payment)) {
+            abort(403);
+        }
+
+        return $this->receiptView($payment, $transactionId, route('client.payments.show', $payment->id));
+    }
+
+    private function receiptView(Payment $payment, $transactionId, string $backUrl)
+    {
+        $transaction = $payment->transactions->firstWhere('id', (int) $transactionId);
+        // generated only for payments the gateway confirmed; manual payments carry their own uploaded receipts
+        abort_unless($transaction && $transaction->isOnline(), 404);
+
+        return view('payments.receipt', [
+            'payment'     => $payment,
+            'transaction' => $transaction,
+            'online'      => $transaction->onlinePayment,
+            'backUrl'     => $backUrl,
+        ]);
     }
 
     public function clientShow($id)
@@ -583,8 +627,8 @@ class PaymentController extends Controller
             $request->merge(['amount_paid' => str_replace(',', '', (string) $request->input('amount_paid'))]);
         }
 
-        // keeps an existing file when no new one is attached; a bank transfer needs one either way
-        $needsFile = $request->input('mode_of_payment') === 'bank_transfer' && !$proof->file_url;
+        // keeps an existing file when no new one is attached; a bank transfer or cheque needs one either way
+        $needsFile = in_array($request->input('mode_of_payment'), ['bank_transfer', 'cheque'], true) && !$proof->file_url;
         $validated = $request->validateWithBag('resubmit', [
             'amount_paid'     => 'required|numeric|min:0.01',
             'mode_of_payment' => 'required|string|in:bank_transfer,cheque,cash',
@@ -594,7 +638,7 @@ class PaymentController extends Controller
             'amount_paid.required'     => 'Please enter the amount you paid.',
             'amount_paid.numeric'      => 'Enter the amount as a number.',
             'mode_of_payment.required' => 'Please select how you paid.',
-            'proof_file.required'      => 'Please attach an image or file as proof of your bank transfer.',
+            'proof_file.required'      => 'Please attach a photo or file of your bank transfer or cheque.',
         ]);
 
         try {
@@ -665,84 +709,9 @@ class PaymentController extends Controller
             abort(403);
         }
 
-        // Only stages that aren't already settled, and don't already have a confirmed
-        // proof, are offered in the stage picker.
-        // Stages are paid in order, so only the earliest open one is unlocked — and only once GMD has
-        // sent its billing statement (until then the client hasn't been asked to pay it).
-        $selectableStages = array_values(array_filter($payment->stagesOpenForProof(), fn ($s) => $payment->isStageBilled($s)));
-        $stageIn          = $selectableStages[0] ?? '';
-        if ($stageIn === '') {
-            return redirect()->route('client.payments.show', $payment->id)
-                ->with('error', 'There is no billed payment to submit proof for yet — you\'ll be notified when GMD sends the billing statement.');
-        }
-
-        // The amount box shows thousand separators.
-        if ($request->has('amount_paid')) {
-            $request->merge(['amount_paid' => str_replace(',', '', (string) $request->input('amount_paid'))]);
-        }
-
-        $validated = $request->validate([
-            'payment_stage'   => "required|string|in:{$stageIn}",
-            'amount_paid'     => 'required|numeric|min:0.01',
-            'mode_of_payment' => 'required|string|in:bank_transfer,cheque,cash',
-            // A screenshot is the proof for a bank/online transfer; cash and cheque often
-            // have none (a physical handover), so the file is optional for those two.
-            'proof_file'      => 'required_if:mode_of_payment,bank_transfer|nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
-            'notes'           => 'nullable|string|max:1000',
-        ], [
-            'payment_stage.required'    => 'Please select which payment stage this is for.',
-            'payment_stage.in'         => 'That payment stage is not available yet — it is locked until the earlier stage is paid, or it is already fully paid.',
-            'amount_paid.required'     => 'Please enter the amount you paid.',
-            'amount_paid.numeric'      => 'Enter the amount as a number.',
-            'mode_of_payment.required' => 'Please select how you paid.',
-            'proof_file.required_if'   => 'Please attach an image or file as proof of payment.',
-        ]);
-
-        $validated['amount_paid'] = $this->checkedProofAmount($payment, $validated['payment_stage'], (float) $validated['amount_paid']);
-
-        $fileUrl = null;
-        if ($request->hasFile('proof_file')) {
-            $fileUrls = $this->storage->uploadMultiple(
-                [$request->file('proof_file')],
-                'payments/' . $payment->id . '/proofs'
-            );
-
-            if (empty($fileUrls)) {
-                return back()->withInput()->with('error', 'Upload failed. Please check your connection and try again.');
-            }
-
-            $fileUrl = $fileUrls[0];
-        }
-
-        // Saved under a lock on this payment so simultaneous submissions are handled one at a time, and
-        // the stage is checked again in case the first one (or an admin) just settled it.
-        $proof = \DB::transaction(function () use ($payment, $validated, $fileUrl) {
-            $locked = Payment::whereKey($payment->id)->lockForUpdate()->first();
-            $locked->load('project', 'transactions', 'proofs');
-            if (!in_array($validated['payment_stage'], $locked->stagesOpenForProof(), true)) {
-                return null;
-            }
-
-            $proof = $locked->proofs()->make([
-                'payment_stage'   => $validated['payment_stage'],
-                'amount'          => $validated['amount_paid'],
-                'mode_of_payment' => $validated['mode_of_payment'],
-                'file_url'        => $fileUrl,
-                'notes'           => $validated['notes'] ?? null,
-            ]);
-            $locked->proofs()->save($proof);
-
-            return $proof;
-        });
-
-        if (!$proof) {
-            return redirect()->route('client.payments.show', $payment->id)
-                ->with('error', 'That payment stage is no longer open for proof of payment — it may have just been settled.');
-        }
-
-        NotificationService::paymentProofSubmitted($payment, $proof);
-
+        // Proof uploads are retired: clients pay online (recorded automatically), and cash / cheque handed to
+        // GMD is recorded by the admin. Older submissions can still be corrected via resubmitProof().
         return redirect()->route('client.payments.show', $payment->id)
-            ->with('success', 'Proof of payment submitted. Our team will verify it shortly.');
+            ->with('error', 'Proof uploads are no longer needed — pay online with Pay Now, or pay GMD by cash or cheque and they will record it.');
     }
 }

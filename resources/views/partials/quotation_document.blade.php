@@ -216,11 +216,32 @@
                 <tr class="qd-sub"><td colspan="4" class="qd-r">Labor subtotal</td><td class="qd-r">{{ $peso($bd['labor_subtotal']) }}</td></tr>
             </tbody>
         </table>
+        {{-- on-site assembly costs: for the whole job (older versions don't have them) --}}
+        @if(!empty($bd['others']))
+        <div class="qd-bd-gap"></div>
+        <table class="qd-bd">
+            <thead>
+                <tr><th colspan="4">Other costs — on-site assembly (whole job)</th><th class="qd-r" style="width:16%;">Amount</th></tr>
+            </thead>
+            <tbody>
+                @foreach($bd['others'] as $o)
+                <tr><td colspan="4">{{ $o['label'] }}</td><td class="qd-r">{{ $peso($o['amount']) }}</td></tr>
+                @endforeach
+                <tr class="qd-sub"><td colspan="4" class="qd-r">Other costs subtotal</td><td class="qd-r">{{ $peso($bd['others_total'] ?? 0) }}</td></tr>
+            </tbody>
+        </table>
+        @endif
         <div class="qd-bd-gap"></div>
         <table class="qd-bd">
             <tbody>
                 <tr><td>Materials</td><td class="qd-r" style="width:16%;">{{ $peso($bd['materials_subtotal']) }}</td></tr>
                 <tr><td>Labor</td><td class="qd-r">{{ $peso($bd['labor_subtotal']) }}</td></tr>
+                @if(($bd['others_per_unit'] ?? 0) > 0)
+                <tr><td>Other costs — on-site assembly{{ $bd['quantity'] > 1 ? ' (share per ' . $doc['tank']['unit'] . ')' : '' }}</td><td class="qd-r">{{ $peso($bd['others_per_unit']) }}</td></tr>
+                @endif
+                @if(($bd['contingency_per_unit'] ?? 0) > 0)
+                <tr><td>Contingency ({{ $num($bd['contingency_percent']) }}%)</td><td class="qd-r">{{ $peso($bd['contingency_per_unit']) }}</td></tr>
+                @endif
                 <tr><td>Overhead, supervision &amp; profit ({{ $num($bd['overhead_percent']) }}%)</td><td class="qd-r">{{ $peso($bd['overhead']) }}</td></tr>
                 <tr class="qd-sub"><td class="qd-r">Price per {{ $doc['tank']['unit'] }}</td><td class="qd-r">{{ $peso($bd['unit_price']) }}</td></tr>
                 <tr class="qd-sub"><td class="qd-r">× {{ $bd['quantity'] }} {{ $bd['quantity'] === 1 ? $doc['tank']['unit'] : $doc['tank']['unit'] . 's' }} — Total Amount (VAT Exc.)</td><td class="qd-r">PHP {{ $peso($bd['total']) }}</td></tr>

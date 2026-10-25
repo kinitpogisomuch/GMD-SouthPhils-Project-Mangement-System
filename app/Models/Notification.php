@@ -79,6 +79,7 @@ class Notification extends Model
         'quotation_request_declined'      => 'x-circle',
         'quotation_request_quotation_sent' => 'file-text',
         'quotation_request_approved'       => 'thumbs-up',
+        'purchase_order_received'          => 'file-signature',
         'monthly_expense_reminder'         => 'calendar-clock',
         'material_logging_reminder'        => 'clipboard-x',
         'salary_recording_reminder'        => 'wallet',

@@ -9,6 +9,13 @@
 </head>
 <body>
 
+    {{-- ?embed=1: shown inside the in-page file viewer — just the statement, the viewer has its own close button --}}
+    @if(request()->boolean('embed'))
+    <style>
+        body { background: #fff; }
+        .bs-sheet { margin-top: 0; box-shadow: none; }
+    </style>
+    @else
     <div class="bs-toolbar">
         <a href="{{ route('client.payments.show', $payment->id) }}">
             <i data-lucide="arrow-left" style="width:15px;height:15px;"></i>
@@ -19,6 +26,7 @@
             Print / Save as PDF
         </button>
     </div>
+    @endif
 
     @include('partials.billing_statement_document', compact('payment', 'statement'))
 

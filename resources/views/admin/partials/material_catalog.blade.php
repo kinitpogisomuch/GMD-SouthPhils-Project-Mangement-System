@@ -3,6 +3,9 @@
 <script>
     var MATERIAL_CATALOG = {
         'Steel & Metal Stock':  [
+            'MS Plates - 4mm x 4ft. x 8ft.',
+            'MS Plates - 4.5mm x 4ft. x 8ft.',
+            'MS Plates - 5mm x 4ft. x 8ft.',
             'MS Plates - 6mm x 4ft. x 8ft.',
             'MS Plates - 6mm x 4ft. x 20ft.',
             'MS Plates - 8mm x 4ft. x 8ft.',
@@ -10,22 +13,52 @@
             'MS Plates - 9mm x 4ft. x 20ft.',
             'MS Plates - 10mm x 4ft. x 8ft.',
             'Angular Bar - 2"x 6mm thick',
-            'Wide Flange - 4 x 4'
+            'Wide Flange - 4 x 4',
+            'Stiffener - 1/4" x 3" x 3"',
+            'C-Channel Bar - 1/4" x 2" x 4"',
+            'Flat Bar - 2" x 1/4"',
+            'Base Plate - 12mm x 300 x 300',
+            'L-Shape Anchor Bolt - 16mm x 16"',
+            'Bolt & Nut - 1/2" Ø x 1 1/2"'
+        ],
+        'Pipes & Fittings':     [
+            'B.I. Pipe - 3/4" Ø',
+            'B.I. Pipe - 1" Ø',
+            'B.I. Pipe - 2" Ø',
+            'B.I. Coupling - 3/4" Ø',
+            'B.I. Coupling - 1" Ø',
+            'B.I. Coupling - 1 1/2" Ø',
+            'B.I. Coupling - 2" Ø',
+            'B.I. Coupling - 3" Ø',
+            'B.I. Coupling - 4" Ø',
+            'Flange - 1/2"',
+            'Flange - 2"',
+            'G.I. Plug (Cover)',
+            'Rubber Gasket - 3ft. wide'
+        ],
+        'Sight Gauge':          [
+            'Chemical Hose - 3/4" Ø',
+            'Gate Valve / G.I. Elbow / Nipple - 1/2"',
+            'Clear Sight Glass - 3/4" Ø',
+            'Screen Protector',
+            'Level Gauge Valve - 5/8" Ø x 1/2" NPT'
         ],
         'Welding Supplies':     [
             'Electrode - 3.2mm (6011)',
             'Electrode - 3.2mm (7018)',
             'Electrode - 2.5mm (6011)',
             'Electrode - 2.5mm (7018)',
+            'Electrode (6013)',
             'Welding Gloves'
         ],
         'Cutting & Grinding':   ['Grinding Disc #4','Grinding Disc #5','Grinding Disc #7','Cutting Disc #4','Cutting Disc #5','Cutting Disc #7'],
         'Gas & Fuel':           ['Industrial Oxygen','Acetylene'],
-        'Paint & Coating':      ['Epoxy Primer Gray','QDE Medium Gray','Lacquer Thinner','Paint Thinner','Polituff Putty'],
+        'Paint & Coating':      ['Epoxy Primer Gray','QDE Medium Gray','Epoxy Enamel Paint','Tank Lining Paint','Rust Converter','Lacquer Thinner','Paint Thinner','Polituff Putty'],
         'Brushes & Tools':      ['Paint Brush','Roller Brush'],
         'Safety & PPE':         ['Dark Glass #11','Clear Glass','Cotton Gloves'],
         'Abrasives':            ['Sanding Paper #60','Sanding Paper #100'],
-        'Inspection & Testing': ['Penetrant Dye Spray','Pressure Test Kits','Pressure Gauge 60PSI']
+        'Inspection & Testing': ['Penetrant Dye Spray','Pressure Test Kits','Pressure Gauge 60PSI'],
+        'Services & Utilities': ['Rolling Works (rolling of sheets)','Electricity Cost']
     };
 
     var MATERIAL_UNITS = {
@@ -48,7 +81,19 @@
         'Paint Brush': 'pcs', 'Roller Brush': 'pcs',
         'Dark Glass #11': 'pcs', 'Clear Glass': 'pcs', 'Cotton Gloves': 'pcs',
         'Sanding Paper #60': 'pcs', 'Sanding Paper #100': 'pcs',
-        'Penetrant Dye Spray': 'pairs', 'Pressure Test Kits': 'set', 'Pressure Gauge 60PSI': 'pcs'
+        'Penetrant Dye Spray': 'pairs', 'Pressure Test Kits': 'set', 'Pressure Gauge 60PSI': 'pcs',
+        'MS Plates - 4mm x 4ft. x 8ft.': 'pcs', 'MS Plates - 4.5mm x 4ft. x 8ft.': 'pcs', 'MS Plates - 5mm x 4ft. x 8ft.': 'pcs',
+        'Stiffener - 1/4" x 3" x 3"': 'pcs', 'C-Channel Bar - 1/4" x 2" x 4"': 'pcs', 'Flat Bar - 2" x 1/4"': 'pcs',
+        'Base Plate - 12mm x 300 x 300': 'pcs', 'L-Shape Anchor Bolt - 16mm x 16"': 'pcs', 'Bolt & Nut - 1/2" Ø x 1 1/2"': 'pcs',
+        'B.I. Pipe - 3/4" Ø': 'pcs', 'B.I. Pipe - 1" Ø': 'pcs', 'B.I. Pipe - 2" Ø': 'pcs',
+        'B.I. Coupling - 3/4" Ø': 'pcs', 'B.I. Coupling - 1" Ø': 'pcs', 'B.I. Coupling - 1 1/2" Ø': 'pcs',
+        'B.I. Coupling - 2" Ø': 'pcs', 'B.I. Coupling - 3" Ø': 'pcs', 'B.I. Coupling - 4" Ø': 'pcs',
+        'Flange - 1/2"': 'pcs', 'Flange - 2"': 'pcs', 'G.I. Plug (Cover)': 'pcs', 'Rubber Gasket - 3ft. wide': 'ft',
+        'Chemical Hose - 3/4" Ø': 'ft', 'Gate Valve / G.I. Elbow / Nipple - 1/2"': 'set', 'Clear Sight Glass - 3/4" Ø': 'pcs',
+        'Screen Protector': 'pcs', 'Level Gauge Valve - 5/8" Ø x 1/2" NPT': 'pcs',
+        'Electrode (6013)': 'kilos',
+        'Epoxy Enamel Paint': 'galons', 'Tank Lining Paint': 'galons', 'Rust Converter': 'galons',
+        'Rolling Works (rolling of sheets)': 'lot', 'Electricity Cost': 'lot'
     };
 
     // Materials the admin typed in that are not on the list above join the catalog automatically:
@@ -65,8 +110,11 @@
             ['Gas & Fuel',           ['oxygen', 'acetylene', 'gas', 'lpg', 'argon', 'diesel', 'gasoline', 'fuel']],
             ['Brushes & Tools',      ['brush', 'roller']],
             ['Paint & Coating',      ['paint', 'primer', 'thinner', 'putty', 'epoxy', 'enamel', 'qde', 'lacquer', 'coating']],
+            ['Services & Utilities', ['electricity', 'rolling works', 'labor', 'rental', 'trucking', 'service']],
+            ['Sight Gauge',          ['sight', 'level gauge']],
+            ['Pipes & Fittings',     ['pipe', 'tube', 'tubing', 'coupling', 'flange', 'elbow', 'nipple', 'valve', 'plug', 'hose', 'gasket', 'tee', 'reducer', 'union']],
             ['Safety & PPE',         ['glove', 'glass', 'goggle', 'mask', 'helmet', 'apron', 'ppe']],
-            ['Steel & Metal Stock',  ['plate', 'bar', 'flange', 'beam', 'pipe', 'tube', 'tubing', 'channel', 'angle', 'sheet', 'steel', 'rod', 'purlin', 'elbow', 'bolt', 'nut']]
+            ['Steel & Metal Stock',  ['plate', 'bar', 'beam', 'channel', 'angle', 'sheet', 'steel', 'rod', 'purlin', 'bolt', 'nut', 'stiffener']]
         ];
 
         function guessType(name) {

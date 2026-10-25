@@ -35,7 +35,7 @@
                     'inspection'  => 'Inspection',
                     'painting'    => 'Painting',
                     'completion'  => 'Completion',
-                    'delivery'    => 'Delivery',
+                    'delivery'    => 'For Pickup',
                 ];
                 $statusClass = match($project->status) {
                     'completed' => 'completed',
@@ -597,7 +597,7 @@
             { key: "inspection",  icon: "search",        shortLabel: "Inspection"  },
             { key: "painting",    icon: "paintbrush",    shortLabel: "Painting"    },
             { key: "completion",  icon: "check-circle",  shortLabel: "Completion"  },
-            { key: "delivery",    icon: "truck",         shortLabel: "Delivery"    }
+            { key: "delivery",    icon: "package-check", shortLabel: "For Pickup"  }
         ];
 
         function getPhaseStatuses(currentPhase, isCompleted) {

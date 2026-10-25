@@ -288,6 +288,85 @@
         </div>
     </div>
 
+    <!-- ===================== CONVERT QUOTATION MODAL ===================== -->
+    {{-- Converting an approved quotation needs no template: everything comes from the quotation, only the
+         estimated schedule is asked --}}
+    <div class="modal-overlay" id="convertQuotationModal">
+        <div class="modal-card" style="max-width:560px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;">
+            <div class="modal-header" style="flex-shrink:0;">
+                <div>
+                    <h2>Convert to Project</h2>
+                    <p>Set the estimated schedule — everything else comes from the approved quotation.</p>
+                </div>
+                <button class="modal-close" type="button" onclick="closeModal('convertQuotationModal')">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+
+            <form method="POST" id="convertQuotationForm" action="#" style="display:flex;flex-direction:column;min-height:0;flex:1;">
+                @csrf
+                <div style="overflow-y:auto;flex:1;">
+                    <div class="cq-summary">
+                        <div class="cq-summary-head">
+                            <span class="cq-summary-icon"><i data-lucide="folder-plus"></i></span>
+                            <div style="min-width:0;">
+                                <div class="cq-eyebrow" id="cqReference">Quotation</div>
+                                <div class="cq-title" id="cqProjectName">—</div>
+                                <div class="cq-sub" id="cqClient">—</div>
+                            </div>
+                        </div>
+                        <div class="cq-chips" id="cqChips"></div>
+                        <div class="cq-facts">
+                            <div><span>Contract Value</span><strong id="cqContract">—</strong></div>
+                            <div><span>Purchase Order</span><strong id="cqPo">—</strong></div>
+                            <div><span>Est. Working Days</span><strong id="cqDays">—</strong></div>
+                        </div>
+                    </div>
+
+                    <div class="cq-dates">
+                        <div class="form-group" style="margin:0;">
+                            <label for="cqStartDate">Start Date</label>
+                            <input type="date" name="start_date" id="cqStartDate" required>
+                        </div>
+                        <div class="form-group" style="margin:0;">
+                            <label for="cqEndDate">Estimated End Date</label>
+                            <input type="date" name="end_date" id="cqEndDate" required>
+                        </div>
+                    </div>
+                    <p class="cq-hint" id="cqHint"><i data-lucide="info"></i><span>The end date is estimated from the quotation's working days (Sundays off). You can adjust both.</span></p>
+                </div>
+
+                <div class="modal-actions" style="flex-shrink:0;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+                    <button type="button" class="cancel-btn" onclick="closeModal('convertQuotationModal')">Cancel</button>
+                    <button type="submit" class="save-btn" id="cqSubmit">
+                        <i data-lucide="folder-plus"></i> Create Project
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <style>
+        .cq-summary { background: #EAF0FF; border: 1px solid #c7d7fe; border-radius: 16px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; }
+        .cq-summary-head { display: flex; align-items: center; gap: 12px; }
+        .cq-summary-icon { width: 40px; height: 40px; border-radius: 12px; background: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .cq-summary-icon i, .cq-summary-icon svg { width: 19px; height: 19px; color: #1e40af; }
+        .cq-eyebrow { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: #1e40af; }
+        .cq-title { font-size: 15.5px; font-weight: 900; color: var(--dark); overflow-wrap: anywhere; }
+        .cq-sub { font-size: 12.5px; font-weight: 600; color: var(--muted); overflow-wrap: anywhere; }
+        .cq-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+        .cq-chips .qr-tank-line { display: contents; }
+        .cq-facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding-top: 12px; border-top: 1px dashed #c7d7fe; }
+        .cq-facts span { display: block; font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: #1e40af; }
+        .cq-facts strong { display: block; font-size: 13.5px; font-weight: 800; color: var(--dark); margin-top: 2px; overflow-wrap: anywhere; }
+        .cq-dates { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 18px; }
+        .cq-hint { display: flex; align-items: flex-start; gap: 7px; margin: 10px 0 0; font-size: 12px; font-weight: 600; color: var(--muted); line-height: 1.5; }
+        .cq-hint i, .cq-hint svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 2px; }
+        @media (max-width: 560px) {
+            .cq-facts { grid-template-columns: 1fr 1fr; }
+            .cq-dates { grid-template-columns: 1fr; }
+        }
+    </style>
+
     <!-- ===================== SELECT TEMPLATE MODAL ===================== -->
     <div class="modal-overlay" id="selectTemplateModal">
         <div class="modal-card" style="max-width:560px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;">
@@ -992,8 +1071,62 @@
             return html;
         }
 
-        // Kick off a conversion: fetch the quotation's details, lock in the client,
-        // then let the admin pick a template (or start from scratch) same as normal —
+        // YYYY-MM-DD in local time
+        function cqIsoDate(d) {
+            return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        }
+
+        // The start date + the quotation's working days, skipping Sundays (the start day counts as day 1)
+        function cqEstimatedEnd(startIso, days) {
+            if (!startIso || !days) return startIso;
+            var d = new Date(startIso + 'T00:00:00'), left = Math.max(1, parseInt(days, 10));
+            if (d.getDay() === 0) d.setDate(d.getDate() + 1);
+            while (--left > 0) {
+                d.setDate(d.getDate() + 1);
+                if (d.getDay() === 0) d.setDate(d.getDate() + 1);
+            }
+            return cqIsoDate(d);
+        }
+
+        // Converting an approved quotation: no template, no Add Project form — just confirm and set the schedule
+        function openConvertQuotationModal(data) {
+            var peso = function (n) { return '₱' + Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+            document.getElementById('convertQuotationForm').action = '/admin/quotation-requests/batch/' + encodeURIComponent(data.quotation_batch_id) + '/convert';
+            document.getElementById('cqReference').textContent = 'Quotation ' + (data.quotation_number || data.reference_no || '');
+            document.getElementById('cqProjectName').textContent = data.project_name || 'New project';
+            document.getElementById('cqClient').textContent = data.client && data.client.name ? data.client.name : '—';
+            document.getElementById('cqChips').innerHTML = formatQuotationSummaryLine({ tank_items: data.tank_items, reference_files: [] });
+            document.getElementById('cqContract').textContent = peso(data.contract_value);
+            document.getElementById('cqPo').textContent = data.po_number || '—';
+            document.getElementById('cqDays').textContent = data.estimated_working_days ? data.estimated_working_days + ' day' + (data.estimated_working_days == 1 ? '' : 's') : '—';
+            document.getElementById('cqHint').style.display = data.estimated_working_days ? '' : 'none';
+
+            var start = document.getElementById('cqStartDate'), end = document.getElementById('cqEndDate');
+            var days  = data.estimated_working_days;
+            start.value = cqIsoDate(new Date());
+            end.min     = start.value;
+            end.value   = cqEstimatedEnd(start.value, days);
+            end.dataset.touched = '';
+            start.onchange = function () {
+                end.min = start.value;
+                // keep following the estimate until the admin picks an end date themselves
+                if (!end.dataset.touched || (end.value && end.value < start.value)) end.value = cqEstimatedEnd(start.value, days);
+            };
+            end.onchange = function () { end.dataset.touched = '1'; };
+
+            var btn = document.getElementById('cqSubmit');
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="folder-plus"></i> Create Project';
+            document.getElementById('convertQuotationForm').onsubmit = function () {
+                btn.disabled = true;
+                btn.innerHTML = 'Creating…';
+            };
+
+            openModal('convertQuotationModal');
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        // Kick off a conversion: fetch the quotation's details and ask only for the schedule
         // (arrived here via "Convert to Project" on admin/quotation-requests)
         function runQuotationPrefill() {
             var batchId = new URLSearchParams(window.location.search).get('prefill_quotation_batch');
@@ -1006,9 +1139,7 @@
                 })
                 .then(function (data) {
                     quotationConversionData = data;
-                    populateClientFields(data.client);
-                    document.getElementById('projQuotationBatchIdHidden').value = data.quotation_batch_id;
-                    openSelectTemplateModal(true);
+                    openConvertQuotationModal(data);
                 })
                 .catch(function (err) {
                     console.error('Quotation prefill failed:', err);

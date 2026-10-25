@@ -59,7 +59,7 @@ class OnlinePayments
                 throw new \DomainException('There is no payment due on this project right now.');
             }
             if ($due['amount'] < self::MIN_AMOUNT) {
-                throw new \DomainException('The amount due (₱' . number_format($due['amount'], 2) . ') is below the online payment minimum of ₱' . number_format(self::MIN_AMOUNT, 2) . '. Please pay it by bank transfer and upload your proof.');
+                throw new \DomainException('The amount due (₱' . number_format($due['amount'], 2) . ') is below the online payment minimum of ₱' . number_format(self::MIN_AMOUNT, 2) . '. Please pay it to GMD by cash or cheque.');
             }
 
             $existing = OnlinePayment::where('payment_id', $locked->id)

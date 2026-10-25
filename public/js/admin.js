@@ -377,7 +377,7 @@ const PHASES = [
     { key: "inspection",  label: "Inspection",             icon: "search",        desc: "Safety and quality inspection",          days: 2,  shortLabel: "Inspection"  },
     { key: "painting",    label: "Painting",               icon: "paintbrush",    desc: "Surface coating and finishing",          days: 2,  shortLabel: "Painting"    },
     { key: "completion",  label: "Completion",             icon: "check-circle",  desc: "Final QA check and documentation",       days: 1,  shortLabel: "Completion"  },
-    { key: "delivery",    label: "Delivery",               icon: "truck",         desc: "Final delivery and turnover",            days: 1,  shortLabel: "Delivery"    }
+    { key: "delivery",    label: "For Pickup",             icon: "package-check", desc: "Tank ready and turned over for pick-up", days: 1,  shortLabel: "For Pickup"  }
 ];
 
 function adjustPhaseDays(duration) {

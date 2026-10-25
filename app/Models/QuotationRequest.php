@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class QuotationRequest extends Model
 {
     /*
-     | Workflow: pending → in_preparation → quotation_sent → approved → converted
+     | Workflow: pending → in_preparation → quotation_sent → approved → (client sends PO) → converted
      |   quotation_sent → pending (+ decline_reason)  client asked for a revision
      |   quotation_sent → rejected                    client turned the quotation down for good
      |   pending / in_preparation / quotation_sent → declined   GMD declined the request
@@ -30,6 +30,8 @@ class QuotationRequest extends Model
         'in_preparation'     => ['label' => 'In Preparation',     'class' => 'planning'],
         'quotation_sent'     => ['label' => 'Sent to Client',     'class' => 'ongoing'],
         'approved'           => ['label' => 'Approved',           'class' => 'approved'],
+        'awaiting_po'        => ['label' => 'Awaiting PO',        'class' => 'ongoing'],
+        'po_received'        => ['label' => 'PO Received',        'class' => 'approved'],
         'rejected'           => ['label' => 'Rejected by Client', 'class' => 'revision'],
         'converted'          => ['label' => 'Converted to Project', 'class' => 'active'],
         'declined'           => ['label' => 'Declined',           'class' => 'archived'],
@@ -96,12 +98,26 @@ class QuotationRequest extends Model
         return $query->where('batch_id', $batchId);
     }
 
-    /** pending + a client's revision reason reads "Revision Requested" everywhere */
+    /**
+     * pending + a client's revision reason reads "Revision Requested" everywhere; an approved quotation reads
+     * "Awaiting PO" until the client sends their Purchase Order, then "PO Received"
+     */
     public function getDisplayStatusAttribute(): string
     {
-        return $this->status === self::STATUS_PENDING && !empty($this->decline_reason)
-            ? 'revision_requested'
-            : $this->status;
+        if ($this->status === self::STATUS_PENDING && !empty($this->decline_reason)) {
+            return 'revision_requested';
+        }
+        if ($this->status === self::STATUS_APPROVED) {
+            return $this->hasPurchaseOrder() ? 'po_received' : 'awaiting_po';
+        }
+
+        return $this->status;
+    }
+
+    /** The client sent the Purchase Order for this request's quotation */
+    public function hasPurchaseOrder(): bool
+    {
+        return (bool) $this->quotationBatch?->hasPurchaseOrder();
     }
 
     public function getStatusLabelAttribute(): string
@@ -128,6 +144,26 @@ class QuotationRequest extends Model
     public function specificationLines(): array
     {
         return \App\Support\TankCatalog::describeAnswers($this->tank_type, $this->specifications ?? []);
+    }
+
+    /** How the tank reaches the client: picked up at the shop, or assembled on site by GMD (older requests: delivery) */
+    public const FULFILLMENT_PICKUP   = 'pickup';
+    public const FULFILLMENT_ONSITE   = 'onsite';
+    public const FULFILLMENT_DELIVERY = 'delivery';
+
+    public function isOnsite(): bool
+    {
+        return $this->fulfillment === self::FULFILLMENT_ONSITE;
+    }
+
+    /** Label, icon and address label for the request's fulfillment, for the request cards and lists */
+    public function fulfillmentInfo(): array
+    {
+        return match ($this->fulfillment ?? self::FULFILLMENT_DELIVERY) {
+            self::FULFILLMENT_PICKUP => ['key' => 'pickup',   'label' => 'For pick-up',      'icon' => 'package-check', 'address_label' => null],
+            self::FULFILLMENT_ONSITE => ['key' => 'onsite',   'label' => 'Assembled on site', 'icon' => 'hard-hat',      'address_label' => 'Site Location'],
+            default                  => ['key' => 'delivery', 'label' => 'For delivery',     'icon' => 'truck',         'address_label' => 'Delivery Address'],
+        };
     }
 
     /**

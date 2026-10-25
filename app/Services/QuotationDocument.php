@@ -36,15 +36,22 @@ class QuotationDocument
         $title    = trim('Proposed supply of ' . ($capacity ? $capacity . ' ' : '') . ($type ?: 'tank') . ($qty > 1 ? " ({$qty} {$def['unit']}s)" : ''));
 
         $isPickup = ($request?->fulfillment ?? 'delivery') === 'pickup';
+        $location = match (true) {
+            $isPickup                     => 'For pick-up at ' . config('quotation.company.shop'),
+            (bool) $request?->isOnsite()  => 'On site at ' . ($request->location ?: ($batch->client->address ?? '')),
+            default                       => $request?->location ?: ($batch->client->address ?? ''),
+        };
 
         return [
             'project_title'    => $saved['project_title'] ?? $title,
-            'project_location' => $saved['project_location'] ?? ($isPickup ? 'For pick-up at ' . config('quotation.company.shop') : ($request?->location ?: ($batch->client->address ?? ''))),
+            'project_location' => $saved['project_location'] ?? $location,
             'rfq_ref'          => $saved['rfq_ref'] ?? '',
             'validity_days'    => (int) ($saved['validity_days'] ?? config('quotation.validity_days', 30)),
             'warranty'         => $saved['warranty'] ?? ($def['warranty'] ?? config('quotation.warranty')),
             'notes'            => $saved['notes'] ?? implode("\n", config('quotation.notes', [])),
-            'show_breakdown'   => (bool) ($saved['show_breakdown'] ?? true),
+            // the cost breakdown (Annex A) is no longer offered — quotations go out without it
+            // (versions sent earlier keep whatever they were sent with)
+            'show_breakdown'   => false,
             'signatory_name'   => $saved['signatory_name'] ?? config('quotation.signatory.name'),
             'signatory_title'  => $saved['signatory_title'] ?? config('quotation.signatory.title'),
         ];
@@ -121,8 +128,12 @@ class QuotationDocument
 
         $materialsSubtotal = round(array_sum(array_column($materials, 'amount')), 2);
         $laborSubtotal     = round(array_sum(array_column($labor, 'amount')), 2);
-        // whatever is left of the per-tank price after materials and labor — so the breakdown always adds up
-        $overhead          = round($unitPrice - $materialsSubtotal - $laborSubtotal, 2);
+        // on-site assembly costs and contingency are for the whole job — the per-tank summary shows each tank's share
+        $others            = $batch->otherCostItems();
+        $othersPerUnit     = round($budget['others'] / $qty, 2);
+        $contingencyPerUnit = round($budget['contingency'] / $qty, 2);
+        // whatever is left of the per-tank price after the costs above — so the breakdown always adds up
+        $overhead          = round($unitPrice - $materialsSubtotal - $laborSubtotal - $othersPerUnit - $contingencyPerUnit, 2);
 
         $isPickup  = ($request?->fulfillment ?? 'delivery') === 'pickup';
         $specLines = self::specifications($batch);
@@ -137,9 +148,11 @@ class QuotationDocument
             'amount'      => $contract,
         ], [
             'no'          => 2,
-            'title'       => $isPickup
-                ? '*Pick up only at ' . config('quotation.company.shop') . '.'
-                : '*For delivery to: ' . ($request?->location ?: $settings['project_location']),
+            'title'       => match (true) {
+                $isPickup                    => '*Pick up only at ' . config('quotation.company.shop') . '.',
+                (bool) $request?->isOnsite() => '*Assembled on site by GMD South Phils at: ' . ($request->location ?: $settings['project_location']),
+                default                      => '*For delivery to: ' . ($request?->location ?: $settings['project_location']),
+            },
             'specs'       => [],
             'quantity'    => null,
             'unit'        => null,
@@ -181,7 +194,7 @@ class QuotationDocument
                 'capacity'    => $batch->capacity ?: $request?->capacity,
                 'quantity'    => $qty,
                 'unit'        => $unitWord,
-                'fulfillment' => $isPickup ? 'pickup' : 'delivery',
+                'fulfillment' => $isPickup ? 'pickup' : ($request?->isOnsite() ? 'onsite' : 'delivery'),
                 'address'     => $isPickup ? null : $request?->location,
                 'target_date' => $request?->target_timeline_display,
             ],
@@ -193,6 +206,12 @@ class QuotationDocument
                 'labor'              => $labor,
                 'labor_subtotal'     => $laborSubtotal,
                 'working_days'       => $days,
+                'others'             => $others,
+                'others_total'       => $budget['others'],
+                'others_per_unit'    => $othersPerUnit,
+                'contingency_percent' => $budget['contingency_percent'],
+                'contingency'        => $budget['contingency'],
+                'contingency_per_unit' => $contingencyPerUnit,
                 'overhead'           => $overhead,
                 'overhead_percent'   => $markupPct,
                 'unit_price'         => $unitPrice,
@@ -200,6 +219,8 @@ class QuotationDocument
                 'total'              => $contract,
             ],
             'totals'           => [
+                'others'         => $budget['others'],
+                'contingency'    => $budget['contingency'],
                 'project_budget' => round($budget['total'], 2),
                 'markup'         => round($markup, 2),
                 'total'          => $contract,

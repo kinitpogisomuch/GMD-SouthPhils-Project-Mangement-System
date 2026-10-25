@@ -13,6 +13,20 @@ class QuotationBatch extends Model
     const MARKUP_MIN = 5;
     const MARKUP_MAX = 10;
 
+    // Contingency: an allowance for the unforeseen, as a % of the direct cost (materials + labor + other costs)
+    const CONTINGENCY_MAX = 20;
+
+    // What a new costing starts with (the admin can change them before the first save)
+    const DEFAULT_MARKUP      = 10;
+    const DEFAULT_CONTINGENCY = 10;
+
+    // Payment terms follow the size of the job: at or above this contract value it is a Big Project (3 phases),
+    // below it a Small Project (2 phases)
+    const BIG_PROJECT_THRESHOLD = 500000;
+
+    // Other costs a job has when GMD assembles the tank on site — the rows a new list starts with
+    const DEFAULT_OTHER_COSTS = ['Mobilization', 'Boarding / lodging', 'PPE / misc.', 'Shop drawing'];
+
     protected $fillable = [
         'id',
         'client_id',
@@ -32,6 +46,13 @@ class QuotationBatch extends Model
         'current_version',
         'project_id',
         'converted_at',
+        'contingency_percent',
+        'onsite_assembly',
+        'other_costs',
+        'po_number',
+        'po_files',
+        'po_notes',
+        'po_submitted_at',
     ];
 
     protected $casts = [
@@ -46,6 +67,11 @@ class QuotationBatch extends Model
         'document'               => 'array',
         'current_version'        => 'integer',
         'converted_at'           => 'datetime',
+        'contingency_percent'    => 'float',
+        'onsite_assembly'        => \App\Casts\PostgresBoolean::class,
+        'other_costs'            => 'array',
+        'po_files'               => 'array',
+        'po_submitted_at'        => 'datetime',
     ];
 
     protected static function booted(): void
@@ -140,6 +166,12 @@ class QuotationBatch extends Model
         return $this->labor()->where('status', 'active');
     }
 
+    /** The client sent their Purchase Order (required before the quotation can become a project) */
+    public function hasPurchaseOrder(): bool
+    {
+        return $this->po_submitted_at !== null;
+    }
+
     /** Number of identical tanks the builder's per-tank costs are multiplied by (never below 1). */
     public function tankQuantity(): int
     {
@@ -147,10 +179,47 @@ class QuotationBatch extends Model
     }
 
     /**
-     * Same shape as Project::estimatedBudget() — materials with their per-material factor + raw labor —
-     * for the whole quotation. The builder's rows describe ONE tank, so the unit figures are multiplied
-     * by the tank quantity here, once; the rows themselves are never multiplied, so saving or reopening
-     * a quotation can't apply the quantity twice.
+     * The markup amount (₱): the markup % of the Project Budget — except when the costing is exactly the standard
+     * costing of a standard size, where the contract value is GMD's estimated price exactly (× the tanks), and the
+     * markup takes up the few pesos of rounding (other costs, if any, are added with the usual contingency and markup).
+     */
+    public function markupAmount(): float
+    {
+        $budget = $this->estimatedBudget();
+        $pct    = (float) ($this->markup_percent ?? 0);
+
+        if ($std = \App\Support\StandardCosting::matchedBy($this)) {
+            $target = $std['estimated_price'] * $budget['quantity']
+                    + $budget['others'] * (1 + $budget['contingency_percent'] / 100) * (1 + $pct / 100);
+
+            return round($target - $budget['total'], 2);
+        }
+
+        return round($budget['total'] * $pct / 100, 2);
+    }
+
+    /** The job's other costs (on-site assembly) that count: [['label', 'amount'], …] — none unless assembled on site */
+    public function otherCostItems(): array
+    {
+        if (!$this->onsite_assembly) {
+            return [];
+        }
+
+        return array_values(array_filter(array_map(fn ($row) => [
+            'label'  => trim((string) ($row['label'] ?? '')),
+            'amount' => round((float) ($row['amount'] ?? 0), 2),
+        ], (array) ($this->other_costs ?? [])), fn ($row) => $row['label'] !== '' || $row['amount'] > 0));
+    }
+
+    /**
+     * The Project Budget, built up from the costing — same base shape as Project::estimatedBudget():
+     *   materials (with their per-material factor) + labor          ← the builder's rows are for ONE tank,
+     *                                                                  multiplied by the tank quantity here, once
+     *   + other costs (on-site assembly)                             ← for the whole job, not per tank
+     *   = direct cost
+     *   + contingency (% of the direct cost)
+     *   = total (the Project Budget; markup is a % of this)
+     * The rows themselves are never multiplied, so saving or reopening a quotation can't apply the quantity twice.
      */
     public function estimatedBudget(): array
     {
@@ -162,17 +231,25 @@ class QuotationBatch extends Model
         $unitLabor = round((float) $this->activeLabor()->sum('total_cost'), 2);
         $quantity  = $this->tankQuantity();
 
-        $materials = round($unitMaterials * $quantity, 2);
-        $labor     = round($unitLabor * $quantity, 2);
+        $materials      = round($unitMaterials * $quantity, 2);
+        $labor          = round($unitLabor * $quantity, 2);
+        $others         = round(array_sum(array_column($this->otherCostItems(), 'amount')), 2);
+        $direct         = round($materials + $labor + $others, 2);
+        $contingencyPct = (float) ($this->contingency_percent ?? 0);
+        $contingency    = round($direct * $contingencyPct / 100, 2);
 
         return [
-            'unit_materials' => $unitMaterials,
-            'unit_labor'     => $unitLabor,
-            'unit_total'     => round($unitMaterials + $unitLabor, 2),
-            'quantity'       => $quantity,
-            'materials'      => $materials,
-            'labor'          => $labor,
-            'total'          => round($materials + $labor, 2),
+            'unit_materials'      => $unitMaterials,
+            'unit_labor'          => $unitLabor,
+            'unit_total'          => round($unitMaterials + $unitLabor, 2),
+            'quantity'            => $quantity,
+            'materials'           => $materials,
+            'labor'               => $labor,
+            'others'              => $others,
+            'direct'              => $direct,
+            'contingency_percent' => $contingencyPct,
+            'contingency'         => $contingency,
+            'total'               => round($direct + $contingency, 2),
         ];
     }
 }

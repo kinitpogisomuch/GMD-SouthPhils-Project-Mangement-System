@@ -63,6 +63,7 @@ class TankCardController extends Controller
             'sizes'              => 'nullable|array|max:12',
             'sizes.*.capacity'   => 'nullable|string|max:60',
             'sizes.*.dimensions' => 'nullable|string|max:80',
+            'sizes.*.price'      => 'nullable|string|max:20',   // estimated price per tank, e.g. "210,000"
         ], self::IMAGE_MESSAGES + [
             'type.required'  => 'Enter the tank name.',
             'blurb.required' => 'Enter a short description.',
@@ -122,6 +123,7 @@ class TankCardController extends Controller
             'sizes'              => 'nullable|array|max:12',
             'sizes.*.capacity'   => 'nullable|string|max:60',
             'sizes.*.dimensions' => 'nullable|string|max:80',
+            'sizes.*.price'      => 'nullable|string|max:20',   // estimated price per tank, e.g. "210,000"
         ], self::IMAGE_MESSAGES + [
             'sizes.max'                => 'Up to 12 sizes per tank.',
             'sizes.*.capacity.max'     => 'A capacity can be up to 60 characters.',

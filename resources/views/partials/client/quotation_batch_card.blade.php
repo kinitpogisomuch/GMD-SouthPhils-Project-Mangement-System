@@ -18,6 +18,13 @@
     $quotationBatch = $first->quotationBatch;
     $versions       = $quotationBatch ? $quotationBatch->versions : collect();
     $latestVersion  = $versions->first();
+    // after approving, the client sends their Purchase Order — the project (and the down payment) starts from it
+    $hasPo = (bool) $quotationBatch?->hasPurchaseOrder();
+    if ($status === 'approved') {
+        $meta = $hasPo
+            ? ['label' => 'Purchase Order Sent', 'icon' => 'file-check-2', 'bg' => '#dcfce7', 'color' => '#16a34a']
+            : ['label' => 'Send Your Purchase Order', 'icon' => 'file-signature', 'bg' => '#EAF0FF', 'color' => '#1e40af'];
+    }
 @endphp
 <div class="pv-card">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border);">
@@ -38,8 +45,8 @@
     @if(!in_array($status, ['declined', 'rejected'], true))
     @php
         $isRevision = in_array($status, ['pending', 'in_preparation'], true) && !empty($first->decline_reason);
-        $steps      = ['Submitted', $isRevision ? 'Revising' : 'Being prepared', 'Quotation ready', 'Approved', 'Project created'];
-        $current    = ['pending' => 1, 'in_preparation' => 1, 'quotation_sent' => 2, 'approved' => 3, 'converted' => 4][$status] ?? 1;
+        $steps      = ['Submitted', $isRevision ? 'Revising' : 'Being prepared', 'Quotation ready', 'Approved', 'Purchase order', 'Project created'];
+        $current    = ['pending' => 1, 'in_preparation' => 1, 'quotation_sent' => 2, 'approved' => $hasPo ? 5 : 4, 'converted' => 5][$status] ?? 1;
         $finished   = $status === 'converted';   // every step is complete
         $reviewHint = $isRevision
             ? ['icon' => 'rotate-ccw', 'tone' => '', 'text' => 'Your requested changes were sent. GMD South Phils is preparing an updated quotation for you.']
@@ -48,7 +55,9 @@
             'pending'        => $reviewHint,
             'in_preparation' => $reviewHint,
             'quotation_sent' => ['icon' => 'bell-ring', 'tone' => 'is-action', 'text' => 'Your quotation is ready. Open it to review the details, then approve it, ask for changes, or reject it.'],
-            'approved'       => ['icon' => 'thumbs-up', 'tone' => 'is-good', 'text' => 'You approved this quotation. GMD South Phils will turn it into a project shortly.'],
+            'approved'       => $hasPo
+                ? ['icon' => 'file-check-2', 'tone' => 'is-good', 'text' => 'Purchase Order received. GMD South Phils will set up your project — your down payment then opens under Payments.']
+                : ['icon' => 'file-signature', 'tone' => 'is-action', 'text' => 'You approved this quotation. Send GMD South Phils your Purchase Order below — your project and down payment start once they receive it.'],
             'converted'      => ['icon' => 'check-circle-2', 'tone' => 'is-good', 'text' => 'Your project has been created. You can follow its progress under My Projects.'],
         ][$status] ?? null;
     @endphp
@@ -136,28 +145,31 @@
     <div class="qc-tanks">
         @foreach($batch as $qr)
         @php
-            $isPickup = ($qr->fulfillment ?? 'delivery') === 'pickup';
-            $files    = (!$legacyShared && !empty($qr->reference_files)) ? $qr->reference_files : [];
+            $ful   = $qr->fulfillmentInfo();
+            $files = (!$legacyShared && !empty($qr->reference_files)) ? $qr->reference_files : [];
         @endphp
         <div class="qc-tank">
             <div class="qc-head">
                 <span class="qc-title"><i data-lucide="package"></i> {{ $qr->tank_type ?: 'Tank' }}</span>
-                <span class="qc-pill {{ $isPickup ? 'is-pickup' : 'is-delivery' }}">
-                    <i data-lucide="{{ $isPickup ? 'package-check' : 'truck' }}"></i>
-                    {{ $isPickup ? 'For pick-up' : 'For delivery' }}
+                <span class="qc-pill {{ $ful['key'] === 'pickup' ? 'is-pickup' : 'is-delivery' }}">
+                    <i data-lucide="{{ $ful['icon'] }}"></i>
+                    {{ $ful['label'] }}
                 </span>
             </div>
 
             <div class="qc-facts">
                 <div class="qc-fact"><span>{{ \App\Support\TankCatalog::forType($qr->tank_type)['capacity']['label'] }}</span><strong>{{ $qr->capacity ?: '—' }}</strong></div>
                 <div class="qc-fact"><span>Quantity</span><strong>{{ $qr->quantity }}</strong></div>
-                <div class="qc-fact"><span>Target Date</span><strong>{{ !empty($qr->target_timeline) ? $qr->target_timeline_display : '—' }}</strong></div>
+                {{-- the form no longer asks for a target date — shown only on older requests that have one --}}
+                @if(!empty($qr->target_timeline))
+                <div class="qc-fact"><span>Target Date</span><strong>{{ $qr->target_timeline_display }}</strong></div>
+                @endif
                 @foreach($qr->specificationLines() as $label => $value)
                 <div class="qc-fact {{ mb_strlen($value) > 40 ? 'qc-fact-wide' : '' }}"><span>{{ $label }}</span><strong>{{ $value }}</strong></div>
                 @endforeach
-                @unless($isPickup)
-                <div class="qc-fact qc-fact-wide"><span>Delivery Address</span><strong>{{ $qr->location ?: '—' }}</strong></div>
-                @endunless
+                @if($ful['address_label'])
+                <div class="qc-fact qc-fact-wide"><span>{{ $ful['address_label'] }}</span><strong>{{ $qr->location ?: '—' }}</strong></div>
+                @endif
             </div>
 
             @if($files)
@@ -287,7 +299,7 @@
             <div class="modal-header">
                 <div>
                     <h2>Approve Quotation?</h2>
-                    <p>GMD South Phils will be notified and can convert this into a project.</p>
+                    <p>Next, you'll send GMD South Phils your Purchase Order so they can set up your project.</p>
                 </div>
                 <button class="modal-close" type="button" onclick="closeModal('approveQuotationModal-{{ $first->batch_id }}')">
                     <i data-lucide="x"></i>
@@ -333,6 +345,133 @@
             </form>
         </div>
     </div>
+    @endif
+
+    @if(in_array($status, ['approved', 'converted'], true) && $quotationBatch && ($status === 'approved' || $hasPo))
+    {{-- Purchase Order: sent by the client after approving; GMD creates the project (and the down payment) from it --}}
+    @once
+    <style>
+        .qc-po { padding: 16px 18px; border-radius: 16px; background: #fff; border: 1.5px dashed #c7d7fe; display: flex; flex-direction: column; gap: 14px; }
+        .qc-po.is-sent { border-style: solid; border-color: #86efac; background: #F3FBF5; }
+        .qc-po-lead { font-size: 13px; line-height: 1.55; color: var(--dark); margin: 0; }
+        .qc-po-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .qc-po-grid .form-group { margin: 0; }
+        .qc-po-drop { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 12px; border: 1.5px dashed var(--border); background: var(--cream-soft); cursor: pointer; transition: border-color .15s, background .15s; }
+        .qc-po-drop:hover, .qc-po-drop:focus-within { border-color: var(--dark); }
+        .qc-po-drop.has-files { border-style: solid; border-color: #86efac; background: #F3FBF5; }
+        .qc-po-drop input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+        .qc-po-drop-icon { width: 38px; height: 38px; border-radius: 10px; background: #fff; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .qc-po-drop-icon i, .qc-po-drop-icon svg { width: 18px; height: 18px; color: var(--dark); }
+        .qc-po-drop strong { display: block; font-size: 13px; font-weight: 800; color: var(--dark); }
+        .qc-po-drop small { display: block; font-size: 11.5px; color: var(--muted); margin-top: 2px; overflow-wrap: anywhere; }
+        .qc-po-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .qc-po-error { font-size: 12px; font-weight: 700; color: #dc2626; }
+        .qc-po-spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; display: inline-block; animation: qc-po-spin .7s linear infinite; }
+        @keyframes qc-po-spin { to { transform: rotate(360deg); } }
+        @media (max-width: 560px) { .qc-po-grid { grid-template-columns: 1fr; } }
+    </style>
+    @endonce
+    @php $poOpen = !$hasPo || ($errors->any() && old('po_batch') === $first->batch_id); @endphp
+    <div class="qc-section">
+        <i data-lucide="file-signature"></i> Purchase Order
+        @if($hasPo)<small>sent {{ $quotationBatch->po_submitted_at->format('M d, Y') }}</small>@endif
+    </div>
+    <div x-data="{ editing: @js($poOpen && $hasPo) }">
+    @if($hasPo)
+    <div class="qc-po is-sent" x-show="!editing">
+        <div class="qc-facts">
+            <div class="qc-fact"><span>PO Number</span><strong>{{ $quotationBatch->po_number }}</strong></div>
+            <div class="qc-fact"><span>Sent</span><strong>{{ $quotationBatch->po_submitted_at->format('M d, Y h:i A') }}</strong></div>
+            @if($quotationBatch->po_notes)
+            <div class="qc-fact qc-fact-wide"><span>Your note</span><strong>{{ $quotationBatch->po_notes }}</strong></div>
+            @endif
+        </div>
+        <div class="qc-files" style="border-top:1px dashed #86efac;" data-receipt-set>
+            @foreach((array) $quotationBatch->po_files as $i => $file)
+            <a href="{{ $file }}" target="_blank" data-receipt class="qc-file"><i data-lucide="paperclip"></i> {{ count($quotationBatch->po_files) > 1 ? 'PO file ' . ($i + 1) : 'View Purchase Order' }}</a>
+            @endforeach
+            @if($status === 'approved')
+            <button type="button" class="qc-file" style="cursor:pointer;" @click="editing = true"><i data-lucide="refresh-cw"></i> Replace</button>
+            @endif
+        </div>
+    </div>
+    @endif
+    @if($status === 'approved')
+    <form method="POST" action="{{ route('client.quotation.purchase_order', $first->batch_id) }}" enctype="multipart/form-data"
+          class="qc-po" @if($hasPo) x-show="editing" x-cloak @endif data-po-form>
+        @csrf
+        <input type="hidden" name="po_batch" value="{{ $first->batch_id }}">
+        <p class="qc-po-lead">
+            @if($hasPo)
+            Send an updated Purchase Order — it replaces the one GMD South Phils has now.
+            @else
+            Issue a Purchase Order for <strong>{{ $latestVersion?->quotation_number ?? $quotationBatch->reference_no }}</strong>
+            @if($latestVersion)(₱{{ number_format($latestVersion->contract_value, 2) }})@endif
+            and send it here. Once GMD South Phils receives it, they set up your project and your down payment opens.
+            @endif
+        </p>
+        @php $poErr = old('po_batch') === $first->batch_id ? $errors : new \Illuminate\Support\ViewErrorBag; @endphp
+        <div class="qc-po-grid">
+            <div class="form-group">
+                <label>PO Number</label>
+                <input type="text" name="po_number" maxlength="80" required placeholder="e.g. PO-2026-0142"
+                       value="{{ old('po_batch') === $first->batch_id ? old('po_number') : ($hasPo ? $quotationBatch->po_number : '') }}">
+                @if($poErr->has('po_number'))<span class="qc-po-error">{{ $poErr->first('po_number') }}</span>@endif
+            </div>
+            <div class="form-group">
+                <label>Note <span style="font-weight:600;color:var(--muted);">(optional)</span></label>
+                <input type="text" name="po_notes" maxlength="1000" placeholder="Anything GMD should know"
+                       value="{{ old('po_batch') === $first->batch_id ? old('po_notes') : '' }}">
+            </div>
+        </div>
+        <div>
+            <label class="qc-po-drop">
+                <input type="file" name="po_files[]" multiple required accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" data-po-files>
+                <span class="qc-po-drop-icon"><i data-lucide="upload"></i></span>
+                <span style="min-width:0;">
+                    <strong data-po-files-title>Attach your signed Purchase Order</strong>
+                    <small data-po-files-hint>PDF, JPG or PNG · up to 5 files, 10 MB each</small>
+                </span>
+            </label>
+            @if($poErr->has('po_files') || $poErr->has('po_files.*'))
+            <span class="qc-po-error">{{ $poErr->first('po_files') ?: $poErr->first('po_files.*') }}</span>
+            @endif
+        </div>
+        <div class="qc-po-actions">
+            <button type="submit" class="save-btn" data-po-submit>
+                <i data-lucide="send"></i>
+                {{ $hasPo ? 'Send Updated PO' : 'Send Purchase Order' }}
+            </button>
+            @if($hasPo)
+            <button type="button" class="cancel-btn" @click="editing = false">Cancel</button>
+            @endif
+        </div>
+    </form>
+    @endif
+    </div>
+    @once
+    <script>
+        // Show the picked file names in the drop box, and a spinner while the PO uploads
+        document.addEventListener('change', function (e) {
+            var input = e.target.closest ? e.target.closest('[data-po-files]') : null;
+            if (!input) return;
+            var box = input.closest('.qc-po-drop'), files = Array.prototype.slice.call(input.files || []);
+            box.classList.toggle('has-files', files.length > 0);
+            box.querySelector('[data-po-files-title]').textContent = files.length
+                ? (files.length === 1 ? '1 file selected' : files.length + ' files selected')
+                : 'Attach your signed Purchase Order';
+            box.querySelector('[data-po-files-hint]').textContent = files.length
+                ? files.map(function (f) { return f.name; }).join(', ')
+                : 'PDF, JPG or PNG · up to 5 files, 10 MB each';
+        });
+        document.addEventListener('submit', function (e) {
+            var form = e.target.closest ? e.target.closest('[data-po-form]') : null;
+            if (!form) return;
+            var btn = form.querySelector('[data-po-submit]');
+            if (btn) { btn.disabled = true; btn.innerHTML = '<span class="qc-po-spinner" aria-hidden="true"></span> Sending…'; }
+        });
+    </script>
+    @endonce
     @endif
 
     @if($first->notes)

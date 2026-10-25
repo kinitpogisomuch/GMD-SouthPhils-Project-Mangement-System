@@ -69,12 +69,48 @@ class ClientController extends Controller
             }
         }
 
-        // The dashboard card shows about 3 rows and scrolls for the rest, so fetch a bit
-        // more than 3 — "View All" still exists for the full list beyond that.
-        $projects = $this->ownProjectsQuery()->orderBy('created_at', 'desc')->take(10)->get();
-        $payments = $this->ownPaymentsQuery()->orderBy('created_at', 'desc')->take(10)->get();
+        $projects = $this->ownProjectsQuery()->orderBy('created_at', 'desc')->get();
+        $payments = $this->ownPaymentsQuery()->with('transactions')->orderBy('created_at', 'desc')->get();
 
-        return view('client.dashboard', compact('projects', 'payments'));
+        // what's going on: projects still being built vs. finished ones
+        $activeProjects = $projects->reject(fn ($p) => in_array($p->status, ['completed', 'archived'], true))->values();
+        $completedCount = $projects->where('status', 'completed')->count();
+
+        // money: contract value, what's been paid, what's left — over every project's payment record
+        $contractTotal = round($payments->sum(fn ($p) => (float) $p->contract_amount), 2);
+        $paidTotal     = round($payments->sum(fn ($p) => $p->totalPaid()), 2);
+        $balanceTotal  = max(0, round($contractTotal - $paidTotal, 2));
+
+        // action needed: payments the client can make right now, and quotations waiting for their answer
+        $paymentsDue = $payments->map(function ($p) {
+            $due = $p->onlinePayableStage();
+            return $due ? ['payment' => $p, 'stage' => ucwords(str_replace('_', ' ', $due['stage'])), 'amount' => $due['amount']] : null;
+        })->filter()->values();
+
+        $openQuotes = QuotationRequest::with('quotationBatch')
+            ->where('client_id', session('user_id'))
+            ->unresolved()
+            ->orderBy('created_at', 'desc')
+            ->get();
+        $quotesAwaiting = $openQuotes->where('status', QuotationRequest::STATUS_SENT)->values();
+        // approved quotations still waiting for the client's Purchase Order (one per quotation)
+        $quotesNeedPo = $openQuotes->filter(fn ($q) => $q->status === QuotationRequest::STATUS_APPROVED && !$q->hasPurchaseOrder())
+            ->unique('batch_id')->values();
+
+        // the latest money in, across all projects
+        $recentTransactions = $payments->flatMap(fn ($p) => $p->transactions->map(fn ($t) => [
+            'project' => $p->project->name ?? '—',
+            'stage'   => ucwords(str_replace('_', ' ', (string) $t->payment_stage)),
+            'amount'  => (float) $t->amount_paid,
+            'date'    => $t->payment_date,
+            'payment' => $p,
+        ]))->sortByDesc('date')->take(6)->values();
+
+        return view('client.dashboard', compact(
+            'projects', 'payments', 'activeProjects', 'completedCount',
+            'contractTotal', 'paidTotal', 'balanceTotal',
+            'paymentsDue', 'openQuotes', 'quotesAwaiting', 'quotesNeedPo', 'recentTransactions'
+        ));
     }
 
     public function projectList()
@@ -95,8 +131,9 @@ class ClientController extends Controller
 
     public function payments()
     {
-        $payments = $this->ownPaymentsQuery()->orderBy('created_at', 'desc')->get();
+        $payments      = $this->ownPaymentsQuery()->orderBy('created_at', 'desc')->get();
+        $onlineEnabled = app(\App\Services\OnlinePayments::class)->enabled();
 
-        return view('client.payments', compact('payments'));
+        return view('client.payments', compact('payments', 'onlineEnabled'));
     }
 }

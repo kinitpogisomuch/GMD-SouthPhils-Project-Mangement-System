@@ -480,6 +480,11 @@ class ProjectController extends Controller
                 return redirect()->back()->withInput()
                     ->with('error', 'Quotation ' . $quotedBatch->reference_no . ' must be approved by the client before it can be converted.');
             }
+            // …and the client must have sent their Purchase Order: converting opens the down payment
+            if (!$quotedBatch->hasPurchaseOrder()) {
+                return redirect()->back()->withInput()
+                    ->with('error', 'Quotation ' . $quotedBatch->reference_no . ' is waiting for the client\'s Purchase Order — it can be converted once they send it.');
+            }
         }
 
         // A quotation priced per tank was approved for a set number of tanks — the project must build that many

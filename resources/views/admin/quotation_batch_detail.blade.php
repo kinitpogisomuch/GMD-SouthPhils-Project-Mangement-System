@@ -19,26 +19,11 @@
         }
         .table-total-value { text-align: right; font-weight: 900; color: var(--dark); font-size: 15px; }
         /* Requested tank cards */
-        .rt-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; }
-        .rt-card { background: var(--cream-soft); border: 1px solid var(--border); border-radius: 16px; padding: 14px 18px; display: flex; flex-direction: column; gap: 12px; }
-        .rt-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
-        .rt-title { display: inline-flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 900; color: var(--dark); }
-        .rt-title i, .rt-title svg { width: 16px; height: 16px; color: var(--muted); }
-        .rt-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 800; border-radius: 999px; padding: 5px 12px; background: var(--white); border: 1px solid var(--border); color: var(--dark); }
-        .rt-pill i, .rt-pill svg { width: 13px; height: 13px; }
-        .rt-pill.is-delivery { background: var(--dark); border-color: var(--dark); color: #fff; }
-        .rt-facts { display: flex; flex-wrap: wrap; gap: 14px 48px; }
-        .rt-fact { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-        .rt-fact span { font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
-        .rt-fact strong { font-size: 13.5px; font-weight: 800; color: var(--dark); line-height: 1.4; word-break: break-word; }
-        .rt-fact-wide { flex: 1 1 100%; }
-        .rt-fact-wide strong { font-weight: 700; }
-        .rt-files { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: 10px; border-top: 1px dashed var(--border); }
+        .rt-files { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
         .rt-files-label { font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-right: 2px; }
         .rt-file { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; color: var(--dark); text-decoration: none; background: var(--white); border: 1px solid var(--border); border-radius: 999px; padding: 6px 13px; }
         .rt-file:hover { border-color: var(--dark); }
         .rt-file i, .rt-file svg { width: 13px; height: 13px; color: var(--muted); }
-        @media (max-width: 640px) { .rt-list { grid-template-columns: 1fr; } .rt-facts { gap: 12px 28px; } }
         .mat-combo { position: relative; width: 100%; }
         .mat-combo-dropdown {
             display: none;
@@ -151,6 +136,7 @@
         .qb-input { width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--white); font-size: 13.5px; color: var(--dark); }
         .qb-input:focus { outline: 2px solid var(--dark); outline-offset: -1px; }
         .qb-chip { display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 14px; background: var(--cream-soft); border: 1px solid var(--border); border-radius: 14px; font-size: 12.5px; font-weight: 700; color: var(--dark); white-space: nowrap; cursor: text; }
+        .qb-chip[hidden] { display: none; }   /* e.g. "Undo all changes" — the inline-flex above would otherwise keep it on screen */
         .qb-chip i { width: 15px; height: 15px; color: var(--muted); }
         .qb-chip input { width: 64px; padding: 5px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--white); font-size: 13px; font-weight: 900; color: var(--dark); text-align: right; }
 
@@ -204,11 +190,19 @@
         .qb-capacity-custom { margin-top: 8px; }
         .qb-tank-note { display: flex; align-items: flex-start; gap: 8px; margin-top: 14px; padding: 10px 12px; border-radius: 12px; background: #EFF6FF; border: 1px solid #BFDBFE; font-size: 12.5px; line-height: 1.5; color: #1E3A8A; }
         .qb-tank-note svg { width: 15px; height: 15px; flex-shrink: 0; margin-top: 2px; }
+        /* The requested tank: same fields, locked to what the client asked for (values still submit) */
+        .qb-grid-tank.is-fixed .qb-input { pointer-events: none; background: var(--cream-soft); color: var(--dark); }
+        .qb-grid-tank.is-fixed select.qb-input { appearance: none; -webkit-appearance: none; background-image: none; }
         .qb-per-tank { font-size: 11px; font-weight: 800; color: var(--muted); background: var(--cream-soft); border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; margin-left: 6px; vertical-align: middle; text-transform: none; letter-spacing: 0; }
-        .qb-tpl-tag { display: inline-flex; align-items: center; font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 999px; margin: 0 6px 4px 0; white-space: nowrap; background: #F5F3FF; color: #6D28D9; border: 1px solid #DDD6FE; }
-        .qb-tpl-filter { font-size: 12.5px; color: var(--muted); margin: -4px 0 12px; }
-        .qb-tpl-filter strong { color: var(--dark); }
+        .qb-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        /* more than one tank: the grand totals say they are for all the tanks */
+        .qb-qty-tag { color: inherit; }
         @media (max-width: 900px) { .qb-grid { grid-template-columns: 1fr; } }
+
+        /* 5 · Other costs (on-site assembly): off unless GMD assembles the tank on site */
+        .qb-others-body[hidden] { display: none; }
+        .qb-others-body { margin-top: 14px; }
+        #othersTable td:last-child { width: 48px; }
         @media (max-width: 600px) {
             .qb-head, .qb-section, .qb-foot { padding-left: 16px; padding-right: 16px; }
             .qb-errors { margin-left: 16px; margin-right: 16px; }
@@ -265,21 +259,7 @@
         /* ── Two steps: Costing → Quotation Document ── */
         .qb-card[data-step="document"] .qb-section:not(.qb-doc-section) { display: none; }   /* still in the form, so Save keeps them */
         .qb-card[data-step="costing"] .qb-doc-section { display: none; }
-        .qb-steps { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
-        .qb-stepper { display: flex; align-items: center; gap: 11px; padding: 10px 16px 10px 10px; border-radius: 16px; border: 1px solid var(--border);
-                      background: var(--white); text-decoration: none; color: var(--dark); transition: border-color .15s, box-shadow .15s; }
-        a.qb-stepper:hover { border-color: #cfcfcf; box-shadow: 0 4px 14px rgba(0,0,0,.06); }
-        .qb-stepper strong { display: block; font-size: 13.5px; font-weight: 800; }
-        .qb-stepper small { display: block; font-size: 11.5px; font-weight: 600; color: var(--muted); margin-top: 1px; }
-        .qb-stepper-num { width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
-                          font-size: 13px; font-weight: 900; background: var(--cream-deep, #ebebeb); color: var(--muted); }
-        .qb-stepper-num svg { width: 15px; height: 15px; }
-        .qb-stepper.is-current { border-color: #333; box-shadow: 0 0 0 3px rgba(245,180,0,.25); }
-        .qb-stepper.is-current .qb-stepper-num { background: #333; color: #F5B400; }
-        .qb-stepper.is-done .qb-stepper-num { background: #207A3A; color: #fff; }
-        .qb-stepper.is-locked { opacity: .55; cursor: not-allowed; }
-        .qb-stepper-line { flex: 0 0 40px; height: 3px; border-radius: 999px; background: var(--border); }
-        .qb-stepper-line.is-open { background: #207A3A; }
+        .qb-card[data-step="document"] .qb-summary { display: none; }   /* the price summary belongs to the Costing step */
         #generateDocBtn[aria-disabled="true"] { opacity: .45; cursor: not-allowed; pointer-events: none; box-shadow: none; }
 
         /* ── Quotation Document step: form | live preview (full length) ── */
@@ -309,6 +289,14 @@
         .qd-suffix-wrap .qb-input { padding-right: 52px; }
         .qd-suffix { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 12px; font-weight: 700; color: var(--muted); pointer-events: none; }
         .qd-spec-wrap .qb-table { min-width: 0 !important; }
+        /* specification text: a fixed, slightly taller box (not resizable), in the page's font; long text scrolls */
+        .qd-spec-wrap .qd-spec-value { height: 64px; resize: none; overflow-y: auto; font-family: inherit; font-size: 13px; line-height: 1.45; display: block; }
+        .qd-spec-wrap td { vertical-align: top; }
+        /* Terms & Notes: same — fixed height, not resizable, the page's font */
+        #docWarranty, #docNotes { resize: none; overflow-y: auto; font-family: inherit; font-size: 13px; line-height: 1.5; }
+        #docWarranty { height: 84px; }
+        #docNotes    { height: 132px; }
+        .qd-spec-wrap td .qb-cell-input:not(.qd-spec-value) { font-family: inherit; }
         .qd-add-line { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-top: 10px; padding: 10px; border-radius: 12px;
                        border: 1.5px dashed #d4d4d4; background: transparent; color: var(--muted); font: inherit; font-size: 12.5px; font-weight: 800; cursor: pointer; transition: border-color .15s, color .15s, background .15s; }
         .qd-add-line:hover { border-color: #333; color: var(--dark); background: var(--cream-soft, #fafafa); }
@@ -359,10 +347,6 @@
             .qd-preview-head { top: calc(var(--header-height, 64px) + 4px); }
         }
         @media (max-width: 600px) {
-            .qb-steps { gap: 8px; }
-            .qb-stepper { flex: 1; padding: 8px 10px 8px 8px; }
-            .qb-stepper small { display: none; }
-            .qb-stepper-line { flex-basis: 14px; }
         }
     </style>
 </head>
@@ -399,7 +383,7 @@
                         · @if($step === 'document')
                             {{ $isLocked ? 'The quotation document sent to the client (view only).' : 'Set what the quotation document says, then send it to the client.' }}
                           @else
-                            {{ $isLocked ? 'Materials, labor, and costs of this quotation (view only).' : 'Enter the tank, pricing, materials and labor — then generate the quotation document.' }}
+                            {{ $isLocked ? 'Materials, labor, and costs of this quotation (view only).' : 'Enter the pricing, materials and labor — then generate the quotation document.' }}
                           @endif
                     </p>
                 </div>
@@ -433,11 +417,18 @@
                             Withdraw &amp; Revise
                         </button>
                     </form>
-                    @elseif($batchStatus === 'approved')
+                    @elseif($batchStatus === 'approved' && $batch->hasPurchaseOrder())
                     <a class="add-btn" style="text-decoration:none;" href="{{ route('admin.projects', ['prefill_quotation_batch' => $batch->id]) }}">
                         <i data-lucide="folder-plus"></i>
                         Convert to Project
                     </a>
+                    @elseif($batchStatus === 'approved')
+                    {{-- the project (and its down payment) starts from the client's Purchase Order --}}
+                    <span class="add-btn" aria-disabled="true" title="Waiting for the client's Purchase Order"
+                          style="opacity:.5;cursor:not-allowed;display:inline-flex;align-items:center;gap:6px;">
+                        <i data-lucide="folder-plus"></i>
+                        Convert to Project
+                    </span>
                     @elseif($batchStatus === 'converted' && $batch->project_id)
                     <a class="add-btn" style="text-decoration:none;" href="{{ route('admin.project_view', $batch->project_id) }}">
                         <i data-lucide="folder-open"></i>
@@ -491,10 +482,15 @@
                 <i data-lucide="clock"></i>
                 <span>{{ $latestSent?->quotation_number ?? 'The quotation' }} was sent to the client on {{ optional($latestSent?->sent_at ?? $batch->updated_at)->format('M d, Y') }} — Contract Value ₱{{ number_format($batch->contract_value, 2) }}. Waiting for their decision. The builder is locked while they review it; use <strong>Withdraw &amp; Revise</strong> to change it.</span>
             </div>
+            @elseif($batchStatus === 'approved' && !$batch->hasPurchaseOrder())
+            <div class="alert-banner info" style="margin-bottom:20px;">
+                <i data-lucide="file-signature"></i>
+                <span>The client approved {{ $latestSent?->quotation_number ?? 'this quotation' }}{{ $latestSent?->responded_at ? ' on ' . $latestSent->responded_at->format('M d, Y') : '' }} — Contract Value ₱{{ number_format($batch->contract_value, 2) }}. <strong>Waiting for their Purchase Order</strong>: once they send it you can convert this into a project, which starts the down payment.</span>
+            </div>
             @elseif($batchStatus === 'approved')
             <div class="alert-banner success" style="margin-bottom:20px;">
                 <i data-lucide="check-circle"></i>
-                <span>The client approved {{ $latestSent?->quotation_number ?? 'this quotation' }}{{ $latestSent?->responded_at ? ' on ' . $latestSent->responded_at->format('M d, Y') : '' }} — Contract Value ₱{{ number_format($batch->contract_value, 2) }}. Click <strong>Convert to Project</strong> above: its tank, specifications, materials, labor, costs and payment terms carry over automatically.</span>
+                <span>The client approved {{ $latestSent?->quotation_number ?? 'this quotation' }} and sent Purchase Order <strong>{{ $batch->po_number }}</strong> on {{ $batch->po_submitted_at->format('M d, Y') }} — Contract Value ₱{{ number_format($batch->contract_value, 2) }}. Click <strong>Convert to Project</strong> above: its tank, specifications, materials, labor, costs and payment terms carry over automatically, and the down payment opens for the client.</span>
             </div>
             @elseif($batchStatus === 'rejected')
             <div class="alert-banner error" style="margin-bottom:20px;">
@@ -508,79 +504,54 @@
             </div>
             @endif
 
-            {{-- The request and costing summary are for the Costing step; the document step keeps the form + preview in view --}}
-            @if($step === 'costing')
-            {{-- Requested tank(s) — what the client asked for, read-only here. One card per tank. --}}
-            @php
-                // Each tank carries its own design files. Older requests stored the same shared set on every
-                // tank — list that once (below the cards) instead of repeating it on each one.
-                $tanksWithFiles = $tankItems->filter(fn ($t) => !empty($t->reference_files));
-                $legacyShared   = $tankItems->count() > 1
-                    && $tanksWithFiles->count() === $tankItems->count()
-                    && $tanksWithFiles->map(fn ($t) => json_encode($t->reference_files))->unique()->count() === 1;
-            @endphp
+            @if($batch->hasPurchaseOrder() && in_array($batchStatus, ['approved', 'converted'], true))
+            {{-- The client's Purchase Order --}}
             <div class="table-card" style="padding:18px 20px;margin-bottom:20px;">
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;">
-                    <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);">
-                        Requested Tank{{ $tankItems->count() > 1 ? 's' : '' }}
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                    <div style="display:flex;align-items:center;gap:12px;min-width:0;">
+                        <span style="width:40px;height:40px;border-radius:12px;background:#E7F6EC;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                            <i data-lucide="file-signature" style="width:19px;height:19px;color:#16a34a;"></i>
+                        </span>
+                        <div style="min-width:0;">
+                            <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);">Client's Purchase Order</div>
+                            <div style="font-size:15px;font-weight:900;color:var(--dark);overflow-wrap:anywhere;">{{ $batch->po_number }}</div>
+                            <div style="font-size:12px;color:var(--muted);font-weight:600;">Received {{ $batch->po_submitted_at->format('M d, Y h:i A') }}</div>
+                        </div>
                     </div>
-                    <span style="font-size:11.5px;font-weight:700;color:var(--muted);">Submitted by the client</span>
-                </div>
-
-                <div class="rt-list">
-                    @forelse($tankItems as $item)
-                    @php
-                        $isPickup = ($item->fulfillment ?? 'delivery') === 'pickup';
-                        $files    = (!$legacyShared && !empty($item->reference_files)) ? $item->reference_files : [];
-                    @endphp
-                    <div class="rt-card">
-                        <div class="rt-head">
-                            <span class="rt-title"><i data-lucide="package"></i> {{ $item->tank_type ?: 'Tank' }}</span>
-                            <span class="rt-pill {{ $isPickup ? 'is-pickup' : 'is-delivery' }}">
-                                <i data-lucide="{{ $isPickup ? 'package-check' : 'truck' }}"></i>
-                                {{ $isPickup ? 'For pick-up' : 'For delivery' }}
-                            </span>
-                        </div>
-
-                        <div class="rt-facts">
-                            <div class="rt-fact"><span>Capacity / Size</span><strong>{{ $item->capacity ?: '—' }}</strong></div>
-                            <div class="rt-fact"><span>Quantity</span><strong>{{ $item->quantity }}</strong></div>
-                            <div class="rt-fact"><span>Target Delivery</span><strong>{{ !empty($item->target_timeline) ? $item->target_timeline_display : '—' }}</strong></div>
-                            @unless($isPickup)
-                            <div class="rt-fact rt-fact-wide">
-                                <span>Delivery Address</span>
-                                <strong>{{ $item->location ?: '—' }}</strong>
-                            </div>
-                            @endunless
-                        </div>
-
-                        @if($files)
-                        <div class="rt-files" data-receipt-set>
-                            <span class="rt-files-label">Client's design</span>
-                            @foreach($files as $i => $file)
-                            <a href="{{ $file }}" target="_blank" data-receipt class="rt-file" title="Open design file {{ $i + 1 }}">
-                                <i data-lucide="paperclip"></i> {{ count($files) > 1 ? 'Design ' . ($i + 1) : 'View design' }}
-                            </a>
-                            @endforeach
-                        </div>
-                        @endif
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;" data-receipt-set>
+                        @foreach((array) $batch->po_files as $i => $file)
+                        <a href="{{ $file }}" target="_blank" data-receipt class="cancel-btn" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
+                            <i data-lucide="paperclip"></i>
+                            {{ count($batch->po_files) > 1 ? 'PO file ' . ($i + 1) : 'View PO' }}
+                        </a>
+                        @endforeach
                     </div>
-                    @empty
-                    <span style="color:var(--muted);font-size:13px;">No tank items on this request.</span>
-                    @endforelse
                 </div>
-
-                @if($legacyShared)
-                <div class="rt-files" style="margin-top:12px;" data-receipt-set>
-                    <span class="rt-files-label">Client's attached files</span>
-                    @foreach($tankItems->first()->reference_files as $i => $file)
-                    <a href="{{ $file }}" target="_blank" data-receipt class="rt-file">
-                        <i data-lucide="paperclip"></i> File {{ $i + 1 }}
-                    </a>
-                    @endforeach
+                @if($batch->po_notes)
+                <div style="margin-top:12px;padding:10px 12px;border-radius:10px;background:var(--cream-soft);border:1px solid var(--border);font-size:13px;color:var(--dark);overflow-wrap:anywhere;">
+                    <strong>Client's note:</strong> {{ $batch->po_notes }}
                 </div>
                 @endif
             </div>
+            @endif
+
+            {{-- The request and costing summary are for the Costing step; the document step keeps the form + preview in view --}}
+            @if($step === 'costing')
+            {{-- The client's design files (the tank type, size and quantity they asked for are in the Costing's Tank section) --}}
+            @php
+                // Older requests stored the same shared set on every tank — list it once
+                $designFiles = $tankItems->flatMap(fn ($t) => (array) ($t->reference_files ?? []))->filter()->unique()->values();
+            @endphp
+            @if($designFiles->isNotEmpty())
+            <div class="rt-files" style="margin-bottom:20px;" data-receipt-set>
+                <span class="rt-files-label">Client's design files</span>
+                @foreach($designFiles as $i => $file)
+                <a href="{{ $file }}" target="_blank" data-receipt class="rt-file" title="Open design file {{ $i + 1 }}">
+                    <i data-lucide="paperclip"></i> {{ $designFiles->count() > 1 ? 'Design ' . ($i + 1) : 'View design' }}
+                </a>
+                @endforeach
+            </div>
+            @endif
             {{-- Overview --}}
             <div class="fd-overview" style="margin-bottom:24px;">
                 <div class="fd-overview-title">
@@ -622,35 +593,11 @@
             </div>
             @endif
 
-            {{-- The two steps: 1 · Costing → 2 · Quotation Document (opens once the costing is complete and saved) --}}
-            @php $docStepOpen = $costingReady || $isLocked; @endphp
-            <nav class="qb-steps" aria-label="Quotation steps">
-                <a href="{{ route('admin.quotation_requests.batch_detail', $batch->id) }}" class="qb-stepper {{ $step === 'costing' ? 'is-current' : 'is-done' }}">
-                    <span class="qb-stepper-num">
-                        @if($step === 'costing')
-                            1
-                        @else
-                            <i data-lucide="check"></i>
-                        @endif
-                    </span>
-                    <span><strong>Costing</strong><small>Tank, pricing, materials &amp; labor</small></span>
-                </a>
-                <span class="qb-stepper-line {{ $docStepOpen ? 'is-open' : '' }}" aria-hidden="true"></span>
-                @if($docStepOpen)
-                <a href="{{ route('admin.quotation_requests.batch_detail', ['batchId' => $batch->id, 'step' => 'document']) }}" class="qb-stepper {{ $step === 'document' ? 'is-current' : '' }}" id="docStepLink">
-                @else
-                <span class="qb-stepper is-locked" title="Complete and save the costing first">
-                @endif
-                    <span class="qb-stepper-num">2</span>
-                    <span><strong>Quotation Document</strong><small>{{ $docStepOpen ? 'Specs & terms, then send to client' : 'Opens after the costing is saved' }}</small></span>
-                @if($docStepOpen)</a>@else</span>@endif
-            </nav>
-
             {{-- Quotation Document step: the form on the left, a live preview of the document on the right --}}
             @if($step === 'document')<div class="qd-layout">@endif
 
             {{-- Costing + Quotation Document — one form with a single Save; each step shows its own sections --}}
-            <form method="POST" action="{{ route('admin.quotation_requests.batch_save', $batch->id) }}" id="quotationForm" class="qb-card{{ $isLocked ? ' qb-locked' : '' }}" data-step="{{ $step }}">
+            <form method="POST" action="{{ route('admin.quotation_requests.batch_save', $batch->id) }}" id="quotationForm" class="qb-card{{ $isLocked ? ' qb-locked' : '' }}" data-step="{{ $step }}" autocomplete="off">{{-- no browser-restored values after a reload: the form always opens as saved --}}
                 @csrf
                 <input type="hidden" name="open_send_modal" id="openSendModalFlag" value="0">
                 <input type="hidden" name="step" value="{{ $step }}">
@@ -662,17 +609,19 @@
                         <p class="qb-sub">{{ $isLocked ? 'What the client received — view only.' : 'Edit the details here — the preview beside it follows as you type. Save, then send it to the client.' }}</p>
                         @else
                         <h2 class="qb-title"><i data-lucide="calculator"></i> Costing</h2>
-                        <p class="qb-sub">{{ $isLocked ? ($batchStatus === 'quotation_sent' ? 'The quotation is with the client, so it is view-only until they respond or you withdraw it.' : 'This quotation is final, so it can no longer be edited.') : 'Set the tank, pricing, materials and labor below, then save. Next: Generate Quotation Document.' }}</p>
+                        <p class="qb-sub">{{ $isLocked ? ($batchStatus === 'quotation_sent' ? 'The quotation is with the client, so it is view-only until they respond or you withdraw it.' : 'This quotation is final, so it can no longer be edited.') : 'Set the pricing, materials and labor below, then save. Next: Generate Quotation Document.' }}</p>
                         @endif
                     </div>
                     <div class="qb-head-right">
                         @if($isLocked)
                         <span class="qb-viewonly"><i data-lucide="lock"></i> View only</span>
                         @elseif($step === 'document')
-                        {{-- templates fill in the costing — not offered on the document step --}}
+                        {{-- the standard costing fills in the costing — not offered on the document step --}}
                         @else
-                        <button type="button" class="qb-chip" id="openQuoteTemplateBtn" style="cursor:pointer;">
-                            <i data-lucide="copy"></i> Use Template
+                        {{-- shown once the admin changes anything: discards every unsaved change (tank, pricing, materials, labor) --}}
+                        <button type="button" class="qb-chip" id="applyStdCostingBtn" style="cursor:pointer;" hidden
+                                title="Discard everything you changed since opening this page">
+                            <i data-lucide="undo-2"></i> Undo all changes
                         </button>
                         @endif
                         <span class="qb-dirty" id="qbDirty" hidden><i data-lucide="circle-dot"></i> Unsaved changes</span>
@@ -695,14 +644,19 @@
                             <span class="qb-step">1</span>
                             <div>
                                 <h3>Tank</h3>
-                                <p>The tank being quoted — templates and capacities follow the tank type.</p>
+                                <p>The tank the client requested — the costing below is for this tank.</p>
                             </div>
                         </div>
                     </div>
-                    <div class="qb-grid qb-grid-tank">
+                    @php
+                        // The fields show what the client requested and are locked to it (still submitted with Save) —
+                        // they stay editable only if the request is missing a tank type or capacity.
+                        $tankFixed = $builderTank['tank_type'] && $builderTank['capacity'];
+                    @endphp
+                    <div class="qb-grid qb-grid-tank {{ $tankFixed ? 'is-fixed' : '' }}">
                         <div class="qb-field">
                             <label for="tankTypeInput">Tank Type <span class="qb-req">*</span></label>
-                            <select name="tank_type" id="tankTypeInput" class="qb-input" required>
+                            <select name="tank_type" id="tankTypeInput" class="qb-input" required @if($tankFixed) tabindex="-1" aria-readonly="true" @endif>
                                 <option value="" disabled hidden {{ !$builderTank['tank_type'] ? 'selected' : '' }}>Select tank type</option>
                                 @foreach(array_keys($tankTypeOptions) as $type)
                                 <option value="{{ $type }}" {{ $builderTank['tank_type'] === $type ? 'selected' : '' }}>{{ $type }}</option>
@@ -712,15 +666,15 @@
                         <div class="qb-field">
                             <label for="capacitySelect">Capacity <span class="qb-req">*</span></label>
                             {{-- the capacities built before for the chosen type, or "Other" to type one --}}
-                            <select id="capacitySelect" class="qb-input"></select>
-                            <input type="text" id="capacityCustom" class="qb-input qb-capacity-custom" maxlength="255" placeholder="e.g. 18,000 liters" autocomplete="off" hidden>
+                            <select id="capacitySelect" class="qb-input" @if($tankFixed) tabindex="-1" aria-readonly="true" @endif></select>
+                            <input type="text" id="capacityCustom" class="qb-input qb-capacity-custom" maxlength="255" placeholder="e.g. 18,000 liters" autocomplete="off" hidden @if($tankFixed) readonly tabindex="-1" @endif>
                             <input type="hidden" name="capacity" id="capacityInput" value="{{ $builderTank['capacity'] }}">
                             <small id="capacityHint"></small>
                         </div>
                         <div class="qb-field">
                             <label for="tankQtyInput">Tank Quantity <span class="qb-req">*</span></label>
                             <input type="number" name="tank_quantity" id="tankQtyInput" class="qb-input" min="1" step="1" inputmode="numeric"
-                                   value="{{ $builderTank['quantity'] }}" required>
+                                   value="{{ $builderTank['quantity'] }}" required @if($tankFixed) readonly tabindex="-1" @endif>
                             <small>Identical tanks</small>
                         </div>
                     </div>
@@ -737,25 +691,34 @@
                             <span class="qb-step">2</span>
                             <div>
                                 <h3>Pricing</h3>
-                                <p>Markup and payment terms — not shown to the client.</p>
+                                <p>Markup, contingency and payment terms — not shown to the client.</p>
                             </div>
                         </div>
                     </div>
-                    <div class="qb-grid">
+                    <div class="qb-grid qb-grid-3">
                         <div class="qb-field">
                             <label for="markupInput">Markup / Profit (%) <span class="qb-req">*</span></label>
                             <input type="number" name="markup_percent" id="markupInput" class="qb-input"
                                    min="{{ \App\Models\QuotationBatch::MARKUP_MIN }}" max="{{ \App\Models\QuotationBatch::MARKUP_MAX }}" step="0.01"
-                                   value="{{ $batch->markup_percent ?? '' }}" placeholder="{{ \App\Models\QuotationBatch::MARKUP_MIN }}–{{ \App\Models\QuotationBatch::MARKUP_MAX }}" required>
+                                   value="{{ $batch->markup_percent ?? ($costingIsNew ? \App\Models\QuotationBatch::DEFAULT_MARKUP : '') }}" placeholder="{{ \App\Models\QuotationBatch::MARKUP_MIN }}–{{ \App\Models\QuotationBatch::MARKUP_MAX }}" required>
                             <small class="qb-value-note">Between {{ \App\Models\QuotationBatch::MARKUP_MIN }}% and {{ \App\Models\QuotationBatch::MARKUP_MAX }}% of the Project Budget · <strong id="markupValueNote">₱0</strong> <span id="markupBudgetNote">of ₱0 Project Budget</span></small>
                         </div>
                         <div class="qb-field">
+                            <label for="contingencyInput">Contingency (%) <span class="qb-optional">(optional)</span></label>
+                            <input type="number" name="contingency_percent" id="contingencyInput" class="qb-input"
+                                   min="0" max="{{ \App\Models\QuotationBatch::CONTINGENCY_MAX }}" step="0.01"
+                                   value="{{ $batch->contingency_percent ?? ($costingIsNew ? \App\Models\QuotationBatch::DEFAULT_CONTINGENCY : '') }}" placeholder="0">
+                            <small class="qb-value-note">For the unforeseen — % of materials + labor + other costs · <strong id="contingencyValueNote">₱0</strong></small>
+                        </div>
+                        <div class="qb-field">
                             <label for="paymentTermsInput">Payment Terms <span class="qb-req">*</span></label>
-                            <select name="payment_term_type" id="paymentTermsInput" class="qb-input" required>
+                            {{-- not chosen yet: follows the contract value (Big at ₱{{ number_format(\App\Models\QuotationBatch::BIG_PROJECT_THRESHOLD) }}+) until the admin picks one --}}
+                            <select name="payment_term_type" id="paymentTermsInput" class="qb-input" required data-auto="{{ $batch->payment_term_type ? '0' : '1' }}">
                                 <option value="" disabled hidden {{ !$batch->payment_term_type ? 'selected' : '' }}>Select payment terms</option>
                                 <option value="big_project" {{ $batch->payment_term_type === 'big_project' ? 'selected' : '' }}>Big Project — 3 Phases (50% / 30% / 20%)</option>
                                 <option value="small_project" {{ $batch->payment_term_type === 'small_project' ? 'selected' : '' }}>Small Project — 2 Phases (50% / 50%)</option>
                             </select>
+                            <small class="qb-value-note" id="paymentAutoNote">Big Project at ₱{{ number_format(\App\Models\QuotationBatch::BIG_PROJECT_THRESHOLD) }} and up, Small below — <span id="paymentAutoState">{{ $batch->payment_term_type ? 'chosen' : 'set from the contract value' }}</span>.</small>
                         </div>
                     </div>
                 </section>
@@ -799,12 +762,12 @@
                             <tbody id="materialRowsContainer"></tbody>
                             <tfoot>
                                 <tr>
-                                    <td colspan="5" class="qb-total-label">Grand Total (no Material Factor)</td>
+                                    <td colspan="5" class="qb-total-label">Grand Total (no Material Factor)<span class="qb-qty-tag" data-qty-tag></span></td>
                                     <td class="qb-total-value" id="matSubtotal">₱0</td>
                                     <td></td>
                                 </tr>
                                 <tr>
-                                    <td colspan="5" class="qb-total-label">Grand Total (with <span id="matFactorLabel">{{ number_format($materialFactor, 1) }}</span>% Material Factor)</td>
+                                    <td colspan="5" class="qb-total-label">Grand Total (with <span id="matFactorLabel">{{ number_format($materialFactor, 1) }}</span>% Material Factor)<span class="qb-qty-tag" data-qty-tag></span></td>
                                     <td class="qb-total-value" id="matWithFactor">₱0</td>
                                     <td></td>
                                 </tr>
@@ -853,7 +816,7 @@
                             <tbody id="laborRowsContainer"></tbody>
                             <tfoot>
                                 <tr>
-                                    <td colspan="4" class="qb-total-label">Grand Total</td>
+                                    <td colspan="4" class="qb-total-label">Grand Total<span class="qb-qty-tag" data-qty-tag></span></td>
                                     <td class="qb-total-value" id="laborTotal">₱0</td>
                                     <td></td>
                                 </tr>
@@ -861,6 +824,66 @@
                         </table>
                         <div class="qb-empty" id="laborEmpty" hidden>
                             No labor entries added yet. Click <strong>Add Labor</strong> to get started.
+                        </div>
+                    </div>
+                </section>
+
+                {{-- 5 · Other costs — only when GMD assembles the tank on site; for the whole job, not per tank --}}
+                @php
+                    $otherRows = $batch->other_costs ?: array_map(fn ($l) => ['label' => $l, 'amount' => null], \App\Models\QuotationBatch::DEFAULT_OTHER_COSTS);
+                    // the client asked for on-site assembly: the switch starts on until the costing is first saved
+                    $onsiteRequest = $tankItems->first(fn ($i) => $i->isOnsite());
+                    $onsiteOn      = $batch->onsite_assembly || ($onsiteRequest && $batch->markup_percent === null);
+                @endphp
+                <section class="qb-section">
+                    <div class="qb-section-head">
+                        <div class="qb-section-title">
+                            <span class="qb-step">5</span>
+                            <div>
+                                <h3>Other Costs</h3>
+                                <p>Mobilization, lodging, PPE and the like when GMD assembles the tank on site — not multiplied by the tank quantity.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <label class="qd-toggle">
+                        <input type="hidden" name="onsite_assembly" value="0">
+                        <input type="checkbox" name="onsite_assembly" value="1" id="onsiteToggle" {{ $onsiteOn ? 'checked' : '' }}>
+                        <span class="qd-switch" aria-hidden="true"></span>
+                        <span class="qd-toggle-text">
+                            <strong>Assembled on site by GMD</strong>
+                            <small>Adds the job's other costs to the Project Budget. Off: the tank is built at the shop and picked up.</small>
+                        </span>
+                    </label>
+                    @if($onsiteRequest)
+                    <div class="qb-tank-note" style="margin-top:10px;">
+                        <i data-lucide="hard-hat"></i>
+                        <span>The client asked for <strong>on-site assembly</strong> at: {{ $onsiteRequest->location ?: '—' }}</span>
+                    </div>
+                    @endif
+                    <div class="qb-others-body" id="othersBody" {{ $onsiteOn ? '' : 'hidden' }}>
+                        <div class="qb-table-wrap">
+                            <table class="qb-table" id="othersTable">
+                                <thead>
+                                    <tr><th>Item</th><th style="width:180px;" class="qb-num">Amount (₱)</th><th style="width:48px;"></th></tr>
+                                </thead>
+                                <tbody id="othersRows">
+                                    @foreach($otherRows as $row)
+                                    <tr>
+                                        <td><input type="text" name="other_label[]" class="qb-cell-input" maxlength="120" value="{{ $row['label'] }}" aria-label="Item"></td>
+                                        <td><input type="text" name="other_amount[]" class="qb-cell-input row-other-amount" inputmode="decimal" style="text-align:right;"
+                                                   value="{{ isset($row['amount']) && $row['amount'] !== null ? number_format((float) $row['amount'], 2) : '' }}" placeholder="0.00" aria-label="Amount"></td>
+                                        <td><button type="button" class="qb-icon-btn other-remove" title="Remove item" aria-label="Remove item"><i data-lucide="trash-2"></i></button></td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <td class="qb-total-label">Total other costs</td>
+                                        <td class="qb-total-value" id="othersTotal">₱0</td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
                         </div>
                     </div>
                 </section>
@@ -907,7 +930,7 @@
                                     @foreach($specLines as $line)
                                     <tr>
                                         <td><input type="text" name="spec_label[]" class="qb-cell-input" maxlength="120" value="{{ $line['label'] }}" aria-label="Specification item"></td>
-                                        <td><textarea name="spec_value[]" class="qb-cell-input" rows="1" maxlength="1000" aria-label="Specification" style="resize:vertical;min-height:38px;">{{ $line['value'] }}</textarea></td>
+                                        <td><textarea name="spec_value[]" class="qb-cell-input qd-spec-value" rows="3" maxlength="1000" aria-label="Specification">{{ $line['value'] }}</textarea></td>
                                         <td><button type="button" class="qb-icon-btn spec-remove" title="Remove line" aria-label="Remove specification line"><i data-lucide="trash-2"></i></button></td>
                                     </tr>
                                     @endforeach
@@ -947,19 +970,6 @@
                                 <input type="text" name="doc[signatory_title]" id="docSignTitle" class="qb-input" maxlength="120" value="{{ $docSettings['signatory_title'] }}">
                             </div>
                         </div>
-                    </div>
-
-                    {{-- Options --}}
-                    <div class="qd-group">
-                        <label class="qd-toggle">
-                            <input type="hidden" name="doc[show_breakdown]" value="0">
-                            <input type="checkbox" name="doc[show_breakdown]" value="1" {{ $docSettings['show_breakdown'] ? 'checked' : '' }}>
-                            <span class="qd-switch" aria-hidden="true"></span>
-                            <span class="qd-toggle-text">
-                                <strong>Include Annex A — cost breakdown</strong>
-                                <small>Itemized materials, labor, overhead &amp; profit on a second page.</small>
-                            </span>
-                        </label>
                     </div>
 
                     <div class="qb-tank-note" style="margin-top:4px;">
@@ -1166,50 +1176,6 @@
         </div>
     </div>
 
-    {{-- ===================== QUOTATION TEMPLATE MODAL (same look as Add Project's "Choose a Starting Point") ===================== --}}
-    <div class="modal-overlay" id="quoteTemplateModal">
-        <div class="modal-card" style="max-width:560px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;">
-            <div class="modal-header" style="flex-shrink:0;">
-                <div>
-                    <h2>Choose a Starting Point</h2>
-                    <p>Copy the materials, labor and pricing of a completed project of the same tank type (scaled to one tank), or start with a blank quotation.</p>
-                </div>
-                <button class="modal-close" type="button" id="closeQuoteTemplate">
-                    <i data-lucide="x"></i>
-                </button>
-            </div>
-
-            <p class="qb-tpl-filter" id="quoteTplFilter" style="flex-shrink:0;"></p>
-            <div class="search-box" style="margin:0 auto 14px;max-width:100%;flex-shrink:0;">
-                <i data-lucide="search"></i>
-                <input type="text" id="quoteTemplateSearch" placeholder="Search projects, clients or capacities...">
-            </div>
-
-            <div style="overflow-y:auto;flex:1;">
-                <div class="client-select-item selected" id="quoteScratchOption" style="border-style:dashed;margin-bottom:14px;">
-                    <div class="cs-avatar" style="background:var(--accent-soft);">
-                        <i data-lucide="file-plus-2" style="width:20px;height:20px;color:var(--dark);"></i>
-                    </div>
-                    <div class="cs-info">
-                        <div class="cs-name">Start from Scratch</div>
-                        <div style="font-size:12px;color:var(--muted);margin-top:2px;">Build the quotation with no preset materials or labor</div>
-                    </div>
-                    <div class="cs-check">
-                        <i data-lucide="check-circle-2" style="width:20px;height:20px;color:var(--dark);"></i>
-                    </div>
-                </div>
-
-                <div id="quoteTemplateList" class="cs-list" style="max-height:none;overflow-y:visible;"></div>
-            </div>
-
-            <div class="modal-actions" style="flex-shrink:0;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
-                <button type="button" class="cancel-btn" id="cancelQuoteTemplate">Cancel</button>
-                <button type="button" class="save-btn" id="continueQuoteTemplate">
-                    Continue <i data-lucide="arrow-right"></i>
-                </button>
-            </div>
-        </div>
-    </div>
     @endunless
 
     {{-- ===================== SEND TO CLIENT MODAL ===================== --}}
@@ -1377,14 +1343,21 @@
     var qbSubmitting = false;
     function markDirty() {
         qbDirty = true;
-        var pill = document.getElementById('qbDirty');
-        if (pill) pill.hidden = false;
+        // the "Unsaved changes" pill follows whether the form differs from how it opened (see syncStdCostingButton)
+        if (typeof syncStdCostingButton === 'function') {
+            syncStdCostingButton();
+        } else {
+            var pill = document.getElementById('qbDirty');
+            if (pill) pill.hidden = false;
+        }
         updateSendState();
     }
     quotationForm.addEventListener('input', markDirty);
     quotationForm.addEventListener('change', markDirty);
     window.addEventListener('beforeunload', function (e) {
-        if (qbDirty && !qbSubmitting) { e.preventDefault(); e.returnValue = ''; }
+        // warn only when the admin actually changed something (not for a costing the page filled in by itself)
+        var changed = typeof hasUnsavedChanges === 'function' ? hasUnsavedChanges() : qbDirty;
+        if (changed && !qbSubmitting) { e.preventDefault(); e.returnValue = ''; }
     });
 
     // ---- searchable, categorized material combo box ----
@@ -1539,8 +1512,11 @@
                 '</div>' +
                 '<div class="mat-combo-warning">This material is already added in another row.</div>' +
             '</td>' +
-            '<td><input type="text" name="unit[]" class="qb-cell-input row-unit" autocomplete="off" placeholder="pcs" value="' + escapeHtml(data.unit || '') + '"></td>' +
-            '<td><input type="number" name="quantity[]" class="qb-cell-input row-qty" min="0.01" step="0.01" placeholder="0" value="' + (data.qty != null ? data.qty : '') + '" oninput="recalc()"></td>' +
+            '<td><input type="text" name="unit[]" class="qb-cell-input row-unit" autocomplete="off" placeholder="pcs" value="' + escapeHtml(data.unit || '') + '" oninput="recalc()"></td>' +
+            // Saved: the quantity for ONE tank (hidden). The box shows it for the whole order (× the tank quantity);
+            // typing there sets the per-tank amount, rounded up to whole units per tank when leaving the box.
+            '<td><input type="hidden" name="quantity[]" class="row-qty" value="' + (data.qty != null && data.qty !== '' ? +data.qty : '') + '">' +
+                '<input type="number" class="qb-cell-input row-qty-view" min="1" step="1" inputmode="numeric" placeholder="0" value="' + (data.qty != null && data.qty !== '' ? +data.qty : '') + '" oninput="qtyViewInput(this)" onblur="qtyViewBlur(this)"></td>' +
             '<td><input type="text" inputmode="decimal" name="price_per_unit[]" class="qb-cell-input row-price qb-num-input" autocomplete="off" placeholder="0.00" value="' + (data.price != null && data.price !== '' ? fmtMoney(data.price) : '') + '" oninput="recalc()"></td>' +
             '<td><input type="text" class="qb-cell-total row-total-display" readonly tabindex="-1" placeholder="—"></td>' +
             '<td style="text-align:center;">' +
@@ -1549,6 +1525,33 @@
                 '</button>' +
             '</td>';
         return tr;
+    }
+
+    // The Quantity box is for the whole order; the saved (hidden) quantity is per tank = box ÷ tanks.
+    function qtyViewInput(view) {
+        var perTank = view.closest('td').querySelector('.row-qty');
+        perTank.value = view.value.trim() === '' ? '' : toNum(view.value) / tankQuantity();
+        recalc();
+    }
+    // Leaving the box: whole units for each tank — 15 for 2 tanks becomes 16 (8 per tank); 2.5 becomes 3
+    function qtyViewBlur(view) {
+        if (view.value.trim() === '') return;
+        var tanks   = tankQuantity();
+        var perTank = view.closest('td').querySelector('.row-qty');
+        var per     = toNum(view.value) > 0 ? Math.ceil(toNum(view.value) / tanks - 1e-9) : 0;
+        perTank.value = per;
+        view.value    = per * tanks;
+        recalc();
+    }
+    // Every Quantity box shows the per-tank amount × the tank quantity (the one being typed in is left alone)
+    function syncQtyViews(tanks) {
+        matContainer.querySelectorAll('.material-add-row').forEach(function (row) {
+            var view = row.querySelector('.row-qty-view');
+            var per  = row.querySelector('.row-qty').value;
+            if (!view || document.activeElement === view) return;
+            view.value = per === '' ? '' : toNum(per) * tanks;
+            view.title = tanks > 1 && per !== '' ? toNum(per) + ' per tank × ' + tanks + ' tanks' : '';
+        });
     }
 
     function removeMaterialRow(btn) {
@@ -1681,7 +1684,7 @@
         closeModal('pickMaterialsModal');
         if (items.length === 0) return;
         // price and quantity still need filling in — jump to the first empty quantity
-        appendMaterialRows(items)[0].querySelector('.row-qty').focus();
+        appendMaterialRows(items)[0].querySelector('.row-qty-view').focus();
     });
 
     // ---- Labor ----
@@ -2019,95 +2022,21 @@
     });
 
     @unless($isLocked)
-    // ---- Choose a Starting Point: copy a past project's materials, labor and pricing ----
-    var QUOTE_TEMPLATES      = @json($quotationTemplates);
-    var selectedQuoteTpl     = null;   // null = Start from Scratch
-    var quoteTplDismissedKey = 'quoteTemplateDismissed-{{ $batch->id }}';
+    // ---- Standard costing: every standard tank size has a default costing (materials, labor, pricing) worked out
+    //      from GMD's estimated price. A blank costing for a standard size starts from it; changing the tank type or
+    //      capacity swaps it for the new size's (only what it filled in — rows the admin added stay). ----
+    var STANDARD_COSTINGS = @json($standardCostings);
 
-    function quoteTplSummary(tpl) {
-        var pill = 'display:inline-flex;align-items:center;font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;margin:0 6px 4px 0;white-space:nowrap;';
-        return (tpl.capacity ? '<span class="qb-tpl-tag">' + escapeHtml(tpl.capacity) + '</span>' : '') +
-            (tpl.tank_qty > 1 ? '<span class="qb-tpl-tag" title="That project built ' + tpl.tank_qty + ' tanks — its quantities are divided by ' + tpl.tank_qty + ' for one tank">Built ' + tpl.tank_qty + ' · scaled to 1 tank</span>' : '') +
-            '<span style="' + pill + 'background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;">' + tpl.materials.length + ' material' + (tpl.materials.length === 1 ? '' : 's') + '</span>' +
-            '<span style="' + pill + 'background:#F0FDF4;color:#15803D;border:1px solid #BBF7D0;">' + tpl.labor.length + ' labor</span>' +
-            (tpl.estimated_working_days ? '<span style="' + pill + 'background:#FEF9C3;color:#A16207;border:1px solid #FDE68A;">' + tpl.estimated_working_days + ' working days</span>' : '');
-    }
-
-    function setQuoteScratchSelected(isSelected) {
-        var opt = document.getElementById('quoteScratchOption');
-        opt.classList.toggle('selected', isSelected);
-        opt.querySelector('.cs-check').style.display = isSelected ? 'flex' : 'none';
-    }
-
-    // Only templates of the tank type being quoted are offered; ones with the same capacity come first.
-    function templatesForTank() {
-        var type     = document.getElementById('tankTypeInput').value;
-        var capacity = document.getElementById('capacityInput').value;
-        if (!type) return [];
-        return QUOTE_TEMPLATES
-            .filter(function (t) { return t.tank_type === type; })
-            .sort(function (a, b) { return (b.capacity === capacity) - (a.capacity === capacity); });
-    }
-
-    function renderQuoteTemplateList() {
-        var list     = document.getElementById('quoteTemplateList');
-        var filterEl = document.getElementById('quoteTplFilter');
-        var type     = document.getElementById('tankTypeInput').value;
-        var q        = document.getElementById('quoteTemplateSearch').value.toLowerCase().trim();
-        var forTank  = templatesForTank();
-        var shown    = forTank.filter(function (t) {
-            return !q || (t.name + ' ' + (t.client || '') + ' ' + (t.capacity || '')).toLowerCase().indexOf(q) !== -1;
-        });
-
-        filterEl.innerHTML = type
-            ? 'Showing completed <strong>' + escapeHtml(type) + '</strong> projects' + (forTank.length ? ' (' + forTank.length + ')' : '') + '.'
-            : 'Choose the <strong>tank type</strong> in the builder first — templates are matched to it.';
-
-        if (!shown.length) {
-            list.innerHTML = '<p style="text-align:center;color:var(--muted);padding:20px 0;font-size:13px;">' +
-                (!type ? 'No tank type selected yet.'
-                    : forTank.length ? 'No ' + escapeHtml(type) + ' templates match your search.'
-                    : 'No completed ' + escapeHtml(type) + ' projects yet — start from scratch, or pick a different tank type.') + '</p>';
-            return;
+    function standardCostingForTank() {
+        var type = document.getElementById('tankTypeInput').value;
+        var cap  = document.getElementById('capacityInput').value;
+        if (!type || !cap) return null;
+        var n = capacityNumber(cap);
+        for (var key in STANDARD_COSTINGS) {
+            var c = STANDARD_COSTINGS[key];
+            if (c.tank_type === type && capacityNumber(c.capacity) === n) return c;
         }
-
-        list.innerHTML = '';
-        shown.forEach(function (tpl) {
-            var isSelected = selectedQuoteTpl && selectedQuoteTpl.id === tpl.id;
-            var item = document.createElement('div');
-            item.className = 'client-select-item' + (isSelected ? ' selected' : '');
-            item.innerHTML =
-                '<div class="cs-info">' +
-                    '<div class="cs-name">' + escapeHtml(tpl.name) + '</div>' +
-                    '<div style="font-size:12px;color:var(--muted);margin-bottom:6px;">' + escapeHtml(tpl.client || '') +
-                        (tpl.status ? ' &middot; ' + escapeHtml(tpl.status.charAt(0).toUpperCase() + tpl.status.slice(1)) : '') + '</div>' +
-                    '<div style="display:flex;flex-wrap:wrap;">' + quoteTplSummary(tpl) + '</div>' +
-                '</div>' +
-                '<div class="cs-check" style="display:' + (isSelected ? 'flex' : 'none') + ';">' +
-                    '<i data-lucide="check-circle-2" style="width:20px;height:20px;color:var(--dark);"></i>' +
-                '</div>';
-            item.addEventListener('click', function () {
-                selectedQuoteTpl = tpl;
-                setQuoteScratchSelected(false);
-                renderQuoteTemplateList();
-            });
-            list.appendChild(item);
-        });
-        if (typeof lucide !== 'undefined') lucide.createIcons();
-    }
-
-    function openQuoteTemplateModal() {
-        // reopening shows the template currently filled in (if any) as the selected option
-        selectedQuoteTpl = appliedQuoteTpl;
-        setQuoteScratchSelected(!appliedQuoteTpl);
-        document.getElementById('quoteTemplateSearch').value = '';
-        renderQuoteTemplateList();
-        openModal('quoteTemplateModal');
-    }
-
-    function closeQuoteTemplateModal() {
-        try { sessionStorage.setItem(quoteTplDismissedKey, '1'); } catch (e) {}
-        closeModal('quoteTemplateModal');
+        return null;
     }
 
     function setFieldValue(id, value, allowBlank) {
@@ -2118,13 +2047,13 @@
         el.dispatchEvent(new Event('change', { bubbles: true }));
     }
 
-    // What the template filled in, so switching template (or back to Start from Scratch) can take it out again
+    // What the standard costing filled in, so a different size (or clearing) can take it out again
     var appliedQuoteTpl   = null;
-    var PRICING_FIELD_IDS = ['markupInput', 'paymentTermsInput', 'materialFactorInput', 'estDaysInput'];
-    var pricingBeforeTpl  = null;   // pricing values as they were before the first template was applied
+    var PRICING_FIELD_IDS = ['markupInput', 'contingencyInput', 'materialFactorInput', 'estDaysInput'];
+    var pricingBeforeTpl  = null;   // pricing values as they were before the first standard costing was applied
     var dirtyBeforeTpl    = false;
 
-    // Removes every row the template added and puts the pricing fields back as they were.
+    // Removes every row the standard costing added and puts the pricing fields back as they were.
     // Saved rows, and rows the admin added by hand, are left alone.
     function clearAppliedQuoteTemplate() {
         if (!appliedQuoteTpl) return;
@@ -2148,8 +2077,8 @@
         }
     }
 
-    // Copies the template in as new, unsaved rows — nothing is stored until the admin presses Save.
-    // Materials or employees already in the quotation are skipped, so nothing is added twice.
+    // Copies the standard costing in as new, unsaved rows — nothing is stored until the admin presses Save.
+    // Materials or crew already in the quotation are skipped, so nothing is added twice.
     function applyQuoteTemplate(tpl) {
         if (!pricingBeforeTpl) {
             pricingBeforeTpl = {};
@@ -2166,22 +2095,32 @@
             appendMaterialRows(mats).forEach(function (row) { row.dataset.fromTemplate = '1'; });
         }
 
+        // crew already on the costing (archived saved rows don't count)
+        var activeLabor = [];
+        laborContainer.querySelectorAll('tr').forEach(function (row) {
+            if (row.classList.contains('labor-existing-row')) {
+                if (!row.classList.contains('is-archived')) activeLabor.push(row.dataset.employeeName);
+                return;
+            }
+            var sel = row.querySelector('.row-labor-name-select');
+            var custom = row.querySelector('.row-labor-name-custom');
+            activeLabor.push(sel && sel.value && sel.value !== 'other' ? sel.value : (custom ? custom.value.trim() : ''));
+        });
         tpl.labor.forEach(function (l) {
-            if (!l.name || getUsedLaborEmployeeNames().indexOf(l.name) !== -1) return;
+            if (!l.name || activeLabor.indexOf(l.name) !== -1) return;
             var row = buildLaborRow(laborContainer.querySelectorAll('tr').length + 1);
             row.dataset.fromTemplate = '1';
             laborContainer.appendChild(row);
             var sel = row.querySelector('.row-labor-name-select');
+            // the default crew are GMD employees: pick them from the list (fills their role and rate); anyone
+            // not on the list (e.g. no longer a regular employee) is typed in with the standard role and rate
             var isEmployee = LABOR_EMPLOYEES.some(function (emp) { return emp.name === l.name; });
-
             if (isEmployee) {
-                // a current employee: their role and today's daily rate fill in, like picking them by hand
                 sel.value = l.name;
                 onLaborEmployeeChange(sel);
+                row.querySelector('.row-labor-rate').value = fmtMoney(l.rate);
                 return;
             }
-
-            // no longer on the employee list (or outsourced): keep the name, role and rate from the template
             sel.value = 'other';
             onLaborEmployeeChange(sel);
             row.querySelector('.row-labor-name-custom').value = l.name;
@@ -2197,14 +2136,9 @@
         });
 
         setFieldValue('markupInput', tpl.markup_percent);
-        setFieldValue('paymentTermsInput', tpl.payment_term_type);
+        setFieldValue('contingencyInput', tpl.contingency_percent);
         setFieldValue('materialFactorInput', tpl.factor);
         setFieldValue('estDaysInput', tpl.estimated_working_days);
-        // no capacity chosen yet → take the template's
-        if (!document.getElementById('capacityInput').value && tpl.capacity) {
-            document.getElementById('capacityInput').value = tpl.capacity;
-            renderCapacityOptions();
-        }
 
         if (typeof lucide !== 'undefined') lucide.createIcons();
         renumberRows();
@@ -2212,46 +2146,122 @@
         refreshAllLaborEmployeeOptions();
         recalc();
         markDirty();
+        syncStdCostingButton();
     }
 
-    document.getElementById('quoteScratchOption').addEventListener('click', function () {
-        selectedQuoteTpl = null;
-        setQuoteScratchSelected(true);
-        renderQuoteTemplateList();
-    });
-    document.getElementById('quoteTemplateSearch').addEventListener('input', renderQuoteTemplateList);
-    // (no "Use Template" button on the Quotation Document step — templates fill in the costing)
-    var openQuoteTplBtn = document.getElementById('openQuoteTemplateBtn');
-    if (openQuoteTplBtn) openQuoteTplBtn.addEventListener('click', openQuoteTemplateModal);
-    document.getElementById('closeQuoteTemplate').addEventListener('click', closeQuoteTemplateModal);
-    document.getElementById('cancelQuoteTemplate').addEventListener('click', closeQuoteTemplateModal);
-    document.getElementById('continueQuoteTemplate').addEventListener('click', function () {
-        var tpl = selectedQuoteTpl;
-        closeQuoteTemplateModal();
-        if (tpl === appliedQuoteTpl) return;      // same choice as what's already filled in
-        clearAppliedQuoteTemplate();              // a new template replaces the old one; Start from Scratch just empties it
-        if (tpl) applyQuoteTemplate(tpl);
-    });
-
-    // Changing the tank type: a template of the old type no longer applies, so the rows it added are
-    // taken out again, and the picker opens with the new type's templates (when it has any).
-    function onTankTypeChangedForTemplates() {
-        var hadOtherType = appliedQuoteTpl && appliedQuoteTpl.tank_type !== document.getElementById('tankTypeInput').value;
-        if (hadOtherType) clearAppliedQuoteTemplate();
-        var isEmpty = !document.querySelector('#materialRowsContainer .material-add-row, #laborRowsContainer tr');
-        if ((hadOtherType || isEmpty) && templatesForTank().length) openQuoteTemplateModal();
+    function costingIsEmpty() {
+        return !document.querySelector('#materialRowsContainer .material-add-row, #laborRowsContainer tr');
     }
 
-    // Opening the builder on a quotation that has nothing in it yet asks where to start
-    // (once per browser session, so a reload after choosing Start from Scratch doesn't ask again).
-    // Only when there are templates for this tank type — otherwise there is nothing to choose from.
-    @if($materials->isEmpty() && $laborEntries->isEmpty())
-    (function () {
-        var dismissed = false;
-        try { dismissed = sessionStorage.getItem(quoteTplDismissedKey) === '1'; } catch (e) {}
-        if (!dismissed && templatesForTank().length) openQuoteTemplateModal();
-    })();
-    @endif
+    // "Unsaved changes" and "Undo all changes" show only while the form differs from how it opened — the snapshot is
+    // taken once the page has filled itself in (e.g. a new quotation's standard costing), so nothing shows until the
+    // admin changes something, and both hide again if it's changed back. Numbers are compared by value, so the
+    // page re-formatting "4474" as "4,474.00" isn't a change.
+    var openedSnapshot = null;
+    function formSnapshot() {
+        var parts = [];
+        new FormData(quotationForm).forEach(function (v, k) {
+            if (k === '_token') return;
+            v = v instanceof File ? v.name : String(v).trim();
+            if (/^-?[\d,]*\.?\d+$/.test(v)) v = String(parseFloat(v.replace(/,/g, '')));
+            parts.push(k + '=' + v);
+        });
+        return parts.join('&');
+    }
+    function hasUnsavedChanges() {
+        return openedSnapshot !== null && formSnapshot() !== openedSnapshot;
+    }
+    function syncStdCostingButton() {
+        var changed = hasUnsavedChanges();
+        var btn  = document.getElementById('applyStdCostingBtn');
+        var pill = document.getElementById('qbDirty');
+        if (btn)  btn.hidden  = !changed;
+        if (pill) pill.hidden = !changed;
+    }
+
+    // Is the costing exactly the standard one? Materials (name, unit, quantity, price), the active crew
+    // (name and daily rate) and the pricing (markup, contingency, factor, working days) must all match.
+    function costingMatchesStandard(std) {
+        var key  = function (s) { return String(s == null ? '' : s).trim().toLowerCase(); };
+        var same = function (a, b) { return Math.abs(toNum(a) - toNum(b)) < 0.005; };
+
+        var mats = [];
+        matContainer.querySelectorAll('.material-add-row').forEach(function (row) {
+            mats.push([key(row.querySelector('.row-mat-name-input').value), key(row.querySelector('.row-unit').value),
+                       toNum(row.querySelector('.row-qty').value), toNum(row.querySelector('.row-price').value)]);
+        });
+        if (mats.length !== std.materials.length) return false;
+        var wanted = std.materials.map(function (m) { return [key(m.name), key(m.unit), +m.qty, +m.price]; });
+        var matsOk = wanted.every(function (w) {
+            return mats.some(function (m) { return m[0] === w[0] && m[1] === w[1] && same(m[2], w[2]) && same(m[3], w[3]); });
+        });
+        if (!matsOk) return false;
+
+        var crew = [];
+        laborContainer.querySelectorAll('tr').forEach(function (row) {
+            if (row.classList.contains('labor-existing-row')) {
+                if (!row.classList.contains('is-archived')) crew.push([key(row.dataset.employeeName), toNum(row.dataset.rate)]);
+                return;
+            }
+            var sel = row.querySelector('.row-labor-name-select');
+            var custom = row.querySelector('.row-labor-name-custom');
+            var name = sel && sel.value && sel.value !== 'other' ? sel.value : (custom ? custom.value : '');
+            crew.push([key(name), toNum((row.querySelector('.row-labor-rate') || {}).value)]);
+        });
+        if (crew.length !== std.labor.length) return false;
+        var crewOk = std.labor.every(function (l) {
+            return crew.some(function (c) { return c[0] === key(l.name) && same(c[1], l.rate); });
+        });
+        if (!crewOk) return false;
+
+        return same(document.getElementById('markupInput').value, std.markup_percent)
+            && same(document.getElementById('contingencyInput').value, std.contingency_percent)
+            && same(document.getElementById('materialFactorInput').value, std.factor)
+            && same(document.getElementById('estDaysInput').value, std.estimated_working_days);
+    }
+
+    // any edit in the costing (typing, adding / removing rows) re-checks whether it still matches the standard
+    var stdSyncQueued = false;
+    function queueStdSync() {
+        if (stdSyncQueued) return;
+        stdSyncQueued = true;
+        requestAnimationFrame(function () { stdSyncQueued = false; syncStdCostingButton(); });
+    }
+    ['input', 'change', 'click'].forEach(function (ev) { quotationForm.addEventListener(ev, queueStdSync); });
+    new MutationObserver(queueStdSync).observe(matContainer, { childList: true });
+    new MutationObserver(queueStdSync).observe(laborContainer, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+    var stdBtn = document.getElementById('applyStdCostingBtn');
+    // Discards every unsaved change — tank, quantity, pricing, payment terms, materials and labor — by opening the page
+    // fresh: a saved costing comes back as saved, a new one with its standard costing. (A fresh navigation, not a
+    // reload, so the browser can't restore the edited values.)
+    if (stdBtn) stdBtn.addEventListener('click', function () {
+        if (!confirm('Undo all changes?\n\nEverything you changed since opening this page goes back to how it was. Nothing is saved.')) return;
+        qbSubmitting = true;   // no "leave this page?" warning
+        window.location.replace(window.location.href.split('#')[0]);
+    });
+
+    // A different tank type or capacity: the standard costing of the old size no longer applies — take it out, and
+    // fill in the new size's when the costing has nothing else in it.
+    function onTankChangedForStandard() {
+        var std = standardCostingForTank();
+        if (appliedQuoteTpl && (!std || appliedQuoteTpl.id !== std.id)) clearAppliedQuoteTemplate();
+        if (std && !appliedQuoteTpl && costingIsEmpty()) applyQuoteTemplate(std);
+        syncStdCostingButton();
+    }
+
+    // Opening a blank costing for a standard size starts from its standard costing — after the rest of this
+    // script has run (the tank, quantity and totals code below must be ready first)
+    setTimeout(function () {
+        @if($materials->isEmpty() && $laborEntries->isEmpty())
+        var std = standardCostingForTank();
+        if (std) applyQuoteTemplate(std);
+        @endif
+        // the form as it opened (after filling itself in, and after any number formatting has run) — changes are measured from here
+        setTimeout(function () {
+            openedSnapshot = formSnapshot();
+            syncStdCostingButton();
+        }, 300);
+    }, 0);
     @endunless
 
     // ---- shared: numbering, empty states, live totals ----
@@ -2273,18 +2283,28 @@
         document.getElementById('laborEmpty').hidden = hasLabor;
     }
 
+    // The rows are saved for ONE tank. With more than one tank, the Quantity boxes and every total show the whole
+    // order (× the tank quantity) — the per-tank figures are in each box's tooltip.
     function recalc() {
+        var tanks = tankQuantity();
+        var multi = tanks > 1;
+        var forTanks = ' for ' + tanks + ' tanks';
+        syncQtyViews(tanks);
+
         // Materials
         var subtotal = 0;
         matContainer.querySelectorAll('.material-add-row').forEach(function (row) {
-            var total = toNum(row.querySelector('.row-qty').value) * toNum(row.querySelector('.row-price').value);
+            var qty   = toNum(row.querySelector('.row-qty').value);
+            var total = qty * toNum(row.querySelector('.row-price').value);
             subtotal += total;
-            row.querySelector('.row-total-display').value = total > 0 ? peso(total, 2) : '';
+            var shown = row.querySelector('.row-total-display');
+            shown.value = total > 0 ? peso(total * tanks, 2) : '';
+            shown.title = multi && total > 0 ? peso(total, 2) + ' per tank' : '';
         });
         var factor     = toNum(document.getElementById('materialFactorInput').value);
         var withFactor = subtotal * (1 + factor / 100);
-        document.getElementById('matSubtotal').textContent   = peso(Math.round(subtotal));
-        document.getElementById('matWithFactor').textContent = peso(Math.round(withFactor));
+        document.getElementById('matSubtotal').textContent   = peso(Math.round(subtotal * tanks));
+        document.getElementById('matWithFactor').textContent = peso(Math.round(withFactor * tanks));
         document.getElementById('matFactorLabel').textContent = factor.toFixed(1);
 
         // Labor — every row's total is its daily rate x the shared working days
@@ -2293,23 +2313,47 @@
         laborContainer.querySelectorAll('tr').forEach(function (row) {
             if (row.classList.contains('labor-existing-row')) {
                 var t = toNum(row.dataset.rate) * days;
-                row.querySelector('.existing-labor-total').textContent = peso(t, 2);
+                var cell = row.querySelector('.existing-labor-total');
+                cell.textContent = peso(t * tanks, 2);
+                cell.title = multi && t > 0 ? peso(t, 2) + ' per tank' : '';
                 if (!row.classList.contains('is-archived')) laborTotal += t;
             } else {
                 var nt = toNum(row.querySelector('.row-labor-rate').value) * days;
-                row.querySelector('.row-labor-total-display').value = nt > 0 ? peso(nt, 2) : '';
+                var box = row.querySelector('.row-labor-total-display');
+                box.value = nt > 0 ? peso(nt * tanks, 2) : '';
+                box.title = multi && nt > 0 ? peso(nt, 2) + ' per tank' : '';
                 laborTotal += nt;
             }
         });
-        document.getElementById('laborTotal').textContent = peso(Math.round(laborTotal));
+        document.getElementById('laborTotal').textContent = peso(Math.round(laborTotal * tanks));
+        document.querySelectorAll('[data-qty-tag]').forEach(function (el) { el.textContent = multi ? ' —' + forTanks : ''; });
+        document.querySelectorAll('.qb-per-tank').forEach(function (el) { el.textContent = multi ? 'per tank × ' + tanks : 'per tank'; });
 
-        // Summary bar — the rows above are for ONE tank; the quantity multiplies the totals, once
-        var qty        = tankQuantity();
-        var pct        = toNum(document.getElementById('markupInput').value);
-        var unitBudget = withFactor + laborTotal;
-        var unitPrice  = unitBudget * (1 + pct / 100);
-        var budget     = unitBudget * qty;
-        var markup     = budget * pct / 100;
+        // Other costs (on-site assembly) — for the whole job, only when the switch is on
+        var onsite = document.getElementById('onsiteToggle').checked;
+        var others = 0;
+        document.querySelectorAll('#othersRows .row-other-amount').forEach(function (el) { others += toNum(el.value); });
+        document.getElementById('othersTotal').textContent = peso(Math.round(others));
+        if (!onsite) others = 0;
+
+        // Summary bar — the rows above are for ONE tank; the quantity multiplies them, once.
+        // Project Budget = (materials + labor) × qty + other costs, plus contingency on all of that; markup on the budget.
+        var qty         = tankQuantity();
+        var pct         = toNum(document.getElementById('markupInput').value);
+        var contPct     = toNum(document.getElementById('contingencyInput').value);
+        var direct      = (withFactor + laborTotal) * qty + others;
+        var contingency = direct * contPct / 100;
+        var budget      = direct + contingency;
+        var markup      = budget * pct / 100;
+        // the standard costing, left as it is, is priced at exactly GMD's estimated price (× the tanks) — the markup takes
+        // up the rounding; other costs are added with the usual contingency and markup (same as QuotationBatch::markupAmount)
+        var std = typeof standardCostingForTank === 'function' ? standardCostingForTank() : null;
+        if (std && typeof costingMatchesStandard === 'function' && costingMatchesStandard(std)) {
+            var exact = std.estimated_price * qty + others * (1 + contPct / 100) * (1 + pct / 100);
+            markup = exact - budget;
+        }
+        var unitPrice   = (budget + markup) / qty;
+        document.getElementById('contingencyValueNote').textContent = peso(Math.round(contingency));
         document.getElementById('sumUnitPrice').textContent = peso(Math.round(unitPrice));
         document.getElementById('sumQty').textContent       = qty;
         document.getElementById('sumQtyLabel').textContent  = qty === 1 ? 'tank' : 'identical tanks';
@@ -2320,11 +2364,72 @@
         document.getElementById('markupValueNote').textContent  = peso(Math.round(markup));
         document.getElementById('markupBudgetNote').textContent = 'of ' + peso(Math.round(budget)) + ' Project Budget' + (qty > 1 ? ' (' + qty + ' tanks)' : '');
         document.getElementById('sumContract').textContent = peso(Math.round(budget + markup));
+
+        var estimate = estimateFor(document.getElementById('tankTypeInput').value, document.getElementById('capacityInput').value);
+        // before any costs are in, the estimate decides
+        if (budget + markup > 0) autoPaymentTerms(budget + markup, 'contract value');
+        else autoPaymentTerms(estimate ? estimate.amount * qty : 0, 'estimated price');
     }
 
-    ['markupInput', 'materialFactorInput', 'estDaysInput', 'tankQtyInput'].forEach(function (id) {
+    // ---- GMD's estimated price for the tank being quoted (standard size, or rate × meters) ----
+    var PRICE_GUIDE = @json($priceGuide);
+    function capacityNumber(s) {
+        var m = String(s || '').replace(/(\d),(\d)/g, '$1$2').match(/\d+(\.\d+)?/);
+        return m ? parseFloat(m[0]) : null;
+    }
+    function estimateFor(type, capacity) {
+        var g = PRICE_GUIDE[type], n = capacityNumber(capacity);
+        if (!g || n === null) return null;
+        for (var i = 0; i < g.sizes.length; i++) {
+            if (capacityNumber(g.sizes[i].capacity) === n) return { amount: +g.sizes[i].price, basis: g.sizes[i].capacity + ' standard size' };
+        }
+        if (g.rate && n > 0) return { amount: Math.round(g.rate[0] * n * 100) / 100, basis: n + ' × ' + peso(g.rate[0]) + ' per ' + g.rate[1] };
+        return null;
+    }
+
+    // ---- Payment terms follow the size of the job until the admin picks them ----
+    var BIG_PROJECT_THRESHOLD = {{ \App\Models\QuotationBatch::BIG_PROJECT_THRESHOLD }};
+    function autoPaymentTerms(value, basis) {
+        var sel = document.getElementById('paymentTermsInput');
+        if (sel.dataset.auto !== '1' || sel.disabled) return;
+        if (value > 0) sel.value = value >= BIG_PROJECT_THRESHOLD ? 'big_project' : 'small_project';
+        document.getElementById('paymentAutoState').textContent = value > 0
+            ? 'set from the ' + peso(Math.round(value)) + ' ' + basis
+            : 'set from the contract value';
+    }
+    document.getElementById('paymentTermsInput').addEventListener('change', function () {
+        this.dataset.auto = '0';   // the admin chose — leave it alone from now on
+        document.getElementById('paymentAutoState').textContent = 'chosen';
+    });
+    // a different tank type / capacity means a different estimate — recompute after their own handlers update the value
+    ['tankTypeInput', 'capacitySelect', 'capacityCustom'].forEach(function (id) {
+        ['change', 'input'].forEach(function (ev) {
+            document.getElementById(id).addEventListener(ev, function () { setTimeout(recalc, 0); });
+        });
+    });
+
+    ['markupInput', 'materialFactorInput', 'estDaysInput', 'tankQtyInput', 'contingencyInput'].forEach(function (id) {
         document.getElementById(id).addEventListener('input', recalc);
     });
+
+    // ---- 5 · Other costs (on-site assembly): the switch shows the list; rows can be added and removed ----
+    (function () {
+        var toggle = document.getElementById('onsiteToggle');
+        var body   = document.getElementById('othersBody');
+        var rows   = document.getElementById('othersRows');
+        function bindRow(tr) {
+            var amount = tr.querySelector('.row-other-amount');
+            amount.addEventListener('input', recalc);
+            // shown with thousands separators like the other peso fields; the server strips them
+            amount.addEventListener('blur', function () {
+                var v = toNum(amount.value);
+                amount.value = amount.value.trim() === '' ? '' : v.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            });
+            tr.querySelector('.other-remove').addEventListener('click', function () { tr.remove(); recalc(); });
+        }
+        rows.querySelectorAll('tr').forEach(bindRow);
+        toggle.addEventListener('change', function () { body.hidden = !toggle.checked; recalc(); });
+    })();
 
     // ---- Tank: type → capacities (and templates); quantity multiplies the totals ----
     var TANK_OPTIONS    = @json($tankTypeOptions);   // type => capacities GMD has built for it
@@ -2348,8 +2453,8 @@
 
     function capacitiesForType() { return TANK_OPTIONS[tankTypeInput.value] || []; }
 
-    // Only the capacities of the chosen type are offered, plus "Other" to type a new one.
-    // A type with no past projects goes straight to the text box.
+    // Only the standard sizes of the chosen type are offered, plus "Other" to type a new one.
+    // A type with no standard sizes (e.g. pipe lines) goes straight to the text box.
     function renderCapacityOptions() {
         var caps    = capacitiesForType();
         var current = capacityInput.value;
@@ -2369,7 +2474,7 @@
             capacitySelect.hidden = true;
             capacityCustom.hidden = false;
             capacityCustom.value  = current;
-            hint.textContent = 'No completed ' + tankTypeInput.value + ' projects yet — type the capacity.';
+            hint.textContent = 'No standard sizes for ' + tankTypeInput.value + ' — type the capacity (e.g. total pipe length).';
             return;
         }
 
@@ -2381,7 +2486,7 @@
         capacitySelect.hidden = false;
         capacityCustom.hidden = !(current && !inList);
         if (current && !inList) capacityCustom.value = current;
-        hint.textContent = 'Capacities GMD has built as ' + tankTypeInput.value + '.';
+        hint.textContent = 'Standard sizes of ' + tankTypeInput.value + ' — each comes with a standard costing.';
     }
 
     capacitySelect.addEventListener('change', function () {
@@ -2393,9 +2498,12 @@
             capacityCustom.hidden = true;
             capacityInput.value   = capacitySelect.value;
         }
-        if (typeof renderQuoteTemplateList === 'function') renderQuoteTemplateList();
+        if (typeof onTankChangedForStandard === 'function') onTankChangedForStandard();
     });
-    capacityCustom.addEventListener('input', function () { capacityInput.value = capacityCustom.value.trim(); });
+    capacityCustom.addEventListener('input', function () {
+        capacityInput.value = capacityCustom.value.trim();
+        if (typeof onTankChangedForStandard === 'function') onTankChangedForStandard();
+    });
 
     tankTypeInput.addEventListener('change', function () {
         // a capacity that belongs to another tank type is cleared, never carried over
@@ -2404,7 +2512,7 @@
             capacityCustom.value = '';
         }
         renderCapacityOptions();
-        if (typeof onTankTypeChangedForTemplates === 'function') onTankTypeChangedForTemplates();
+        if (typeof onTankChangedForStandard === 'function') onTankChangedForStandard();
     });
     renderCapacityOptions();
 
@@ -2475,6 +2583,11 @@
             missing.forEach(function (m) { m.el.classList.add('qb-bad'); });
         }
 
+        // a Quantity box still being typed in (e.g. Enter pressed) is rounded to whole units per tank first
+        matContainer.querySelectorAll('.row-qty-view').forEach(function (view) {
+            if (view.value.trim() !== '') qtyViewBlur(view);
+        });
+
         // Rows left completely blank are just ignored, not treated as mistakes
         matContainer.querySelectorAll('.material-add-row').forEach(function (row) {
             var isNew = !row.querySelector('[name="material_id[]"]').value;
@@ -2531,7 +2644,7 @@
             var missing = [];
             if (!name) missing.push({ el: nameEl, label: 'name' });
             if (!unitEl.value.trim()) missing.push({ el: unitEl, label: 'unit' });
-            if (!(toNum(qtyEl.value) > 0)) missing.push({ el: qtyEl, label: 'quantity' });
+            if (!(toNum(qtyEl.value) > 0)) missing.push({ el: qtyView, label: 'quantity' });
             if (priceEl.value.trim() === '' || toNum(priceEl.value) < 0) missing.push({ el: priceEl, label: 'price' });
             flagRow('Material', i + 1, missing);
 
@@ -2787,7 +2900,7 @@
         if (add) add.addEventListener('click', function () {
             var tr = document.createElement('tr');
             tr.innerHTML = '<td><input type="text" name="spec_label[]" class="qb-cell-input" maxlength="120" placeholder="e.g. Accessories" aria-label="Specification item"></td>' +
-                '<td><textarea name="spec_value[]" class="qb-cell-input" rows="1" maxlength="1000" aria-label="Specification" style="resize:vertical;min-height:38px;"></textarea></td>' +
+                '<td><textarea name="spec_value[]" class="qb-cell-input qd-spec-value" rows="3" maxlength="1000" aria-label="Specification"></textarea></td>' +
                 '<td><button type="button" class="qb-icon-btn spec-remove" title="Remove line" aria-label="Remove specification line"><i data-lucide="trash-2"></i></button></td>';
             body.appendChild(tr);
             if (typeof lucide !== 'undefined') lucide.createIcons();

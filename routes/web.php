@@ -134,6 +134,7 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::post('/payments/{id}/billing-statements', [PaymentController::class, 'storeBillingStatement'])->name('payments.billing_statements.store');
     Route::get('/payments/{id}/billing-statements/{statementId}', [PaymentController::class, 'showBillingStatement'])->name('payments.billing_statements.show');
     Route::post('/payments/{id}/billing-statements/{statementId}/send', [PaymentController::class, 'sendBillingStatement'])->name('payments.billing_statements.send');
+    Route::get('/payments/{id}/receipts/{transactionId}', [PaymentController::class, 'showReceipt'])->name('payments.receipts.show')->whereNumber(['id', 'transactionId']);
     Route::post('/payments/{id}/proofs/{proofId}/return', [PaymentController::class, 'returnProof'])->name('payments.proofs.return');
     Route::post('/payments/online/{onlineId}/verify', [OnlinePaymentController::class, 'adminVerify'])->name('payments.online.verify')->whereNumber('onlineId');
     Route::get('/revolving-fund', [FundController::class, 'index'])->name('revolving_fund');
@@ -162,6 +163,7 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::post('/quotation-requests/batch/{batchId}/markup', [QuotationRequestController::class, 'updateMarkup'])->name('quotation_requests.batch_markup');
     Route::post('/quotation-requests/batch/{batchId}/save', [QuotationRequestController::class, 'saveAll'])->name('quotation_requests.batch_save');
     Route::get('/quotation-requests/batch/{batchId}/prefill', [QuotationRequestController::class, 'prefillBatch'])->name('quotation_requests.batch_prefill');
+    Route::post('/quotation-requests/batch/{batchId}/convert', [QuotationRequestController::class, 'convertBatch'])->name('quotation_requests.batch_convert');
     // Generated quotation document: draft preview, sent versions, PDFs, and taking a sent quotation back for revision
     Route::get('/quotation-requests/batch/{batchId}/preview', [QuotationRequestController::class, 'preview'])->name('quotation_requests.batch_preview');
     Route::get('/quotation-requests/batch/{batchId}/preview.pdf', [QuotationRequestController::class, 'previewPdf'])->name('quotation_requests.batch_preview_pdf');
@@ -292,6 +294,7 @@ Route::prefix('client')->name('client.')->middleware(['role:client', 'profile.co
     Route::post('/request-quotation/batch/{batchId}/approve', [QuotationRequestController::class, 'approveQuotation'])->name('quotation.approve');
     Route::post('/request-quotation/batch/{batchId}/revision', [QuotationRequestController::class, 'requestRevision'])->name('quotation.revision');
     Route::post('/request-quotation/batch/{batchId}/reject', [QuotationRequestController::class, 'rejectQuotation'])->name('quotation.reject');
+    Route::post('/request-quotation/batch/{batchId}/purchase-order', [QuotationRequestController::class, 'submitPurchaseOrder'])->name('quotation.purchase_order');
     Route::get('/quotations/{batchId}', [QuotationRequestController::class, 'clientShow'])->name('quotation.show');
     Route::get('/quotations/{batchId}/v{version}.pdf', [QuotationRequestController::class, 'clientPdf'])->name('quotation.pdf')->whereNumber('version');
     Route::get('/messages', [MessageController::class, 'index'])->name('messages');
@@ -308,6 +311,7 @@ Route::prefix('client')->name('client.')->middleware(['role:client', 'profile.co
     Route::post('/payments/online/{onlineId}/check', [OnlinePaymentController::class, 'check'])->name('payments.online.check')->whereNumber('onlineId')->middleware('throttle:20,1');
     Route::get('/payments/{id}', [PaymentController::class, 'clientShow'])->name('payments.show');
     Route::get('/payments/{id}/billing-statements/{statementId}', [PaymentController::class, 'clientShowBillingStatement'])->name('payments.billing_statements.show');
+    Route::get('/payments/{id}/receipts/{transactionId}', [PaymentController::class, 'clientShowReceipt'])->name('payments.receipts.show')->whereNumber(['id', 'transactionId']);
     Route::post('/payments/{id}/proof', [PaymentController::class, 'uploadProof'])->name('payments.proof.store');
     Route::post('/payments/{id}/proofs/{proofId}/resubmit', [PaymentController::class, 'resubmitProof'])->name('payments.proofs.resubmit');
     Route::get('/project-view/{id}', [ProjectController::class, 'clientView'])->name('project_view');

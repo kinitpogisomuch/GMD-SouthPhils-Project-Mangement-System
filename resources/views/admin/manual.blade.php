@@ -437,7 +437,7 @@
                                     <div class="manual-step-num">2</div>
                                     <div class="manual-step-body">
                                         <h3>Read the tracker</h3>
-                                        <p>The tracker at the top shows all 8 stages a project passes through — <strong>Planning → Procurement → Material Prep → Fabrication → Inspection → Painting → Completion → Delivery</strong> — with the current one highlighted, plus a progress bar that fills in on its own as stages are completed.</p>
+                                        <p>The tracker at the top shows all 8 stages a project passes through — <strong>Planning → Procurement → Material Prep → Fabrication → Inspection → Painting → Completion → For Pickup</strong> — with the current one highlighted, plus a progress bar that fills in on its own as stages are completed.</p>
                                     </div>
                                 </div>
                                 <div class="manual-step">
@@ -455,7 +455,7 @@
                                                 <tr><td>Inspection</td><td>Check off Pressure Test & Soap Test</td><td>"Save Progress Update"</td></tr>
                                                 <tr><td>Painting</td><td>Upload photos + optional notes</td><td>"Save Progress Update"</td></tr>
                                                 <tr><td>Completion</td><td>Upload final photos + optional notes — this marks the project <strong>Completed</strong> (100%)</td><td>"Mark as Completed"</td></tr>
-                                                <tr><td>Delivery</td><td>Confirm final payment, upload delivery photos — delivery is tracked separately from completion</td><td>"Mark as Delivered"</td></tr>
+                                                <tr><td>For Pickup</td><td>Confirm final payment, upload pick-up photos — delivery is tracked separately from completion</td><td>"Mark as Delivered"</td></tr>
                                             </tbody>
                                         </table>
                                         <div class="manual-note alert-banner warning">

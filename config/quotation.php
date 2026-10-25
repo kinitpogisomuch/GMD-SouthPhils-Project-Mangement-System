@@ -19,7 +19,7 @@ return [
 
     // The person who signs the quotation (editable per quotation in the builder)
     'signatory' => [
-        'name'  => env('QUOTATION_SIGNATORY_NAME', 'Vincent Diaz'),
+        'name'  => env('QUOTATION_SIGNATORY_NAME', 'Vince Duetiz'),
         'title' => env('QUOTATION_SIGNATORY_TITLE', 'Operation Manager'),
     ],
 

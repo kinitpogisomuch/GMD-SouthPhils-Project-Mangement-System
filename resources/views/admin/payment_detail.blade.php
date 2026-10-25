@@ -80,10 +80,6 @@
                     </p>
                 </div>
                 <div style="display:flex;gap:10px;align-items:center;">
-                    <button class="cancel-btn" type="button" id="generateBillingBtn" style="white-space:nowrap;">
-                        <i data-lucide="file-text"></i>
-                        Generate Billing Statement
-                    </button>
                     @if($status !== 'Fully Paid')
                     <button class="add-btn" type="button" id="openRecordModal">
                         <i data-lucide="plus"></i>
@@ -119,8 +115,8 @@
             </div>
             @endif
 
-            {{-- A stage is due but the client hasn't been billed for it: they aren't asked to pay (and can't
-                 submit proof) until a billing statement is sent --}}
+            {{-- The next phase to collect hasn't been billed yet: the client isn't asked to pay it (or upload proof)
+                 until a billing statement is sent — though they may pay it in advance online --}}
             @php
                 $billingPending = $payment->billingPendingStage();
                 $billingDraft   = $billingPending ? $payment->unsentStatementFor($billingPending) : null;
@@ -129,22 +125,26 @@
             <div class="pd-billing-pending">
                 <div class="pd-billing-icon"><i data-lucide="file-clock"></i></div>
                 <div class="pd-billing-body">
-                    <div class="pd-billing-title">Billing statement not sent — {{ \App\Models\PaymentTransaction::stageLabel($billingPending) }} (₱{{ number_format($payment->stageAmountsDue()[$billingPending] ?? 0, 2) }})</div>
+                    <div class="pd-billing-title">Next bill not sent yet — {{ \App\Models\PaymentTransaction::stageLabel($billingPending) }} (₱{{ number_format($payment->stageAmountsDue()[$billingPending] ?? 0, 2) }})</div>
                     <div class="pd-billing-text">
+                        Send the billing statement when it's time to collect this phase — the client is notified and asked to pay only once it's sent.
+                        @if(app(\App\Services\OnlinePayments::class)->enabled())
+                        Until then they can still choose to pay it in advance online.
+                        @endif
                         @if($billingDraft)
-                        A statement dated {{ $billingDraft->statement_date->format('M d, Y') }} is prepared but hasn't been sent. The client isn't notified and can't submit payment until you send it.
-                        @else
-                        This payment phase is due, but the client hasn't been billed yet. They aren't notified and can't submit payment until a billing statement is sent.
+                        <strong>A statement dated {{ $billingDraft->statement_date->format('M d, Y') }} is generated but not sent yet</strong> — review it, then press Send.
                         @endif
                     </div>
                 </div>
                 @if($billingDraft)
+                {{-- generated, waiting to be sent: open it and press Send there --}}
                 <a href="{{ route('admin.payments.billing_statements.show', [$payment->id, $billingDraft->id]) }}" class="save-btn" style="text-decoration:none;white-space:nowrap;">
                     <i data-lucide="send"></i> Review &amp; Send
                 </a>
                 @else
-                <button type="button" class="save-btn" style="white-space:nowrap;" onclick="document.getElementById('generateBillingBtn').click()">
-                    <i data-lucide="file-plus"></i> Prepare Statement
+                {{-- Opens the statement form on this phase; generating it opens the statement, where it's sent --}}
+                <button type="button" class="save-btn" id="generateBillingBtn" style="white-space:nowrap;" onclick="var s = document.getElementById('billingStageSelect'); s.value = '{{ $billingPending }}'; s.dispatchEvent(new Event('change'));">
+                    <i data-lucide="file-plus"></i> Generate Statement
                 </button>
                 @endif
             </div>
@@ -196,15 +196,43 @@
                 </div>
             </div>
 
-            <!-- Client Submissions: proof of payment the client uploaded on their side -->
-            <div class="table-card" style="margin-bottom:24px;">
-                <div class="table-toolbar" style="padding-bottom:14px;margin-bottom:0;border-bottom:1px solid var(--border);">
+            @php
+                // Online: only real payments — paid, still awaiting the bank, or flagged for review. Checkouts the
+                // client cancelled / let expire / the bank declined moved no money, so they're left out.
+                $onlinePayments = $onlinePayments->filter(fn ($op) => in_array($op->status, ['paid', 'pending'])
+                    || ($op->status === 'failed' && str_contains((string) $op->failure_reason, 'manual review')));
+                // Proofs still waiting on GMD (not recorded, not sent back to the client)
+                $proofsToReview = $proofs->filter(fn ($p) => $p->status !== 'confirmed'
+                    && !in_array($p->payment_stage, $paidStages) && !$p->needsCorrection())->count();
+                $onlineToCheck  = $onlinePayments->where('status', '!=', 'paid')->count();
+                // open on whatever needs attention; otherwise on whichever list has entries
+                // clients no longer upload proofs — that tab only stays for projects with older submissions
+                $showProofTab = $proofs->isNotEmpty();
+                $cpTab = $proofsToReview ? 'proofs'
+                    : ($onlineToCheck || !$showProofTab ? 'online' : 'proofs');
+            @endphp
+            <!-- Client Payments: proof uploads (verified by GMD) | online payments (verified by PayMongo) -->
+            <div class="table-card cp-card" style="margin-bottom:24px;" data-cp-tabs>
+                <div class="table-toolbar" style="padding-bottom:0;margin-bottom:0;border-bottom:1px solid var(--border);flex-wrap:wrap;">
                     <div>
-                        <div style="font-weight:800;font-size:15px;color:var(--dark);">Client Submissions</div>
-                        <div style="font-size:12px;color:var(--muted);margin-top:2px;">Proof of payment the client uploaded — verify, then record it below</div>
+                        <div style="font-weight:800;font-size:15px;color:var(--dark);">Client Payments</div>
+                        <div style="font-size:12px;color:var(--muted);margin-top:2px;">Payments the client made online through PayMongo — verified automatically. Record cash and cheque payments with Record Payment.</div>
                     </div>
-                    <span style="font-size:13px;font-weight:700;color:var(--muted);">{{ $proofs->count() }} submission{{ $proofs->count() !== 1 ? 's' : '' }}</span>
+                    <div class="cp-tabs" role="tablist">
+                        <button type="button" class="cp-tab {{ $cpTab === 'proofs' ? 'is-active' : '' }}" data-cp-tab="proofs" role="tab" @unless($showProofTab) hidden @endunless>
+                            <i data-lucide="upload-cloud"></i> Proof Uploads
+                            <span class="cp-count {{ $proofsToReview ? 'is-alert' : '' }}" title="{{ $proofsToReview ? $proofsToReview . ' waiting for your review' : '' }}">{{ $proofsToReview ?: $proofs->count() }}</span>
+                        </button>
+                        <button type="button" class="cp-tab {{ $cpTab === 'online' ? 'is-active' : '' }}" data-cp-tab="online" role="tab">
+                            <i data-lucide="landmark"></i> Online (PayMongo)
+                            <span class="cp-count {{ $onlineToCheck ? 'is-alert' : '' }}">{{ $onlinePayments->count() }}</span>
+                        </button>
+                    </div>
                 </div>
+
+                {{-- Proof uploads: the client paid outside the system and uploaded a receipt — verify, then record it --}}
+                <div class="cp-panel" data-cp-panel="proofs" @if($cpTab !== 'proofs') hidden @endif>
+                <div class="cp-panel-note">Proof of payment the client uploaded (bank transfer, cheque, cash) — verify it, then record it or return it for correction. {{ $proofs->count() }} submission{{ $proofs->count() !== 1 ? 's' : '' }}.</div>
                 <div class="table-wrapper">
                     <table class="data-table">
                         <thead>
@@ -290,62 +318,89 @@
                         </tbody>
                     </table>
                 </div>
-            </div>
-
-            @if($onlinePayments->isNotEmpty())
-            <!-- Online Payments (payment gateway) -->
-            <div class="table-card" style="margin-bottom:20px;">
-                <div class="table-toolbar" style="padding-bottom:14px;margin-bottom:0;border-bottom:1px solid var(--border);">
-                    <div>
-                        <div style="font-weight:800;font-size:15px;color:var(--dark);">Online Payments</div>
-                        <div style="font-size:12px;color:var(--muted);margin-top:2px;">Checkouts the client started through PayMongo. Paid ones are verified with the gateway and recorded in Payment History automatically.</div>
-                    </div>
-                    <span style="font-size:13px;font-weight:700;color:var(--muted);">{{ $onlinePayments->where('status', 'paid')->count() }} paid · ₱{{ number_format($onlinePayments->where('status', 'paid')->sum('amount'), 2) }}</span>
                 </div>
+
+                {{-- Online payments: paid through PayMongo — confirmed with the bank and recorded automatically --}}
+                <div class="cp-panel" data-cp-panel="online" @if($cpTab !== 'online') hidden @endif>
+                <div class="cp-panel-note">Paid through PayMongo — confirmed with the bank and recorded in Payment History automatically, nothing to verify. {{ $onlinePayments->where('status', 'paid')->count() }} paid · ₱{{ number_format($onlinePayments->where('status', 'paid')->sum('amount'), 2) }}.</div>
+                @if($onlinePayments->isEmpty())
+                <div style="text-align:center;padding:40px;color:var(--muted);">
+                    <i data-lucide="landmark" style="width:32px;height:32px;opacity:.3;display:block;margin:0 auto 10px;"></i>
+                    No online payments from the client yet.
+                </div>
+                @else
                 <div class="table-wrapper">
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th style="text-align:left;">Started</th>
+                                <th style="text-align:left;">Date</th>
                                 <th style="text-align:left;">Stage</th>
                                 <th style="text-align:center;">Amount</th>
                                 <th style="text-align:center;">Method</th>
                                 <th style="text-align:left;">Reference / Transaction</th>
                                 <th style="text-align:center;">Status</th>
+                                {{-- only a checkout still awaiting the bank has something to do ("Check with PayMongo") --}}
+                                @php $onlineHasAction = $onlinePayments->contains(fn ($op) => $op->isPending() && $op->checkout_session_id); @endphp
+                                @if($onlineHasAction)
                                 <th style="text-align:center;">Action</th>
+                                @endif
                             </tr>
                         </thead>
                         <tbody>
                             @foreach($onlinePayments as $op)
                             <tr>
-                                <td style="white-space:nowrap;color:var(--muted);">{{ $op->created_at->format('M d, Y g:i A') }}</td>
+                                <td style="white-space:nowrap;color:var(--muted);">{{ ($op->paid_at ?? $op->created_at)->format('M d, Y') }}</td>
                                 <td><strong>{{ \App\Models\PaymentTransaction::stageLabel($op->payment_stage) }}</strong></td>
                                 <td style="text-align:center;"><strong>₱{{ number_format($op->amount, 2) }}</strong></td>
                                 <td style="text-align:center;">{{ $op->methodLabel() }}</td>
                                 <td style="font-size:12px;">
                                     <div style="font-family:monospace;">{{ $op->reference }}</div>
                                     @if($op->provider_payment_id)<div style="font-family:monospace;color:var(--muted);">{{ $op->provider_payment_id }}</div>@endif
-                                    @if($op->paid_at)<div style="color:var(--muted);">Paid {{ $op->paid_at->format('M d, Y g:i A') }}</div>@endif
                                     @if($op->failure_reason)<div style="color:#b45309;">{{ $op->failure_reason }}</div>@endif
                                 </td>
                                 <td style="text-align:center;"><span class="status-badge {{ $op->badgeClass() }}">{{ $op->statusLabel() }}</span></td>
+                                @if($onlineHasAction)
                                 <td style="text-align:center;">
                                     @if($op->isPending() && $op->checkout_session_id)
                                     <form method="POST" action="{{ route('admin.payments.online.verify', $op->id) }}" style="margin:0;">
                                         @csrf
                                         <button type="submit" class="action-btn view" title="Check with PayMongo now" aria-label="Check status with PayMongo"><i data-lucide="refresh-cw"></i></button>
                                     </form>
-                                    @else
-                                    <span style="color:var(--muted);">—</span>
                                     @endif
                                 </td>
+                                @endif
                             </tr>
                             @endforeach
                         </tbody>
                     </table>
                 </div>
+                @endif
+                </div>
             </div>
-            @endif
+            <style>
+                .cp-tabs { display:flex; gap:4px; align-self:flex-end; overflow-x:auto; scrollbar-width:none; }
+                .cp-tabs::-webkit-scrollbar { display:none; }
+                .cp-tab { display:inline-flex; align-items:center; gap:7px; padding:12px 14px 11px; margin-bottom:-1px; border:0; border-bottom:2px solid transparent; background:none; font:inherit; font-size:13px; font-weight:800; color:var(--muted); white-space:nowrap; cursor:pointer; }
+                .cp-tab svg { width:15px; height:15px; }
+                .cp-tab:hover { color:var(--dark); }
+                .cp-tab.is-active { color:var(--dark); border-bottom-color:var(--dark); }
+                .cp-count { min-width:20px; padding:1px 7px; border-radius:999px; background:var(--accent-soft, #f0f0f0); font-size:10.5px; font-weight:800; color:var(--muted); text-align:center; }
+                .cp-tab.is-active .cp-count { background:var(--dark); color:#fff; }
+                .cp-count.is-alert, .cp-tab.is-active .cp-count.is-alert { background:var(--danger, #B42318); color:#fff; }
+                .cp-panel[hidden], .cp-tab[hidden] { display:none !important; }
+                .cp-panel-note { padding:10px 20px; font-size:12px; color:var(--muted); background:var(--surface-2, #fafafa); border-bottom:1px solid var(--border); }
+            </style>
+            <script>
+                // Client Payments tabs
+                document.querySelectorAll('[data-cp-tabs]').forEach(function (card) {
+                    card.querySelectorAll('.cp-tab').forEach(function (tab) {
+                        tab.addEventListener('click', function () {
+                            card.querySelectorAll('.cp-tab').forEach(function (t) { t.classList.toggle('is-active', t === tab); });
+                            card.querySelectorAll('.cp-panel').forEach(function (p) { p.hidden = p.dataset.cpPanel !== tab.dataset.cpTab; });
+                        });
+                    });
+                });
+            </script>
 
             <!-- Payment History -->
             <div class="table-card">
@@ -399,6 +454,11 @@
                                         </a>
                                         @endforeach
                                     </div>
+                                    @elseif($tx->isOnline())
+                                    {{-- paid online: the system generates the Acknowledgement Receipt --}}
+                                    <a href="{{ route('admin.payments.receipts.show', [$payment->id, $tx->id]) }}" target="_blank" data-receipt="page" class="action-btn view" title="Acknowledgement Receipt {{ $tx->receiptNumber() }}">
+                                        <i data-lucide="receipt"></i>
+                                    </a>
                                     @else
                                     <span style="color:var(--muted);">—</span>
                                     @endif
@@ -501,14 +561,10 @@
 
                     <div class="form-group form-group-full">
                         <label>Mode of Payment</label>
-                        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;" id="mopGroup">
-                            <label class="mop-option" for="mop_bank">
-                                <input type="radio" name="mode_of_payment" id="mop_bank" value="bank_transfer" required style="display:none;" onchange="highlightMop()">
-                                <i data-lucide="building-2" style="width:16px;height:16px;"></i>
-                                Bank Transfer
-                            </label>
+                        {{-- bank payments go through Pay Online (PayMongo); GMD records what's handed over: cheque or cash --}}
+                        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;" id="mopGroup">
                             <label class="mop-option" for="mop_cheque">
-                                <input type="radio" name="mode_of_payment" id="mop_cheque" value="cheque" style="display:none;" onchange="highlightMop()">
+                                <input type="radio" name="mode_of_payment" id="mop_cheque" value="cheque" required style="display:none;" onchange="highlightMop()">
                                 <i data-lucide="file-text" style="width:16px;height:16px;"></i>
                                 Cheque
                             </label>
@@ -521,9 +577,11 @@
                     </div>
 
                     <div class="form-group form-group-full">
-                        <label>OR / Serial Number</label>
-                        <input type="text" name="reference_number" id="referenceNumberInput" required maxlength="100"
-                               placeholder="e.g. OR-2026-00123" autocomplete="off">
+                        <label>OR / Serial Number <span style="font-weight:400;color:var(--muted);">(auto-generated)</span></label>
+                        {{-- a random, unique number made by the system — not typed in --}}
+                        <input type="text" name="reference_number" id="referenceNumberInput" required maxlength="100" readonly
+                               value="{{ \App\Models\PaymentTransaction::generateOrNumber() }}"
+                               style="font-family:monospace;font-weight:800;letter-spacing:.04em;background:var(--surface-2);cursor:default;" autocomplete="off">
                         <small id="referenceNumberErr" style="display:none;margin-top:6px;font-size:12px;font-weight:700;color:#dc2626;">
                             This OR / Serial Number is already used on another payment.
                         </small>
@@ -559,7 +617,7 @@
             <div class="modal-header">
                 <div>
                     <h2>Generate Billing Statement</h2>
-                    <p>Fill in the statement details for <strong>{{ $payment->project->name ?? 'this project' }}</strong></p>
+                    <p>Fill in the statement details for <strong>{{ $payment->project->name ?? 'this project' }}</strong> — you can review it and send it to the client next.</p>
                 </div>
                 <button class="modal-close" type="button" id="closeBillingStatementModal">
                     <i data-lucide="x"></i>
@@ -568,14 +626,16 @@
 
             <form method="POST" action="{{ route('admin.payments.billing_statements.store', $payment->id) }}" id="billingStatementForm">
                 @csrf
+                {{-- details that stay the same from bill to bill come from this project's last statement --}}
+                @php $lastStatement = $payment->billingStatements()->latest('id')->first(); @endphp
                 <div class="form-grid">
                     <div class="form-group">
                         <label>Attention</label>
-                        <input type="text" name="attention" placeholder="e.g. Mr. Juan Dela Cruz">
+                        <input type="text" name="attention" placeholder="e.g. Mr. Juan Dela Cruz" value="{{ $lastStatement->attention ?? '' }}">
                     </div>
                     <div class="form-group">
                         <label>Bill To</label>
-                        <input type="text" name="bill_to" value="{{ $payment->client }}">
+                        <input type="text" name="bill_to" value="{{ $lastStatement?->bill_to ?: $payment->client }}">
                     </div>
                     <div class="form-group">
                         <label>Statement Date</label>
@@ -587,7 +647,7 @@
                     </div>
                     <div class="form-group">
                         <label>Client TIN#</label>
-                        <input type="text" name="tin_number" placeholder="e.g. 123-456-789-000">
+                        <input type="text" name="tin_number" placeholder="e.g. 123-456-789-000" value="{{ $lastStatement->tin_number ?? '' }}">
                     </div>
                     <div class="form-group">
                         <label>Project Title</label>
@@ -599,22 +659,34 @@
                     </div>
                     <div class="form-group">
                         <label>P.O. Number</label>
-                        <input type="text" name="po_number">
+                        {{-- the Purchase Order the client sent with their approved quotation --}}
+                        <input type="text" name="po_number" value="{{ $payment->project_id ? \App\Models\QuotationBatch::where('project_id', $payment->project_id)->whereNotNull('po_number')->latest('id')->value('po_number') : '' }}">
                     </div>
                     <div class="form-group">
                         <label>P.R. Number</label>
                         <input type="text" name="pr_number">
                     </div>
                     <div class="form-group form-group-full">
+                        {{-- Billing For starts on the phase that's due (the one in the "not sent" banner), and the
+                             subject follows it — e.g. "Request for Final Billing" --}}
+                        @php
+                            $billingDefaultStage = $billingPending ?? $payment->openStage();
+                            $billingSubjects = [
+                                ''                 => 'Request for Billing',
+                                'down_payment'     => 'Request for Down Payment Billing',
+                                'progress_payment' => 'Request for Progress Billing',
+                                'final_payment'    => 'Request for Final Billing',
+                            ];
+                        @endphp
                         <label>Subject</label>
-                        <input type="text" name="subject">
+                        <input type="text" name="subject" id="billingSubjectInput" value="{{ $billingSubjects[$billingDefaultStage ?? ''] ?? $billingSubjects[''] }}" data-subjects='@json($billingSubjects)'>
                     </div>
                     <div class="form-group form-group-full">
                         <label>Billing For <span style="font-weight:400;color:var(--muted);">(which payment stage the client should pay now)</span></label>
-                        <select name="billing_stage">
+                        <select name="billing_stage" id="billingStageSelect">
                             <option value="">Full Statement — show all stages</option>
                             @foreach($payment->stages() as $stage)
-                            <option value="{{ $stage }}" @if(in_array($stage, $paidStages)) disabled @endif>
+                            <option value="{{ $stage }}" @if(in_array($stage, $paidStages)) disabled @elseif($stage === $billingDefaultStage) selected @endif>
                                 {{ \App\Models\PaymentTransaction::stageLabel($stage) }}@if(in_array($stage, $paidStages)) — Already Paid @endif
                             </option>
                             @endforeach
@@ -622,23 +694,23 @@
                     </div>
                     <div class="form-group form-group-full">
                         <label>Deposit Instructions</label>
-                        <textarea name="deposit_instructions" rows="2" placeholder="e.g. Bank name, account name, account number..."></textarea>
+                        <textarea name="deposit_instructions" rows="2" placeholder="e.g. Bank name, account name, account number...">{{ $lastStatement->deposit_instructions ?? '' }}</textarea>
                     </div>
                     <div class="form-group">
                         <label>Prepared By (Name)</label>
-                        <input type="text" name="prepared_by_name">
+                        <input type="text" name="prepared_by_name" value="{{ $lastStatement?->prepared_by_name ?: 'Bernabeth Maceda' }}">
                     </div>
                     <div class="form-group">
                         <label>Prepared By (Role)</label>
-                        <input type="text" name="prepared_by_role" value="Accounting Dept.">
+                        <input type="text" name="prepared_by_role" value="{{ $lastStatement?->prepared_by_role ?: 'Accounting Dept.' }}">
                     </div>
                     <div class="form-group">
                         <label>Approved By (Name)</label>
-                        <input type="text" name="approved_by_name">
+                        <input type="text" name="approved_by_name" value="{{ $lastStatement?->approved_by_name ?: 'Vince Duetiz' }}">
                     </div>
                     <div class="form-group">
                         <label>Approved By (Role)</label>
-                        <input type="text" name="approved_by_role" value="Operation Manager">
+                        <input type="text" name="approved_by_role" value="{{ $lastStatement?->approved_by_role ?: 'Operation Manager' }}">
                     </div>
                 </div>
 
@@ -681,7 +753,14 @@
     function clearProofLink() { proofIdInput.value = ''; proofLinkNote.style.display = 'none'; }
 
     if (openBtn) {
-        openBtn.addEventListener('click', function () { clearProofLink(); resetStageAndAmount(); openModal(); });
+        openBtn.addEventListener('click', function () {
+            clearProofLink();
+            resetStageAndAmount();
+            // start on the stage that's open now, with its amount due filled in
+            var openStage = document.querySelector('.stage-select-option:not(.disabled)');
+            if (openStage) selectStage(openStage);
+            openModal();
+        });
         closeBtn.addEventListener('click', closeModal);
         cancelBtn.addEventListener('click', closeModal);
         modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
@@ -726,6 +805,17 @@
 
     function openBillingModal()  { billingModal.classList.add('show');    document.body.style.overflow = 'hidden'; }
     function closeBillingModal() { billingModal.classList.remove('show'); document.body.style.overflow = ''; }
+
+    // Subject follows Billing For — unless the admin typed their own subject
+    const billingStageSelect = document.getElementById('billingStageSelect');
+    const billingSubject     = document.getElementById('billingSubjectInput');
+    if (billingStageSelect && billingSubject) {
+        const subjects = JSON.parse(billingSubject.dataset.subjects || '{}');
+        const isAuto   = () => billingSubject.value.trim() === '' || Object.values(subjects).includes(billingSubject.value);
+        billingStageSelect.addEventListener('change', () => {
+            if (isAuto()) billingSubject.value = subjects[billingStageSelect.value] || subjects[''];
+        });
+    }
 
     if (billingBtn) {
         billingBtn.addEventListener('click', openBillingModal);

@@ -288,6 +288,7 @@
         quotation_request_declined:      'x-circle',
         quotation_request_quotation_sent: 'file-text',
         quotation_request_approved:       'thumbs-up',
+        purchase_order_received:          'file-signature',
     };
 
     const priorityClass = {
