@@ -83,6 +83,7 @@
         .lg-field { margin-bottom: 16px; }
         .lg-label-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 7px; }
         .lg-label { font-size: 12.5px; font-weight: 800; color: var(--dark); }
+        .lg-forgot-row { display: flex; justify-content: flex-end; margin-top: 8px; }
         .lg-forgot { font-size: 12.5px; font-weight: 700; color: var(--muted); text-decoration: none; transition: color .2s; }
         .lg-forgot:hover { color: var(--dark); text-decoration: underline; text-decoration-color: var(--accent); text-decoration-thickness: 2px; text-underline-offset: 3px; }
         .lg-input-wrap { position: relative; }
@@ -289,7 +290,6 @@
                     <div class="lg-field">
                         <div class="lg-label-row">
                             <label class="lg-label" for="loginPassword">Password</label>
-                            <a href="{{ route('password.request') }}" class="lg-forgot">Forgot password?</a>
                         </div>
                         <div class="lg-input-wrap">
                             <i data-lucide="lock" class="lg-lead"></i>
@@ -299,6 +299,9 @@
                             <button type="button" id="toggleLoginPw" class="lg-eye" aria-label="Show password">
                                 <i data-lucide="eye"></i>
                             </button>
+                        </div>
+                        <div class="lg-forgot-row">
+                            <a href="{{ route('password.request') }}" class="lg-forgot">Forgot password?</a>
                         </div>
                     </div>
 
