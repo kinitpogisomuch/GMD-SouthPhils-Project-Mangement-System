@@ -193,11 +193,8 @@
                                         'quantity'        => $qr->quantity,
                                         'target_timeline' => $qr->target_timeline_display,
                                     ]],
-                                    'location'          => match ($qr->fulfillmentInfo()['key']) {
-                                        'pickup' => 'For pick-up (no delivery address)',
-                                        'onsite' => 'Assembled on site at: ' . ($qr->location ?: '—'),
-                                        default  => $qr->location,
-                                    },
+                                    // only an on-site assembly has a place worth showing (pick-up is at GMD's shop)
+                                    'location'          => $qr->fulfillmentInfo()['key'] === 'onsite' ? ($qr->location ?: '—') : null,
                                     'notes'             => $qr->notes,
                                     'reference_files'   => $qr->reference_files ?? [],
                                     'quotation_files'   => !empty($qr->quotation_files) ? [$qr->quotation_files] : [],
@@ -269,13 +266,7 @@
                                     <button class="action-btn view view-request-btn" type="button" title="View Request" aria-label="View request">
                                         <i data-lucide="eye"></i>
                                     </button>
-                                    @if($qr->batch_id && $qr->status !== 'declined')
-                                    <a class="action-btn view" title="{{ in_array($qr->status, ['pending', 'in_preparation']) ? 'Costing' : 'Open Quotation' }}"
-                                       aria-label="Open quotation builder"
-                                       href="{{ route('admin.quotation_requests.batch_detail', $qr->batch_id) }}">
-                                        <i data-lucide="calculator"></i>
-                                    </a>
-                                    @endif
+                                    {{-- the costing / quotation page opens from the View pop-up (Start Costing / Open Quotation) --}}
                                     @if($qr->status === 'approved' && $qr->hasPurchaseOrder())
                                     <a class="action-btn view" type="button" title="Convert to Project"
                                        href="{{ route('admin.projects', ['prefill_quotation_batch' => $qr->batch_id]) }}">
@@ -423,8 +414,8 @@
                         <label>Email</label>
                         <input type="text" id="viewRequestClientEmail" disabled>
                     </div>
-                    <div class="form-group form-group-full">
-                        <label>Location</label>
+                    <div class="form-group form-group-full" id="viewRequestLocationGroup" style="display:none;">
+                        <label>Site Location <span style="font-weight:400;color:var(--muted);">(assembled on site)</span></label>
                         <textarea id="viewRequestLocation" rows="2" disabled style="resize:none;"></textarea>
                     </div>
                     <div class="form-group form-group-full" id="viewRequestNotesGroup" style="display:none;">
@@ -458,6 +449,13 @@
                             <i data-lucide="calculator"></i> Start Costing
                         </a>
                     </div>
+                </div>
+
+                <!-- Quotation already made (sent / approved / converted): open its page — view, withdraw & revise, PDF -->
+                <div id="openQuotationSection" style="display:none;margin-bottom:14px;">
+                    <a id="openQuotationBtn" href="#" class="cancel-btn" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
+                        <i data-lucide="file-text"></i> Open Quotation
+                    </a>
                 </div>
 
                 <!-- Awaiting client approval -->
@@ -574,7 +572,8 @@
                     document.getElementById('viewRequestClientName').value    = r.client_name;
                     document.getElementById('viewRequestClientContact').value = r.client_contact;
                     document.getElementById('viewRequestClientEmail').value   = r.client_email;
-                    document.getElementById('viewRequestLocation').value      = r.location;
+                    document.getElementById('viewRequestLocation').value      = r.location || '';
+                    document.getElementById('viewRequestLocationGroup').style.display = r.location ? '' : 'none';
 
                     var tankItemsWrap = document.getElementById('viewRequestTankItems');
                     tankItemsWrap.innerHTML = (r.tank_items || []).map(function (item) {
@@ -694,6 +693,11 @@
                     document.getElementById('awaitingApprovalSection').style.display = 'none';
                     document.getElementById('readyToConvertSection').style.display   = 'none';
                     document.getElementById('awaitingPoSection').style.display       = 'none';
+
+                    // any quotation past costing (and not declined) can still be opened from here
+                    var hasQuotation = r.batch_id && ['pending', 'in_preparation', 'declined'].indexOf(r.status) === -1;
+                    document.getElementById('openQuotationSection').style.display = hasQuotation ? '' : 'none';
+                    if (hasQuotation) document.getElementById('openQuotationBtn').href = r.build_quotation_url;
 
                     if (r.status === 'pending' || r.status === 'in_preparation') {
                         document.getElementById('sendQuotationSection').style.display = '';

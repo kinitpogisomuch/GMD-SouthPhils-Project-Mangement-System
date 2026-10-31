@@ -173,7 +173,8 @@
 
 @if($messagingUnlocked)
 {{-- Floating chat launcher --}}
-<div style="position:fixed;bottom:24px;right:24px;z-index:9997;" id="chatPopupWrap">
+{{-- z-index 450: above the page and header (200–300), below every pop-up (.modal-overlay 500, lightbox 700, file viewer 1000) --}}
+<div style="position:fixed;bottom:24px;right:24px;z-index:450;" id="chatPopupWrap">
     <button type="button" id="chatPopupBtn" title="Messages"
         style="position:relative;width:52px;height:52px;border-radius:50%;background:var(--dark);color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 26px rgba(0,0,0,.28);transition:transform .18s ease;"
         onmouseover="this.style.transform='scale(1.06)'" onmouseout="this.style.transform='scale(1)'">

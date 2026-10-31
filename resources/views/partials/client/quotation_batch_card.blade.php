@@ -214,7 +214,8 @@
             <div class="qc-fact qc-fact-wide"><span>Payment Terms</span><strong>{{ $snap['payment_terms'] ?? '—' }}</strong></div>
         </div>
         <div class="qc-files" style="border-top:1px dashed #c7d7fe;">
-            <a href="{{ route('client.quotation.show', $first->batch_id) }}" class="qc-file"><i data-lucide="eye"></i> View full quotation</a>
+            {{-- opens in the in-page viewer (ctrl/middle-click still opens a tab) --}}
+            <a href="{{ route('client.quotation.show', $first->batch_id) }}" target="_blank" data-receipt="doc" class="qc-file"><i data-lucide="eye"></i> View full quotation</a>
             <a href="{{ route('client.quotation.pdf', [$first->batch_id, $latestVersion->version]) }}" class="qc-file"><i data-lucide="download"></i> Download PDF</a>
             @if(!empty($quotationBatch->quotation_files))
                 <span data-receipt-set style="display:contents;">
@@ -272,7 +273,7 @@
         <i data-lucide="gavel"></i> Your decision
     </div>
     <div class="qc-decision">
-        <a href="{{ route('client.quotation.show', $first->batch_id) }}" class="save-btn" style="text-decoration:none;">
+        <a href="{{ route('client.quotation.show', $first->batch_id) }}" target="_blank" data-receipt="doc" class="save-btn" style="text-decoration:none;">
             <i data-lucide="file-search"></i>
             Review &amp; Decide
         </a>

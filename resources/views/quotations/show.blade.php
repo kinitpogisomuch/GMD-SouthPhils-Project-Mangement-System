@@ -65,9 +65,22 @@
 <body>
     @include('partials.submit_guard')
 
+    {{-- ?embed=1: shown inside the in-page viewer (client's quotation card) — no "Back"; the viewer has its own close
+         button, and a decision reloads the whole page (target="_top") so the client lands back on their card --}}
+    @php $embedded = request()->boolean('embed'); @endphp
+    @if($embedded)
+    <style>
+        body { background: #fff; }
+        .qv-toolbar { justify-content: flex-end; }
+        .qv-sheet { box-shadow: none; }
+    </style>
+    @endif
+
     <div class="qv-wrap">
         <div class="qv-toolbar">
+            @unless($embedded)
             <a class="qv-back" href="{{ $backUrl }}"><i data-lucide="arrow-left" style="width:15px;height:15px;"></i> {{ $backLabel }}</a>
+            @endunless
             <div class="qv-actions">
                 @if($pdfUrl)
                 <a class="qv-btn" href="{{ $pdfUrl }}"><i data-lucide="download"></i> Download PDF</a>
@@ -104,7 +117,7 @@
             <p>Each revision is kept. The newest one is the quotation in effect; earlier versions are for reference only.</p>
             <div class="qv-versions">
                 @foreach($versions as $v)
-                <a href="{{ $v['url'] }}" class="qv-version {{ $v['current'] ? 'is-current' : '' }}">
+                <a href="{{ $v['url'] }}{{ $embedded ? (str_contains($v['url'], '?') ? '&' : '?') . 'embed=1' : '' }}" class="qv-version {{ $v['current'] ? 'is-current' : '' }}">
                     {{ $v['number'] }} <span class="qv-pill {{ $v['badge'] }}">{{ $v['label'] }}</span>
                 </a>
                 @endforeach
@@ -124,7 +137,7 @@
         <div class="qv-modal-card">
             <h3 id="qvApproveTitle">Approve this quotation?</h3>
             <p>You are approving <strong>{{ $doc['quotation_number'] }}</strong> for <strong>₱{{ number_format($doc['totals']['total'], 2) }}</strong>. Next, you'll send GMD South Phils your Purchase Order — they set up your project and payment schedule once they receive it.</p>
-            <form method="POST" action="{{ $decision['approve_url'] }}">
+            <form method="POST" action="{{ $decision['approve_url'] }}" @if($embedded) target="_top" @endif>
                 @csrf
                 <input type="hidden" name="version_id" value="{{ $decision['version_id'] }}">
                 <div class="qv-actions">
@@ -138,7 +151,7 @@
         <div class="qv-modal-card">
             <h3 id="qvRevisionTitle">Request a revision</h3>
             <p>Tell GMD what you would like changed. They will prepare an updated quotation; this version stays on record.</p>
-            <form method="POST" action="{{ $decision['revision_url'] }}">
+            <form method="POST" action="{{ $decision['revision_url'] }}" @if($embedded) target="_top" @endif>
                 @csrf
                 <input type="hidden" name="version_id" value="{{ $decision['version_id'] }}">
                 <textarea name="reason" required maxlength="1000" placeholder="e.g. Please quote a 4.5 mm shell instead, or adjust the delivery date…"></textarea>
@@ -153,7 +166,7 @@
         <div class="qv-modal-card">
             <h3 id="qvRejectTitle">Reject this quotation?</h3>
             <p>This closes the request — GMD will not prepare another quotation for it. If you only want changes, choose <strong>Request Revision</strong> instead.</p>
-            <form method="POST" action="{{ $decision['reject_url'] }}">
+            <form method="POST" action="{{ $decision['reject_url'] }}" @if($embedded) target="_top" @endif>
                 @csrf
                 <input type="hidden" name="version_id" value="{{ $decision['version_id'] }}">
                 <textarea name="reason" maxlength="1000" placeholder="Reason (optional)"></textarea>
