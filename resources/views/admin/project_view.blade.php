@@ -6,6 +6,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Project View | GMD South Phils</title>
     <link href="{{ asset('css/admin.css') }}" rel="stylesheet">
+    <style>
+        /* the progress form's button row: hidden (line and all) when there is no button to show,
+           e.g. Planning → Payment before the down payment is settled */
+        #progressFormFooter:not(:has(button, a)) { display: none !important; }
+    </style>
 </head>
 <body class="page-enter">
 
@@ -945,7 +950,8 @@
 
                         @endif
 
-                        @unless($project->current_phase === 'planning' && in_array($subPhase, ['shop_drawing', 'quotation']))
+                        {{-- not asked anywhere in Planning (incl. Payment) — the server records today's date --}}
+                        @unless($project->current_phase === 'planning')
                         <div class="form-group" style="margin-top:14px;">
                             <label class="log-label">DATE OF WORK
                                 <span style="font-weight:400;color:var(--muted);text-transform:none;">(defaults to today — set an earlier date when backfilling history)</span>
@@ -1278,7 +1284,8 @@
                         </div>
                     </div>
                     @empty
-                    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:16px;padding:30px 20px;">
+                    {{-- fills the card so the message sits in its middle --}}
+                    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:16px;padding:30px 20px;">
                         <div style="width:64px;height:64px;border-radius:50%;background:var(--surface-2);display:flex;align-items:center;justify-content:center;">
                             <i data-lucide="send" style="width:32px;height:32px;color:var(--muted);"></i>
                         </div>

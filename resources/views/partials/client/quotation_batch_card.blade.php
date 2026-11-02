@@ -211,7 +211,7 @@
         <div class="qc-facts">
             <div class="qc-fact"><span>Date</span><strong>{{ $latestVersion->sent_at?->format('M d, Y') }}</strong></div>
             <div class="qc-fact"><span>Total Amount</span><strong>₱{{ number_format($latestVersion->contract_value, 2) }}</strong></div>
-            <div class="qc-fact"><span>Quantity</span><strong>{{ $snap['tank']['quantity'] ?? '—' }} × ₱{{ number_format($snap['breakdown']['unit_price'] ?? 0, 2) }}</strong></div>
+            <div class="qc-fact"><span>Quantity</span><strong>{{ $snap['tank']['quantity'] ?? '—' }}</strong></div>
             <div class="qc-fact"><span>Valid Until</span><strong>{{ isset($snap['valid_until']) ? \Carbon\Carbon::parse($snap['valid_until'])->format('M d, Y') : '—' }}</strong></div>
             <div class="qc-fact qc-fact-wide"><span>Payment Terms</span><strong>{{ $snap['payment_terms'] ?? '—' }}</strong></div>
         </div>

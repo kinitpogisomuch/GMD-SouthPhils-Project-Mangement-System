@@ -7,6 +7,27 @@
     <title>{{ $step === 'document' ? 'Quotation Document' : 'Costing' }} — {{ $batch->client->name ?? 'Client' }} | GMD South Phils</title>
     <link href="{{ asset('css/admin.css') }}" rel="stylesheet">
     <style>
+        /* header: the client name on the left, compact action buttons beside it on the right */
+        .qb-pagehead { align-items: flex-start; }   /* own name: .qb-head is the costing card's header further down */
+        .qb-head-text { flex: 1 1 360px; min-width: 0; }
+        .qb-head-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; align-items: center; margin-left: auto; }
+        .qb-head-actions form { margin: 0; }
+        .qb-head-actions .add-btn, .qb-head-actions .cancel-btn {
+            display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 14px;
+            font-size: 12.5px; border-radius: 10px; white-space: nowrap; box-sizing: border-box;
+        }
+        .qb-head-actions .add-btn svg, .qb-head-actions .cancel-btn svg { width: 15px; height: 15px; }
+        /* with "Save as Standard Size": the buttons stack, Generate Quotation Document on top, both the same width */
+        .qb-head-actions:has(#openStandardSizeModal) { flex-direction: column; align-items: stretch; flex-wrap: nowrap; }
+        .qb-head-actions:has(#openStandardSizeModal) > * { justify-content: center; }
+        .qb-head-actions #openStandardSizeModal { order: 2; background: #F5B400; border-color: #F5B400; color: #1a1a1a; }
+        .qb-head-actions #openStandardSizeModal:hover { background: #E0A400; border-color: #E0A400; }
+        @media (max-width: 640px) {
+            .qb-head-actions { width: 100%; justify-content: stretch; margin-left: 0; }
+            .qb-head-actions > * { flex: 1 1 auto; }
+            .qb-head-actions .add-btn, .qb-head-actions .cancel-btn { width: 100%; justify-content: center; }
+        }
+
         #materialsTable th.num-cell, #materialsTable td.num-cell,
         #laborTable th.num-cell, #laborTable td.num-cell { text-align: right; }
         #materialsTable tfoot td, #laborTable tfoot td {
@@ -316,7 +337,8 @@
         /* preview: the whole document, full length — the page scrolls, not the panel */
         .qd-preview { display: flex; flex-direction: column; min-width: 0; background: #eef0f3; border: 1px solid var(--border); border-radius: 20px;
                       box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 14px 34px rgba(0,0,0,.06); }
-        .qd-preview-head { position: sticky; top: calc(var(--header-height, 64px) + 10px); z-index: 3; display: flex; align-items: center; gap: 12px;
+        /* stays at the top of the preview card — it no longer follows the page while scrolling */
+        .qd-preview-head { position: relative; z-index: 3; display: flex; align-items: center; gap: 12px;
                            padding: 12px 16px; border-bottom: 1px solid var(--border); background: rgba(255,255,255,.96); backdrop-filter: blur(8px);
                            border-radius: 20px 20px 0 0; }
         .qd-preview-icon { width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: #333; color: #F5B400; }
@@ -344,7 +366,6 @@
         }
         @media (max-width: 600px) {
             .qd-fields { grid-template-columns: 1fr; }
-            .qd-preview-head { top: calc(var(--header-height, 64px) + 4px); }
         }
         @media (max-width: 600px) {
         }
@@ -372,8 +393,8 @@
                 $requestMeta  = $tankItems->first();
                 $latestSent   = $versions->first();
             @endphp
-            <div class="page-header" style="flex-wrap:wrap;gap:12px;">
-                <div>
+            <div class="page-header qb-pagehead" style="flex-wrap:wrap;gap:12px;">
+                <div class="qb-head-text">
                     <h1>{{ $batch->client->name ?? 'Client' }}</h1>
                     <p>
                         <strong style="color:var(--dark);">{{ $batch->reference_no }}</strong>
@@ -387,7 +408,7 @@
                           @endif
                     </p>
                 </div>
-                <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                <div class="qb-head-actions">
                     @if($standardSizeOffer)
                     <button class="cancel-btn" type="button" id="openStandardSizeModal" style="display:inline-flex;align-items:center;gap:6px;">
                         <i data-lucide="bookmark-plus"></i>
