@@ -245,7 +245,8 @@ class OnlinePayments
                 'reference' => $locked->reference, 'provider_payment_id' => $providerPaymentId,
                 'stage' => $locked->payment_stage, 'amount' => $amount, 'method' => $method,
             ], $actor);
-            NotificationService::paymentRecorded($payment, $transaction);
+            // the client just paid this themselves and saw it confirmed on the page — no "Payment Received"
+            // notification for them; GMD's admins are still told
             NotificationService::onlinePaymentConfirmed($locked, $transaction);
             NotificationService::syncPaymentDue($payment);
         } elseif ($outcome === 'mismatch') {

@@ -68,13 +68,15 @@ class PaymentController extends Controller
         ]))->count();
         $pendingDown = $payments->filter(fn($p) => $p->computeStatus() === 'Pending Down Payment')->count();
 
-        // Same split as the Projects page. Active: one row per in-progress project — including ones with
-        // no payment setup yet, so admin can spot them. Completed / Archived: grouped by client, and the
-        // client's page lists those projects' payments.
+        // Active: one row per in-progress project — including ones with no payment setup yet, so admin
+        // can spot them — plus completed projects that still have a balance. A completed project only
+        // moves to Completed once fully paid. Completed / Archived: grouped by client, and the client's
+        // page lists those projects' payments.
         $projects        = Project::orderBy('created_at', 'desc')->get();
         $paymentByProject = $payments->filter(fn (Payment $p) => $p->project_id)->keyBy('project_id');
+        $hasBalance       = fn (Project $p) => round($paymentByProject->get($p->id)?->currentBalance() ?? 0, 2) > 0;
 
-        $activeRows = $projects->whereNotIn('status', ['completed', 'archived'])
+        $activeRows = $projects->filter(fn (Project $p) => $p->status !== 'archived' && ($p->status !== 'completed' || $hasBalance($p)))
             ->map(function (Project $project) use ($paymentByProject) {
                 $payment = $paymentByProject->get($project->id);
                 $status  = $payment?->computeStatus();
@@ -95,7 +97,7 @@ class PaymentController extends Controller
             ->sortBy(fn ($row) => $row['awaiting_stage'] ? 0 : 1)
             ->values();
 
-        $completedGroups = $this->paymentClientGroups($projects->where('status', 'completed'), $paymentByProject);
+        $completedGroups = $this->paymentClientGroups($projects->where('status', 'completed')->reject($hasBalance), $paymentByProject);
         $archivedGroups  = $this->paymentClientGroups($projects->where('status', 'archived'), $paymentByProject);
 
         $tab = in_array(request('tab'), ['active', 'completed', 'archived'], true) ? request('tab') : 'active';
@@ -206,6 +208,9 @@ class PaymentController extends Controller
                 ->orderBy('created_at', 'desc')
                 ->get();
         }
+
+        // a completed project with a balance left is still listed under Active
+        $payments = $payments->reject(fn (Payment $p) => $p->project->status === 'completed' && round($p->currentBalance(), 2) > 0)->values();
 
         if ($payments->isEmpty()) {
             return redirect()->route('admin.payments');

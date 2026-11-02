@@ -805,7 +805,6 @@
                                 // tallies how many times each test has been logged as passed.
                                 $inspectionCounts   = $project->inspectionPassCounts();
                                 $inspectionTests = [
-                                    'pressure_test_passed'  => ['gauge',    'Pressure Test Passed'],
                                     'soap_testing_passed'   => ['droplets', 'Soap Testing Passed'],
                                     'pneumatic_test_passed' => ['wind',     'Pneumatic Test Passed'],
                                     'leak_test_passed'      => ['droplet',  'Leak Test Passed'],

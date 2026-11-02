@@ -722,7 +722,7 @@ class NotificationService
         );
     }
 
-    /** An online payment was verified with the gateway and recorded → tell admins (the client gets "Payment Received") */
+    /** An online payment was verified with the gateway and recorded → tell admins (the client paid it themselves, so they are not notified) */
     public static function onlinePaymentConfirmed(\App\Models\OnlinePayment $online, PaymentTransaction $transaction): void
     {
         $payment = $online->payment()->with('project', 'transactions')->first();

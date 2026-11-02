@@ -53,8 +53,8 @@
                     Payments
                 </a>
                 <i data-lucide="chevron-right" style="width:14px;height:14px;"></i>
-                @if(in_array($payment->project?->status, ['completed', 'archived'], true))
-                {{-- finished projects' payments are listed on their client's page; active ones on the Payments page itself --}}
+                @if($payment->project?->status === 'archived' || ($payment->project?->status === 'completed' && round($payment->currentBalance(), 2) <= 0))
+                {{-- finished, fully paid projects' payments are listed on their client's page; active ones (and completed ones with a balance) on the Payments page itself --}}
                 <a href="{{ route('admin.payments.client', ['client' => $payment->project->client_id ?: $payment->client, 'tab' => $payment->project->status]) }}" style="color:var(--muted);text-decoration:none;font-weight:600;">
                     {{ $payment->client }}
                 </a>

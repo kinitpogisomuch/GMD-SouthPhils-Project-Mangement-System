@@ -387,7 +387,7 @@
                                                 <tr><td>Procurement</td><td>Nothing — unlocks once materials & labor are recorded</td><td>—</td></tr>
                                                 <tr><td>Material Prep</td><td>Check off Measuring & Marking</td><td>"Save Progress Update"</td></tr>
                                                 <tr><td>Fabrication</td><td>Check off Cutting, Assembly, Welding</td><td>"Save Progress Update"</td></tr>
-                                                <tr><td>Inspection</td><td>Check off Pressure Test & Soap Test</td><td>"Save Progress Update"</td></tr>
+                                                <tr><td>Inspection</td><td>Check off the tests that passed (Soap, Pneumatic, Leak)</td><td>"Save Progress Update"</td></tr>
                                                 <tr><td>Painting</td><td>Upload photos + optional notes</td><td>"Save Progress Update"</td></tr>
                                                 <tr><td>Completion</td><td>Upload final photos + optional notes — this marks the project <strong>Completed</strong> (100%)</td><td>"Mark as Completed"</td></tr>
                                                 <tr><td>For Pickup</td><td>Confirm final payment, upload pick-up photos — pick-up is tracked separately from completion</td><td>"Mark as Picked Up"</td></tr>

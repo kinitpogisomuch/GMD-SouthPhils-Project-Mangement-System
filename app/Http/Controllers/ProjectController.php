@@ -1343,7 +1343,6 @@ class ProjectController extends Controller
     private function handleInspection(Request $request, Project $project)
     {
         $request->validate([
-            'pressure_test_passed'  => 'nullable|boolean',
             'soap_testing_passed'   => 'nullable|boolean',
             'pneumatic_test_passed' => 'nullable|boolean',
             'leak_test_passed'      => 'nullable|boolean',
@@ -1353,7 +1352,7 @@ class ProjectController extends Controller
 
         // "Save Progress" logs the tests that passed this round, so at least one must be ticked.
         // ("Mark as Completed" may be clicked with none ticked — it checks the passes logged so far.)
-        $testKeys = ['pressure_test_passed', 'soap_testing_passed', 'pneumatic_test_passed', 'leak_test_passed'];
+        $testKeys = Project::INSPECTION_TESTS;
         $anyTicked = collect($testKeys)->contains(fn ($key) => $request->boolean($key));
         if (!$request->boolean('mark_completed') && !$anyTicked) {
             throw \Illuminate\Validation\ValidationException::withMessages([
@@ -1372,7 +1371,6 @@ class ProjectController extends Controller
         $existing = $project->phaseData('inspection', []);
         $tests    = $project->inspectionPassCounts();
         $testLabels = [
-            'pressure_test_passed'  => 'Pressure Test',
             'soap_testing_passed'   => 'Soap Testing',
             'pneumatic_test_passed' => 'Pneumatic Test',
             'leak_test_passed'      => 'Leak Test',

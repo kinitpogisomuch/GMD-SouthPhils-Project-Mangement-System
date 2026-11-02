@@ -296,7 +296,7 @@ class Project extends Model
         return $this->hasMany(ProjectMaterial::class)->where('status', 'active');
     }
 
-    const INSPECTION_TESTS = ['pressure_test_passed', 'soap_testing_passed', 'pneumatic_test_passed', 'leak_test_passed'];
+    const INSPECTION_TESTS = ['soap_testing_passed', 'pneumatic_test_passed', 'leak_test_passed'];   // the Pressure Test was dropped from the checklist
 
     /**
      * How many times each inspection test has been logged as passed. Different
