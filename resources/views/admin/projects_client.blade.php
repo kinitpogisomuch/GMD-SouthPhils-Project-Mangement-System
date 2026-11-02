@@ -83,7 +83,7 @@
                                 <th style="text-align:center;">Start Date</th>
                                 <th style="text-align:center;">End Date</th>
                                 <th style="text-align:center;">Project Status</th>
-                                <th class="delivery-status-col" style="text-align:center;">Delivery Status</th>
+                                <th class="delivery-status-col" style="text-align:center;">Pickup Status</th>
                                 <th style="text-align:center;">Payment</th>
                                 <th style="text-align:center;">Progress</th>
                                 <th style="text-align:center;">Action</th>

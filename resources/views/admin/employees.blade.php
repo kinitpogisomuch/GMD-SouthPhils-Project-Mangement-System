@@ -724,6 +724,11 @@
         </div>
     </div>
 
+    <style>
+        @keyframes poSpin { to { transform: rotate(360deg); } }
+        .po-btn-spinner { display: inline-block; width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(255,255,255,.35); border-top-color: #fff; animation: poSpin .8s linear infinite; vertical-align: -2px; }
+    </style>
+
     <!-- ===== SALARY DETAIL MODAL ===== -->
     <div class="modal-overlay" id="salaryDetailModal">
         <div class="modal-card" style="max-width: 520px;">
@@ -744,24 +749,6 @@
                     Print Slip
                 </button>
             </div>
-        </div>
-    </div>
-
-    <!-- ===== GCASH QR PREVIEW MODAL ===== -->
-    <!-- Opens on top of Record Salary — needs a higher z-index since same-z-index
-         .modal-overlays otherwise stack by DOM order, not open order. -->
-    <div class="modal-overlay" id="gcashQrPreviewModal" style="z-index:600;">
-        <div class="modal-card" style="max-width:360px;text-align:center;">
-            <div class="modal-header">
-                <div>
-                    <h2 style="font-size:16px;">GCash QR Code</h2>
-                    <p id="gcashQrPreviewName"></p>
-                </div>
-                <button class="modal-close" type="button" onclick="closeGcashQrPreview()">
-                    <i data-lucide="x"></i>
-                </button>
-            </div>
-            <img id="gcashQrPreviewImg" src="" alt="GCash QR" style="width:100%;max-width:300px;aspect-ratio:1;object-fit:contain;border-radius:12px;background:#fff;border:1px solid var(--border);margin:0 auto;">
         </div>
     </div>
 
@@ -884,36 +871,6 @@
                     </div>
                 </div>
 
-                {{-- ── Payment Method ── --}}
-                <div style="margin-bottom:14px;">
-                    <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px;">Payment Method</div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;" id="rpPaymentMethodGroup">
-                        <label class="mop-option" for="rpPmCash">
-                            <input type="radio" name="rpPaymentMethod" id="rpPmCash" value="cash" checked style="display:none;" onchange="highlightSalaryPm()">
-                            <i data-lucide="banknote" style="width:16px;height:16px;"></i>
-                            Cash
-                        </label>
-                        <label class="mop-option" for="rpPmGcash">
-                            <input type="radio" name="rpPaymentMethod" id="rpPmGcash" value="gcash" style="display:none;" onchange="highlightSalaryPm()">
-                            <i data-lucide="smartphone" style="width:16px;height:16px;"></i>
-                            GCash
-                        </label>
-                    </div>
-
-                    <div id="rpGcashQrBox" style="display:none;margin-top:10px;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--cream-soft);align-items:center;gap:14px;">
-                        <img id="rpGcashQrImg" src="" alt="GCash QR" title="Click to enlarge"
-                             style="width:96px;height:96px;object-fit:contain;border-radius:8px;background:#fff;border:1px solid var(--border);flex-shrink:0;cursor:pointer;"
-                             onclick="openGcashQrPreview()">
-                        <div style="font-size:12px;color:var(--muted);">
-                            <div style="font-weight:700;color:var(--dark);margin-bottom:2px;">Scan to pay via GCash</div>
-                            This is <span id="rpGcashQrEmpName">this employee</span>'s registered GCash QR code.
-                        </div>
-                    </div>
-                    <div id="rpGcashQrMissing" style="display:none;margin-top:10px;padding:10px 12px;border:1px solid #fde68a;border-radius:12px;background:#fffbeb;color:#92400e;font-size:12px;font-weight:600;">
-                        This employee hasn't uploaded a GCash QR code yet.
-                    </div>
-                </div>
-
                 {{-- ── Pay Breakdown ── --}}
                 <div id="rpPayBreakdown" style="display:none;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:14px;">
                     <div style="background:var(--dark);padding:10px 14px;">
@@ -976,7 +933,7 @@
                     </button>
                     <button type="button" class="cancel-btn" id="cancelRecordPayment">Cancel</button>
                     <button type="submit" class="save-btn" id="recordPaymentSubmitBtn">
-                        <i data-lucide="save"></i> Save Record
+                        <i data-lucide="send"></i> Pay Now
                     </button>
                 </div>
             </form>
@@ -1239,7 +1196,8 @@
                 document.getElementById('salaryJumpPanel').classList.remove('show');
             });
 
-            if (activeTab === 'salary') loadSalaryRecords(TODAY_PAY_PERIOD);
+            // back from PayMongo: open on the week that was paid
+            if (activeTab === 'salary') loadSalaryRecords(@json(session('salary_period')) || TODAY_PAY_PERIOD);
         });
     })();
 
@@ -1247,6 +1205,7 @@
 
     var SALARY_INDEX_URL    = '{{ route("admin.salary.index") }}';
     var SALARY_STORE_URL    = '{{ route("admin.salary.store") }}';
+    var SALARY_PAY_NOW_URL  = '{{ route("admin.salary.pay_now") }}';
     var SALARY_PROJECTS_URL = '{{ route("admin.salary.projects") }}';
     var CSRF                = '{{ csrf_token() }}';
     var SALARY_PROJECTS_CACHE = null;
@@ -1371,7 +1330,6 @@
     var pickedSalaryEmployee = null;
     var CURRENT_SALARY_RECORDS = [];
     var currentSalaryPeriod = null;
-    var currentSalaryGcashQr = null;
 
     // Returns the Monday of the week containing `date`, formatted as "YYYY-MM-DD"
     function currentPayPeriod() {
@@ -1551,7 +1509,7 @@
             var viewBtn = hasRecord
                 ? '<button class="action-btn view" title="View Payslip" onclick="openSalaryDetail(' + idx + ')" style="color:#2563eb;"><i data-lucide="receipt-text" ' + iconStyle + '></i></button>'
                 : '<button class="action-btn" title="No record yet" disabled style="opacity:.3;cursor:default;"><i data-lucide="receipt-text" ' + iconStyle + '></i></button>';
-            var editBtn = '<button class="action-btn view" title="Edit" onclick="openSalaryModal(' + idx + ')"><i data-lucide="pencil" ' + iconStyle + '></i></button>';
+            var editBtn = '<button class="action-btn view" title="Record Salary" onclick="openSalaryModal(' + idx + ')"><i data-lucide="clipboard-pen-line" ' + iconStyle + '></i></button>';
             var delBtn  = (r.employee_type === 'Outsourced' && hasRecord)
                 ? '<button class="action-btn" title="Delete" style="color:#dc2626;" onclick="deleteSalaryRecord(' + r.id + ')"><i data-lucide="trash-2"></i></button>'
                 : '';
@@ -1615,10 +1573,6 @@
             periodEl.textContent = 'Week of ' + formatPayPeriodDate(d) + ' – ' + formatPayPeriodDate(e);
         }
 
-        currentSalaryGcashQr = gcashQr || null;
-        var qrNameEl = document.getElementById('rpGcashQrEmpName');
-        if (qrNameEl) qrNameEl.textContent = name || 'This employee';
-        highlightSalaryPm();
 
         if (typeof lucide !== 'undefined') lucide.createIcons();
     }
@@ -1692,6 +1646,7 @@
 
         document.getElementById('recordPaymentTitle').textContent    = rec.id ? 'Edit Salary Record' : 'Record Salary';
         document.getElementById('recordPaymentSubtitle').textContent = 'Update the weekly salary for ' + rec.employee_name + '.';
+        setRecordSubmitLabel(rec.status === 'Paid');
 
         setSalarySelectedEmployee(rec.employee_name, rec.role, rec.daily_rate, rec.employee_type, rec.pay_period, rec.profile_photo, rec.gcash_qr);
         document.getElementById('rpDailyRate').value      = rec.daily_rate;
@@ -1702,7 +1657,6 @@
         document.getElementById('rpHalfDays').value       = halfPart || '';
         document.getElementById('rpDays').value           = storedDays;
         document.getElementById('rpOvertimeHours').value  = rec.overtime_hours || '';
-        setSalaryPaymentMethod(rec.payment_method || 'cash');
         rpEditAllocations = rec.allocations || {};
         loadSalaryProjects(rec.project_ids || (rec.project_id ? [rec.project_id] : []));
 
@@ -1724,7 +1678,6 @@
         document.getElementById('rpHalfDays').value       = '';
         document.getElementById('rpDays').value           = '';
         document.getElementById('rpOvertimeHours').value  = '';
-        setSalaryPaymentMethod('cash');
         var pb = document.getElementById('rpPayBreakdown');
         var ap = document.getElementById('rpAllocationPreview');
         if (pb) pb.style.display = 'none';
@@ -1732,6 +1685,7 @@
 
         document.getElementById('recordPaymentTitle').textContent    = 'Add Outsourced Worker';
         document.getElementById('recordPaymentSubtitle').textContent = 'Select an outsourced worker to record their weekly salary.';
+        setRecordSubmitLabel(false);
 
         rpEditAllocations = {};
         loadSalaryProjects([]);
@@ -1740,47 +1694,6 @@
         renderSalaryEmployeePicker('');
         showSalaryStep(1);
         openEmpModal('recordPaymentModal');
-    }
-
-    function highlightSalaryPm() {
-        document.querySelectorAll('#rpPaymentMethodGroup .mop-option').forEach(function(lbl) {
-            var inp = lbl.querySelector('input[type=radio]');
-            lbl.classList.toggle('mop-selected', inp && inp.checked);
-        });
-
-        var pmChecked = document.querySelector('input[name="rpPaymentMethod"]:checked');
-        var isGcash   = pmChecked && pmChecked.value === 'gcash';
-        var qrBox     = document.getElementById('rpGcashQrBox');
-        var qrMissing = document.getElementById('rpGcashQrMissing');
-
-        if (isGcash && currentSalaryGcashQr) {
-            document.getElementById('rpGcashQrImg').src = currentSalaryGcashQr;
-            qrBox.style.display     = 'flex';
-            qrMissing.style.display = 'none';
-        } else if (isGcash) {
-            qrBox.style.display     = 'none';
-            qrMissing.style.display = 'block';
-        } else {
-            qrBox.style.display     = 'none';
-            qrMissing.style.display = 'none';
-        }
-    }
-
-    function openGcashQrPreview() {
-        if (!currentSalaryGcashQr) return;
-        document.getElementById('gcashQrPreviewImg').src         = currentSalaryGcashQr;
-        document.getElementById('gcashQrPreviewName').textContent = document.getElementById('salarySelectedName').textContent || '';
-        openEmpModal('gcashQrPreviewModal');
-    }
-
-    function closeGcashQrPreview() {
-        closeEmpModal('gcashQrPreviewModal');
-    }
-
-    function setSalaryPaymentMethod(method) {
-        var input = document.querySelector('input[name="rpPaymentMethod"][value="' + (method === 'gcash' ? 'gcash' : 'cash') + '"]');
-        if (input) input.checked = true;
-        highlightSalaryPm();
     }
 
     function updatePayPreview() {
@@ -1924,7 +1837,6 @@
                 });
             }
 
-            var pmChecked = document.querySelector('input[name="rpPaymentMethod"]:checked');
 
             var payload = {
                 employee_id:    document.getElementById('rpEmployee').value,
@@ -1933,12 +1845,15 @@
                 days_worked:    totalDays,
                 half_days:      halfD,
                 overtime_hours: totalOT,
-                payment_method: pmChecked ? pmChecked.value : 'cash',
+                payment_method: 'gcash',   // salaries are paid online (PayMongo)
                 allocations:    allocations,
             };
 
-            var url    = isEdit ? '/admin/salary-records/' + recordId : SALARY_STORE_URL;
-            var method = isEdit ? 'PUT' : 'POST';
+            // "Pay Now" saves nothing until PayMongo confirms the payment; "Save Changes" (a week already paid) just saves
+            var payNow = !RP_ALREADY_PAID;
+            if (payNow) payload.record_id = recordId || null;
+            var url    = payNow ? SALARY_PAY_NOW_URL : (isEdit ? '/admin/salary-records/' + recordId : SALARY_STORE_URL);
+            var method = payNow ? 'POST' : (isEdit ? 'PUT' : 'POST');
 
             // Labor is paid from what the client has paid so far. If this salary is more than a project
             // has received, the server sends the details back and nothing is saved until the admin
@@ -1957,6 +1872,12 @@
                 })
                 .then(function (r) { return r.json(); })
                 .then(function (data) {
+                    if (data.checkout_url) {
+                        // PayMongo's own page — the salary is saved when it sends the admin back paid
+                        submitBtn.innerHTML = '<span class="po-btn-spinner"></span> Opening PayMongo…';
+                        window.location.href = data.checkout_url;
+                        return;
+                    }
                     submitBtn.disabled = false;
                     if (data.fund_overrun) {
                         FundOverrun.open(data.fund_overrun, {
@@ -1965,16 +1886,17 @@
                         });
                         return;
                     }
-                    if (data.errors) {
-                        var msgs = Object.values(data.errors).flat().join(' ');
-                        errEl.textContent    = msgs;
+                    if (data.errors || (data.message && !data.record)) {
+                        errEl.textContent    = data.errors ? Object.values(data.errors).flat().join(' ') : data.message;
                         errEl.style.display  = 'block';
                         return;
                     }
-                    closeEmpModal('recordPaymentModal');
+                    // "Save Changes" on a week already paid
                     SALARY_PROJECTS_CACHE = null;   // what each project has spent just changed — reload it next time
+                    closeEmpModal('recordPaymentModal');
                     loadSalaryRecords(currentSalaryPeriod);
-                    showEmpToast((isEdit ? 'Salary record updated.' : 'Salary record saved.') + (useFund ? ' The amount over Total Received was covered by the revolving fund.' : ''));
+                    showEmpToast('Salary record updated — this week is already paid.'
+                        + (useFund ? ' The amount over Total Received was covered by the revolving fund.' : ''));
                 })
                 .catch(function () {
                     submitBtn.disabled   = false;
@@ -1985,6 +1907,16 @@
             sendSalary(false);
         });
     });
+
+    // ── Pay Now — the admin goes to PayMongo's checkout page like clients do (test mode: no real money) ──
+    // The Record Salary button: "Pay Now" for a week not paid yet; a week already paid only saves its changes
+    var RP_ALREADY_PAID = false;
+    function setRecordSubmitLabel(alreadyPaid) {
+        RP_ALREADY_PAID = !!alreadyPaid;
+        var btn = document.getElementById('recordPaymentSubmitBtn');
+        btn.innerHTML = alreadyPaid ? '<i data-lucide="save"></i> Save Changes' : '<i data-lucide="send"></i> Pay Now';
+        if (window.lucide) lucide.createIcons();
+    }
 
     function deleteSalaryRecord(id) {
         if (!confirm('Delete this salary record? This cannot be undone.')) return;
@@ -2300,31 +2232,6 @@
     font-size: 11.5px;
     margin-top: 4px;
     line-height: 1.4;
-}
-.mop-option {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 14px;
-    border: 1.5px solid var(--border);
-    border-radius: 12px;
-    cursor: pointer;
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--muted);
-    background: var(--white);
-    transition: all .18s ease;
-    user-select: none;
-}
-.mop-option:hover {
-    border-color: var(--dark);
-    color: var(--dark);
-}
-.mop-option.mop-selected {
-    background: var(--dark);
-    border-color: var(--dark);
-    color: #fff;
-    box-shadow: 0 4px 12px rgba(14,20,40,.25);
 }
 </style>
 </body>

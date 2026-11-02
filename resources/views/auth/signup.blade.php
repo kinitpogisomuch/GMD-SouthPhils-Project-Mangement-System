@@ -400,7 +400,7 @@
             <div class="su-pitch">
                 <div class="su-badge"><i data-lucide="user-plus"></i> Client Registration</div>
                 <h1>Create your <em>client account</em></h1>
-                <p>One portal for your steel tank projects — from your first quotation to delivery.</p>
+                <p>One portal for your steel tank projects — from your first quotation to pick-up.</p>
                 <ul class="su-perks">
                     <li><i data-lucide="file-text"></i> Request quotations online, no calls needed</li>
                     <li><i data-lucide="activity"></i> Follow every fabrication phase with photos</li>
@@ -738,7 +738,7 @@
                                 <div class="terms-split"><span style="flex:50"></span><span style="flex:50"></span></div>
                                 <ul>
                                     <li><span>Down payment, before work starts</span><b>50%</b></li>
-                                    <li><span>Final payment, before delivery</span><b>50%</b></li>
+                                    <li><span>Final payment, before pick-up</span><b>50%</b></li>
                                 </ul>
                             </div>
                             <div class="terms-plan">
@@ -748,7 +748,7 @@
                                 <ul>
                                     <li><span>Down payment, before work starts</span><b>50%</b></li>
                                     <li><span>Progress payment, during fabrication</span><b>30%</b></li>
-                                    <li><span>Final payment, before delivery</span><b>20%</b></li>
+                                    <li><span>Final payment, before pick-up</span><b>20%</b></li>
                                 </ul>
                             </div>
                         </div>
@@ -762,11 +762,11 @@
                 <section class="terms-sec">
                     <span class="terms-num">6</span>
                     <div class="terms-sec-body">
-                        <h3>Project Schedule, Completion and Delivery</h3>
+                        <h3>Project Schedule, Completion and Pick-up</h3>
                         <ul>
                             <li>Start and end dates are planned estimates covering the project from planning to completion. They may be adjusted because of material availability, specification changes, delayed payments, weather or other events outside our control.</li>
-                            <li>A project is completed once fabrication, inspection, painting and final output are done. Delivery or pick-up is arranged separately after completion and after the final payment is recorded.</li>
-                            <li>You can follow your project's phases, updates, photos and delivery status through the portal.</li>
+                            <li>A project is completed once fabrication, inspection, painting and final output are done. Pick-up is arranged separately after completion and after the final payment is recorded.</li>
+                            <li>You can follow your project's phases, updates, photos and pick-up status through the portal.</li>
                         </ul>
                     </div>
                 </section>
@@ -795,7 +795,7 @@
                     <span class="terms-num">9</span>
                     <div class="terms-sec-body">
                         <h3>Communications</h3>
-                        <p>By registering, you agree to receive emails and portal notifications about your registration status, account setup, quotations, project progress, delivery and payments.</p>
+                        <p>By registering, you agree to receive emails and portal notifications about your registration status, account setup, quotations, project progress, pick-up and payments.</p>
                     </div>
                 </section>
 

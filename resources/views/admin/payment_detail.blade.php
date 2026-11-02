@@ -115,8 +115,8 @@
             </div>
             @endif
 
-            {{-- The next phase to collect hasn't been billed yet: the client isn't asked to pay it (or upload proof)
-                 until a billing statement is sent — though they may pay it in advance online --}}
+            {{-- The next phase to collect hasn't been billed yet: the client can't pay it (or upload proof)
+                 until a billing statement is sent --}}
             @php
                 $billingPending = $payment->billingPendingStage();
                 $billingDraft   = $billingPending ? $payment->unsentStatementFor($billingPending) : null;
@@ -127,10 +127,7 @@
                 <div class="pd-billing-body">
                     <div class="pd-billing-title">Next bill not sent yet — {{ \App\Models\PaymentTransaction::stageLabel($billingPending) }} (₱{{ number_format($payment->stageAmountsDue()[$billingPending] ?? 0, 2) }})</div>
                     <div class="pd-billing-text">
-                        Send the billing statement when it's time to collect this phase — the client is notified and asked to pay only once it's sent.
-                        @if(app(\App\Services\OnlinePayments::class)->enabled())
-                        Until then they can still choose to pay it in advance online.
-                        @endif
+                        Send the billing statement when it's time to collect this phase — the client is notified and can pay only once it's sent.
                         @if($billingDraft)
                         <strong>A statement dated {{ $billingDraft->statement_date->format('M d, Y') }} is generated but not sent yet</strong> — review it, then press Send.
                         @endif
@@ -162,44 +159,67 @@
             </style>
             @endif
 
-            <!-- Summary Cards -->
-            <div class="page-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 24px;">
-                <div class="info-card teal">
-                    <div class="info-card-icon teal"><i data-lucide="file-text"></i></div>
-                    <h3>Contract Amount</h3>
-                    <div class="value">₱{{ number_format(round($payment->contract_amount), 0) }}</div>
-                    <div class="info-card-sub">{{ $payment->payment_terms }}</div>
-                </div>
-                <div class="info-card green">
-                    <div class="info-card-icon green"><i data-lucide="check-circle"></i></div>
-                    <h3>Total Paid</h3>
-                    <div class="value">₱{{ number_format(round($totalPaid), 0) }}</div>
-                    <div class="info-card-sub">
-                        {{ round($payment->contract_amount > 0 ? ($totalPaid / $payment->contract_amount) * 100 : 0, 1) }}% of contract
+            <!-- Summary Cards (same style as the Materials overview) -->
+            <div class="pk-overview">
+                <div class="pk-kpi">
+                    <div class="pk-kpi-icon" style="background:#EAF0FF;color:#2A4EAA;"><i data-lucide="file-text"></i></div>
+                    <div>
+                        <div class="pk-kpi-label">Contract Amount</div>
+                        <div class="pk-kpi-value">₱{{ number_format($payment->contract_amount, 2) }}</div>
+                        <div class="pk-kpi-sub">{{ $payment->payment_terms }}</div>
                     </div>
                 </div>
-                <div class="info-card blue">
-                    <div class="info-card-icon blue"><i data-lucide="alert-circle"></i></div>
-                    <h3>Remaining Balance</h3>
-                    <div class="value">₱{{ number_format(round($balance), 0) }}</div>
-                    <div class="info-card-sub">Still outstanding</div>
-                </div>
-                <div class="info-card orange">
-                    <div class="info-card-icon orange"><i data-lucide="badge-check"></i></div>
-                    <h3>Status</h3>
-                    <div style="margin-top:8px;">
-                        <span class="status-badge {{ \App\Models\Payment::statusBadgeClass($status) }}" style="font-size:13px;padding:6px 14px;">
-                            {{ $status }}
-                        </span>
+                <div class="pk-kpi">
+                    <div class="pk-kpi-icon" style="background:#E7F6EC;color:#207A3A;"><i data-lucide="check-circle"></i></div>
+                    <div>
+                        <div class="pk-kpi-label">Total Paid</div>
+                        <div class="pk-kpi-value">₱{{ number_format($totalPaid, 2) }}</div>
+                        <div class="pk-kpi-sub"><strong class="pk-tone-ok">{{ round($payment->contract_amount > 0 ? ($totalPaid / $payment->contract_amount) * 100 : 0, 1) }}%</strong> of contract</div>
                     </div>
-                    <div class="info-card-sub">Payment progress</div>
+                </div>
+                <div class="pk-kpi">
+                    <div class="pk-kpi-icon" style="background:#FEE2E2;color:#B91C1C;"><i data-lucide="alert-circle"></i></div>
+                    <div>
+                        <div class="pk-kpi-label">Remaining Balance</div>
+                        <div class="pk-kpi-value">₱{{ number_format($balance, 2) }}</div>
+                        <div class="pk-kpi-sub">Still outstanding</div>
+                    </div>
+                </div>
+                <div class="pk-kpi">
+                    <div class="pk-kpi-icon" style="background:#F3E8FF;color:#7C3AED;"><i data-lucide="badge-check"></i></div>
+                    <div style="min-width:0;">
+                        <div class="pk-kpi-label">Status</div>
+                        <div style="margin-top:5px;">
+                            <span class="status-badge {{ \App\Models\Payment::statusBadgeClass($status) }}">{{ $status }}</span>
+                        </div>
+                        <div class="pk-kpi-sub">Payment progress</div>
+                    </div>
                 </div>
             </div>
+            <style>
+                /* ── Summary cards: same look as the Materials overview cards ── */
+                .pk-overview { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:14px; margin:4px 0 24px; }
+                .pk-kpi { display:flex; align-items:flex-start; gap:14px; padding:16px 18px; background:var(--white); border:1px solid var(--border); border-radius:16px; box-shadow:0 1px 2px rgba(0,0,0,.03); }
+                .pk-kpi-icon { width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+                .pk-kpi-icon svg { width:20px; height:20px; }
+                .pk-kpi-label { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
+                .pk-kpi-value { margin-top:3px; font-size:20px; font-weight:900; color:var(--dark); letter-spacing:-.3px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+                .pk-kpi-sub { margin-top:4px; font-size:11.5px; font-weight:600; color:var(--muted); }
+                .pk-tone-ok { color:#16a34a; }
+                @media (max-width: 1100px) { .pk-overview { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+                @media (max-width: 640px) {
+                    .pk-overview { gap:10px; }
+                    .pk-kpi { padding:12px; }
+                    .pk-kpi-icon { display:none; }
+                    .pk-kpi-value { font-size:16px; }
+                    .pk-kpi-label { font-size:10px; }
+                }
+            </style>
 
             @php
-                // Online: only real payments — paid, still awaiting the bank, or flagged for review. Checkouts the
-                // client cancelled / let expire / the bank declined moved no money, so they're left out.
-                $onlinePayments = $onlinePayments->filter(fn ($op) => in_array($op->status, ['paid', 'pending'])
+                // Online: only money that really came in — paid, or paid but flagged for review. Checkouts still
+                // open, cancelled, expired or declined aren't payments, so they're left out.
+                $onlinePayments = $onlinePayments->filter(fn ($op) => $op->status === 'paid'
                     || ($op->status === 'failed' && str_contains((string) $op->failure_reason, 'manual review')));
                 // Proofs still waiting on GMD (not recorded, not sent back to the client)
                 $proofsToReview = $proofs->filter(fn ($p) => $p->status !== 'confirmed'
@@ -339,11 +359,6 @@
                                 <th style="text-align:center;">Method</th>
                                 <th style="text-align:left;">Reference / Transaction</th>
                                 <th style="text-align:center;">Status</th>
-                                {{-- only a checkout still awaiting the bank has something to do ("Check with PayMongo") --}}
-                                @php $onlineHasAction = $onlinePayments->contains(fn ($op) => $op->isPending() && $op->checkout_session_id); @endphp
-                                @if($onlineHasAction)
-                                <th style="text-align:center;">Action</th>
-                                @endif
                             </tr>
                         </thead>
                         <tbody>
@@ -359,16 +374,6 @@
                                     @if($op->failure_reason)<div style="color:#b45309;">{{ $op->failure_reason }}</div>@endif
                                 </td>
                                 <td style="text-align:center;"><span class="status-badge {{ $op->badgeClass() }}">{{ $op->statusLabel() }}</span></td>
-                                @if($onlineHasAction)
-                                <td style="text-align:center;">
-                                    @if($op->isPending() && $op->checkout_session_id)
-                                    <form method="POST" action="{{ route('admin.payments.online.verify', $op->id) }}" style="margin:0;">
-                                        @csrf
-                                        <button type="submit" class="action-btn view" title="Check with PayMongo now" aria-label="Check status with PayMongo"><i data-lucide="refresh-cw"></i></button>
-                                    </form>
-                                    @endif
-                                </td>
-                                @endif
                             </tr>
                             @endforeach
                         </tbody>
@@ -454,8 +459,8 @@
                                         </a>
                                         @endforeach
                                     </div>
-                                    @elseif($tx->isOnline())
-                                    {{-- paid online: the system generates the Acknowledgement Receipt --}}
+                                    @elseif($tx->hasGeneratedReceipt())
+                                    {{-- the system generates the Acknowledgement Receipt --}}
                                     <a href="{{ route('admin.payments.receipts.show', [$payment->id, $tx->id]) }}" target="_blank" data-receipt="page" class="action-btn view" title="Acknowledgement Receipt {{ $tx->receiptNumber() }}">
                                         <i data-lucide="receipt"></i>
                                     </a>
@@ -493,7 +498,7 @@
                 </button>
             </div>
 
-            <form method="POST" action="{{ route('admin.payments.record', $payment->id) }}" id="recordPaymentForm" enctype="multipart/form-data">
+            <form method="POST" action="{{ route('admin.payments.record', $payment->id) }}" id="recordPaymentForm">
                 @csrf
                 <input type="hidden" name="proof_id" id="recordProofIdInput" value="">
                 <div id="recordProofLinkNote" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:12px;background:var(--cream-soft);border:1px solid var(--border);font-size:12.5px;font-weight:700;color:var(--dark);"></div>
@@ -587,16 +592,9 @@
                         </small>
                     </div>
 
-                    <div class="form-group form-group-full">
-                        <label>Upload Collection Receipt</label>
-                        <label for="receiptFileInput" class="pv-upload-dropzone" id="receiptDropzone">
-                            <i data-lucide="upload-cloud" style="width:22px;height:22px;color:var(--accent);"></i>
-                            <span style="font-size:13px;font-weight:700;color:var(--text-primary);">Click to upload collection receipt(s)</span>
-                            <span style="font-size:11px;color:var(--muted);">PDF or image, up to 5 files, max 10MB each</span>
-                        </label>
-                        <input type="file" name="receipt_files[]" id="receiptFileInput" accept=".pdf,image/*" multiple style="display:none;">
-                        <div id="receiptFilePreview" class="qr-file-list" style="display:none;"></div>
-                        <span id="receiptFileErr" style="display:none;color:#b91c1c;font-size:12px;font-weight:600;margin-top:6px;">Please upload at least one collection receipt.</span>
+                    <div class="form-group form-group-full" style="display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--muted);">
+                        <i data-lucide="receipt" style="width:15px;height:15px;flex-shrink:0;"></i>
+                        A receipt is generated automatically when you record this payment.
                     </div>
                 </div>
 
@@ -824,107 +822,6 @@
         billingModal.addEventListener('click', e => { if (e.target === billingModal) closeBillingModal(); });
     }
 
-    // ── Collection receipt upload — chip UI (mirrors the client "Request a
-    // Quotation" reference-files upload: dropzone until something's picked,
-    // then compact chips with a "+" tile to add more, capped at 5) ──
-    (function () {
-        var input     = document.getElementById('receiptFileInput');
-        var dropzone  = document.getElementById('receiptDropzone');
-        var list      = document.getElementById('receiptFilePreview');
-        if (!input) return;
-
-        var MAX_FILES = 5;
-        var selected  = [];
-
-        function formatSize(bytes) {
-            if (bytes < 1024) return bytes + ' B';
-            if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + ' KB';
-            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-        }
-
-        function syncInput() {
-            var dt = new DataTransfer();
-            selected.forEach(function (f) { dt.items.add(f); });
-            input.files = dt.files;
-        }
-
-        function openPicker() {
-            input.value = '';
-            input.click();
-        }
-
-        function removeFile(index) {
-            selected.splice(index, 1);
-            syncInput();
-            render();
-        }
-
-        function viewFile(index) {
-            var f = selected[index];
-            if (!f) return;
-            window.open(URL.createObjectURL(f), '_blank');
-        }
-
-        function render() {
-            dropzone.style.display = selected.length ? 'none' : '';
-            list.style.display     = selected.length ? 'flex' : 'none';
-
-            list.innerHTML = selected.map(function (f, i) {
-                var isImage = f.type.indexOf('image/') === 0;
-                var thumb   = isImage
-                    ? '<img class="qr-file-thumb" src="' + URL.createObjectURL(f) + '" alt="">'
-                    : '<span class="qr-file-thumb"><i data-lucide="file-text"></i></span>';
-                return '<div class="qr-file-chip" data-index="' + i + '" title="Click to view">'
-                    + thumb
-                    + '<div class="qr-file-meta">'
-                        + '<div class="qr-file-name" title="' + f.name.replace(/"/g, '&quot;') + '">' + f.name + '</div>'
-                        + '<div class="qr-file-size">' + formatSize(f.size) + '</div>'
-                    + '</div>'
-                    + '<button type="button" class="qr-file-remove" data-index="' + i + '" title="Remove">'
-                        + '<i data-lucide="x"></i>'
-                    + '</button>'
-                + '</div>';
-            }).join('');
-
-            if (selected.length && selected.length < MAX_FILES) {
-                list.innerHTML += '<button type="button" class="qr-file-add" id="receiptFilesAddBtn" title="Add more">'
-                    + '<i data-lucide="plus"></i></button>';
-            }
-
-            list.querySelectorAll('.qr-file-chip').forEach(function (chip) {
-                chip.addEventListener('click', function (e) {
-                    if (e.target.closest('.qr-file-remove')) return;
-                    viewFile(Number(chip.dataset.index));
-                });
-            });
-            list.querySelectorAll('.qr-file-remove').forEach(function (btn) {
-                btn.addEventListener('click', function () { removeFile(Number(btn.dataset.index)); });
-            });
-            var addBtn = document.getElementById('receiptFilesAddBtn');
-            if (addBtn) addBtn.addEventListener('click', openPicker);
-
-            if (typeof lucide !== 'undefined') lucide.createIcons();
-        }
-
-        input.addEventListener('change', function () {
-            var rejected = [];
-            Array.from(input.files || []).forEach(function (f) {
-                if (f.size > 10 * 1024 * 1024) { rejected.push(f.name); return; }
-                var isDuplicate = selected.some(function (sf) {
-                    return sf.name === f.name && sf.size === f.size && sf.lastModified === f.lastModified;
-                });
-                if (!isDuplicate && selected.length < MAX_FILES) selected.push(f);
-            });
-            syncInput();
-            render();
-            if (selected.length) {
-                var err = document.getElementById('receiptFileErr');
-                if (err) err.style.display = 'none';
-            }
-            if (rejected.length) showFileTooLargeModal(rejected.join(', '), 10);
-        });
-    })();
-
     stageTrigger.addEventListener('click', function (e) {
         e.stopPropagation();
         stageWrap.classList.toggle('open');
@@ -999,10 +896,6 @@
         if (el) el.value = el.value.replace(/,/g, '');
     }
 
-    const receiptFileInput = document.getElementById('receiptFileInput');
-    const receiptFileErr   = document.getElementById('receiptFileErr');
-    const receiptDropzone  = document.getElementById('receiptDropzone');
-
     // OR / Serial Numbers already recorded on any payment (any project) — each one can only be used once.
     // Compared trimmed and case-insensitive, the same way the server checks it.
     var USED_OR_NUMBERS = @json(\App\Models\PaymentTransaction::whereNotNull('reference_number')
@@ -1021,8 +914,6 @@
     recordForm.addEventListener('submit', function (e) {
         stripCommas(document.getElementById('amountPaidInput'));
 
-        var invalid = false;
-
         if (isDuplicateOrNumber()) {
             e.preventDefault();
             referenceInput.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -1031,20 +922,9 @@
         }
 
         if (!stageSelect.value) {
-            invalid = true;
-            stageErr.style.display = 'block';
-        }
-
-        if (!receiptFileInput.files || !receiptFileInput.files.length) {
-            invalid = true;
-            receiptFileErr.style.display = 'block';
-        } else {
-            receiptFileErr.style.display = 'none';
-        }
-
-        if (invalid) {
             e.preventDefault();
-            (stageSelect.value ? receiptDropzone : stageTrigger).scrollIntoView({ block: 'center', behavior: 'smooth' });
+            stageErr.style.display = 'block';
+            stageTrigger.scrollIntoView({ block: 'center', behavior: 'smooth' });
         }
     });
 

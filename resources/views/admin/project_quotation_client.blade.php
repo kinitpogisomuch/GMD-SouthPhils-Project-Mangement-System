@@ -102,14 +102,14 @@
                                              : ($project->activeMaterials->sum('total_cost') + $project->activeLabor->sum('total_cost'));
                                 $phase     = strtolower($project->current_phase ?? 'planning');
                                 $phaseColors = [
-                                    'planning'    => ['bg'=>'#FEF3C7','color'=>'#92400E','shadow'=>'rgba(245,158,11,.2)'],
-                                    'procurement' => ['bg'=>'#EDE9FE','color'=>'#5B21B6','shadow'=>'rgba(139,92,246,.2)'],
-                                    'matl_prep'   => ['bg'=>'#CFFAFE','color'=>'#0E7490','shadow'=>'rgba(6,182,212,.2)'],
-                                    'fabrication' => ['bg'=>'#2563EB','color'=>'#fff','shadow'=>'rgba(37,99,235,.3)'],
-                                    'inspection'  => ['bg'=>'#EC4899','color'=>'#fff','shadow'=>'rgba(236,72,153,.3)'],
-                                    'painting'    => ['bg'=>'#14B8A6','color'=>'#fff','shadow'=>'rgba(20,184,166,.3)'],
-                                    'completion'  => ['bg'=>'#10B981','color'=>'#fff','shadow'=>'rgba(16,185,129,.3)'],
-                                    'delivery'    => ['bg'=>'#059669','color'=>'#fff','shadow'=>'rgba(5,150,105,.3)'],
+                                    'planning'    => ['bg'=>'#475569','color'=>'#fff','shadow'=>'rgba(71,85,105,.3)'],
+                                    'procurement' => ['bg'=>'#1E3A5F','color'=>'#fff','shadow'=>'rgba(30,58,95,.3)'],
+                                    'matl_prep'   => ['bg'=>'#7C5A10','color'=>'#fff','shadow'=>'rgba(124,90,16,.3)'],
+                                    'fabrication' => ['bg'=>'#2A4EAA','color'=>'#fff','shadow'=>'rgba(42,78,170,.3)'],
+                                    'inspection'  => ['bg'=>'#9A3412','color'=>'#fff','shadow'=>'rgba(154,52,18,.3)'],
+                                    'painting'    => ['bg'=>'#4D5B2A','color'=>'#fff','shadow'=>'rgba(77,91,42,.3)'],
+                                    'completion'  => ['bg'=>'#207A3A','color'=>'#fff','shadow'=>'rgba(32,122,58,.3)'],
+                                    'delivery'    => ['bg'=>'#14532D','color'=>'#fff','shadow'=>'rgba(20,83,45,.3)'],
                                 ];
                                 $pc = $phaseColors[$phase] ?? ['bg'=>'#F3F4F6','color'=>'#6B7280','shadow'=>'rgba(0,0,0,.1)'];
                             @endphp
@@ -132,7 +132,7 @@
                                 </td>
                                 <td style="text-align:center;">
                                     <span class="status-badge" style="background:{{ $pc['bg'] }};color:{{ $pc['color'] }};box-shadow:0 0 0 1px {{ $pc['shadow'] }},0 2px 8px {{ $pc['shadow'] }};">
-                                        {{ ucwords(str_replace('_',' ',$phase)) }}
+                                        {{ ucwords(\App\Models\Project::phaseLabel($phase)) }}
                                     </span>
                                 </td>
                                 <td style="text-align:center;">

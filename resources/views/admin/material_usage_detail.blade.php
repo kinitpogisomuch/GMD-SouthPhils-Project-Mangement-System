@@ -394,155 +394,213 @@
                      submission, so a whole supplier run can be logged at once instead
                      of one purchase at a time. --}}
                 <div class="modal-overlay" id="logPurchaseModal">
-                <div class="modal-card pm-card" style="max-width:900px;width:95%;max-height:88vh;margin-bottom:0;background:linear-gradient(180deg,#333333 0%,#2a2a2a 100%);border-color:transparent;display:flex;flex-direction:column;overflow:hidden;">
-                    <div class="pm-card-header" style="padding-bottom:12px;border-bottom-color:rgba(255,255,255,.1);flex-shrink:0;">
+                <div class="modal-card" style="max-width:860px;width:95%;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;">
+                    <div class="pp-head">
                         <div>
-                            <div class="pm-card-title" style="font-size:14px;color:#fff;">Log New Purchase</div>
-                            <div class="pm-card-sub" style="color:rgba(255,255,255,.45);">Record one or more material purchases at once</div>
+                            <div class="pp-title">Log New Purchase</div>
+                            <div class="pp-sub">Record one or more material purchases at once</div>
                         </div>
-                        <button type="button" class="modal-close" id="closeLogPurchaseModal" style="background-color:rgba(255,255,255,.08);border-color:rgba(255,255,255,.14);color:rgba(255,255,255,.75);">
+                        <button type="button" class="modal-close" id="closeLogPurchaseModal" aria-label="Close">
                             <i data-lucide="x"></i>
                         </button>
                     </div>
-                    <form method="POST" action="{{ route('admin.material_usage.store_purchase', $project->id) }}" id="logPurchaseForm" style="padding:10px 20px 20px;flex:1;overflow-y:auto;" class="dark-form">
+                    <form method="POST" action="{{ route('admin.material_usage.store_purchase', $project->id) }}" id="logPurchaseForm" class="pr-form">
                         @csrf
-                        <div style="display:flex;gap:8px;margin-bottom:12px;">
-                            <button type="button" class="cancel-btn" style="justify-content:center;font-size:12.5px;padding:9px 16px;" onclick="openPurchasePicker()">
-                                <i data-lucide="plus" style="width:14px;height:14px;"></i> Add Material
-                            </button>
+                        <div class="pr-body">
+                            <div class="pr-details">
+                                {{-- General supplier: applies to every row whose Supplier is left on "Default" --}}
+                                <div class="pm-add-field">
+                                    <label>Supplier (default)</label>
+                                    @if(isset($suppliers) && $suppliers->isNotEmpty())
+                                    <select id="supplierDropdown" onchange="onSupplierChange(this)">
+                                        <option value="" selected>Select supplier...</option>
+                                        @foreach($suppliers as $sup)
+                                        <option value="{{ $sup->name }}">{{ $sup->name }}{{ $sup->company ? ' — '.$sup->company : '' }}</option>
+                                        @endforeach
+                                        <option value="__other__">Other (type manually)</option>
+                                    </select>
+                                    <input type="text" name="supplier" id="supplierCustom"
+                                           placeholder="Type supplier name" maxlength="255"
+                                           oninput="refreshRowSupplierDefaults()"
+                                           style="display:none;margin-top:6px;">
+                                    @else
+                                    <input type="text" name="supplier" id="supplierCustom" placeholder="Supplier name" maxlength="255"
+                                           oninput="refreshRowSupplierDefaults()">
+                                    @endif
+                                </div>
+                                <div class="pm-add-field">
+                                    <label>Date</label>
+                                    <input type="date" name="purchase_date" required value="{{ now()->format('Y-m-d') }}">
+                                </div>
+                            </div>
+
+                            <div class="pr-section-head">
+                                <div class="pr-section-title">Materials <span class="pr-count" id="purchaseRowCount">0</span></div>
+                                <button type="button" class="cancel-btn pr-add" onclick="openPurchasePicker()">
+                                    <i data-lucide="plus"></i> Add Material
+                                </button>
+                            </div>
+
+                            <div id="purchaseRowsContainer"></div>
+                            <div id="purchaseRowsEmpty" class="pr-empty">
+                                No materials added yet. Click <strong>Add Material</strong> to get started.
+                            </div>
+
+                            {{-- Purchases are paid from what the client has paid so far; the Project Budget is only the plan --}}
+                            <input type="hidden" name="use_fund" id="purchaseUseFund" value="0">
+                            <div class="pf-panel" id="purchaseFundsPanel">
+                                <div class="pf-fig"><span>Total Received</span><strong>₱{{ number_format($projectFunds['received'], 2) }}</strong></div>
+                                <div class="pf-fig" title="Materials ₱{{ number_format($projectFunds['materials'], 2) }} · Labor ₱{{ number_format($projectFunds['labor'], 2) }} · Overhead ₱{{ number_format($projectFunds['overhead'], 2) }}">
+                                    <span>Already Spent</span><strong>₱{{ number_format($projectFunds['spent'], 2) }}</strong>
+                                    <small>Materials, labor &amp; overhead</small>
+                                </div>
+                                <div class="pf-fig pf-available"><span>Available</span><strong id="pfAvailable">₱{{ number_format(max(0, $projectFunds['available']), 2) }}</strong>
+                                    @if($projectFunds['fund_owed'] > 0)<small>incl. ₱{{ number_format($projectFunds['fund_owed'], 2) }} from the revolving fund</small>@endif
+                                </div>
+                                <div class="pf-fig pf-budget"><span>Project Budget</span><strong>₱{{ number_format($projectBudget, 2) }}</strong><small>Planned, for reference</small></div>
+                                <div class="pf-status" id="pfStatus" hidden></div>
+                            </div>
                         </div>
 
-                        <div id="purchaseRowsHeader" style="display:none;grid-template-columns:2fr 1.4fr 0.7fr 0.7fr 1fr 1fr 26px;gap:8px;padding:0 4px 6px;margin-bottom:2px;">
-                            <span style="font-size:10.5px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.04em;">Material</span>
-                            <span style="font-size:10.5px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.04em;">Supplier</span>
-                            <span style="font-size:10.5px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.04em;">Unit</span>
-                            <span style="font-size:10.5px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.04em;">Qty</span>
-                            <span style="font-size:10.5px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.04em;">Unit Cost (₱)</span>
-                            <span style="font-size:10.5px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.04em;">Row Total</span>
-                            <span></span>
-                        </div>
-
-                        <div id="purchaseRowsContainer"></div>
-                        <div id="purchaseRowsEmpty" style="padding:34px 16px;margin-bottom:6px;text-align:center;font-size:13px;color:rgba(255,255,255,.5);border:1px dashed rgba(255,255,255,.16);border-radius:12px;">
-                            No materials added yet. Click <strong style="color:#fff;">Add Material</strong> to get started.
-                        </div>
-
-                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:12px;align-items:start;">
-                            {{-- General supplier: applies to every row whose Supplier is left on "Default" --}}
-                            <div class="pm-add-field">
-                                <label>Supplier (default)</label>
-                                @if(isset($suppliers) && $suppliers->isNotEmpty())
-                                <select id="supplierDropdown" onchange="onSupplierChange(this)">
-                                    <option value="" selected>Select supplier...</option>
-                                    @foreach($suppliers as $sup)
-                                    <option value="{{ $sup->name }}">{{ $sup->name }}{{ $sup->company ? ' — '.$sup->company : '' }}</option>
-                                    @endforeach
-                                    <option value="__other__">Other (type manually)</option>
-                                </select>
-                                <input type="text" name="supplier" id="supplierCustom"
-                                       placeholder="Type supplier name" maxlength="255"
-                                       oninput="refreshRowSupplierDefaults()"
-                                       style="display:none;margin-top:6px;">
-                                @else
-                                <input type="text" name="supplier" id="supplierCustom" placeholder="Supplier name" maxlength="255"
-                                       oninput="refreshRowSupplierDefaults()">
-                                @endif
+                        <div class="pr-foot">
+                            <div class="pr-grand">
+                                <span>Grand Total</span>
+                                <input type="text" id="purchaseGrandTotal" readonly tabindex="-1" value="&#x20B1;0.00" aria-label="Grand total">
                             </div>
-                            <div class="pm-add-field">
-                                <label>Date</label>
-                                <input type="date" name="purchase_date" required value="{{ now()->format('Y-m-d') }}">
-                            </div>
-                            <div class="pm-add-field">
-                                <label>Grand Total (Auto)</label>
-                                <input type="text" id="purchaseGrandTotal" readonly
-                                       style="background:rgba(255,255,255,.06);cursor:default;color:#4ade80;font-weight:800;border-color:rgba(255,255,255,.14);"
-                                       value="&#x20B1;0.00">
+                            <div class="pp-actions">
+                                <button type="button" class="cancel-btn" onclick="closeModal('logPurchaseModal')">Cancel</button>
+                                <button type="submit" class="save-btn">
+                                    <i data-lucide="check"></i> Save Purchases
+                                </button>
                             </div>
                         </div>
-
-                        {{-- Purchases are paid from what the client has paid so far; the Project Budget is only the plan --}}
-                        <input type="hidden" name="use_fund" id="purchaseUseFund" value="0">
-                        <div class="pf-panel" id="purchaseFundsPanel">
-                            <div class="pf-fig"><span>Total Received</span><strong>₱{{ number_format($projectFunds['received'], 2) }}</strong></div>
-                            <div class="pf-fig" title="Materials ₱{{ number_format($projectFunds['materials'], 2) }} · Labor ₱{{ number_format($projectFunds['labor'], 2) }} · Overhead ₱{{ number_format($projectFunds['overhead'], 2) }}">
-                                <span>Already Spent</span><strong>₱{{ number_format($projectFunds['spent'], 2) }}</strong>
-                                <small>Materials, labor &amp; overhead</small>
-                            </div>
-                            <div class="pf-fig pf-available"><span>Available</span><strong id="pfAvailable">₱{{ number_format(max(0, $projectFunds['available']), 2) }}</strong>
-                                @if($projectFunds['fund_owed'] > 0)<small>incl. ₱{{ number_format($projectFunds['fund_owed'], 2) }} from the revolving fund</small>@endif
-                            </div>
-                            <div class="pf-fig pf-budget"><span>Project Budget</span><strong>₱{{ number_format($projectBudget, 2) }}</strong><small>Planned, for reference</small></div>
-                            <div class="pf-status" id="pfStatus" hidden></div>
-                        </div>
-
-                        <button type="submit" class="save-btn" style="width:100%;justify-content:center;height:44px;margin-top:12px;">
-                            <i data-lucide="check"></i> Save Purchases
-                        </button>
                     </form>
                     <style>
-                        .pf-panel { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 14px; padding: 12px 14px; border: 1px solid rgba(255,255,255,.12); border-radius: 14px; background: rgba(255,255,255,.04); }
-                        .pf-fig span { display: block; font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: rgba(255,255,255,.45); }
-                        .pf-fig strong { display: block; margin-top: 2px; font-size: 14px; font-weight: 900; color: #fff; font-variant-numeric: tabular-nums; }
-                        .pf-fig small { display: block; font-size: 10.5px; color: rgba(255,255,255,.4); }
-                        .pf-available strong { color: #4ade80; }
-                        .pf-budget strong { color: rgba(255,255,255,.7); }
-                        .pf-status { grid-column: 1 / -1; padding: 8px 10px; border-radius: 10px; font-size: 12.5px; font-weight: 700; background: rgba(248,113,113,.14); color: #fca5a5; }
+                        .pr-form { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+                        .pr-body { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 22px; scrollbar-width: thin; scrollbar-color: var(--border-2) transparent; }
+                        .pr-details { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+                        .pr-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 18px 0 10px; }
+                        .pr-section-title { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 800; color: var(--dark); }
+                        .pr-count { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; background: var(--cream-deep); font-size: 11px; font-weight: 800; }
+                        .pr-add { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border-radius: 10px; font-size: 12.5px; font-weight: 800; }
+                        .pr-add svg { width: 14px; height: 14px; }
+                        .pr-empty { padding: 30px 16px; text-align: center; font-size: 13px; color: var(--muted); border: 1.5px dashed var(--border-2); border-radius: 12px; }
+                        .pr-empty strong { color: var(--dark); }
+
+                        .purchase-row { padding: 12px 14px; margin-bottom: 10px; background: var(--cream-soft); border: 1px solid var(--border); border-radius: 14px; }
+                        .pr-row-top { display: grid; grid-template-columns: minmax(0, 1fr) 270px 32px; gap: 10px; align-items: start; }
+                        .pr-row-nums { display: grid; grid-template-columns: 0.8fr 0.9fr 0.8fr 1fr 1.3fr; gap: 10px; align-items: start; margin-top: 10px; }
+                        .remove-purchase-row-btn { width: 32px; height: 32px; margin-top: 18px; display: flex; align-items: center; justify-content: center; padding: 0; background: var(--white); border: 1px solid var(--border); border-radius: 9px; color: var(--muted); cursor: pointer; transition: color .15s ease, border-color .15s ease; }
+                        .remove-purchase-row-btn:hover { color: #B42318; border-color: #B42318; }
+                        .remove-purchase-row-btn svg { width: 14px; height: 14px; }
+                        /* calculated or reference values, not fields to fill in */
+                        .purchase-row .pm-add-field input[readonly] { background: var(--cream-deep); border-color: transparent; cursor: default; }
+                        .purchase-row .pm-add-field input.purchase-row-planned { color: var(--muted); font-weight: 800; }
+                        .purchase-row .pm-add-field input.purchase-row-total { color: #207A3A; font-weight: 800; }
+                        .pr-note { display: block; font-size: 10.5px; font-weight: 700; line-height: 1.3; color: var(--muted); }
+                        .pr-note:empty { display: none; }
+                        .pr-note.is-over { color: #B45309; }
+
+                        .pf-panel { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 14px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--white); }
+                        .pf-fig span { display: block; font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+                        .pf-fig strong { display: block; margin-top: 2px; font-size: 14px; font-weight: 900; color: var(--dark); font-variant-numeric: tabular-nums; }
+                        .pf-fig small { display: block; font-size: 10.5px; color: var(--muted); }
+                        .pf-available strong { color: #207A3A; }
+                        .pf-budget strong { color: var(--muted); }
+                        .pf-status { grid-column: 1 / -1; padding: 8px 10px; border-radius: 10px; font-size: 12.5px; font-weight: 700; background: #FEE4E2; color: #B42318; }
                         .pf-status[hidden] { display: none; }
-                        @media (max-width: 640px) { .pf-panel { grid-template-columns: 1fr 1fr; } }
+
+                        .pr-foot { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; padding: 12px 22px 16px; border-top: 1px solid var(--border); flex-shrink: 0; }
+                        .pr-grand { min-width: 0; }
+                        .pr-grand span { display: block; font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+                        .pr-grand input { display: block; width: 210px; max-width: 100%; height: auto; padding: 0; border: none; outline: none; background: transparent; font-family: inherit; font-size: 20px; font-weight: 900; color: var(--dark); font-variant-numeric: tabular-nums; }
+                        @media (max-width: 640px) {
+                            .pr-body { padding: 14px 16px; }
+                            .pr-details { grid-template-columns: 1fr; }
+                            .pr-row-top { grid-template-columns: minmax(0, 1fr) 32px; }
+                            .pr-row-top .pr-f-supplier { grid-column: 1 / -1; grid-row: 2; }
+                            .pr-row-nums { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+                            .pr-row-nums .pr-f-total { grid-column: 1 / -1; order: 5; }
+                            /* Planned and Qty stay side by side: the row's main comparison */
+                            .pr-row-nums > :nth-child(2) { order: 1; }
+                            .pr-row-nums > :nth-child(3) { order: 2; }
+                            .pr-row-nums > :nth-child(1) { order: 3; }
+                            .pr-row-nums > :nth-child(4) { order: 4; }
+                            .pf-panel { grid-template-columns: 1fr 1fr; }
+                            .pr-foot { padding: 12px 16px 14px; }
+                            .pr-foot .pp-actions { width: 100%; }
+                            .pr-foot .pp-actions .cancel-btn, .pr-foot .pp-actions .save-btn { flex: 1; }
+                        }
                     </style>
                 </div>
 
                 {{-- Hidden template for one purchase row — cloned by JS via addPurchaseRow() --}}
                 <template id="purchaseRowTemplate">
-                    <div class="purchase-row" style="display:grid;grid-template-columns:2fr 1.4fr 0.7fr 0.7fr 1fr 1fr 26px;gap:8px;align-items:start;padding:6px 4px;margin-bottom:6px;">
-                        <div class="pm-add-field">
-                            <select name="project_material_id[]" class="purchase-row-bom-select" onchange="prefillPurchaseRow(this)">
-                                <option value="" disabled selected hidden>Select material...</option>
-                                @foreach($activeMats as $mat)
-                                <option value="{{ $mat->id }}"
-                                        data-name="{{ $mat->material_name }}"
-                                        data-unit="{{ $mat->unit }}"
-                                        data-cost="{{ $mat->price_per_unit }}">
-                                    {{ Str::limit($mat->material_name, 40) }}
-                                </option>
-                                @endforeach
-                                <option value="__other__">Other (type manually)</option>
-                            </select>
-                            <input type="hidden" name="material_name[]" class="purchase-row-name-hidden">
-                            <input type="text" class="purchase-row-name-custom"
-                                   placeholder="Type material name" maxlength="255"
-                                   style="display:none;margin-top:6px;">
+                    <div class="purchase-row">
+                        <div class="pr-row-top">
+                            <div class="pm-add-field">
+                                <label>Material</label>
+                                <select name="project_material_id[]" class="purchase-row-bom-select" onchange="prefillPurchaseRow(this)">
+                                    <option value="" disabled selected hidden>Select material...</option>
+                                    @foreach($activeMats as $mat)
+                                    <option value="{{ $mat->id }}"
+                                            data-name="{{ $mat->material_name }}"
+                                            data-unit="{{ $mat->unit }}"
+                                            data-cost="{{ $mat->price_per_unit }}"
+                                            data-planned="{{ $mat->quantity }}"
+                                            data-bought="{{ isset($purchases) ? $purchases->where('project_material_id', $mat->id)->sum('qty_bought') : 0 }}">
+                                        {{ Str::limit($mat->material_name, 60) }}
+                                    </option>
+                                    @endforeach
+                                    <option value="__other__">Other (type manually)</option>
+                                </select>
+                                <input type="hidden" name="material_name[]" class="purchase-row-name-hidden">
+                                <input type="text" class="purchase-row-name-custom"
+                                       placeholder="Type material name" maxlength="255"
+                                       style="display:none;">
+                            </div>
+                            {{-- Per-row override: blank row_supplier[] = use the general supplier --}}
+                            <div class="pm-add-field pr-f-supplier">
+                                <label>Supplier</label>
+                                <select class="purchase-row-supplier-select" onchange="onRowSupplierChange(this)">
+                                    <option value="" selected>Default</option>
+                                    @foreach($suppliers ?? [] as $sup)
+                                    <option value="{{ $sup->name }}">{{ $sup->name }}</option>
+                                    @endforeach
+                                    <option value="__other__">Other (type manually)</option>
+                                </select>
+                                <input type="text" name="row_supplier[]" class="purchase-row-supplier"
+                                       placeholder="Type supplier name" maxlength="255"
+                                       style="display:none;">
+                            </div>
+                            <button type="button" class="remove-purchase-row-btn" onclick="removePurchaseRow(this)" title="Remove row" aria-label="Remove row">
+                                <i data-lucide="x"></i>
+                            </button>
                         </div>
-                        {{-- Per-row override: blank row_supplier[] = use the general supplier --}}
-                        <div class="pm-add-field">
-                            <select class="purchase-row-supplier-select" onchange="onRowSupplierChange(this)">
-                                <option value="" selected>Default</option>
-                                @foreach($suppliers ?? [] as $sup)
-                                <option value="{{ $sup->name }}">{{ $sup->name }}</option>
-                                @endforeach
-                                <option value="__other__">Other (type manually)</option>
-                            </select>
-                            <input type="text" name="row_supplier[]" class="purchase-row-supplier"
-                                   placeholder="Type supplier name" maxlength="255"
-                                   style="display:none;margin-top:6px;">
+                        <div class="pr-row-nums">
+                            <div class="pm-add-field">
+                                <label>Unit</label>
+                                <input type="text" name="unit[]" class="purchase-row-unit" placeholder="pcs" maxlength="50">
+                            </div>
+                            {{-- BOM quantity for comparison only — no name, so it's never submitted --}}
+                            <div class="pm-add-field">
+                                <label>Planned</label>
+                                <input type="text" class="purchase-row-planned" readonly tabindex="-1" value="—" aria-label="Planned quantity">
+                                <span class="pr-note purchase-row-planned-note"></span>
+                            </div>
+                            <div class="pm-add-field">
+                                <label>Qty</label>
+                                <input type="text" inputmode="decimal" name="qty_bought[]" class="purchase-row-qty" value="1" required oninput="formatMoneyInput(this); calcAllPurchaseTotals();">
+                            </div>
+                            <div class="pm-add-field">
+                                <label>Unit Cost (₱)</label>
+                                <input type="text" inputmode="decimal" name="actual_unit_cost[]" class="purchase-row-cost" value="0" required oninput="formatMoneyInput(this); calcAllPurchaseTotals();">
+                            </div>
+                            <div class="pm-add-field pr-f-total">
+                                <label>Row Total</label>
+                                <input type="text" class="purchase-row-total" readonly tabindex="-1" value="&#x20B1;0.00">
+                            </div>
                         </div>
-                        <div class="pm-add-field">
-                            <input type="text" name="unit[]" class="purchase-row-unit" placeholder="pcs" maxlength="50">
-                        </div>
-                        <div class="pm-add-field">
-                            <input type="text" inputmode="decimal" name="qty_bought[]" class="purchase-row-qty" value="1" required oninput="formatMoneyInput(this); calcAllPurchaseTotals();">
-                        </div>
-                        <div class="pm-add-field">
-                            <input type="text" inputmode="decimal" name="actual_unit_cost[]" class="purchase-row-cost" value="0" required oninput="formatMoneyInput(this); calcAllPurchaseTotals();">
-                        </div>
-                        <div class="pm-add-field">
-                            <input type="text" class="purchase-row-total" readonly value="&#x20B1;0.00"
-                                   style="background:rgba(255,255,255,.06);cursor:default;color:#4ade80;font-weight:800;border-color:rgba(255,255,255,.14);">
-                        </div>
-                        <button type="button" class="remove-purchase-row-btn" onclick="removePurchaseRow(this)" title="Remove row"
-                                style="background:none;border:none;color:rgba(255,255,255,.45);cursor:pointer;padding:0;height:40px;display:flex;align-items:center;justify-content:center;">
-                            <i data-lucide="x" style="width:14px;height:14px;"></i>
-                        </button>
                     </div>
                 </template>
                 </div>{{-- end logPurchaseModal overlay --}}
@@ -712,37 +770,15 @@
                         $bomId  = $bomMat->id ?? null;
                         return $bomId && isset($purchases) ? $purchases->where('project_material_id', $bomId)->sum('qty_bought') : 0;
                     })->values();
-
-                    // Every BOM material is selectable (matching the Purchase modal) —
-                    // remaining stock is shown as a hint per option, not a filter, so
-                    // usage can still be logged even for materials not purchased yet.
-                    $stockMap = [];
-                    foreach ($activeMats as $m) {
-                        $bought      = isset($purchases) ? $purchases->where('project_material_id', $m->id)->sum('qty_bought') : 0;
-                        $alreadyUsed = $usageEntries->where('status', 'active')->where('project_material_id', $m->id)->sum('quantity_used');
-                        $stockMap[$m->id] = max(0, $bought - $alreadyUsed);
-                    }
-                    // "Add All In-Stock" shortcut still only targets materials that
-                    // actually have remaining purchased stock.
-                    $matsInStock = $activeMats->filter(fn($m) => ($stockMap[$m->id] ?? 0) > 0)->values();
-                    $inStockMatsJs = $matsInStock->map(function ($m) use ($stockMap) {
-                        return ['id' => $m->id, 'name' => $m->material_name, 'unit' => $m->unit, 'max' => $stockMap[$m->id] ?? 0];
-                    })->values();
                 @endphp
 
-                {{-- Summary table (full width — the usage form now lives in a modal). Same layout as the
+                {{-- Summary table (full width; view only — employees log usage from their portal). Same layout as the
                      Purchased materials summary: one table, sticky header and TOTAL row, as tall as its rows. --}}
                 <div class="pm-card pm-purchased-card" style="margin-bottom:16px;min-width:0;overflow:hidden;">
                     <div class="pm-card-header pm-purchased-header">
                         <div>
                             <div class="pm-card-title">Material usage &mdash; summary</div>
                             <div class="pm-card-sub">Aggregated usage per material &middot; logged by employees</div>
-                        </div>
-                        <div class="pm-purchased-header-right" style="display:flex;align-items:center;gap:14px;">
-                            <button type="button" class="add-btn" id="openLogUsageModal" style="white-space:nowrap;">
-                                <i data-lucide="plus"></i>
-                                Log Material Usage
-                            </button>
                         </div>
                     </div>
 
@@ -839,89 +875,6 @@
                     </div>
                 </div>{{-- end summary card --}}
 
-                {{-- Log Material Usage modal — supports multiple material rows in
-                     one submission, mirroring the Log New Purchase modal. --}}
-                <div class="modal-overlay" id="logUsageModal">
-                <div class="modal-card pm-card" style="max-width:700px;width:95%;max-height:88vh;margin-bottom:0;background:linear-gradient(180deg,#333333 0%,#2a2a2a 100%);border-color:transparent;display:flex;flex-direction:column;overflow:hidden;">
-                    <div class="pm-card-header" style="padding-bottom:12px;border-bottom-color:rgba(255,255,255,.1);flex-shrink:0;">
-                        <div>
-                            <div class="pm-card-title" style="font-size:14px;color:#fff;">Log Material Usage</div>
-                            <div class="pm-card-sub" style="color:rgba(255,255,255,.45);">Record one or more consumed materials at once</div>
-                        </div>
-                        <button type="button" class="modal-close" id="closeLogUsageModal" style="background-color:rgba(255,255,255,.08);border-color:rgba(255,255,255,.14);color:rgba(255,255,255,.75);">
-                            <i data-lucide="x"></i>
-                        </button>
-                    </div>
-                    <form method="POST" action="{{ route('admin.material_usage.store', $project->id) }}" id="logUsageForm" style="padding:10px 20px 20px;flex:1;overflow-y:auto;" class="dark-form">
-                        @csrf
-                        <div style="display:flex;gap:8px;margin-bottom:12px;">
-                            <button type="button" class="cancel-btn" style="justify-content:center;font-size:12.5px;padding:9px 16px;" onclick="openUsagePicker()">
-                                <i data-lucide="plus" style="width:14px;height:14px;"></i> Add Material
-                            </button>
-                            @if($matsInStock->isNotEmpty())
-                            <button type="button" class="cancel-btn" style="justify-content:center;font-size:12.5px;padding:9px 16px;" onclick="addAllInStockRows()">
-                                <i data-lucide="list-plus" style="width:14px;height:14px;"></i> Add All In-Stock ({{ $matsInStock->count() }})
-                            </button>
-                            @endif
-                        </div>
-
-                        <div id="usageRowsHeader" style="display:none;grid-template-columns:2.4fr 1fr 0.9fr 26px;gap:8px;padding:0 4px 6px;margin-bottom:2px;">
-                            <span style="font-size:10.5px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.04em;">Material</span>
-                            <span style="font-size:10.5px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.04em;">Unit</span>
-                            <span style="font-size:10.5px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.04em;">Qty Used</span>
-                            <span></span>
-                        </div>
-
-                        <div id="usageRowsContainer"></div>
-                        <div id="usageRowsEmpty" style="padding:34px 16px;margin-bottom:6px;text-align:center;font-size:13px;color:rgba(255,255,255,.5);border:1px dashed rgba(255,255,255,.16);border-radius:12px;">
-                            No materials added yet. Click <strong style="color:#fff;">Add Material</strong> to get started.
-                        </div>
-
-                        <div class="pm-add-field" style="max-width:220px;margin-top:12px;">
-                            <label>Date</label>
-                            <input type="date" name="used_date" required value="{{ now()->format('Y-m-d') }}">
-                        </div>
-
-                        <button type="submit" class="save-btn" style="width:100%;justify-content:center;height:44px;margin-top:16px;">
-                            <i data-lucide="check"></i> Log Usage
-                        </button>
-                    </form>
-                </div>
-
-                {{-- Hidden template for one usage row — cloned by JS via addUsageRow() --}}
-                <template id="usageRowTemplate">
-                    <div class="usage-row" style="display:grid;grid-template-columns:2.4fr 1fr 0.9fr 26px;gap:8px;align-items:start;padding:6px 4px;margin-bottom:6px;">
-                        <div class="pm-add-field">
-                            <select name="project_material_id[]" class="usage-row-bom-select" onchange="prefillUsageRow(this)">
-                                <option value="" disabled selected hidden>Select material...</option>
-                                @foreach($activeMats as $mat)
-                                @php $matStock = $stockMap[$mat->id] ?? 0; @endphp
-                                <option value="{{ $mat->id }}"
-                                        data-name="{{ $mat->material_name }}"
-                                        data-unit="{{ $mat->unit }}"
-                                        data-max="{{ $matStock }}"
-                                        @if($matStock <= 0) disabled @endif>
-                                    {{ Str::limit($mat->material_name, 32) }} — {{ $matStock > 0 ? $matStock . ' in stock' : 'No stock (purchase first)' }}
-                                </option>
-                                @endforeach
-                            </select>
-                            <input type="hidden" name="material_name[]" class="usage-row-name-hidden">
-                            <span class="usage-row-stock-hint" style="font-size:10.5px;color:rgba(255,255,255,.4);margin-top:4px;display:none;"></span>
-                        </div>
-                        <div class="pm-add-field">
-                            <input type="text" name="unit[]" class="usage-row-unit" placeholder="pcs" maxlength="50">
-                        </div>
-                        <div class="pm-add-field">
-                            <input type="text" inputmode="decimal" name="quantity_used[]" class="usage-row-qty" value="1" required oninput="formatMoneyInput(this);">
-                        </div>
-                        <button type="button" class="remove-usage-row-btn" onclick="removeUsageRow(this)" title="Remove row"
-                                style="background:none;border:none;color:rgba(255,255,255,.45);cursor:pointer;padding:0;height:40px;display:flex;align-items:center;justify-content:center;">
-                            <i data-lucide="x" style="width:14px;height:14px;"></i>
-                        </button>
-                    </div>
-                </template>
-                </div>{{-- end logUsageModal overlay --}}
-
                 {{-- Usage History — separate card --}}
                 @if($usageEntries->isNotEmpty())
                 <div class="pm-card" style="margin-bottom:16px;">
@@ -995,25 +948,23 @@
     @endphp
     {{-- ===================== PICK PURCHASED MATERIALS (checkbox list, like Build Quotation) ===================== --}}
     <div class="modal-overlay" id="pickPurchaseModal" style="z-index:600;">
-        <div class="modal-card pm-card" style="max-width:640px;width:95%;max-height:88vh;margin-bottom:0;background:linear-gradient(180deg,#333333 0%,#2a2a2a 100%);border-color:transparent;display:flex;flex-direction:column;overflow:hidden;">
-            <div class="pm-card-header" style="padding-bottom:12px;border-bottom-color:rgba(255,255,255,.1);flex-shrink:0;">
+        <div class="modal-card" style="max-width:640px;width:95%;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;">
+            <div class="pp-head">
                 <div>
-                    <div class="pm-card-title" style="font-size:14px;color:#fff;">Add Materials</div>
-                    <div class="pm-card-sub" style="color:rgba(255,255,255,.45);">Tick every material you bought — you can set quantities and costs afterwards.</div>
+                    <div class="pp-title">Add Materials</div>
+                    <div class="pp-sub">Tick every material you bought — you can set quantities and costs afterwards.</div>
                 </div>
-                <button type="button" class="modal-close" id="closePickPurchase" style="background-color:rgba(255,255,255,.08);border-color:rgba(255,255,255,.14);color:rgba(255,255,255,.75);">
+                <button type="button" class="modal-close" id="closePickPurchase" aria-label="Close">
                     <i data-lucide="x"></i>
                 </button>
             </div>
 
-            <div style="padding:14px 20px 0;flex-shrink:0;">
-                <div class="pp-toolbar">
-                    <div class="pp-search">
-                        <i data-lucide="search"></i>
-                        <input type="search" id="pickPurchaseSearch" placeholder="Search materials..." autocomplete="off">
-                    </div>
-                    <span class="pp-count" id="pickPurchaseCount">0 selected</span>
+            <div class="pp-toolbar">
+                <div class="pp-search">
+                    <i data-lucide="search"></i>
+                    <input type="search" id="pickPurchaseSearch" placeholder="Search materials..." autocomplete="off">
                 </div>
+                <span class="pp-count" id="pickPurchaseCount">0 selected</span>
             </div>
 
             <div class="pp-list" id="pickPurchaseList"></div>
@@ -1023,53 +974,9 @@
                     <i data-lucide="plus"></i>
                     Not in the list? Add a custom row
                 </button>
-                <div style="display:flex;gap:10px;">
+                <div class="pp-actions">
                     <button type="button" class="cancel-btn" id="cancelPickPurchase">Cancel</button>
                     <button type="button" class="save-btn" id="confirmPickPurchase" disabled>
-                        <i data-lucide="check"></i>
-                        Add Selected
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-    @php
-        // BOM materials offered by the usage picker — only those with purchased stock left can actually be used
-        $usagePickMats = $activeMats->map(function ($m) use ($stockMap) {
-            return ['id' => $m->id, 'name' => $m->material_name, 'unit' => $m->unit, 'stock' => (float) ($stockMap[$m->id] ?? 0)];
-        })->values();
-    @endphp
-
-    {{-- ===================== PICK MATERIALS USED (checkbox list, like Build Quotation) ===================== --}}
-    <div class="modal-overlay" id="pickUsageModal" style="z-index:600;">
-        <div class="modal-card pm-card" style="max-width:640px;width:95%;max-height:88vh;margin-bottom:0;background:linear-gradient(180deg,#333333 0%,#2a2a2a 100%);border-color:transparent;display:flex;flex-direction:column;overflow:hidden;">
-            <div class="pm-card-header" style="padding-bottom:12px;border-bottom-color:rgba(255,255,255,.1);flex-shrink:0;">
-                <div>
-                    <div class="pm-card-title" style="font-size:14px;color:#fff;">Add Materials</div>
-                    <div class="pm-card-sub" style="color:rgba(255,255,255,.45);">Tick every material you used — you can set the quantities afterwards.</div>
-                </div>
-                <button type="button" class="modal-close" id="closePickUsage" style="background-color:rgba(255,255,255,.08);border-color:rgba(255,255,255,.14);color:rgba(255,255,255,.75);">
-                    <i data-lucide="x"></i>
-                </button>
-            </div>
-
-            <div style="padding:14px 20px 0;flex-shrink:0;">
-                <div class="pp-toolbar">
-                    <div class="pp-search">
-                        <i data-lucide="search"></i>
-                        <input type="search" id="pickUsageSearch" placeholder="Search materials..." autocomplete="off">
-                    </div>
-                    <span class="pp-count" id="pickUsageCount">0 selected</span>
-                </div>
-            </div>
-
-            <div class="pp-list" id="pickUsageList"></div>
-
-            <div class="pp-foot">
-                <span style="font-size:12px;font-weight:600;color:rgba(255,255,255,.5);">Only materials with purchased stock left can be used.</span>
-                <div style="display:flex;gap:10px;">
-                    <button type="button" class="cancel-btn" id="cancelPickUsage">Cancel</button>
-                    <button type="button" class="save-btn" id="confirmPickUsage" disabled>
                         <i data-lucide="check"></i>
                         Add Selected
                     </button>
@@ -1096,12 +1003,6 @@
         document.getElementById('closeLogPurchaseModal')?.addEventListener('click', function () { closeModal('logPurchaseModal'); });
         document.getElementById('logPurchaseModal')?.addEventListener('click', function (e) {
             if (e.target === this) closeModal('logPurchaseModal');
-        });
-
-        document.getElementById('openLogUsageModal')?.addEventListener('click', function () { openModal('logUsageModal'); });
-        document.getElementById('closeLogUsageModal')?.addEventListener('click', function () { closeModal('logUsageModal'); });
-        document.getElementById('logUsageModal')?.addEventListener('click', function (e) {
-            if (e.target === this) closeModal('logUsageModal');
         });
 
         document.querySelectorAll('.pm-tab').forEach(function(btn) {
@@ -1194,7 +1095,7 @@
                         '<span class="pp-name">' + ppEsc(m.name) + '</span>' +
                         (isUsed
                             ? '<span class="pp-badge">Already added</span>'
-                            : '<span class="pp-meta">' + ppEsc(m.unit || '') + (m.planned != null ? ' · plan ' + Math.round(m.planned) : '') + '</span>') +
+                            : '<span class="pp-meta">' + (m.planned != null ? 'Planned ' + Math.round(m.planned) + ' ' : '') + ppEsc(m.unit || '') + '</span>') +
                     '</label>';
                 });
                 html += '</div>';
@@ -1279,12 +1180,12 @@
         function updatePurchaseEmptyState() {
             var hasRows = document.querySelector('#purchaseRowsContainer .purchase-row') !== null;
             document.getElementById('purchaseRowsEmpty').style.display  = hasRows ? 'none' : '';
-            document.getElementById('purchaseRowsHeader').style.display = hasRows ? 'grid' : 'none';
+            document.getElementById('purchaseRowCount').textContent = document.querySelectorAll('#purchaseRowsContainer .purchase-row').length;
             // reset the message (a failed save turns it into a red warning)
             var empty = document.getElementById('purchaseRowsEmpty');
             empty.innerHTML = PURCHASE_EMPTY_HTML;
-            empty.style.borderColor = 'rgba(255,255,255,.16)';
-            empty.style.color = 'rgba(255,255,255,.5)';
+            empty.style.borderColor = '';
+            empty.style.color = '';
         }
 
         function prefillPurchaseRow(sel) {
@@ -1294,6 +1195,11 @@
             var hidden   = row.querySelector('.purchase-row-name-hidden');
             var unitInput = row.querySelector('.purchase-row-unit');
             var isOther  = (sel.value === '__other__' || sel.value === '');
+
+            // what the BOM planned for this material, and what earlier purchases already covered
+            row.dataset.planned = isOther ? '' : (opt.dataset.planned || '');
+            row.dataset.bought  = isOther ? '' : (opt.dataset.bought || '0');
+            row.querySelector('.purchase-row-planned').value = row.dataset.planned === '' ? '—' : prNum(row.dataset.planned);
 
             if (isOther) {
                 custom.style.display = '';
@@ -1318,6 +1224,19 @@
             calcAllPurchaseTotals();
         }
 
+        function prNum(n) { return Number(n).toLocaleString('en-PH', { maximumFractionDigits: 2 }); }
+
+        // Under Planned: what's already bought, or how far this purchase goes past the plan
+        function updatePlannedNote(row, qty) {
+            var note = row.querySelector('.purchase-row-planned-note');
+            if (row.dataset.planned === undefined || row.dataset.planned === '') { note.textContent = ''; note.classList.remove('is-over'); return; }
+            var planned = parseFloat(row.dataset.planned) || 0;
+            var bought  = parseFloat(row.dataset.bought) || 0;
+            var over    = Math.round((bought + qty - planned) * 100) / 100;
+            note.classList.toggle('is-over', over > 0);
+            note.textContent = over > 0 ? prNum(over) + ' over plan' : (bought > 0 ? prNum(bought) + ' bought' : '');
+        }
+
         // Live thousand-separator formatting for money/quantity text inputs.
         function formatMoneyInput(el) {
             var raw = el.value.replace(/[^0-9.]/g, '');
@@ -1336,6 +1255,7 @@
                 var total = qty * cost;
                 grand += total;
                 row.querySelector('.purchase-row-total').value = '₱' + total.toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2});
+                updatePlannedNote(row, qty);
             });
             document.getElementById('purchaseGrandTotal').value = '₱' + grand.toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2});
             updatePurchaseFundsStatus(grand);
@@ -1376,8 +1296,8 @@
                 if (!rows.length) {
                     e.preventDefault();
                     var empty = document.getElementById('purchaseRowsEmpty');
-                    empty.style.borderColor = '#f87171';
-                    empty.style.color = '#fca5a5';
+                    empty.style.borderColor = '#B42318';
+                    empty.style.color = '#B42318';
                     empty.textContent = 'Add at least one material before saving.';
                     return;
                 }
@@ -1409,180 +1329,10 @@
             });
         }
 
-        var logUsageForm = document.getElementById('logUsageForm');
-        if (logUsageForm) {
-            logUsageForm.addEventListener('submit', function (e) {
-                var rows = document.querySelectorAll('#usageRowsContainer .usage-row');
-                if (!rows.length) {
-                    e.preventDefault();
-                    var empty = document.getElementById('usageRowsEmpty');
-                    empty.style.borderColor = '#f87171';
-                    empty.style.color = '#fca5a5';
-                    empty.textContent = 'Add at least one material before saving.';
-                    return;
-                }
-                rows.forEach(function (row) {
-                    var qtyEl = row.querySelector('.usage-row-qty');
-                    if (qtyEl) qtyEl.value = qtyEl.value.replace(/,/g, '');
-                });
-            });
-        }
-
-        // Both logs start empty — just the "Add Material" message until a row is added.
-        var USAGE_EMPTY_HTML = document.getElementById('usageRowsEmpty').innerHTML;
+        // The purchase log starts empty — just the "Add Material" message until a row is added.
         document.addEventListener('DOMContentLoaded', function () {
             updatePurchaseEmptyState();
-            updateUsageEmptyState();
         });
-
-        // ---- Multi-row material usage log ----
-        var IN_STOCK_MATS = @json($inStockMatsJs);
-
-        // ---- Log Usage → Add Material: pick several BOM materials with checkboxes (same picker as purchases) ----
-        var USAGE_PICK_MATS = @json($usagePickMats);
-        var puSelected = {};
-
-        function puUsedIds() {
-            return Array.prototype.map.call(document.querySelectorAll('#usageRowsContainer .usage-row-bom-select'), function (s) { return String(s.value); })
-                .filter(function (v) { return v; });
-        }
-        function puSelectableIds() {   // ticked, has stock, and not already a row
-            var used = puUsedIds();
-            return USAGE_PICK_MATS.filter(function (m) { return puSelected[m.id] && m.stock > 0 && used.indexOf(String(m.id)) === -1; });
-        }
-        function puUpdateCount() {
-            var n = puSelectableIds().length;
-            document.getElementById('pickUsageCount').textContent = n + ' selected';
-            var btn = document.getElementById('confirmPickUsage');
-            btn.disabled = n === 0;
-            btn.lastChild.textContent = n > 0 ? ' Add ' + n + ' Selected' : ' Add Selected';
-        }
-
-        function renderUsagePicker() {
-            var list   = document.getElementById('pickUsageList');
-            var scroll = list.scrollTop;
-            var q      = document.getElementById('pickUsageSearch').value.toLowerCase().trim();
-            var used   = puUsedIds();
-            var html   = '';
-
-            [['In stock', true], ['No stock yet — purchase first', false]].forEach(function (grp) {
-                var items = USAGE_PICK_MATS.filter(function (m) { return (m.stock > 0) === grp[1] && (!q || m.name.toLowerCase().indexOf(q) !== -1); });
-                if (!items.length) return;
-                var available = grp[1] ? items.filter(function (m) { return used.indexOf(String(m.id)) === -1; }) : [];
-                var checked   = available.filter(function (m) { return puSelected[m.id]; }).length;
-
-                html += '<div class="pp-group">' +
-                    '<label class="pp-cat">' +
-                        '<input type="checkbox" class="pp-cat-check"' + (available.length && checked === available.length ? ' checked' : '') + (available.length ? '' : ' disabled') + '>' +
-                        '<span>' + ppEsc(grp[0]) + '</span>' +
-                        '<em>' + (grp[1] ? (checked ? checked + ' of ' : '') + available.length + ' available' : items.length + ' material' + (items.length === 1 ? '' : 's')) + '</em>' +
-                    '</label>';
-                items.forEach(function (m) {
-                    var isUsed = used.indexOf(String(m.id)) !== -1;
-                    var locked = isUsed || m.stock <= 0;
-                    html += '<label class="pp-item' + (locked ? ' is-used' : '') + '">' +
-                        '<input type="checkbox" class="pp-check" value="' + m.id + '"' + (locked ? ' disabled' : (puSelected[m.id] ? ' checked' : '')) + '>' +
-                        '<span class="pp-name">' + ppEsc(m.name) + '</span>' +
-                        (isUsed
-                            ? '<span class="pp-badge">Already added</span>'
-                            : '<span class="pp-meta">' + (m.stock > 0 ? Number(m.stock).toLocaleString('en-PH', { maximumFractionDigits: 2 }) + ' ' + ppEsc(m.unit || '') + ' in stock' : 'No stock') + '</span>') +
-                    '</label>';
-                });
-                html += '</div>';
-            });
-
-            list.innerHTML = html || '<div class="pp-empty">No materials match your search.</div>';
-            list.scrollTop = scroll;
-            puUpdateCount();
-        }
-
-        function openUsagePicker() {
-            puSelected = {};
-            document.getElementById('pickUsageSearch').value = '';
-            renderUsagePicker();
-            openModal('pickUsageModal');
-            document.getElementById('pickUsageSearch').focus();
-        }
-        // the Log Material Usage dialog is still open underneath, so the page stays locked
-        function closeUsagePicker() {
-            closeModal('pickUsageModal');
-            document.body.style.overflow = 'hidden';
-        }
-
-        document.getElementById('pickUsageList').addEventListener('change', function (e) {
-            var t = e.target;
-            if (t.classList.contains('pp-check')) {
-                puSelected[t.value] = t.checked;
-            } else if (t.classList.contains('pp-cat-check')) {
-                t.closest('.pp-group').querySelectorAll('.pp-check:not(:disabled)').forEach(function (box) { puSelected[box.value] = t.checked; });
-            } else { return; }
-            renderUsagePicker();
-        });
-        document.getElementById('pickUsageSearch').addEventListener('input', renderUsagePicker);
-        document.getElementById('closePickUsage').addEventListener('click', closeUsagePicker);
-        document.getElementById('cancelPickUsage').addEventListener('click', closeUsagePicker);
-        document.getElementById('pickUsageModal').addEventListener('click', function (e) { if (e.target === this) closeUsagePicker(); });
-        document.getElementById('confirmPickUsage').addEventListener('click', function () {
-            var chosen = puSelectableIds();
-            closeUsagePicker();
-            chosen.forEach(function (m) { addUsageRow({ id: m.id }); });
-        });
-
-        function addUsageRow(prefill) {
-            var tpl       = document.getElementById('usageRowTemplate');
-            var container = document.getElementById('usageRowsContainer');
-            var row       = tpl.content.cloneNode(true).firstElementChild;
-            container.appendChild(row);
-
-            if (prefill) {
-                var sel = row.querySelector('.usage-row-bom-select');
-                sel.value = prefill.id;
-                prefillUsageRow(sel);
-            }
-
-            if (typeof lucide !== 'undefined') lucide.createIcons();
-            updateUsageEmptyState();
-            return row;
-        }
-
-        function removeUsageRow(btn) {
-            var row = btn.closest('.usage-row');
-            if (row) row.remove();
-            updateUsageEmptyState();
-        }
-
-        // Nothing but the "Add Material" message until the first row is added.
-        function updateUsageEmptyState() {
-            var hasRows = document.querySelector('#usageRowsContainer .usage-row') !== null;
-            var empty   = document.getElementById('usageRowsEmpty');
-            document.getElementById('usageRowsHeader').style.display = hasRows ? 'grid' : 'none';
-            empty.style.display = hasRows ? 'none' : '';
-            // reset the message (a failed save turns it into a red warning)
-            empty.innerHTML = USAGE_EMPTY_HTML;
-            empty.style.borderColor = 'rgba(255,255,255,.16)';
-            empty.style.color = 'rgba(255,255,255,.5)';
-        }
-
-        function addAllInStockRows() {
-            IN_STOCK_MATS.forEach(function (m) { addUsageRow(m); });
-        }
-
-        function prefillUsageRow(sel) {
-            var row     = sel.closest('.usage-row');
-            var opt     = sel.options[sel.selectedIndex];
-            var hidden  = row.querySelector('.usage-row-name-hidden');
-            var unitInp = row.querySelector('.usage-row-unit');
-            var hint    = row.querySelector('.usage-row-stock-hint');
-
-            hidden.value = opt.dataset.name || '';
-            if (unitInp && opt.dataset.unit) unitInp.value = opt.dataset.unit;
-
-            var maxStock = parseFloat(opt.dataset.max) || 0;
-            if (hint) {
-                hint.textContent = maxStock + ' in stock right now';
-                hint.style.display = 'block';
-            }
-        }
 
         // ---- Supplier: one general supplier for the log, overridable per row ----
         // General dropdown mirrors into the supplier input (shown only for "Other").
@@ -1719,53 +1469,62 @@
         }
 
         /* Dark sidebar form inputs */
-        .dark-form .pm-add-field label { color:rgba(255,255,255,.45); }
-        .dark-form .pm-add-field input,
-        .dark-form .pm-add-field select {
-            background:rgba(255,255,255,.08);
-            border-color:rgba(255,255,255,.12);
-            color:#fff;
-        }
-        .dark-form .pm-add-field input:focus,
-        .dark-form .pm-add-field select:focus { border-color:rgba(255,255,255,.35);outline:none; }
-        .dark-form .pm-add-field input::placeholder { color:rgba(255,255,255,.3); }
-        .dark-form select option { background:#2a2a2a;color:#fff; }
         /* Add Material picker inside the Log New Purchase dialog */
-        .pp-toolbar { display:flex; align-items:center; gap:12px; padding-bottom:12px; }
-        .pp-search { flex:1; display:flex; align-items:center; gap:8px; padding:0 12px; height:42px; border-radius:12px; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.14); }
-        .pp-search i, .pp-search svg { width:16px; height:16px; color:rgba(255,255,255,.5); flex-shrink:0; }
-        .pp-search input { flex:1; border:none; background:transparent; outline:none; font-size:13.5px; color:#fff; }
-        .pp-search input::placeholder { color:rgba(255,255,255,.4); }
-        .pp-count { font-size:12px; font-weight:800; color:#fff; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.16); border-radius:999px; padding:7px 12px; white-space:nowrap; }
-        .pp-list { flex:1; min-height:160px; max-height:46vh; overflow-y:auto; margin:0 20px; border:1px solid rgba(255,255,255,.12); border-radius:14px; }
-        .pp-group + .pp-group { border-top:1px solid rgba(255,255,255,.12); }
-        .pp-cat { display:flex; align-items:center; gap:10px; padding:11px 14px; background:#3f3f3f; border-bottom:1px solid rgba(255,255,255,.12); position:sticky; top:0; z-index:2; cursor:pointer; font-size:11.5px; font-weight:900; text-transform:uppercase; letter-spacing:.06em; color:#fff; }
-        .pp-cat em { margin-left:auto; font-style:normal; font-weight:700; text-transform:none; letter-spacing:0; color:rgba(255,255,255,.5); }
-        .pp-item { display:flex; align-items:center; gap:12px; padding:10px 14px 10px 16px; font-size:13.5px; color:rgba(255,255,255,.9); cursor:pointer; border-top:1px solid rgba(255,255,255,.08); background:transparent; position:relative; z-index:0; }
+        #pickPurchaseModal .modal-card, #logPurchaseModal .modal-card { padding:0; border-radius:22px; background:var(--white); }
+        .pp-head { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; padding:20px 22px 16px; border-bottom:1px solid var(--border); flex-shrink:0; }
+        .pp-title { font-size:17px; font-weight:800; color:var(--dark); }
+        .pp-sub { margin-top:3px; font-size:12.5px; line-height:1.45; color:var(--muted); }
+        #pickPurchaseModal .modal-close, #logPurchaseModal .modal-close { width:34px; height:34px; border-radius:10px; }
+        #pickPurchaseModal .modal-close svg, #logPurchaseModal .modal-close svg { width:16px; height:16px; }
+        .pp-toolbar { display:flex; align-items:center; gap:10px; padding:14px 22px 12px; flex-shrink:0; }
+        .pp-search { flex:1; min-width:0; display:flex; align-items:center; gap:8px; padding:0 12px; height:42px; border-radius:12px; background:var(--cream-soft); border:1px solid var(--border); transition:border-color .15s ease; }
+        .pp-search:focus-within { border-color:var(--dark); background:var(--white); }
+        .pp-search i, .pp-search svg { width:16px; height:16px; color:var(--muted); flex-shrink:0; }
+        .pp-search input { flex:1; min-width:0; height:100%; padding:0; border:none; background:transparent; box-shadow:none; outline:none; font-size:13.5px; color:var(--dark); }
+        .pp-search input::placeholder { color:var(--muted-light); }
+        .pp-count { font-size:12px; font-weight:800; color:var(--dark); background:var(--cream-deep); border-radius:999px; padding:7px 12px; white-space:nowrap; }
+        .pp-list { flex:1; min-height:160px; max-height:46vh; overflow-y:auto; margin:0 22px; border:1px solid var(--border); border-radius:14px; scrollbar-width:thin; scrollbar-color:var(--border-2) transparent; }
+        .pp-group + .pp-group { border-top:1px solid var(--border); }
+        .pp-cat { display:flex; align-items:center; gap:12px; padding:10px 14px 10px 16px; background:var(--cream); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:2; cursor:pointer; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:var(--dark); }
+        .pp-cat em { margin-left:auto; font-style:normal; font-size:12px; font-weight:600; text-transform:none; letter-spacing:0; color:var(--muted); }
+        .pp-item { display:flex; align-items:center; gap:12px; padding:10px 14px 10px 16px; font-size:13.5px; font-weight:600; color:var(--dark); cursor:pointer; border-top:1px solid var(--cream-deep); background:var(--white); position:relative; z-index:0; transition:background .12s ease; }
         .pp-group > .pp-cat + .pp-item { border-top:none; }
-        .pp-item:hover { background:rgba(255,255,255,.06); }
-        .pp-item.is-used { color:rgba(255,255,255,.4); cursor:not-allowed; background:transparent; }
+        .pp-item:hover { background:var(--cream-soft); }
+        .pp-item:has(input:checked) { background:#E7F6EC; }
+        .pp-item.is-used, .pp-item.is-used:hover { color:var(--muted-light); cursor:not-allowed; background:var(--white); }
         .pp-item input[type=checkbox], .pp-cat input[type=checkbox] {
             -webkit-appearance:none; appearance:none; flex-shrink:0; position:relative; cursor:pointer;
             width:18px; height:18px; min-width:18px; padding:0; margin:0; box-sizing:border-box;
-            border:1.5px solid rgba(255,255,255,.45); border-radius:5px; background:transparent;
+            border:1.5px solid var(--border-2); border-radius:5px; background:var(--white);
             transition:background .12s ease, border-color .12s ease;
         }
-        .pp-item input[type=checkbox]:hover, .pp-cat input[type=checkbox]:hover { border-color:#fff; }
-        .pp-item input[type=checkbox]:checked, .pp-cat input[type=checkbox]:checked { background:#4ade80; border-color:#4ade80; }
+        .pp-item input[type=checkbox]:hover, .pp-cat input[type=checkbox]:hover { border-color:var(--dark); }
+        .pp-item input[type=checkbox]:checked, .pp-cat input[type=checkbox]:checked { background:#207A3A; border-color:#207A3A; }
         .pp-item input[type=checkbox]:checked::after, .pp-cat input[type=checkbox]:checked::after {
             content:''; position:absolute; left:5px; top:1px; width:5px; height:10px;
-            border:solid #1a1a1a; border-width:0 2px 2px 0; transform:rotate(45deg);
+            border:solid #fff; border-width:0 2px 2px 0; transform:rotate(45deg);
         }
-        .pp-item input[type=checkbox]:disabled, .pp-cat input[type=checkbox]:disabled { opacity:.35; cursor:not-allowed; }
+        .pp-item input[type=checkbox]:disabled, .pp-cat input[type=checkbox]:disabled { opacity:.45; cursor:not-allowed; background:var(--cream-soft); border-color:var(--border); }
         .pp-name { flex:1; min-width:0; }
-        .pp-meta { margin-left:auto; font-size:12px; font-weight:700; color:rgba(255,255,255,.5); white-space:nowrap; }
-        .pp-badge { margin-left:auto; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:#fca5a5; }
-        .pp-empty { padding:34px 20px; text-align:center; font-size:13px; color:rgba(255,255,255,.5); }
-        .pp-foot { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:16px 20px 18px; flex-shrink:0; }
-        .pp-custom { display:inline-flex; align-items:center; gap:6px; background:none; border:1.5px dashed rgba(255,255,255,.25); border-radius:10px; padding:8px 14px; font-size:12.5px; font-weight:700; color:rgba(255,255,255,.7); cursor:pointer; }
-        .pp-custom:hover { border-color:#fff; color:#fff; }
+        .pp-meta { margin-left:auto; font-size:12px; font-weight:600; color:var(--muted); white-space:nowrap; }
+        .pp-badge { margin-left:auto; padding:2px 8px; border-radius:999px; background:var(--cream-deep); font-size:10.5px; font-weight:700; color:var(--muted); white-space:nowrap; }
+        .pp-empty { padding:34px 20px; text-align:center; font-size:13px; color:var(--muted); }
+        .pp-foot { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:14px 22px 18px; flex-shrink:0; }
+        .pp-custom { display:inline-flex; align-items:center; gap:6px; background:none; border:1.5px dashed var(--border-2); border-radius:10px; padding:9px 14px; font-size:12.5px; font-weight:700; color:var(--muted); cursor:pointer; transition:border-color .15s ease, color .15s ease; }
+        .pp-custom:hover { border-color:var(--dark); color:var(--dark); }
         .pp-custom i, .pp-custom svg { width:14px; height:14px; }
+        .pp-actions { display:flex; gap:10px; }
+        .pp-actions .cancel-btn, .pp-actions .save-btn { display:inline-flex; align-items:center; justify-content:center; gap:7px; height:42px; padding:0 18px; border-radius:12px; font-size:13.5px; font-weight:800; }
+        .pp-actions .save-btn svg { width:15px; height:15px; }
+        @media (max-width: 560px) {
+            .pp-head { padding:16px 16px 14px; }
+            .pp-toolbar { padding:12px 16px 10px; }
+            .pp-list { margin:0 16px; }
+            .pp-foot { padding:12px 16px 16px; }
+            .pp-custom { width:100%; justify-content:center; }
+            .pp-actions { width:100%; }
+            .pp-actions .cancel-btn, .pp-actions .save-btn { flex:1; }
+        }
         #confirmPickPurchase:disabled { opacity:.5; cursor:not-allowed; }
 
         /* ── Header meta + overview cards ── */

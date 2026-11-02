@@ -115,7 +115,7 @@
                                 </td>
                                 <td>
                                     <span class="status-badge {{ $project->status === 'completed' ? 'completed' : 'ongoing' }}">
-                                        {{ ucfirst(str_replace('_', ' ', $project->current_phase ?? 'Planning')) }}
+                                        {{ \App\Models\Project::phaseLabel($project->current_phase ?? 'Planning') }}
                                     </span>
                                 </td>
                                 <td>

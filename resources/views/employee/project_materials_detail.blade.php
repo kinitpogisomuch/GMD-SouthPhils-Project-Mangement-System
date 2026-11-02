@@ -51,7 +51,7 @@
                     <div>
                         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px;">Current Phase</div>
                         <span class="status-badge {{ $project->status === 'completed' ? 'completed' : 'ongoing' }}">
-                            {{ ucfirst(str_replace('_', ' ', $project->current_phase ?? 'Planning')) }}
+                            {{ \App\Models\Project::phaseLabel($project->current_phase ?? 'Planning') }}
                         </span>
                     </div>
                     <div>
@@ -64,24 +64,30 @@
             </div>
 
             {{-- Summary Cards --}}
-            <div class="page-grid emp-compact-stats" style="margin-bottom:24px;">
-                <div class="info-card blue">
-                    <div class="info-card-icon blue"><i data-lucide="package"></i></div>
-                    <h3>Total Materials</h3>
-                    <div class="value">{{ $totalMaterials }}</div>
-                    <div class="info-card-sub">Active entries</div>
+            <div class="emp-kpis">
+                <div class="emp-kpi">
+                    <div class="emp-kpi-icon blue"><i data-lucide="package"></i></div>
+                    <div>
+                        <div class="emp-kpi-label">Total Materials</div>
+                        <div class="emp-kpi-value">{{ $totalMaterials }}</div>
+                        <div class="emp-kpi-sub">Active entries</div>
+                    </div>
                 </div>
-                <div class="info-card purple">
-                    <div class="info-card-icon purple"><i data-lucide="layers"></i></div>
-                    <h3>Total Quantity</h3>
-                    <div class="value">{{ number_format($totalQuantity, 0) }}</div>
-                    <div class="info-card-sub">Combined units</div>
+                <div class="emp-kpi">
+                    <div class="emp-kpi-icon purple"><i data-lucide="layers"></i></div>
+                    <div>
+                        <div class="emp-kpi-label">Total Quantity</div>
+                        <div class="emp-kpi-value">{{ number_format($totalQuantity, 0) }}</div>
+                        <div class="emp-kpi-sub">Combined units</div>
+                    </div>
                 </div>
-                <div class="info-card green">
-                    <div class="info-card-icon green"><i data-lucide="banknote"></i></div>
-                    <h3>Estimated Cost</h3>
-                    <div class="value" style="font-size:1.4rem;">₱{{ number_format($estimatedCost, 2) }}</div>
-                    <div class="info-card-sub">Active materials</div>
+                <div class="emp-kpi">
+                    <div class="emp-kpi-icon green"><i data-lucide="banknote"></i></div>
+                    <div>
+                        <div class="emp-kpi-label">Estimated Cost</div>
+                        <div class="emp-kpi-value">₱{{ number_format($estimatedCost, 2) }}</div>
+                        <div class="emp-kpi-sub">Active materials</div>
+                    </div>
                 </div>
             </div>
 

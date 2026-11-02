@@ -6,6 +6,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Usage Log | GMD South Phils</title>
     <link href="{{ asset('css/employee.css') }}" rel="stylesheet">
+    <style>
+        /* project name and client on the left; the other columns centered under their headers (desktop — phones use cards) */
+        @media (min-width: 641px) {
+            #usageTable th:nth-child(n+3), #usageTable td:nth-child(n+3) { text-align: center; }
+            #usageTable td.action-cell { justify-content: center; }
+        }
+    </style>
 </head>
 <body class="page-enter">
 
@@ -50,7 +57,7 @@
                         <tbody>
                             @forelse($projects as $project)
                             @php
-                                // phones show "Fabrication of" as a small label above the tank name
+                                // "Fabrication of" as a small label above the tank name
                                 $ulPrefix = '';
                                 $ulName   = $project->name;
                                 if (preg_match('/^(Fabrication of)\s+(.+)$/i', (string) $project->name, $ulM)) {
@@ -68,7 +75,7 @@
                                 <td class="ul-client">{{ $project->live_client_name }}</td>
                                 <td class="ul-phase">
                                     <span class="status-badge {{ $project->status === 'completed' ? 'completed' : 'ongoing' }}">
-                                        {{ ucfirst(str_replace('_', ' ', $project->current_phase ?? 'Planning')) }}
+                                        {{ \App\Models\Project::phaseLabel($project->current_phase ?? 'Planning') }}
                                     </span>
                                 </td>
                                 <td class="ul-tile" data-label="Entries Logged">
@@ -83,7 +90,7 @@
                                 <td class="action-cell ul-action">
                                     <a href="{{ route('employee.material_usage.detail', $project->id) }}"
                                        class="action-btn view" title="View Usage Log">
-                                        <i data-lucide="clipboard-list"></i><span class="ul-action-text">View Usage Log</span>
+                                        <i data-lucide="eye"></i><span class="ul-action-text">View Usage Log</span>
                                     </a>
                                 </td>
                             </tr>

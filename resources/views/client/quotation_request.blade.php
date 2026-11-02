@@ -7,10 +7,17 @@
     <title>Quotation | GMD South Phils</title>
     <link href="{{ asset('css/client.css') }}" rel="stylesheet">
     <style>
-        #quotationHeader { max-width:1060px; margin-left:auto; margin-right:auto; text-align:center; justify-content:center; }
+        /* the three tabs sit in the header row, on its divider line */
+        .qr-head-tabs { margin:0 0 -25px; border-bottom:none; }   /* the active tab's underline lands on the header's line */
+        .qr-head-tabs .emp-tab { white-space:nowrap; }
+        @media (max-width:640px) {
+            .qr-head-tabs { width:100%; overflow-x:auto; scrollbar-width:none; }
+            .qr-head-tabs::-webkit-scrollbar { display:none; }
+            .qr-head-tabs .emp-tab { padding:11px 12px; }
+        }
 
         /* ── Step 1: tank cards (same idea as "Our Work" on the landing page) ── */
-        .qr-step { max-width:1060px; margin:0 auto; }
+        .qr-step { scroll-margin-top:90px; }
         .qr-step-head { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
         .qr-step-num { width:26px; height:26px; border-radius:50%; background:var(--dark); color:#fff; font-size:12px; font-weight:900; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
         .qr-step-title { font-size:15px; font-weight:900; color:var(--dark); }
@@ -23,7 +30,7 @@
         }
         .qt-card:hover { border-color:var(--dark); box-shadow:0 8px 24px rgba(0,0,0,.08); transform:translateY(-2px); }
         .qt-card:focus-visible { outline:3px solid var(--dark); outline-offset:2px; }
-        .qt-card.is-selected { border-color:var(--dark); box-shadow:0 0 0 3px rgba(0,0,0,.12); }
+        .qt-card.is-selected, .qt-card.is-selected:hover { border-color:#F5B400; background:#FFF8E1; box-shadow:0 0 0 3px #F5B400, 0 12px 28px rgba(245,180,0,.35); }
         /* every card the same size: fixed picture height, 2-line title and description */
         .qt-cards { grid-auto-rows:1fr; }
         .qt-card { height:100%; }
@@ -33,7 +40,8 @@
         .qt-media-icon i, .qt-media-icon svg { width:26px; height:26px; color:rgba(255,255,255,.8); }
         .qt-check { position:absolute; z-index:1; top:10px; right:10px; width:26px; height:26px; border-radius:50%; background:#fff; color:var(--dark); display:none; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,.2); }
         .qt-check i, .qt-check svg { width:16px; height:16px; }
-        .qt-card.is-selected .qt-check { display:flex; }
+        .qt-card.is-selected .qt-check { display:flex; width:30px; height:30px; background:#F5B400; color:#1a1a1a; }
+        .qt-card.is-selected .qt-check svg { stroke-width:3; }
         .qt-body { flex:1; padding:12px 14px 14px; display:flex; flex-direction:column; gap:4px; }
         .qt-name { font-size:13.5px; font-weight:900; color:var(--dark); line-height:1.3; min-height:calc(2 * 1.3em);
                    display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
@@ -41,7 +49,14 @@
                     display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
 
         /* ── Step 2: the selected tank's form ── */
-        #quotationCard { max-width:1060px; margin:22px auto 0; }
+        #quotationCard { margin:22px 0 0; }
+        .qr-picked { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:14px; padding:12px 16px; border-radius:14px; background:var(--white); border:1px solid var(--border); }
+        .qr-picked[hidden] { display:none; }
+        .qr-picked-text { font-size:13px; font-weight:800; color:var(--dark); }
+        .qr-picked-text small { display:block; font-size:12px; font-weight:500; color:var(--muted); }
+        .qr-tank-panel { padding:18px; margin-bottom:16px; border:1.5px solid var(--border); border-radius:18px; background:var(--white); scroll-margin-top:100px; }   /* clears the fixed header when scrolled to */
+        #quotationCard .qr-step-head { flex-wrap:wrap; }
+        .qr-add-tank { margin-left:auto; }
         .qr-chosen { display:flex; align-items:center; gap:12px; padding:12px 14px; border-radius:14px; background:var(--cream-soft); border:1px solid var(--border); margin-bottom:18px; }
         .qr-chosen-icon { width:40px; height:40px; border-radius:12px; background:var(--dark); color:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
         .qr-chosen-icon i, .qr-chosen-icon svg { width:20px; height:20px; }
@@ -93,7 +108,7 @@
         .qr-toggle input[type=checkbox]:focus-visible + .qr-switch { box-shadow:0 0 0 3px rgba(245,180,0,.35); }
         .qr-toggle-text strong { display:block; font-size:13px; font-weight:800; color:var(--dark); }
         .qr-toggle-text small { display:block; margin-top:2px; font-size:11.5px; color:var(--muted); line-height:1.45; }
-        #siteLocationGroup[hidden] { display:none; }
+        .qr-site[hidden] { display:none; }
 
         .qr-design-btn {
             display:flex; align-items:center; gap:14px; width:100%; text-align:left; cursor:pointer;
@@ -142,6 +157,8 @@
             .qr-submit-row { flex-direction:column; justify-content:center; text-align:center; }
             .qr-submit-row .save-btn { align-self:stretch; justify-content:center; }
             .qr-chosen { flex-wrap:wrap; }
+            .qr-tank-panel { padding:14px; }
+            .qr-picked { flex-direction:column; align-items:stretch; text-align:center; }
         }
     </style>
 </head>
@@ -150,20 +167,6 @@
     @include('partials.client.header')
 
     <main class="admin-content">
-
-        <div class="page-header" id="quotationHeader">
-            <div>
-                <h1 class="page-title">Quotation</h1>
-                <p class="page-subtitle">Request a quotation, review the quotations GMD South Phils prepares for you, and look back at past requests.</p>
-            </div>
-        </div>
-
-        @if(session('error'))
-        <div class="alert-banner" style="background:#fee2e2;border:1px solid #fca5a5;color:#dc2626;max-width:820px;margin:0 auto 18px;">
-            <i data-lucide="circle-alert"></i>
-            {{ session('error') }}
-        </div>
-        @endif
 
         @php
             $pendingBatches = $pendingBatches ?? collect();
@@ -178,22 +181,40 @@
             $needsDecision = $pendingBatches->filter(fn ($b) => $b->first()->status === 'quotation_sent')->count();
             // approved quotations still waiting for the client's Purchase Order also need the client
             $needsPo = $pendingBatches->filter(fn ($b) => $batchStatus($b) === 'awaiting_po')->count();
-            $oldItem = old('tank_items.0', []);
-            $initialSlug = $oldItem['tank_slug'] ?? $selectedTank;
-            // server-side errors for the type-specific fields, keyed by field (shown under each field)
-            $specErrors = [];
+            // The tanks to open with: what a failed submit sent back, else the one picked on the landing page
+            $initialItems = collect(old('tank_items', []))
+                ->filter(fn ($item) => !empty($item['tank_slug']))
+                ->map(fn ($item, $key) => ['key' => (int) $key, 'slug' => $item['tank_slug'], 'item' => $item])
+                ->values();
+            if ($initialItems->isEmpty() && $selectedTank) {
+                $initialItems = collect([['key' => 0, 'slug' => $selectedTank, 'item' => ['capacity' => $selectedCapacity, 'specs' => $selectedSpecs ?? []]]]);
+            }
+            // server-side errors, by tank and field (shown under each field)
+            $itemErrors = [];
             foreach ($errors->getMessages() as $errKey => $errMessages) {
-                if (str_starts_with($errKey, 'tank_items.0.specs.')) {
-                    $specErrors[substr($errKey, strlen('tank_items.0.specs.'))] = $errMessages[0];
+                if (preg_match('/^tank_items\.(\d+)\.(?:specs\.(.+)|(\w+))/', $errKey, $m)) {
+                    if (!empty($m[2])) { $itemErrors[$m[1]]['specs'][$m[2]] = $errMessages[0]; }
+                    else { $itemErrors[$m[1]][$m[3]] = $errMessages[0]; }
                 }
             }
+            // what PHP accepts in one request: past these, files are dropped or the whole form is rejected
+            $postLimit = (function () {
+                $raw  = trim((string) ini_get('post_max_size'));
+                $size = (float) $raw;
+                return (int) ($size * (['G' => 1073741824, 'M' => 1048576, 'K' => 1024][strtoupper(substr($raw, -1))] ?? 1));
+            })();
+            $fileLimit = (int) ini_get('max_file_uploads');
         @endphp
 
         {{-- Alpine.js: which tab is open and which "My Quotations" filter is applied. The server renders the
              starting tab, so the page is correct even before Alpine loads. --}}
         <div x-data="{ tab: @js($activeTab), filter: 'all' }">
-        <div style="max-width:820px;margin:0 auto 24px;display:flex;justify-content:center;">
-            <div class="emp-tabs" role="tablist">
+        <div class="page-header cd-page-head" id="quotationHeader">
+            <div>
+                <h1 class="page-title">Quotation</h1>
+                <p class="page-subtitle">Request a quotation, review the quotations GMD South Phils prepares for you, and look back at past requests.</p>
+            </div>
+            <div class="emp-tabs qr-head-tabs" role="tablist">
                 <button type="button" role="tab" class="emp-tab {{ $activeTab === 'new-request' ? 'active' : '' }}" data-tab="new-request"
                         @click="tab = 'new-request'" :class="{ active: tab === 'new-request' }" :aria-selected="(tab === 'new-request').toString()">
                     <i data-lucide="clipboard-list"></i>
@@ -217,8 +238,15 @@
             </div>
         </div>
 
+        @if(session('error'))
+        <div class="alert-banner" style="background:#fee2e2;border:1px solid #fca5a5;color:#dc2626;margin:0 0 18px;">
+            <i data-lucide="circle-alert"></i>
+            {{ session('error') }}
+        </div>
+        @endif
+
         {{-- ===================== MY QUOTATIONS (open requests) ===================== --}}
-        <div class="emp-tab-content {{ $activeTab === 'pending' ? 'active' : '' }}" id="tab-pending" role="tabpanel" :class="{ active: tab === 'pending' }" style="max-width:820px;margin:0 auto;">
+        <div class="emp-tab-content {{ $activeTab === 'pending' ? 'active' : '' }}" id="tab-pending" role="tabpanel" :class="{ active: tab === 'pending' }">
             @if($hasPending)
                 @if($pendingBatches->count() > 1)
                 @php
@@ -259,7 +287,7 @@
         </div>
 
         {{-- ===================== HISTORY ===================== --}}
-        <div class="emp-tab-content {{ $activeTab === 'history' ? 'active' : '' }}" id="tab-history" role="tabpanel" :class="{ active: tab === 'history' }" style="max-width:820px;margin:0 auto;">
+        <div class="emp-tab-content {{ $activeTab === 'history' ? 'active' : '' }}" id="tab-history" role="tabpanel" :class="{ active: tab === 'history' }">
             <div style="display:flex;flex-direction:column;gap:24px;">
             @forelse($historyBatches as $batch)
                 @include('partials.client.quotation_batch_card', ['batch' => $batch])
@@ -280,15 +308,14 @@
                 <div class="qr-step-head">
                     <span class="qr-step-num">1</span>
                     <div>
-                        <div class="qr-step-title">Choose the tank you need</div>
-                        <div class="qr-step-sub">Each tank type asks only for the details that apply to it.</div>
+                        <div class="qr-step-title">Choose the tanks you need</div>
+                        <div class="qr-step-sub">Select one or more. Each tank gets its own quotation.</div>
                     </div>
                 </div>
-                <div class="qt-cards" role="list">
+                <div class="qt-cards" role="group" aria-label="Tanks">
                     @foreach($tankCards as $card)
-                    <button type="button" class="qt-card {{ $initialSlug === $card['slug'] ? 'is-selected' : '' }}" role="listitem"
-                            data-slug="{{ $card['slug'] }}" aria-pressed="{{ $initialSlug === $card['slug'] ? 'true' : 'false' }}"
-                            onclick="chooseTank('{{ $card['slug'] }}', true)">
+                    <button type="button" class="qt-card" data-slug="{{ $card['slug'] }}" aria-pressed="false"
+                            onclick="toggleTank('{{ $card['slug'] }}')">
                         <div class="qt-media" @if($card['image']) style="background-image:url('{{ $card['image'] }}')" @endif>
                             @if($card['image'])
                                 <img src="{{ $card['image'] }}" alt="" loading="lazy">
@@ -304,15 +331,22 @@
                     </button>
                     @endforeach
                 </div>
+                <div class="qr-picked" id="pickedBar" hidden>
+                    <div class="qr-picked-text"><span id="pickedCount"></span><small>Pick more, or continue to fill in the details.</small></div>
+                    <button type="button" class="save-btn" onclick="document.getElementById('quotationCard').scrollIntoView({ behavior: 'smooth', block: 'start' })">
+                        Continue <i data-lucide="arrow-down"></i>
+                    </button>
+                </div>
             </div>
 
-            <div class="pv-card" id="quotationCard" @if(!$initialSlug) hidden @endif>
+            <div class="pv-card" id="quotationCard" @if($initialItems->isEmpty()) hidden @endif>
                 <div class="qr-step-head">
                     <span class="qr-step-num">2</span>
                     <div>
                         <div class="qr-step-title">Tell us your requirements</div>
                         <div class="qr-step-sub">Fields marked <span style="color:#dc2626;">*</span> are required.</div>
                     </div>
+                    <button type="button" class="qr-change qr-add-tank" onclick="document.querySelector('.qr-step').scrollIntoView({ behavior: 'smooth', block: 'start' })">+ Add another tank</button>
                 </div>
 
                 @if($errors->any())
@@ -329,42 +363,65 @@
 
                 <form method="POST" action="{{ route('client.quotation.store') }}" id="quotationRequestForm" enctype="multipart/form-data" novalidate>
                     @csrf
-                    <input type="hidden" name="tank_items[0][tank_slug]" id="tankSlugInput" value="{{ $initialSlug }}">
+                    <div id="tankPanels"></div>
+
+                    <div class="form-group" style="margin-top:18px;">
+                        <label for="notesInput">Additional Notes <span style="font-size:11px;color:var(--muted);font-weight:400;">(optional, added to every tank)</span></label>
+                        <textarea name="notes" id="notesInput" rows="3" maxlength="2000" placeholder="Anything else that helps us prepare your quotation...">{{ old('notes') }}</textarea>
+                    </div>
+
+                    <div class="field-error" id="uploadError" style="display:none;"></div>
+                    <div class="qr-submit-row">
+                        <span class="qr-submit-hint">
+                            <i data-lucide="info" style="width:12px;height:12px;vertical-align:-1px;"></i>
+                            <span id="submitHint"></span>
+                        </span>
+                        <button type="submit" class="save-btn" id="submitRequestBtn">
+                            <i data-lucide="send"></i>
+                            <span id="submitLabel">Submit Request</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            {{-- One selected tank; JS clones this per tank and gives its fields that tank's tank_items[key] names --}}
+            <template id="tankPanelTpl">
+                <div class="qr-tank-panel">
+                    <input type="hidden" data-name="[tank_slug]" data-field="slug">
 
                     <div class="qr-chosen">
-                        <span class="qr-chosen-icon" id="chosenIcon"><i data-lucide="package"></i></span>
+                        <span class="qr-chosen-icon" data-field="icon"></span>
                         <div class="qr-chosen-text">
-                            <strong id="chosenName">—</strong>
-                            <span id="chosenBlurb"></span>
+                            <strong data-field="name"></strong>
+                            <span data-field="blurb"></span>
                         </div>
-                        <button type="button" class="qr-change" onclick="document.querySelector('.qt-cards').scrollIntoView({behavior:'smooth', block:'start'})">Change</button>
+                        <button type="button" class="qr-change" data-field="remove">Remove</button>
                     </div>
 
                     {{-- ── Service: a combined card's choice (e.g. Fuel Pipeline → installation or re-piping), as cards;
                          they drive the card's own (hidden) select, which is what gets submitted ── --}}
-                    <div id="choiceSection" hidden>
-                        <div class="qr-section-label"><i data-lucide="list-checks"></i> <span id="choiceLabel">Service</span> <span style="color:#dc2626;">*</span></div>
-                        <div class="qr-sizes" id="choiceCards" role="radiogroup"></div>
-                        <div id="choiceSlot" hidden></div>
+                    <div data-field="choiceSection" hidden>
+                        <div class="qr-section-label"><i data-lucide="list-checks"></i> <span data-field="choiceLabel">Service</span> <span style="color:#dc2626;">*</span></div>
+                        <div class="qr-sizes" data-field="choiceCards" role="radiogroup"></div>
+                        <div data-field="choiceSlot" hidden></div>
                         <div class="qr-divider"></div>
                     </div>
 
                     {{-- ── Size: a standard size (fixed capacity + dimensions) or the client's own ── --}}
                     <div class="qr-section-label">
-                        <i data-lucide="ruler"></i> <span id="sizeSectionLabel">Capacity / Size</span> <span style="color:#dc2626;">*</span>
-                        <span class="qr-section-sub" id="sizeHint" hidden>Choose a standard size, or "Other size" to enter your own.</span>
+                        <i data-lucide="ruler"></i> <span data-field="sizeLabel">Capacity / Size</span> <span style="color:#dc2626;">*</span>
+                        <span class="qr-section-sub" data-field="sizeHint" hidden>Choose a standard size, or "Other size" to enter your own.</span>
                     </div>
-                    <div class="qr-sizes" id="sizeChips" hidden role="radiogroup" aria-label="Standard sizes"></div>
+                    <div class="qr-sizes" data-field="sizeChips" hidden role="radiogroup" aria-label="Standard sizes"></div>
                     {{-- shown for "Other size" (or a tank without standard sizes); the type's Preferred Dimensions field is moved in here --}}
-                    <div class="qr-size-fields" id="sizeFields">
+                    <div class="qr-size-fields" data-field="sizeFields">
                         <div class="form-group">
-                            <label for="capacityInput"><span id="capacityLabel">Capacity / Size</span> <span style="color:#dc2626;">*</span></label>
-                            <input type="text" name="tank_items[0][capacity]" id="capacityInput" required maxlength="255" autocomplete="off"
-                                   value="{{ $oldItem['capacity'] ?? $selectedCapacity ?? '' }}" oninput="formatCapacity(this); markSize()">
+                            <label data-field="capacityLabelWrap"><span data-field="capacityLabel">Capacity / Size</span> <span style="color:#dc2626;">*</span></label>
+                            <input type="text" data-name="[capacity]" data-field="capacity" required maxlength="255" autocomplete="off">
                         </div>
-                        <div id="dimsSlot" style="display:contents;"></div>
+                        <div data-field="dimsSlot" style="display:contents;"></div>
                     </div>
-                    @error('tank_items.0.capacity')<div class="field-error">{{ $message }}</div>@enderror
+                    <div class="field-error" data-error="capacity" hidden></div>
 
                     <div class="qr-divider"></div>
 
@@ -372,62 +429,44 @@
                     <div class="qr-section-label"><i data-lucide="sliders-horizontal"></i> Details</div>
                     <div class="qr-fields">
                         <div class="form-group">
-                            <label for="quantityInput">Quantity <span style="color:#dc2626;">*</span></label>
-                            <input type="number" name="tank_items[0][quantity]" id="quantityInput" required min="1" max="1000" value="{{ $oldItem['quantity'] ?? 1 }}">
-                            <div class="qr-hint" id="quantityHint">How many identical units you need.</div>
-                            @error('tank_items.0.quantity')<div class="field-error">{{ $message }}</div>@enderror
+                            <label data-field="quantityLabel">Quantity <span style="color:#dc2626;">*</span></label>
+                            <input type="number" data-name="[quantity]" data-field="quantity" required min="1" max="1000" value="1">
+                            <div class="qr-hint" data-field="quantityHint">How many identical units you need.</div>
+                            <div class="field-error" data-error="quantity" hidden></div>
                         </div>
                         {{-- type-specific fields are rendered here --}}
-                        <div class="qr-wide" id="typeFields" style="display:contents;"></div>
+                        <div class="qr-wide" data-field="typeFields" style="display:contents;"></div>
                     </div>
 
                     {{-- picked up at GMD's shop unless the client asks GMD to assemble the tank on site --}}
                     <label class="qr-toggle" style="margin-top:18px;">
-                        <input type="hidden" name="tank_items[0][onsite_assembly]" value="0">
-                        <input type="checkbox" name="tank_items[0][onsite_assembly]" value="1" id="onsiteInput" {{ !empty($oldItem['onsite_assembly']) ? 'checked' : '' }}>
+                        <input type="hidden" data-name="[onsite_assembly]" value="0">
+                        <input type="checkbox" data-name="[onsite_assembly]" value="1" data-field="onsite">
                         <span class="qr-switch" aria-hidden="true"></span>
                         <span class="qr-toggle-text">
                             <strong>Assembled on site by GMD</strong>
                             <small>GMD builds the tank at your site. Off: the finished tank is picked up at our shop in Calauan, Laguna.</small>
                         </span>
                     </label>
-                    <div class="form-group" id="siteLocationGroup" style="margin-top:12px;" {{ !empty($oldItem['onsite_assembly']) ? '' : 'hidden' }}>
-                        <label for="siteLocationInput">Site Location <span style="color:#dc2626;">*</span></label>
-                        <input type="text" name="tank_items[0][site_location]" id="siteLocationInput" maxlength="500" autocomplete="street-address"
-                               value="{{ $oldItem['site_location'] ?? '' }}" placeholder="Where the tank will be assembled — street, barangay, city / municipality, province"
-                               {{ !empty($oldItem['onsite_assembly']) ? 'required' : 'disabled' }}>
-                        @error('tank_items.0.site_location')<div class="field-error">{{ $message }}</div>@enderror
+                    <div class="form-group qr-site" data-field="siteGroup" style="margin-top:12px;" hidden>
+                        <label data-field="siteLabel">Site Location <span style="color:#dc2626;">*</span></label>
+                        <input type="text" data-name="[site_location]" data-field="site" maxlength="500" autocomplete="street-address" disabled
+                               placeholder="Where the tank will be assembled — street, barangay, city / municipality, province">
+                        <div class="field-error" data-error="site_location" hidden></div>
                     </div>
 
                     <div class="qr-divider"></div>
 
                     <div class="qr-section-label"><i data-lucide="paperclip"></i> Design or reference files <span style="font-size:11px;color:var(--muted);font-weight:500;">(optional)</span></div>
-                    <button type="button" class="qr-design-btn" id="designBtn">
+                    <button type="button" class="qr-design-btn" data-field="designBtn">
                         <span class="qr-design-icon"><i data-lucide="upload-cloud"></i></span>
                         <span class="qr-design-text"><strong>Attach your design or photos</strong><em>PDF, image or AutoCAD (.dwg) · up to 5 files, 10MB each</em></span>
                     </button>
-                    <input type="file" id="designInput" name="tank_items[0][design_files][]" accept=".pdf,image/*,.dwg" multiple style="display:none;">
-                    <div class="qr-file-list" id="designList" style="display:none;"></div>
-                    <div class="field-error" id="designError" style="display:none;"></div>
-
-                    <div class="form-group" style="margin-top:18px;">
-                        <label for="notesInput">Additional Notes <span style="font-size:11px;color:var(--muted);font-weight:400;">(optional)</span></label>
-                        <textarea name="notes" id="notesInput" rows="3" maxlength="2000" placeholder="Anything else that helps us prepare your quotation...">{{ old('notes') }}</textarea>
-                    </div>
-
-                    <div class="qr-submit-row">
-                        <span class="qr-submit-hint">
-                            <i data-lucide="info" style="width:12px;height:12px;vertical-align:-1px;"></i>
-                            You'll get a reference number now, and your quotation will appear under "My Quotations".
-                        </span>
-                        <button type="submit" class="save-btn" id="submitRequestBtn">
-                            <i data-lucide="send"></i>
-                            Submit Request
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
+                    <input type="file" data-name="[design_files][]" data-field="designInput" accept=".pdf,image/*,.dwg" multiple style="display:none;">
+                    <div class="qr-file-list" data-field="designList" style="display:none;"></div>
+                    <div class="field-error" data-field="designError" style="display:none;"></div>
+                </div>
+            </template>
         </div>{{-- /x-data tabs --}}
 
     </main>
@@ -440,10 +479,11 @@
             modal.addEventListener('click', function (e) { if (e.target === this) closeModal(this.id); });
         });
 
-        var TANKS       = @json(collect($tankCards)->keyBy('slug'));
-        {{-- answers typed before a failed submit, else the option picked on the tank's details page --}}
-        var OLD_SPECS   = @json((object) ($oldItem['specs'] ?? ($selectedSpecs ?? [])));
-        var SPEC_ERRORS = @json((object) $specErrors);
+        var TANKS         = @json(collect($tankCards)->keyBy('slug'));
+        var INITIAL_ITEMS = @json($initialItems);
+        var ITEM_ERRORS   = @json((object) $itemErrors);
+        var POST_LIMIT    = {{ $postLimit }};   // bytes the server accepts in one request
+        var FILE_LIMIT    = {{ $fileLimit }};   // files it accepts in one request; any more are silently dropped
 
         function esc(s) {
             return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -465,10 +505,12 @@
             if (input.setSelectionRange && document.activeElement === input) input.setSelectionRange(pos, pos);
         }
 
-        // ── the selected tank's own fields ──
-        function fieldHtml(f, value) {
-            var name = 'tank_items[0][specs][' + f.key + ']';
-            var id   = 'spec_' + f.key;
+        function fmtBytes(b) { return b < 1024 ? b + ' B' : (b < 1048576 ? Math.round(b / 1024) + ' KB' : (b / 1048576).toFixed(1) + ' MB'); }
+
+        // ── a tank's own fields (each selected tank has its own panel, so its own tank_items[key] names) ──
+        function fieldHtml(f, value, key, errors) {
+            var name = 'tank_items[' + key + '][specs][' + f.key + ']';
+            var id   = 'spec_' + key + '_' + f.key;
             var req  = f.required ? ' <span style="color:#dc2626;">*</span>' : '';
             var attr = (f.required ? ' required' : '') + ' id="' + id + '" name="' + name + '" data-spec="' + esc(f.key) + '"';
             var input;
@@ -485,192 +527,182 @@
                 input = '<input type="text" maxlength="255"' + attr + ' placeholder="' + esc(f.placeholder || '') + '" value="' + esc(value || '') + '">';
             }
             var wide = f.type === 'textarea' || (f.placeholder && f.placeholder.length > 40) ? ' qr-wide' : '';
-            var err  = SPEC_ERRORS[f.key] ? '<div class="field-error">' + esc(SPEC_ERRORS[f.key]) + '</div>' : '';
+            var err  = errors[f.key] ? '<div class="field-error">' + esc(errors[f.key]) + '</div>' : '';
             var cond = f.show_if ? ' data-show-if="' + esc(f.show_if[0]) + '" data-show-value="' + esc(f.show_if[1]) + '"' : '';
             return '<div class="form-group' + wide + '"' + cond + '><label for="' + id + '">' + esc(f.label) + req + '</label>' + input + err + '</div>';
         }
 
-        // fields shown only for a particular answer (e.g. tower height for an elevated tank)
-        function applyConditions() {
-            document.querySelectorAll('#typeFields [data-show-if]').forEach(function (group) {
-                var source = document.querySelector('#typeFields [data-spec="' + group.dataset.showIf + '"]');
-                var on = source && source.value === group.dataset.showValue;
-                group.style.display = on ? '' : 'none';
-                group.querySelectorAll('input, select, textarea').forEach(function (el) { el.disabled = !on; });
-            });
-        }
+        var panels  = {};   // slug → the selected tank's panel
+        var nextKey = 0;
 
-        // ── Size: picking a standard size fixes Capacity + Preferred Dimensions (shown on the card itself, inputs hidden);
-        //    "Other size" opens the two inputs for the client's own. Types without standard sizes just show the inputs. ──
-        var sizeMode = '';   // '' = nothing picked yet, 'std' = a standard size, 'other' = typed by the client
-        function renderSizes(t) {
-            var box   = document.getElementById('sizeChips');
-            var sizes = t.sizes || [];
-            box.innerHTML = sizes.map(function (s) {
-                return '<button type="button" class="qr-size" role="radio" data-capacity="' + esc(s.capacity) + '" data-dimensions="' + esc(s.dimensions) + '">' +
-                    '<strong>' + esc(s.capacity) + '</strong>' + (s.dimensions ? '<small>' + esc(s.dimensions) + '</small>' : '') + '</button>';
-            }).join('') + (sizes.length ? '<button type="button" class="qr-size qr-size--other" role="radio" data-other="1"><strong>Other size</strong><small>Enter your own</small></button>' : '');
-            box.hidden = !sizes.length;
-            document.getElementById('sizeHint').hidden = !sizes.length;
-            box.querySelectorAll('.qr-size').forEach(function (b) {
-                b.addEventListener('click', function () { b.dataset.other ? chooseOther(true) : pickSize(b); });
-            });
-
-            // start from what's already there: a standard size (from the details page or a failed submit), typed values, or nothing
-            var cap = document.getElementById('capacityInput');
-            // switching tanks: a standard size of the previous tank doesn't carry over (unless this one offers it too)
-            if (sizeMode === 'std' && !sizes.some(function (s) { return s.capacity === cap.value.trim(); })) {
-                cap.value = '';
-                var oldDims = document.getElementById('spec_dimensions');
-                if (oldDims) oldDims.value = '';
-            }
-            var match = [].find.call(box.querySelectorAll('.qr-size[data-capacity]'), function (b) { return b.dataset.capacity === cap.value.trim(); });
-            if (!sizes.length) sizeMode = 'free';
-            else if (match) return pickSize(match);
-            else if (cap.value.trim()) return chooseOther(false);
-            else sizeMode = '';
-            syncSizeFields();
-        }
-        function pickSize(btn) {
-            sizeMode = 'std';
-            document.getElementById('capacityInput').value = btn.dataset.capacity;
-            var dims = document.getElementById('spec_dimensions');
-            if (dims) dims.value = btn.dataset.dimensions;
-            syncSizeFields();
-        }
-        function chooseOther(focus) {
-            var cap = document.getElementById('capacityInput'), dims = document.getElementById('spec_dimensions');
-            if (sizeMode === 'std') { cap.value = ''; if (dims) dims.value = ''; }   // don't leave a standard size behind to edit
-            sizeMode = 'other';
-            syncSizeFields();
-            if (focus) cap.focus();
-        }
-        // the inputs show only when the client enters their own size; a standard size is shown on its card
-        function syncSizeFields() {
-            document.getElementById('sizeFields').hidden = !(sizeMode === 'other' || sizeMode === 'free');
-            // a lone capacity input (no sizes, no dimensions) already sits under the section title — no second label
-            document.querySelector('label[for="capacityInput"]').hidden = sizeMode === 'free' && !document.getElementById('spec_dimensions');
-            var msg = document.getElementById('sizeChips').nextElementSibling;   // "Choose a size…" from a blocked submit
-            if (sizeMode && msg && msg.matches('.field-error.js')) msg.remove();
-            markSize();
-        }
-        function markSize() {
-            var v = document.getElementById('capacityInput').value.trim();
-            document.querySelectorAll('#sizeChips .qr-size').forEach(function (b) {
-                var on = b.dataset.other ? sizeMode === 'other' : (sizeMode === 'std' && b.dataset.capacity === v);
-                b.classList.toggle('is-on', on);
-                b.setAttribute('aria-checked', on ? 'true' : 'false');
-            });
-        }
-
-        // ── a combined card's choice (Fuel Pipeline → service) as cards; the select it drives moves out of Details ──
-        function renderChoice(t) {
-            var section = document.getElementById('choiceSection');
-            var slot    = document.getElementById('choiceSlot');
-            var box     = document.getElementById('choiceCards');
-            slot.innerHTML = ''; box.innerHTML = '';
-            var select  = t.choice ? document.querySelector('#typeFields [data-spec="' + t.choice.key + '"]') : null;
-            section.hidden = !select;
-            if (!select) return;
-            slot.appendChild(select.closest('.form-group'));   // still submitted, just not shown
-            document.getElementById('choiceLabel').textContent = t.choice.label === 'Service Needed' ? 'Service' : t.choice.label;
-            box.innerHTML = t.choice.options.map(function (o) {
-                return '<button type="button" class="qr-size" role="radio" data-value="' + esc(o.value) + '">' +
-                    '<strong>' + esc(o.value) + '</strong>' + (o.text ? '<small>' + esc(o.text) + '</small>' : '') + '</button>';
-            }).join('');
-            if (SPEC_ERRORS[t.choice.key]) {   // a server-side error for the hidden select shows under the cards
-                var err = document.createElement('div');
-                err.className = 'field-error js';
-                err.textContent = SPEC_ERRORS[t.choice.key];
-                box.insertAdjacentElement('afterend', err);
-            }
-            var mark = function () {
-                box.querySelectorAll('.qr-size').forEach(function (b) {
-                    var on = b.dataset.value === select.value;
-                    b.classList.toggle('is-on', on);
-                    b.setAttribute('aria-checked', on ? 'true' : 'false');
-                });
-            };
-            box.querySelectorAll('.qr-size').forEach(function (b) {
-                b.addEventListener('click', function () {
-                    select.value = b.dataset.value;
-                    select.dispatchEvent(new Event('change'));
-                    var msg = box.nextElementSibling;   // "Choose …" from a blocked submit
-                    if (msg && msg.matches('.field-error.js')) msg.remove();
-                    mark();
-                });
-            });
-            mark();
-        }
-
-        function chooseTank(slug, scroll) {
+        // Builds one tank's panel: everything in here works on that panel alone
+        function addPanel(slug, key, item, errors) {
             var t = TANKS[slug];
-            if (!t) return;
-            document.getElementById('tankSlugInput').value = slug;
-            document.querySelectorAll('.qt-card').forEach(function (c) {
-                var on = c.dataset.slug === slug;
-                c.classList.toggle('is-selected', on);
-                c.setAttribute('aria-pressed', on ? 'true' : 'false');
+            if (!t || panels[slug]) return;
+            item = item || {};
+            errors = errors || {};
+            var specErrors = errors.specs || {};
+            var values = Object.assign({}, item.specs || {});
+
+            var node = document.getElementById('tankPanelTpl').content.firstElementChild.cloneNode(true);
+            var get  = function (field) { return node.querySelector('[data-field="' + field + '"]'); };
+            node.dataset.slug = slug;
+            node.querySelectorAll('[data-name]').forEach(function (el) { el.name = 'tank_items[' + key + ']' + el.dataset.name; });
+
+            get('slug').value = slug;
+            get('name').textContent  = t.type;
+            get('blurb').textContent = t.blurb;
+            get('icon').innerHTML    = '<i data-lucide="' + esc(t.icon) + '"></i>';
+            get('remove').addEventListener('click', function () { toggleTank(slug); });
+            get('capacityLabel').textContent = t.capacity.label;
+            get('sizeLabel').textContent     = t.capacity.label;
+            get('quantityHint').textContent  = t.unit === 'unit' ? 'How many identical units you need.' : 'Number of ' + t.unit + 's (usually 1).';
+
+            var cap = get('capacity');
+            cap.id = 'capacity_' + key;
+            get('capacityLabelWrap').htmlFor = cap.id;
+            cap.placeholder = t.capacity.placeholder;
+            cap.value = item.capacity || '';
+            cap.addEventListener('input', function () { formatCapacity(cap); markSize(); });
+            var qty = get('quantity');
+            qty.id = 'quantity_' + key;
+            get('quantityLabel').htmlFor = qty.id;
+            if (item.quantity) qty.value = item.quantity;
+
+            node.querySelectorAll('[data-error]').forEach(function (el) {
+                if (errors[el.dataset.error]) { el.textContent = errors[el.dataset.error]; el.hidden = false; }
             });
 
-            document.getElementById('chosenName').textContent  = t.type;
-            document.getElementById('chosenBlurb').textContent = t.blurb;
-            document.getElementById('chosenIcon').innerHTML    = '<i data-lucide="' + esc(t.icon) + '"></i>';
-            document.getElementById('capacityLabel').textContent = t.capacity.label;
-            document.getElementById('sizeSectionLabel').textContent = t.capacity.label;
-            var cap = document.getElementById('capacityInput');
-            cap.placeholder = t.capacity.placeholder;
-            document.getElementById('quantityHint').textContent = t.unit === 'unit'
-                ? 'How many identical units you need.'
-                : 'Number of ' + t.unit + 's (usually 1).';
+            // on-site assembly: the site location shows (and is required) only when it's switched on
+            var onsite = get('onsite'), siteGroup = get('siteGroup'), site = get('site');
+            site.id = 'site_' + key;
+            get('siteLabel').htmlFor = site.id;
+            site.value = item.site_location || '';
+            function syncSite() {
+                siteGroup.hidden = !onsite.checked;
+                site.disabled    = !onsite.checked;
+                site.required    = onsite.checked;
+            }
+            onsite.checked = !!Number(item.onsite_assembly || 0);
+            onsite.addEventListener('change', function () { syncSite(); if (onsite.checked) site.focus(); });
+            syncSite();
 
-            // keep what was typed when switching back and forth between types with the same field
-            var kept = {};
-            document.querySelectorAll('#typeFields [data-spec], #dimsSlot [data-spec], #choiceSlot [data-spec]').forEach(function (el) { kept[el.dataset.spec] = el.value; });
-            var values = Object.assign({}, kept, OLD_SPECS);
-            document.getElementById('typeFields').innerHTML = t.fields.map(function (f) { return fieldHtml(f, values[f.key]); }).join('');
-            OLD_SPECS = {};
-            renderChoice(t);
-            // Preferred Dimensions belongs with the size, so it moves up into the Size section
-            var dimsSlot = document.getElementById('dimsSlot');
-            dimsSlot.innerHTML = '';
-            var dimsInput = document.querySelector('#typeFields [data-spec="dimensions"]');
+            // the tank's own questions; Preferred Dimensions belongs with the size, so it moves up into the Size section
+            var typeFields = get('typeFields');
+            typeFields.innerHTML = t.fields.map(function (f) { return fieldHtml(f, values[f.key], key, specErrors); }).join('');
+            var dimsInput = typeFields.querySelector('[data-spec="dimensions"]');
             if (dimsInput) {
                 var dimsGroup = dimsInput.closest('.form-group');
                 dimsGroup.classList.remove('qr-wide');
-                dimsSlot.appendChild(dimsGroup);
+                get('dimsSlot').appendChild(dimsGroup);
             }
-            document.querySelectorAll('#typeFields [data-spec]').forEach(function (el) { el.addEventListener('change', applyConditions); });
-            applyConditions();
-            renderSizes(t);
+            var dims = function () { return node.querySelector('[data-spec="dimensions"]'); };
 
-            var card = document.getElementById('quotationCard');
-            card.hidden = false;
-            if (typeof lucide !== 'undefined') lucide.createIcons();
-            if (scroll) {
-                card.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                // focus where the client starts: the first size card, or the capacity input when there are none
-                setTimeout(function () {
-                    var first = document.querySelector('#sizeChips:not([hidden]) .qr-size');
-                    (first || cap).focus({ preventScroll: true });
-                }, 350);
+            // fields shown only for a particular answer (e.g. tower height for an elevated tank)
+            function applyConditions() {
+                typeFields.querySelectorAll('[data-show-if]').forEach(function (group) {
+                    var source = typeFields.querySelector('[data-spec="' + group.dataset.showIf + '"]');
+                    var on = source && source.value === group.dataset.showValue;
+                    group.style.display = on ? '' : 'none';
+                    group.querySelectorAll('input, select, textarea').forEach(function (el) { el.disabled = !on; });
+                });
             }
-        }
 
+            // ── Size: picking a standard size fixes Capacity + Preferred Dimensions (shown on the card itself, inputs hidden);
+            //    "Other size" opens the two inputs for the client's own. Types without standard sizes just show the inputs. ──
+            var sizeMode = '';   // '' = nothing picked yet, 'std' = a standard size, 'other' = typed, 'free' = no standard sizes
+            var box = get('sizeChips');
+            function pickSize(btn) {
+                sizeMode = 'std';
+                cap.value = btn.dataset.capacity;
+                if (dims()) dims().value = btn.dataset.dimensions;
+                syncSizeFields();
+            }
+            function chooseOther(focus) {
+                if (sizeMode === 'std') { cap.value = ''; if (dims()) dims().value = ''; }   // don't leave a standard size behind to edit
+                sizeMode = 'other';
+                syncSizeFields();
+                if (focus) cap.focus();
+            }
+            // the inputs show only when the client enters their own size; a standard size is shown on its card
+            function syncSizeFields() {
+                get('sizeFields').hidden = !(sizeMode === 'other' || sizeMode === 'free');
+                // a lone capacity input (no sizes, no dimensions) already sits under the section title — no second label
+                get('capacityLabelWrap').hidden = sizeMode === 'free' && !dims();
+                var msg = box.nextElementSibling;   // "Choose a size…" from a blocked submit
+                if (sizeMode && msg && msg.matches('.field-error.js')) msg.remove();
+                markSize();
+            }
+            function markSize() {
+                var v = cap.value.trim();
+                box.querySelectorAll('.qr-size').forEach(function (b) {
+                    var on = b.dataset.other ? sizeMode === 'other' : (sizeMode === 'std' && b.dataset.capacity === v);
+                    b.classList.toggle('is-on', on);
+                    b.setAttribute('aria-checked', on ? 'true' : 'false');
+                });
+            }
+            function renderSizes() {
+                var sizes = t.sizes || [];
+                box.innerHTML = sizes.map(function (s) {
+                    return '<button type="button" class="qr-size" role="radio" data-capacity="' + esc(s.capacity) + '" data-dimensions="' + esc(s.dimensions) + '">' +
+                        '<strong>' + esc(s.capacity) + '</strong>' + (s.dimensions ? '<small>' + esc(s.dimensions) + '</small>' : '') + '</button>';
+                }).join('') + (sizes.length ? '<button type="button" class="qr-size qr-size--other" role="radio" data-other="1"><strong>Other size</strong><small>Enter your own</small></button>' : '');
+                box.hidden = !sizes.length;
+                get('sizeHint').hidden = !sizes.length;
+                box.querySelectorAll('.qr-size').forEach(function (b) {
+                    b.addEventListener('click', function () { b.dataset.other ? chooseOther(true) : pickSize(b); });
+                });
+                // start from what's already there: a standard size (from the details page or a failed submit), typed values, or nothing
+                var match = [].find.call(box.querySelectorAll('.qr-size[data-capacity]'), function (b) { return b.dataset.capacity === cap.value.trim(); });
+                if (!sizes.length) sizeMode = 'free';
+                else if (match) return pickSize(match);
+                else if (cap.value.trim()) return chooseOther(false);
+                syncSizeFields();
+            }
 
-        // ── design files: a native file input replaces its list on every pick, so keep a running list ──
-        (function () {
+            // ── a combined card's choice (Fuel Pipeline → service) as cards; the select it drives moves out of Details ──
+            var choiceBox = get('choiceCards'), choiceSelect = t.choice ? typeFields.querySelector('[data-spec="' + t.choice.key + '"]') : null;
+            function renderChoice() {
+                get('choiceSection').hidden = !choiceSelect;
+                if (!choiceSelect) return;
+                get('choiceSlot').appendChild(choiceSelect.closest('.form-group'));   // still submitted, just not shown
+                get('choiceLabel').textContent = t.choice.label === 'Service Needed' ? 'Service' : t.choice.label;
+                choiceBox.innerHTML = t.choice.options.map(function (o) {
+                    return '<button type="button" class="qr-size" role="radio" data-value="' + esc(o.value) + '">' +
+                        '<strong>' + esc(o.value) + '</strong>' + (o.text ? '<small>' + esc(o.text) + '</small>' : '') + '</button>';
+                }).join('');
+                if (specErrors[t.choice.key]) {   // a server-side error for the hidden select shows under the cards
+                    var err = document.createElement('div');
+                    err.className = 'field-error js';
+                    err.textContent = specErrors[t.choice.key];
+                    choiceBox.insertAdjacentElement('afterend', err);
+                }
+                var mark = function () {
+                    choiceBox.querySelectorAll('.qr-size').forEach(function (b) {
+                        var on = b.dataset.value === choiceSelect.value;
+                        b.classList.toggle('is-on', on);
+                        b.setAttribute('aria-checked', on ? 'true' : 'false');
+                    });
+                };
+                choiceBox.querySelectorAll('.qr-size').forEach(function (b) {
+                    b.addEventListener('click', function () {
+                        choiceSelect.value = b.dataset.value;
+                        choiceSelect.dispatchEvent(new Event('change'));
+                        var msg = choiceBox.nextElementSibling;   // "Choose …" from a blocked submit
+                        if (msg && msg.matches('.field-error.js')) msg.remove();
+                        mark();
+                    });
+                });
+                mark();
+            }
+
+            // ── design files: a native file input replaces its list on every pick, so keep a running list ──
             var MAX_FILES = 5, MAX_BYTES = 10 * 1024 * 1024;
-            var input = document.getElementById('designInput');
-            var btn   = document.getElementById('designBtn');
-            var list  = document.getElementById('designList');
-            var error = document.getElementById('designError');
+            var input = get('designInput'), btn = get('designBtn'), list = get('designList'), error = get('designError');
             var files = [];
-
-            function fmt(b) { return b < 1024 ? b + ' B' : (b < 1048576 ? Math.round(b / 1024) + ' KB' : (b / 1048576).toFixed(1) + ' MB'); }
-            function sync() { var dt = new DataTransfer(); files.forEach(function (f) { dt.items.add(f); }); input.files = dt.files; }
+            function syncFiles() { var dt = new DataTransfer(); files.forEach(function (f) { dt.items.add(f); }); input.files = dt.files; }
             function say(msg) { error.textContent = msg; error.style.display = msg ? 'block' : 'none'; }
-            function render() {
+            function renderFiles() {
                 list.style.display = files.length ? 'flex' : 'none';
                 list.innerHTML = '';
                 files.forEach(function (f, i) {
@@ -680,9 +712,9 @@
                         ? '<img class="qr-file-thumb" src="' + URL.createObjectURL(f) + '" alt="">'
                         : '<span class="qr-file-thumb"><i data-lucide="file-text"></i></span>';
                     chip.innerHTML = thumb + '<div class="qr-file-meta"><div class="qr-file-name" title="' + esc(f.name) + '">' + esc(f.name) + '</div>' +
-                        '<div class="qr-file-size">' + fmt(f.size) + '</div></div>' +
+                        '<div class="qr-file-size">' + fmtBytes(f.size) + '</div></div>' +
                         '<button type="button" class="qr-file-remove" title="Remove" aria-label="Remove ' + esc(f.name) + '"><i data-lucide="x"></i></button>';
-                    chip.querySelector('.qr-file-remove').addEventListener('click', function (e) { e.stopPropagation(); files.splice(i, 1); sync(); say(''); render(); });
+                    chip.querySelector('.qr-file-remove').addEventListener('click', function (e) { e.stopPropagation(); files.splice(i, 1); syncFiles(); say(''); renderFiles(); });
                     list.appendChild(chip);
                 });
                 btn.style.display = files.length ? 'none' : '';
@@ -705,65 +737,114 @@
                     if (files.length >= MAX_FILES)              { problems.push('Only ' + MAX_FILES + ' files are allowed.'); return; }
                     files.push(f);
                 });
-                sync(); say(problems.filter(function (p, i, a) { return a.indexOf(p) === i; }).join(' ')); render();
+                syncFiles(); say(problems.filter(function (p, i, a) { return a.indexOf(p) === i; }).join(' ')); renderFiles();
             });
-        })();
 
-        // ── check required fields in the browser first (the server checks again) ──
+            // ── check this tank's required fields in the browser first (the server checks again) ──
+            function validate() {
+                var firstBad = null;
+                node.querySelectorAll('input[required], select[required], textarea[required]').forEach(function (el) {
+                    if (el.disabled || el.offsetParent === null) return;
+                    if (!el.checkValidity()) {
+                        var msg = document.createElement('div');
+                        msg.className = 'field-error js';
+                        msg.textContent = el.validity.valueMissing ? 'This field is required.' : el.validationMessage;
+                        el.insertAdjacentElement('afterend', msg);
+                        firstBad = firstBad || el;
+                    }
+                });
+                // a combined card's choice (e.g. the service) not made yet: say so under its cards
+                if (choiceSelect && !choiceSelect.value) {
+                    var choiceMsg = document.createElement('div');
+                    choiceMsg.className = 'field-error js';
+                    choiceMsg.textContent = 'Choose the ' + get('choiceLabel').textContent.toLowerCase() + ' you need.';
+                    choiceBox.insertAdjacentElement('afterend', choiceMsg);
+                    firstBad = firstBad || choiceBox.querySelector('.qr-size');
+                }
+                // standard sizes on show but none chosen: say so under the size cards
+                if (!box.hidden && sizeMode === '') {
+                    var sizeMsg = document.createElement('div');
+                    sizeMsg.className = 'field-error js';
+                    sizeMsg.textContent = 'Choose a size, or "Other size" to enter your own.';
+                    box.insertAdjacentElement('afterend', sizeMsg);
+                    firstBad = firstBad || box.querySelector('.qr-size');
+                }
+                return firstBad;
+            }
+
+            typeFields.querySelectorAll('[data-spec]').forEach(function (el) { el.addEventListener('change', applyConditions); });
+            applyConditions();
+            renderChoice();
+            renderSizes();
+
+            document.getElementById('tankPanels').appendChild(node);
+            panels[slug] = { node: node, validate: validate, files: function () { return files; } };
+        }
+
+        // Cards, the "selected" bar and the submit button all follow the panels
+        function syncSelection() {
+            var count = Object.keys(panels).length;
+            document.querySelectorAll('.qt-card').forEach(function (c) {
+                var on = !!panels[c.dataset.slug];
+                c.classList.toggle('is-selected', on);
+                c.setAttribute('aria-pressed', on ? 'true' : 'false');
+            });
+            document.getElementById('quotationCard').hidden = !count;
+            document.getElementById('pickedBar').hidden = !count;
+            document.getElementById('pickedCount').textContent = count + (count === 1 ? ' tank selected' : ' tanks selected');
+            document.getElementById('submitLabel').textContent = count > 1 ? 'Submit ' + count + ' Requests' : 'Submit Request';
+            document.getElementById('submitHint').textContent = count > 1
+                ? 'Each tank gets its own reference number and quotation under "My Quotations".'
+                : 'You\'ll get a reference number now, and your quotation will appear under "My Quotations".';
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        // Clicking a card selects it and goes down to its details, or takes it off the request
+        function toggleTank(slug) {
+            if (panels[slug]) {
+                panels[slug].node.remove();
+                delete panels[slug];
+                syncSelection();
+                return;
+            }
+            addPanel(slug, nextKey++);
+            syncSelection();
+            if (panels[slug]) panels[slug].node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
         document.getElementById('quotationRequestForm').addEventListener('submit', function (e) {
             var form = this, firstBad = null;
             form.querySelectorAll('.field-error.js').forEach(function (el) { el.remove(); });
-            form.querySelectorAll('input[required], select[required], textarea[required]').forEach(function (el) {
-                if (el.disabled || el.offsetParent === null) return;
-                if (!el.checkValidity()) {
-                    var msg = document.createElement('div');
-                    msg.className = 'field-error js';
-                    msg.textContent = el.validity.valueMissing ? 'This field is required.' : el.validationMessage;
-                    el.insertAdjacentElement('afterend', msg);
-                    firstBad = firstBad || el;
-                }
+            // panels in page order, so the client is taken to the first problem
+            form.querySelectorAll('.qr-tank-panel').forEach(function (node) {
+                var bad = panels[node.dataset.slug].validate();
+                firstBad = firstBad || bad;
             });
-            // a combined card's choice (e.g. the service) not made yet: say so under its cards
-            var choiceSection = document.getElementById('choiceSection');
-            var choiceSelect  = document.querySelector('#choiceSlot select');
-            if (!choiceSection.hidden && choiceSelect && !choiceSelect.value) {
-                var choiceMsg = document.createElement('div');
-                choiceMsg.className = 'field-error js';
-                choiceMsg.textContent = 'Choose the ' + document.getElementById('choiceLabel').textContent.toLowerCase() + ' you need.';
-                document.getElementById('choiceCards').insertAdjacentElement('afterend', choiceMsg);
-                firstBad = firstBad || document.querySelector('#choiceCards .qr-size');
-            }
-            // standard sizes on show but none chosen: say so under the size cards
-            var sizeBox = document.getElementById('sizeChips');
-            if (!sizeBox.hidden && sizeMode === '') {
-                var sizeMsg = document.createElement('div');
-                sizeMsg.className = 'field-error js';
-                sizeMsg.textContent = 'Choose a size, or "Other size" to enter your own.';
-                sizeBox.insertAdjacentElement('afterend', sizeMsg);
-                firstBad = firstBad || sizeBox.querySelector('.qr-size');
-            }
-            if (firstBad) {
+
+            // past the server's limits, files would be dropped without a word, or the whole form rejected
+            var all = Object.keys(panels).reduce(function (list, slug) { return list.concat(panels[slug].files()); }, []);
+            var bytes = all.reduce(function (sum, f) { return sum + f.size; }, 0);
+            var uploadError = document.getElementById('uploadError');
+            var tooMany = FILE_LIMIT > 0 && all.length > FILE_LIMIT, tooBig = POST_LIMIT > 0 && bytes > POST_LIMIT * 0.95;
+            uploadError.textContent = tooMany ? 'You attached ' + all.length + ' files, but only ' + FILE_LIMIT + ' can be sent at once. Remove some, or send those tanks as a separate request.'
+                : (tooBig ? 'Your files add up to ' + fmtBytes(bytes) + ', but only ' + fmtBytes(POST_LIMIT) + ' can be sent at once. Remove some, or send those tanks as a separate request.' : '');
+            uploadError.style.display = uploadError.textContent ? 'block' : 'none';
+
+            if (firstBad || tooMany || tooBig) {
                 e.preventDefault();
-                firstBad.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                if (firstBad.focus) firstBad.focus({ preventScroll: true });
+                var target = firstBad || uploadError;
+                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                if (firstBad && firstBad.focus) firstBad.focus({ preventScroll: true });
             }
         });
 
-        // on-site assembly: the site location shows (and is required) only when it's switched on
-        (function () {
-            var toggle = document.getElementById('onsiteInput');
-            var group  = document.getElementById('siteLocationGroup');
-            var input  = document.getElementById('siteLocationInput');
-            toggle.addEventListener('change', function () {
-                group.hidden   = !toggle.checked;
-                input.disabled = !toggle.checked;
-                input.required = toggle.checked;
-                if (toggle.checked) input.focus();
-            });
-        })();
-
-        @if($initialSlug)
-        chooseTank(@json($initialSlug), {{ $selectedTank && !$errors->any() ? 'true' : 'false' }});
+        INITIAL_ITEMS.forEach(function (i) {
+            addPanel(i.slug, i.key, i.item, ITEM_ERRORS[i.key]);
+            nextKey = Math.max(nextKey, i.key + 1);
+        });
+        syncSelection();
+        @if($selectedTank && !$errors->any())
+        document.getElementById('quotationCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
         @endif
         if (typeof lucide !== 'undefined') lucide.createIcons();
     </script>

@@ -2,15 +2,15 @@
      Params: $project, $kind = phase | delivery | payment | progress --}}
 @php
     $phaseColors = [
-        'planning'    => ['bg'=>'#FEF3C7','color'=>'#92400E','shadow'=>'rgba(245,158,11,.2)'],
-        'procurement' => ['bg'=>'#EDE9FE','color'=>'#5B21B6','shadow'=>'rgba(139,92,246,.2)'],
-        'matl_prep'   => ['bg'=>'#CFFAFE','color'=>'#0E7490','shadow'=>'rgba(6,182,212,.2)'],
-        'fabrication' => ['bg'=>'#2563EB','color'=>'#fff','shadow'=>'rgba(37,99,235,.3)'],
-        'inspection'  => ['bg'=>'#EC4899','color'=>'#fff','shadow'=>'rgba(236,72,153,.3)'],
-        'painting'    => ['bg'=>'#14B8A6','color'=>'#fff','shadow'=>'rgba(20,184,166,.3)'],
-        'completion'  => ['bg'=>'#10B981','color'=>'#fff','shadow'=>'rgba(16,185,129,.3)'],
-        'delivery'    => ['bg'=>'#059669','color'=>'#fff','shadow'=>'rgba(5,150,105,.3)'],
-        'delayed'     => ['bg'=>'#EF4444','color'=>'#fff','shadow'=>'rgba(239,68,68,.3)'],
+        'planning'    => ['bg'=>'#475569','color'=>'#fff','shadow'=>'rgba(71,85,105,.3)'],
+        'procurement' => ['bg'=>'#1E3A5F','color'=>'#fff','shadow'=>'rgba(30,58,95,.3)'],
+        'matl_prep'   => ['bg'=>'#7C5A10','color'=>'#fff','shadow'=>'rgba(124,90,16,.3)'],
+        'fabrication' => ['bg'=>'#2A4EAA','color'=>'#fff','shadow'=>'rgba(42,78,170,.3)'],
+        'inspection'  => ['bg'=>'#9A3412','color'=>'#fff','shadow'=>'rgba(154,52,18,.3)'],
+        'painting'    => ['bg'=>'#4D5B2A','color'=>'#fff','shadow'=>'rgba(77,91,42,.3)'],
+        'completion'  => ['bg'=>'#207A3A','color'=>'#fff','shadow'=>'rgba(32,122,58,.3)'],
+        'delivery'    => ['bg'=>'#14532D','color'=>'#fff','shadow'=>'rgba(20,83,45,.3)'],
+        'delayed'     => ['bg'=>'#B42318','color'=>'#fff','shadow'=>'rgba(180,35,24,.3)'],
         'completed'   => ['bg'=>'#E7F6EC','color'=>'#207A3A','shadow'=>'rgba(32,122,58,.15)'],
         'awaiting_delivery' => ['bg'=>'#FFF4E0','color'=>'#B45309','shadow'=>'rgba(245,158,11,.2)'],
         'delivered'   => ['bg'=>'#207A3A','color'=>'#fff','shadow'=>'rgba(32,122,58,.3)'],
@@ -23,7 +23,7 @@
         $pc = $phaseColors[$phase] ?? ['bg'=>'#F3F4F6','color'=>'#6B7280','shadow'=>'rgba(0,0,0,.1)'];
     @endphp
     <span class="status-badge" style="background:{{ $pc['bg'] }};color:{{ $pc['color'] }};box-shadow:0 0 0 1px {{ $pc['shadow'] }},0 2px 8px {{ $pc['shadow'] }};">
-        {{ ucwords(str_replace('_', ' ', $phase)) }}
+        {{ ucwords(\App\Models\Project::phaseLabel($phase)) }}
     </span>
 @elseif($kind === 'delivery')
     {{-- tracked separately from completion, and only shown once the project is completed --}}
@@ -59,8 +59,8 @@
 @elseif($kind === 'progress')
     @php
         $prog = $project->progress ?? 0;
-        $progColor = $prog == 0 ? '#9CA3AF' : ($prog <= 25 ? '#F59E0B' : ($prog <= 50 ? '#3B82F6' : ($prog <= 75 ? '#6366F1' : ($prog < 100 ? '#10B981' : '#059669'))));
-        $progBg    = $prog == 0 ? '#F3F4F6' : ($prog <= 25 ? '#FEF3C7' : ($prog <= 50 ? '#DBEAFE' : ($prog <= 75 ? '#E0E7FF' : '#D1FAE5')));
+        $progColor = $prog == 0 ? '#6B7280' : ($prog <= 25 ? '#7C5A10' : ($prog <= 50 ? '#475569' : ($prog <= 75 ? '#2A4EAA' : ($prog < 100 ? '#207A3A' : '#14532D'))));
+        $progBg    = $prog == 0 ? '#F3F4F6' : ($prog <= 25 ? '#F5EDD8' : ($prog <= 50 ? '#F1F5F9' : ($prog <= 75 ? '#EAF0FF' : '#E7F6EC')));
     @endphp
     <span class="status-badge" style="background:{{ $progBg }};color:{{ $progColor }};box-shadow:0 0 0 1px {{ $progColor }}22,0 2px 8px {{ $progColor }}33;font-weight:800;">
         {{ $prog }}%

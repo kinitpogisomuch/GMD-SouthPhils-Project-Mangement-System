@@ -112,92 +112,6 @@ class MaterialUsageController extends Controller
     }
 
     /**
-     * Logs one or more material usage entries in a single submission — mirrors
-     * storePurchase()'s batch pattern so several materials consumed on the
-     * same day can be recorded at once instead of one at a time. The date is
-     * shared across every row in the batch.
-     */
-    public function store(Request $request, $projectId)
-    {
-        $project = Project::findOrFail($projectId);
-
-        // strip the "__other__" sentinel (and any blank value) before validation
-        $materialIds = collect($request->input('project_material_id', []))
-            ->map(fn ($id) => in_array($id, ['__other__', ''], true) ? null : $id)
-            ->all();
-        $request->merge(['project_material_id' => $materialIds]);
-
-        // Usage can only be logged against materials that actually have
-        // purchased stock — every row must be linked to a real BOM material.
-        $validated = $request->validate([
-            'project_material_id'   => 'required|array|min:1',
-            'project_material_id.*' => 'required|exists:project_materials,id',
-            'material_name'         => 'required|array|min:1',
-            'material_name.*'       => 'required|string|max:255',
-            'unit'                  => 'nullable|array',
-            'unit.*'                => 'nullable|string|max:50',
-            'quantity_used'         => 'required|array|min:1',
-            'quantity_used.*'       => 'required|numeric|min:0.01',
-            'used_date'             => 'required|date',
-        ]);
-
-        // Reject any row that would use more than what's actually in stock
-        // (purchased so far minus what's already been logged as used).
-        $stockErrors = [];
-        $count       = count($validated['material_name']);
-        foreach ($validated['project_material_id'] as $i => $bomId) {
-            $bought      = MaterialPurchase::where('project_id', $project->id)
-                ->where('project_material_id', $bomId)
-                ->sum('qty_bought');
-            $alreadyUsed = MaterialUsage::where('project_id', $project->id)
-                ->where('project_material_id', $bomId)
-                ->where('status', 'active')
-                ->sum('quantity_used');
-            $remaining = $bought - $alreadyUsed;
-            $requested = (float) $validated['quantity_used'][$i];
-
-            if ($remaining <= 0) {
-                $stockErrors[] = "\"{$validated['material_name'][$i]}\" has no stock purchased yet.";
-            } elseif ($requested > $remaining) {
-                $stockErrors[] = "\"{$validated['material_name'][$i]}\" only has " . rtrim(rtrim(number_format($remaining, 2), '0'), '.') . " remaining in stock.";
-            }
-        }
-
-        if (!empty($stockErrors)) {
-            return redirect()->route('admin.material_usage.detail', $project->id)
-                ->with('error', implode(' ', $stockErrors))
-                ->with('active_tab', 'usage');
-        }
-
-        $recordedBy = auth()->user()->name ?? 'Admin';
-
-        for ($i = 0; $i < $count; $i++) {
-            $bomId = $validated['project_material_id'][$i];
-
-            MaterialUsage::create([
-                'project_id'          => $project->id,
-                'project_material_id' => $bomId,
-                'material_name'       => $validated['material_name'][$i],
-                'quantity_used'       => $validated['quantity_used'][$i],
-                'unit'                => $validated['unit'][$i] ?? null,
-                'used_date'           => $validated['used_date'],
-                'recorded_by'         => $recordedBy,
-                'status'              => 'active',
-            ]);
-
-            $this->checkLowStock($project, $bomId);
-        }
-
-        $message = $count === 1
-            ? 'Material usage logged successfully.'
-            : "{$count} material usage entries logged successfully.";
-
-        return redirect()
-            ->route('admin.material_usage.detail', $project->id)
-            ->with('success', $message);
-    }
-
-    /**
      * Logs one or more material purchases in a single submission — a whole
      * supplier run can be entered at once instead of one purchase at a time.
      * Supplier is the log's general supplier, overridable per row (row_supplier[])
@@ -317,20 +231,6 @@ class MaterialUsageController extends Controller
         return redirect()->route('admin.material_usage.detail', $projectId)
             ->with('success', 'Purchase record deleted.' . ($returned ? ' ₱' . number_format($returned->amount, 2) . ' was returned to the revolving fund.' : ''))
             ->with('active_tab', 'purchased');
-    }
-
-    public function archive($projectId, $usageId)
-    {
-        $entry = MaterialUsage::where('project_id', $projectId)->findOrFail($usageId);
-        $entry->status = $entry->status === 'archived' ? 'active' : 'archived';
-        $entry->save();
-        \App\Services\LowStockService::sync();   // archiving/restoring usage changes the stock left
-
-        $label = $entry->status === 'archived' ? 'archived' : 'restored';
-
-        return redirect()
-            ->route('admin.material_usage.detail', $projectId)
-            ->with('success', "Usage entry for \"{$entry->material_name}\" {$label} successfully.");
     }
 
     // -----------------------------------------------------------------------

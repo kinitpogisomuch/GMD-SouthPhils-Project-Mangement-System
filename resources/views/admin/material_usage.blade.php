@@ -191,7 +191,7 @@
                                 </td>
                                 <td><span class="client-pill">{{ $project->live_client_name }}</span></td>
                                 <td>
-                                    <span class="status-badge ongoing">{{ ucfirst(str_replace('_', ' ', $project->current_phase ?? 'Planning')) }}</span>
+                                    <span class="status-badge ongoing">{{ \App\Models\Project::phaseLabel($project->current_phase ?? 'Planning') }}</span>
                                 </td>
                                 <td>
                                     <span style="font-size:14px;font-weight:700;color:var(--dark);">{{ $matCount }}</span>

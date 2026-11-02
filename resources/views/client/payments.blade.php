@@ -13,7 +13,7 @@
 
     <main class="admin-content">
 
-            <div class="page-header" style="margin-bottom:24px;">
+            <div class="page-header cd-page-head">
                 <div>
                     <h1 class="page-title">My Payments</h1>
                     <p class="page-subtitle">View your project payment status, balances, and transaction history.</p>
@@ -87,10 +87,9 @@
                             @if($canPayOnline)
                             <form method="POST" action="{{ route('client.payments.online.pay', $payment->id) }}" style="margin:0;">
                                 @csrf
-                                @php $payBilled = $payment->isStageBilled($payable['stage']); @endphp
-                                <button type="submit" class="btn btn-primary btn-sm" @unless($payBilled) style="background:var(--info);border-color:var(--info);" @endunless title="{{ \App\Models\PaymentTransaction::stageLabel($payable['stage']) }} — secured by PayMongo">
-                                    <i data-lucide="{{ $payBilled ? 'landmark' : 'fast-forward' }}"></i>
-                                    {{ $payBilled ? 'Pay' : 'Pay in Advance' }} ₱{{ number_format($payable['amount'], 2) }}
+                                <button type="submit" class="btn btn-primary btn-sm" title="{{ \App\Models\PaymentTransaction::stageLabel($payable['stage']) }} — secured by PayMongo">
+                                    <i data-lucide="landmark"></i>
+                                    Pay ₱{{ number_format($payable['amount'], 2) }}
                                 </button>
                             </form>
                             @endif

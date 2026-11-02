@@ -137,7 +137,7 @@
             <img src="{{ asset('images/gmdlogo-circle.svg') }}" alt="GMD South Phils">
             <div>
                 <div class="vf-brand-name">GMD <span>South Phils</span></div>
-                <div class="vf-brand-sub">Client Portal</div>
+                <div class="vf-brand-sub">Client Side</div>
             </div>
         </div>
 

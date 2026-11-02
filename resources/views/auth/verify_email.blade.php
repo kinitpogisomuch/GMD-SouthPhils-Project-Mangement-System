@@ -40,7 +40,7 @@
                     Tank Fabrication Portal
                 </div>
                 <h1>GMD South Phils Metal Fabrication Works</h1>
-                <p>From planning to delivery, manage every phase of your storage tank fabrication projects — built strong, tracked with precision.</p>
+                <p>From planning to pick-up, manage every phase of your storage tank fabrication projects — built strong, tracked with precision.</p>
             </div>
         </div>
 

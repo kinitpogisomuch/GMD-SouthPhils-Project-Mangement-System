@@ -43,23 +43,14 @@
                     <h1>
                         {{ $project->name }}
                     </h1>
+                    @if($project->status === 'completed')
                     <p>
-                        <span class="client-pill">{{ $clientName }}</span>
-                        @if($project->status === 'completed')
                         {{-- Completion and delivery are separate: a completed project can still be awaiting delivery --}}
                         <span class="client-pill" style="background:{{ $project->isDelivered() ? '#E7F6EC' : '#FFF4E0' }};color:{{ $project->isDelivered() ? '#207A3A' : '#B45309' }};border-color:transparent;">
                             {{ $project->deliveryStatusLabel() }}@if($project->deliveredAt()) · {{ $project->deliveredAt()->format('M d, Y') }}@endif
                         </span>
-                        @endif
-                        @if($project->tankItems->isNotEmpty())
-                            @foreach($project->tankItems as $ti)
-                            &nbsp;·&nbsp;
-                            <strong>{{ $ti->quantity }}×</strong> {{ $ti->tank_type }}@if($ti->capacity) ({{ $ti->capacity }})@endif
-                            @endforeach
-                        @else
-                            &nbsp;·&nbsp; {{ $project->tank_type }} &nbsp;·&nbsp; {{ $project->capacity }}
-                        @endif
                     </p>
+                    @endif
                 </div>
                 {{-- This button normally lives in the progress form's footer, next to "Save
                      Progress Update" — but that form (and footer) doesn't render at all once
@@ -154,8 +145,6 @@
                 }
             </style>
             @endif
-
-            @include('partials.project_settlement_status', ['project' => $project, 'portal' => 'admin'])
 
             <!-- Financial Overview Card -->
             @php
@@ -318,7 +307,7 @@
                     $currentSubIndex = array_search($project->current_sub_phase, $subPhaseKeys);
                 @endphp
                 <div style="margin-top:14px;margin-bottom:6px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);">
-                    {{ ucfirst(str_replace('_', ' ', $project->current_phase)) }} Phase &nbsp;·&nbsp; Sub-Phases
+                    {{ \App\Models\Project::phaseLabel($project->current_phase) }} Phase &nbsp;·&nbsp; Sub-Phases
                 </div>
                 <div class="phase-steps-scroll">
                 <div class="phase-steps sub-phase-steps" style="margin-top:0;">
@@ -381,7 +370,7 @@
                             <div class="pv-history-header">
                                 <div class="pv-history-title-col">
                                     <div class="pv-history-phase-title">
-                                        {{ ucfirst(str_replace('_', ' ', $update->phase)) }} Phase
+                                        {{ \App\Models\Project::phaseLabel($update->phase) }} Phase
                                         @if($update->update_label === 'revision')
                                         <span class="pv-history-revision-badge">Revision</span>
                                         @endif
@@ -471,7 +460,7 @@
                         <h3 class="pv-card-title" style="margin-bottom:0;">
                             Add Progress Update
                             <span style="font-size:12px;font-weight:600;color:var(--accent);margin-left:6px;">
-                                — {{ ucfirst(str_replace('_', ' ', $project->current_phase)) }} Phase
+                                — {{ \App\Models\Project::phaseLabel($project->current_phase) }} Phase
                             </span>
                         </h3>
                     </div>
@@ -534,8 +523,8 @@
                             <i data-lucide="check-circle-2" style="width:38px;height:38px;color:#16a34a;"></i>
                         </div>
                         <div>
-                            <p style="font-size:17px;font-weight:900;color:var(--dark);margin-bottom:6px;">Project Completed &amp; Delivered</p>
-                            <p style="font-size:13.5px;color:var(--muted);max-width:320px;line-height:1.6;">All phases are completed and the project has been delivered. No further progress updates are required.</p>
+                            <p style="font-size:17px;font-weight:900;color:var(--dark);margin-bottom:6px;">Project Completed &amp; Picked Up</p>
+                            <p style="font-size:13.5px;color:var(--muted);max-width:320px;line-height:1.6;">All phases are completed and the project has been picked up. No further progress updates are required.</p>
                         </div>
                     </div>
                     @else
@@ -908,7 +897,7 @@
                                         <i data-lucide="check-circle-2" style="width:26px;height:26px;color:#16a34a;"></i>
                                     </div>
                                     <p class="pv-payment-gate-title">{{ $isBigProject ? 'Final 20% Payment' : 'Final 50% Payment' }} Confirmed</p>
-                                    <p class="pv-payment-gate-text">Final payment has been confirmed. Click Confirm Payment below to proceed to the delivery details.</p>
+                                    <p class="pv-payment-gate-text">Final payment has been confirmed. Click Confirm Payment below to proceed to the pick-up details.</p>
                                 </div>
                                 @else
                                 <div class="pv-payment-gate-card pv-payment-gate-warning">
@@ -916,7 +905,7 @@
                                         <i data-lucide="alert-triangle" style="width:26px;height:26px;color:#b45309;"></i>
                                     </div>
                                     <p class="pv-payment-gate-title">Payment Reminder</p>
-                                    <p class="pv-payment-gate-text">The final payment has not been recorded yet. It can still be settled after the tank is delivered — click Proceed Anyway to record the delivery now.</p>
+                                    <p class="pv-payment-gate-text">The final payment has not been recorded yet. It can still be settled after the tank is picked up — click Proceed Anyway to record the pick-up now.</p>
                                     <a href="{{ $paymentUrl }}" class="pv-payment-gate-link">
                                         <i data-lucide="credit-card" style="width:13px;height:13px;"></i>
                                         View Payment Status
@@ -933,7 +922,7 @@
                                 <label class="log-label">DELIVERY PHOTOS *</label>
                                 <label class="pv-upload-dropzone" id="deliveryDropzone">
                                     <i data-lucide="upload-cloud" style="width:32px;height:32px;color:var(--accent);"></i>
-                                    <span style="font-size:14px;font-weight:700;color:var(--text-primary);">Click to upload delivery photos</span>
+                                    <span style="font-size:14px;font-weight:700;color:var(--text-primary);">Click to upload pick-up photos</span>
                                     <span style="font-size:12px;color:var(--muted);">Required — up to 5 photos, JPG/PNG, max 5MB each</span>
                                     <input type="file" name="photos[]" multiple accept="image/*"
                                            data-preview-id="deliveryPreview" data-dropzone-id="deliveryDropzone" data-max="5"
@@ -947,12 +936,12 @@
                                     <span style="font-weight:400;color:var(--muted);text-transform:none;">(optional)</span>
                                 </label>
                                 <textarea name="delivery_notes" class="log-textarea" style="flex:1;min-height:120px;resize:vertical;"
-                                          placeholder="Any notes about the delivery..."></textarea>
+                                          placeholder="Any notes about the pick-up..."></textarea>
                             </div>
 
                             </div>
 
-                            @php $submitLabel = 'Mark as Delivered'; @endphp
+                            @php $submitLabel = 'Mark as Picked Up'; @endphp
 
                         @endif
 
@@ -1065,7 +1054,7 @@
                                 <div class="pv-history-header">
                                     <div class="pv-history-title-col">
                                         <div class="pv-history-phase-title">
-                                            {{ ucfirst(str_replace('_', ' ', $update->phase)) }} Phase
+                                            {{ \App\Models\Project::phaseLabel($update->phase) }} Phase
                                             @if($update->update_label === 'revision')
                                             <span class="pv-history-revision-badge">Revision</span>
                                             @endif
@@ -1167,7 +1156,7 @@
                 <div class="project-detail-grid" style="margin-top:10px;margin-bottom:20px;">
                     <div class="project-detail-box"><span>Start Date</span><strong>{{ $project->start_date->format('M d, Y') }}</strong></div>
                     <div class="project-detail-box"><span>End Date</span><strong>{{ $project->end_date->format('M d, Y') }}</strong></div>
-                    <div class="project-detail-box"><span>Current Phase</span><strong>{{ ucfirst(str_replace('_', ' ', $project->current_phase)) }}</strong></div>
+                    <div class="project-detail-box"><span>Current Phase</span><strong>{{ \App\Models\Project::phaseLabel($project->current_phase) }}</strong></div>
                     @if($project->notes)
                     <div class="project-detail-box" style="grid-column:span 3;"><span>Notes</span><strong>{{ $project->notes }}</strong></div>
                     @endif
@@ -1210,7 +1199,7 @@
             <!-- Request Update History: every "Request Update" sent for this project — who
                  it went to, what was asked, and whether it's still open, fulfilled, or came
                  back around as a revision request. -->
-            <div class="pv-card" style="margin-top:0;">
+            <div class="pv-card" style="margin-top:0;display:flex;flex-direction:column;">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
                     <div style="display:flex;align-items:center;gap:10px;">
                         <i data-lucide="send" style="width:18px;height:18px;color:var(--accent);"></i>
@@ -1229,7 +1218,7 @@
                     ];
                 @endphp
 
-                <div style="display:flex;flex-direction:column;gap:10px;max-height:520px;overflow-y:auto;padding-right:4px;">
+                <div class="pv-history-scroll" style="overflow-y:auto;display:flex;flex-direction:column;gap:10px;">
                     @forelse($progressRequests as $req)
                     @php $rs = $requestStatusMap[$req->status] ?? ['key' => 'superseded', 'icon' => 'help-circle', 'label' => ucfirst($req->status)]; @endphp
                     <div class="pv-history-item" style="margin:0;">
@@ -1237,7 +1226,7 @@
                             <div class="pv-history-header">
                                 <div class="pv-history-title-col">
                                     <div class="pv-history-phase-title">
-                                        {{ ucfirst(str_replace('_', ' ', $req->phase)) }} Phase
+                                        {{ \App\Models\Project::phaseLabel($req->phase) }} Phase
                                     </div>
                                     <div class="pv-history-meta-row">
                                         <i data-lucide="user"></i>
@@ -1367,7 +1356,7 @@
             <div class="modal-header">
                 <div>
                     <h2>Request Progress Update</h2>
-                    <p>Send a request for a field update on the {{ ucfirst(str_replace('_', ' ', $project->current_phase)) }} phase.</p>
+                    <p>Send a request for a field update on the {{ \App\Models\Project::phaseLabel($project->current_phase) }} phase.</p>
                 </div>
                 <button class="modal-close" type="button" id="closeRequestModal">
                     <i data-lucide="x"></i>
@@ -1686,9 +1675,9 @@
             </div>
             <div class="delete-confirm-body">
                 <div class="delete-confirm-icon" style="background:#fef3c7;color:#b45309;"><i data-lucide="alert-triangle"></i></div>
-                <p>Are you sure you want to record the delivery now?</p>
+                <p>Are you sure you want to record the pick-up now?</p>
                 <div style="margin-top:8px;font-size:13px;color:var(--muted);line-height:1.6;padding:0 12px;">
-                    The project will be marked as delivered. The final payment stays open in the Payment module and can be settled after delivery.
+                    The project will be marked as picked up. The final payment stays open in the Payment module and can be settled after pick-up.
                 </div>
             </div>
             <div class="modal-actions">
@@ -2472,6 +2461,7 @@
         });
 
         function ucPhase(phase) {
+            if (phase === 'delivery') return 'Pickup';
             return phase.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
         }
 

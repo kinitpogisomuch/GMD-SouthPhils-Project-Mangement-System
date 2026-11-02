@@ -648,13 +648,37 @@ body {
     color: var(--accent);
 }
 
+.tracker-progress-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 0;
+}
+
+.tracker-progress-bar {
+    flex: 1;
+    height: 8px;
+    background: var(--cream-deep);
+    border-radius: 999px;
+    overflow: hidden;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,.08);
+}
+
+.tracker-progress-fill {
+    height: 100%;
+    border-radius: 999px;
+    transition: width 0.5s ease;
+}
+
 .tracker-progress-badge {
     background-color: #E7F6EC;
     color: #207A3A;
     font-size: 13px;
     font-weight: 900;
-    padding: 8px 16px;
+    padding: 6px 14px;
     border-radius: 999px;
+    white-space: nowrap;
 }
 
 /* ================= PHASE STEPS ================= */
@@ -1685,19 +1709,48 @@ tbody tr:last-child td { border-bottom: none; }
 
 /* ================= PROJECT VIEW ================= */
 
+/* page titles: same size as the dashboard greeting (28px, 22px on phones) */
 .page-title {
-    font-size: 26px;
+    font-size: 28px;
     font-weight: 900;
     color: var(--dark);
-    letter-spacing: -0.3px;
+    letter-spacing: -0.5px;
     margin-bottom: 4px;
     line-height: 1.15;
 }
 
 .page-subtitle {
-    font-size: 13px;
+    font-size: 13.5px;
     color: var(--muted);
     font-weight: 600;
+}
+
+@media (max-width: 640px) {
+    .page-title { font-size: 22px; }
+}
+
+/* My Projects, My Payments and Quotation: the same header as the client dashboard —
+   a yellow accent line over the title, a lighter subtitle and a thin line underneath */
+.page-header.cd-page-head {
+    align-items: flex-end;
+    flex-wrap: wrap;
+    padding: 4px 4px 24px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+}
+.cd-page-head .page-title { margin: 0 0 4px; }
+.cd-page-head .page-title::before {
+    content: "";
+    display: block;
+    width: 40px;
+    height: 4px;
+    margin-bottom: 10px;
+    border-radius: 999px;
+    background: #F5B400;
+}
+.cd-page-head .page-subtitle { font-weight: 400; }
+@media (max-width: 640px) {
+    .page-header.cd-page-head { align-items: stretch; }   /* stacked on phones: title on the left, not pushed to the right */
 }
 
 .pv-grid {
@@ -3639,23 +3692,6 @@ body.page-enter .admin-content {
         margin-top: 2px;
     }
 
-    /* "Fabrication Phase Tracker" on one line, the tank under it in smaller text */
-    .tracker-title-text {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-        min-width: 0;
-    }
-
-    .tracker-title-sep {
-        display: none;
-    }
-
-    .tracker-title-sub {
-        font-size: 12.5px;
-        font-weight: 700;
-        color: var(--muted);
-    }
 
     .tracker-progress-badge {
         flex-shrink: 0;
@@ -3901,18 +3937,7 @@ body:has(.modal-overlay.show) #chatPopupWrap {
 
 
 /* ================= PHASE TRACKER PROGRESS BAR ON PHONES =================
-   Same as the admin tracker on phones: title on top, then a progress bar with the % badge
-   across the full width. On desktop only the badge shows, exactly as before. */
-.tracker-mobile-progress {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.tracker-mobile-bar {
-    display: none;
-}
-
+   Same as the admin tracker on phones: title on top, then the bar and % badge across the full width. */
 @media (max-width: 640px) {
     .tracker-card-header {
         flex-direction: column;
@@ -3920,32 +3945,10 @@ body:has(.modal-overlay.show) #chatPopupWrap {
         gap: 10px;
     }
 
-    .tracker-mobile-progress {
+    .tracker-progress-wrap {
         width: 100%;
     }
-
-    .tracker-mobile-bar {
-        display: block;
-        flex: 1;
-        height: 8px;
-        background: var(--cream-deep);
-        border-radius: 999px;
-        overflow: hidden;
-        box-shadow: inset 0 1px 3px rgba(0, 0, 0, .08);
-    }
-
-    .tracker-mobile-bar span {
-        display: block;
-        height: 100%;
-        border-radius: 999px;
-        background: #059669;
-    }
-
-    .tracker-mobile-progress .tracker-progress-badge {
-        flex-shrink: 0;
-    }
 }
-
 
 /* ================= BURGER MENU — SAME LOOK AS THE LANDING PAGE =================
    Phones/tablets only (the burger only exists ≤768px). Same as the employee portal:

@@ -83,6 +83,7 @@ class Notification extends Model
         'monthly_expense_reminder'         => 'calendar-clock',
         'material_logging_reminder'        => 'clipboard-x',
         'salary_recording_reminder'        => 'wallet',
+        'salary_paid'                      => 'wallet',
         'billing_statement_sent'           => 'file-text',
         'payment_due'                      => 'wallet',
         'payment_received'                 => 'badge-check',

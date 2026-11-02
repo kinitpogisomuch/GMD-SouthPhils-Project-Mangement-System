@@ -336,7 +336,7 @@ class KpiDashboardController extends Controller
                 'code'     => $p->code,
                 'name'     => $p->name,
                 'end_date' => $p->end_date->format('M d, Y'),
-                'phase'    => ucwords(str_replace('_', ' ', $p->current_phase ?? 'planning')),
+                'phase'    => ucwords(\App\Models\Project::phaseLabel($p->current_phase ?? 'planning')),
                 'overdue'  => $p->end_date->lt($today),
             ])
             ->values();

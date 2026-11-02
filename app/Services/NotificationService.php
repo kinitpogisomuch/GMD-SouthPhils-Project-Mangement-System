@@ -399,7 +399,7 @@ class NotificationService
     /** Admin created a new project → notify all employees + client */
     public static function projectCreated(Project $project): void
     {
-        $phaseName = ucfirst(str_replace('_', ' ', $project->current_phase));
+        $phaseName = \App\Models\Project::phaseLabel($project->current_phase);
 
         self::notifyAllEmployees(
             'New Project Available',
@@ -506,7 +506,7 @@ class NotificationService
         int     $updateId,
         $occurredAt = null
     ): void {
-        $phaseName   = ucfirst(str_replace('_', ' ', $newPhase));
+        $phaseName   = \App\Models\Project::phaseLabel($newPhase);
         $isCompleted = ($newPhase === 'delivery' || $project->status === 'completed');
 
         self::notifyEmployee(
@@ -1049,7 +1049,7 @@ class NotificationService
     /** Project advanced to a new phase → notify all employees, plus the client with a custom message */
     public static function phaseAdvanced(Project $project, string $newPhase, string $clientMessage, $occurredAt = null): void
     {
-        $phaseName = ucfirst(str_replace('_', ' ', $newPhase));
+        $phaseName = \App\Models\Project::phaseLabel($newPhase);
 
         self::notifyAllEmployees(
             'Project Phase Advanced',
@@ -1167,7 +1167,7 @@ class NotificationService
 
         self::notifyAllEmployees(
             'Project Completed',
-            "Project {$project->name} has been completed and is awaiting delivery.",
+            "Project {$project->name} has been completed and is awaiting pick-up.",
             self::TYPE_PROJECT_COMPLETED,
             'success',
             $project->id,
@@ -1182,8 +1182,8 @@ class NotificationService
     {
         self::notifyProjectClient(
             $project,
-            'Project Delivered',
-            "Your project \"{$project->name}\" has been delivered.",
+            'Project Picked Up',
+            "Your project \"{$project->name}\" has been picked up.",
             self::TYPE_PHASE_ADVANCED,
             'success',
             null,
@@ -1192,8 +1192,8 @@ class NotificationService
         );
 
         self::notifyAllEmployees(
-            'Project Delivered',
-            "Project {$project->name} has been delivered to the client.",
+            'Project Picked Up',
+            "Project {$project->name} has been picked up by the client.",
             self::TYPE_PHASE_ADVANCED,
             'success',
             $project->id,

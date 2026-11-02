@@ -440,14 +440,14 @@ function buildPhaseSteps(statuses) {
 
 // Solid bar color + badge colors keyed by phase — matches the status badge in the tracker
 var PHASE_BAR_COLORS = {
-    'planning':    { bar: '#92400e', badgeBg: '#FEF3C7', badgeColor: '#92400e' },
-    'procurement': { bar: '#5B21B6', badgeBg: '#EDE9FE', badgeColor: '#5B21B6' },
-    'matl_prep':   { bar: '#0E7490', badgeBg: '#CFFAFE', badgeColor: '#0E7490' },
-    'fabrication': { bar: '#2563EB', badgeBg: '#DBEAFE', badgeColor: '#1e40af' },
-    'inspection':  { bar: '#EC4899', badgeBg: '#fce7f3', badgeColor: '#9d174d' },
-    'painting':    { bar: '#14B8A6', badgeBg: '#ccfbf1', badgeColor: '#0f766e' },
-    'completion':  { bar: '#10B981', badgeBg: '#d1fae5', badgeColor: '#065f46' },
-    'delivery':    { bar: '#059669', badgeBg: '#d1fae5', badgeColor: '#065f46' },
+    'planning':    { bar: '#475569', badgeBg: '#F1F5F9', badgeColor: '#475569' },
+    'procurement': { bar: '#1E3A5F', badgeBg: '#E3EAF3', badgeColor: '#1E3A5F' },
+    'matl_prep':   { bar: '#7C5A10', badgeBg: '#F5EDD8', badgeColor: '#7C5A10' },
+    'fabrication': { bar: '#2A4EAA', badgeBg: '#EAF0FF', badgeColor: '#2A4EAA' },
+    'inspection':  { bar: '#9A3412', badgeBg: '#FBE9E0', badgeColor: '#9A3412' },
+    'painting':    { bar: '#4D5B2A', badgeBg: '#EEF1E0', badgeColor: '#4D5B2A' },
+    'completion':  { bar: '#207A3A', badgeBg: '#E7F6EC', badgeColor: '#207A3A' },
+    'delivery':    { bar: '#14532D', badgeBg: '#DCEBDF', badgeColor: '#14532D' },
 };
 
 function updateProgressBadge(progress) {

@@ -14,7 +14,7 @@
     <main class="admin-content">
 
             <!-- Page Header -->
-            <div class="page-header" style="margin-bottom:28px;">
+            <div class="page-header cd-page-head">
                 <div>
                     <h1 class="page-title">My Projects</h1>
                     <p class="page-subtitle">View and monitor the progress of your assigned construction projects, including project phases, updates, milestones, and completion status.</p>

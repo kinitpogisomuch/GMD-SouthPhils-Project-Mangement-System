@@ -8,6 +8,7 @@ use App\Models\Employee;
 use App\Models\SalaryRecord;
 use App\Models\MaterialUsage;
 use App\Models\ProgressRequest;
+use App\Models\ProjectUpdate;
 use Carbon\Carbon;
 
 class EmployeeController extends Controller
@@ -35,13 +36,45 @@ class EmployeeController extends Controller
             ->take(5)
             ->get();
 
+        // progress updates the admin asked this employee for, still waiting on them
+        $openRequests = ProgressRequest::with('project')
+            ->where('target_employee_id', $employee->id)
+            ->whereIn('status', ['open', 'revision_requested'])
+            ->latest()
+            ->get();
+
+        // Recent activity: updates this employee sent, update requests the admin sent them,
+        // and materials they logged — newest first
+        $activity = collect()
+            ->concat(ProjectUpdate::with('project')
+                ->where('submitted_by_type', 'employee')
+                ->where('submitted_by', $employee->id)
+                ->latest()->take(10)->get()
+                ->map(fn ($u) => ['kind' => 'update', 'at' => $u->created_at, 'project' => $u->project, 'project_id' => $u->project_id, 'phase' => $u->phase, 'status' => $u->status]))
+            ->concat(ProgressRequest::with('project')
+                ->where('target_employee_id', $employee->id)
+                ->latest()->take(10)->get()
+                ->map(fn ($r) => ['kind' => 'request', 'at' => $r->created_at, 'project' => $r->project, 'project_id' => $r->project_id, 'phase' => $r->phase, 'status' => $r->status]))
+            ->concat(MaterialUsage::with('project')
+                ->where('recorded_by', $employee->full_name)
+                ->active()
+                ->latest()->take(10)->get()
+                ->map(fn ($m) => ['kind' => 'usage', 'at' => $m->created_at, 'project' => $m->project, 'project_id' => $m->project_id,
+                                  'material' => $m->material_name, 'qty' => (float) $m->quantity_used, 'unit' => $m->unit]))
+            ->filter(fn ($a) => $a['at'])
+            ->sortByDesc('at')
+            ->take(12)
+            ->values();
+
         return view('employee.dashboard', compact(
             'employee',
             'projects',
             'activeProjectsCount',
             'completedProjectsCount',
             'currentRecord',
-            'recentUsage'
+            'recentUsage',
+            'openRequests',
+            'activity'
         ));
     }
 

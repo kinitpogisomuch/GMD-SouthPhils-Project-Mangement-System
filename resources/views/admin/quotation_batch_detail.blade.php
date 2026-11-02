@@ -388,6 +388,12 @@
                     </p>
                 </div>
                 <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                    @if($standardSizeOffer)
+                    <button class="cancel-btn" type="button" id="openStandardSizeModal" style="display:inline-flex;align-items:center;gap:6px;">
+                        <i data-lucide="bookmark-plus"></i>
+                        Save as Standard Size
+                    </button>
+                    @endif
                     @if(in_array($batchStatus, ['pending', 'in_preparation'], true))
                         @if($step === 'costing')
                         {{-- step 1 → 2: only once the costing is complete AND saved (checked live in the page as well) --}}
@@ -1178,6 +1184,44 @@
 
     @endunless
 
+    @if($standardSizeOffer)
+    {{-- ===================== SAVE AS STANDARD SIZE MODAL ===================== --}}
+    <div class="modal-overlay" id="standardSizeModal">
+        <div class="modal-card" style="max-width:500px;width:95%;">
+            <div class="modal-header">
+                <div>
+                    <h2>Save as Standard Size</h2>
+                    <p>Adds this size to <strong>{{ $standardSizeOffer['type'] }}</strong>. Clients will see it on the tank's page, and new quotations for it start from this costing.</p>
+                </div>
+                <button class="modal-close" type="button" data-close-standard-size aria-label="Close">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <form method="POST" action="{{ route('admin.quotation_requests.batch_standard_size', $batch->id) }}">
+                @csrf
+                <div class="form-group" style="margin-bottom:14px;">
+                    <label for="standardSizeCapacity">Capacity</label>
+                    <input type="text" name="capacity" id="standardSizeCapacity" required maxlength="60" value="{{ $standardSizeOffer['capacity'] }}">
+                </div>
+                <div class="form-group" style="margin-bottom:14px;">
+                    <label for="standardSizeDimensions">Dimensions <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
+                    <input type="text" name="dimensions" id="standardSizeDimensions" maxlength="80" value="{{ $standardSizeOffer['dimensions'] }}" placeholder="e.g. 2.4 m Ø × 2.4 m L">
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 14px;margin-bottom:12px;border-radius:12px;background:var(--cream-soft);border:1px solid var(--border);">
+                    <span style="font-size:12.5px;font-weight:700;color:var(--muted);">Estimated price per tank</span>
+                    <strong style="font-size:15px;color:var(--dark);">₱{{ number_format($standardSizeOffer['price'], 2) }}</strong>
+                </div>
+                <p style="margin:0;font-size:12px;line-height:1.5;color:var(--muted);">Uses the last saved costing for one tank. On-site assembly costs stay with this job only. Materials, labor and pricing stay internal.</p>
+                <p id="standardSizeDirty" hidden style="margin:8px 0 0;font-size:12px;font-weight:700;color:#B45309;">You have unsaved changes. Save the costing first to include them.</p>
+                <div class="modal-actions">
+                    <button type="button" class="cancel-btn" data-close-standard-size>Cancel</button>
+                    <button type="submit" class="save-btn"><i data-lucide="check"></i> Save Standard Size</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    @endif
+
     {{-- ===================== SEND TO CLIENT MODAL ===================== --}}
     <div class="modal-overlay" id="sendQuotationModal">
         <div class="modal-card" style="max-width:560px;width:95%;">
@@ -1289,6 +1333,16 @@
     @if(request('open_send') && !$isLocked)
     openModal('sendQuotationModal');
     @endif
+
+    // ---- Save as Standard Size ----
+    var openStandardSizeBtn = document.getElementById('openStandardSizeModal');
+    if (openStandardSizeBtn) openStandardSizeBtn.addEventListener('click', function () {
+        document.getElementById('standardSizeDirty').hidden = !(typeof qbDirty !== 'undefined' && qbDirty);
+        openModal('standardSizeModal');
+    });
+    document.querySelectorAll('[data-close-standard-size]').forEach(function (btn) {
+        btn.addEventListener('click', function () { closeModal('standardSizeModal'); });
+    });
 
     // ---- helpers ----
     function escapeHtml(str) {

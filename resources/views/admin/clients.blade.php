@@ -21,10 +21,6 @@
                     <h1>Manage Clients</h1>
                     <p>View and manage client contact records and portal accounts.</p>
                 </div>
-                <button class="add-btn" type="button" id="openAddClientModal">
-                    <i data-lucide="user-plus"></i>
-                    Add Client
-                </button>
             </div>
 
             @if(session('success'))
@@ -177,7 +173,7 @@
                             @empty
                             <tr id="clientBladeEmpty">
                                 <td colspan="7" style="text-align:center;padding:40px;color:var(--muted);">
-                                    No clients found. Click <strong>Add Client</strong> to get started.
+                                    No clients yet. New clients appear here once they sign up.
                                 </td>
                             </tr>
                             @endforelse
@@ -195,145 +191,6 @@
             </div>
 
         </main>
-    </div>
-
-    <!-- ===== CREDENTIALS SUCCESS MODAL ===== -->
-    @if($newClientCreds)
-    <div class="modal-overlay show" id="credentialsSuccessModal">
-        <div class="modal-card" style="max-width:500px;">
-            <div class="modal-header">
-                <div>
-                    <h2>Account Created Successfully</h2>
-                    <p>{{ $newClientCreds['name'] }}{{ $newClientCreds['email'] ? ' · '.$newClientCreds['email'] : '' }}</p>
-                </div>
-                <button class="modal-close" type="button" onclick="closeModal('credentialsSuccessModal')">
-                    <i data-lucide="x"></i>
-                </button>
-            </div>
-
-            <div style="text-align:center;padding:8px 0 20px;">
-                <div style="width:56px;height:56px;background:#dcfce7;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
-                    <i data-lucide="check-circle-2" style="width:28px;height:28px;color:#16a34a;"></i>
-                </div>
-                <p style="font-size:13.5px;color:var(--text-secondary);margin-bottom:20px;">
-                    @if(!$newClientCreds['email'])
-                        The client account has been created. Share these credentials directly with the client.
-                    @elseif($newClientCreds['email_sent'])
-                        The client account has been created and credentials have been
-                        <strong style="color:#16a34a;">successfully emailed</strong> to {{ $newClientCreds['email'] }}.
-                    @else
-                        The client account has been created and credentials have been generated.
-                        <strong style="color:#dc2626;">Email delivery failed</strong> — please share credentials manually.
-                        @if($newClientCreds['email_error'])
-                        <br><span style="font-size:11px;color:#6b7280;display:block;margin-top:6px;">Error: {{ $newClientCreds['email_error'] }}</span>
-                        @endif
-                    @endif
-                </p>
-            </div>
-
-            <div style="background:#f8f9ff;border:1.5px solid #dde1f5;border-radius:10px;padding:20px 24px;margin-bottom:20px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #eee;">
-                    <span style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;">Username</span>
-                    <span style="font-size:20px;font-weight:900;color:var(--text-primary);letter-spacing:2px;" id="credUsername">
-                        {{ $newClientCreds['username'] }}
-                    </span>
-                </div>
-                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;">
-                    <span style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;">PIN / Password</span>
-                    <span style="font-size:20px;font-weight:900;color:var(--text-primary);letter-spacing:4px;" id="credPin">
-                        {{ $newClientCreds['pin'] }}
-                    </span>
-                </div>
-            </div>
-
-            <div style="display:flex;gap:10px;justify-content:flex-end;">
-                <button type="button" onclick="copyCredentials()" class="cancel-btn" style="display:flex;align-items:center;gap:6px;">
-                    <i data-lucide="copy" style="width:14px;height:14px;"></i>
-                    Copy Credentials
-                </button>
-                <button type="button" onclick="closeModal('credentialsSuccessModal')" class="save-btn">
-                    Done
-                </button>
-            </div>
-        </div>
-    </div>
-    @endif
-
-    <!-- ===== ADD CLIENT MODAL ===== -->
-    <div class="modal-overlay" id="addClientModal">
-        <div class="modal-card" style="max-width:560px;">
-            <div class="modal-header">
-                <div>
-                    <h2>Add Client</h2>
-                    <p>Enter the client's contact information. A portal login will be auto-generated — if an email is provided, the credentials are also emailed to them.</p>
-                </div>
-                <button class="modal-close" type="button" id="closeAddClientModal">
-                    <i data-lucide="x"></i>
-                </button>
-            </div>
-            <form method="POST" action="{{ route('admin.client.store') }}" id="addClientForm">
-                @csrf
-                <div class="form-grid">
-                    <div class="form-group form-group-full">
-                        <label>Full Name / Company Name </label>
-                        <input type="text" name="full_name" required
-                               placeholder="e.g. Juan Dela Cruz or ABC Construction Co."
-                               value="{{ old('full_name') }}">
-                    </div>
-                    <div class="form-group">
-                        <label>Contact Number </label>
-                        <input type="text" name="contact" id="addClientContact" required
-                               placeholder="e.g. 0930-147-6598" maxlength="13"
-                               value="{{ old('contact') }}"
-                               oninput="formatClientContact(this)"
-                               onkeypress="return /[0-9\-]/.test(event.key)">
-                    </div>
-                    <div class="form-group">
-                        <label>Email Address <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
-                        <input type="email" name="email" id="clientEmailInput"
-                               placeholder="Enter email (optional)"
-                               value="{{ old('email') }}">
-                    </div>
-                </div>
-
-                <div id="credentialsPreview" style="display:none;margin-top:14px;background:#f8f9ff;border:1.5px solid #dde1f5;border-radius:10px;padding:16px 20px;">
-                    <div style="font-size:11px;font-weight:800;color:#6366f1;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:12px;display:flex;align-items:center;gap:6px;">
-                        <i data-lucide="sparkles" style="width:13px;height:13px;"></i>
-                        Auto-Generated Login Credentials
-                    </div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                        <div style="background:#fff;border:1px solid #e0e3f5;border-radius:8px;padding:12px;">
-                            <div style="font-size:10.5px;font-weight:700;color:#888;text-transform:uppercase;margin-bottom:4px;">Username</div>
-                            <div id="previewUsername" style="font-size:18px;font-weight:900;color:#1a1a2e;letter-spacing:2px;">CGMD-····</div>
-                        </div>
-                        <div style="background:#fff;border:1px solid #e0e3f5;border-radius:8px;padding:12px;">
-                            <div style="font-size:10.5px;font-weight:700;color:#888;text-transform:uppercase;margin-bottom:4px;">PIN / Password</div>
-                            <div id="previewPin" style="font-size:18px;font-weight:900;color:#1a1a2e;letter-spacing:3px;">······</div>
-                        </div>
-                    </div>
-                    <div style="font-size:12px;color:#6b7280;margin-top:10px;display:flex;align-items:center;gap:5px;">
-                        <i data-lucide="info" style="width:12px;height:12px;"></i>
-                        These credentials will be emailed to the client upon account creation.
-                    </div>
-                </div>
-
-                @if($errors->hasBag('client'))
-                <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:12px;margin-top:4px;color:#dc2626;font-size:13px;">
-                    @foreach($errors->getBag('client')->all() as $error)
-                        <div>• {{ $error }}</div>
-                    @endforeach
-                </div>
-                @endif
-
-                <div class="modal-actions">
-                    <button type="button" class="cancel-btn" id="cancelAddClient">Cancel</button>
-                    <button type="submit" class="save-btn">
-                        <i data-lucide="user-plus"></i>
-                        Add Client
-                    </button>
-                </div>
-            </form>
-        </div>
     </div>
 
     <!-- ===== VIEW CLIENT MODAL ===== -->
@@ -494,18 +351,6 @@
     <script src="{{ asset('js/admin.js') }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            @if($errors->hasBag('client'))
-            openModal('addClientModal');
-            @endif
-
-            // ---- Add Client Modal ----
-            document.getElementById('openAddClientModal')
-                .addEventListener('click', function () { openModal('addClientModal'); });
-            document.getElementById('closeAddClientModal')
-                .addEventListener('click', function () { closeModal('addClientModal'); });
-            document.getElementById('cancelAddClient')
-                .addEventListener('click', function () { closeModal('addClientModal'); });
-
             // ---- View Client Modal ----
             var clientStatusMeta = {
                 Active:   { label: 'Active',          cls: 'active'   },
@@ -672,51 +517,6 @@
             } else {
                 filterClients();
             }
-
-            // ---- Credential preview (Add Client modal) ----
-            (function () {
-                var emailInput  = document.getElementById('clientEmailInput');
-                var preview     = document.getElementById('credentialsPreview');
-                var userEl      = document.getElementById('previewUsername');
-                var pinEl       = document.getElementById('previewPin');
-                var debounce    = null;
-
-                function fetchNextUsername() {
-                    return fetch('{{ route("admin.client-account.next-username") }}', {
-                        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
-                    })
-                    .then(function (r) { return r.json(); })
-                    .then(function (d) { return d.username || 'CGMD-0001'; })
-                    .catch(function () { return 'CGMD-0001'; });
-                }
-
-                if (!emailInput) return;
-
-                emailInput.addEventListener('input', function () {
-                    var val = this.value.trim();
-                    if (!val || !val.includes('@')) {
-                        preview.style.display = 'none';
-                        return;
-                    }
-                    clearTimeout(debounce);
-                    debounce = setTimeout(function () {
-                        pinEl.textContent  = '······';
-                        userEl.textContent = 'CGMD-····';
-                        preview.style.display = 'block';
-                        if (typeof lucide !== 'undefined') lucide.createIcons();
-                        fetchNextUsername().then(function (u) { userEl.textContent = u; });
-                    }, 400);
-                });
-
-                ['cancelAddClient', 'closeAddClientModal'].forEach(function (id) {
-                    var btn = document.getElementById(id);
-                    if (btn) btn.addEventListener('click', function () {
-                        preview.style.display = 'none';
-                        pinEl.textContent  = '······';
-                        userEl.textContent = 'CGMD-····';
-                    });
-                });
-            })();
         });
 
         function openModal(id) {
@@ -726,23 +526,6 @@
         function closeModal(id) {
             var m = document.getElementById(id);
             if (m) { m.classList.remove('show'); document.body.style.overflow = ''; }
-        }
-
-        function copyCredentials() {
-            var username = document.getElementById('credUsername').textContent.trim();
-            var pin      = document.getElementById('credPin').textContent.trim();
-            var text     = 'Username: ' + username + '\nPIN: ' + pin;
-            navigator.clipboard.writeText(text).then(function () {
-                showToast('Credentials copied to clipboard!');
-            }).catch(function () {
-                var ta = document.createElement('textarea');
-                ta.value = text;
-                document.body.appendChild(ta);
-                ta.select();
-                document.execCommand('copy');
-                document.body.removeChild(ta);
-                showToast('Credentials copied!');
-            });
         }
 
         function clientStripDigits(input) {
@@ -769,19 +552,6 @@
             if (label) label.textContent = msg || 'Saved successfully.';
             toast.classList.add('show');
             setTimeout(function () { toast.classList.remove('show'); }, 3000);
-        }
-
-        function formatClientContact(input) {
-            // Strip everything except digits
-            var digits = input.value.replace(/\D/g, '').substring(0, 11);
-            var formatted = digits;
-            // Apply 0930-147-6598 format (4-3-4)
-            if (digits.length > 4 && digits.length <= 7) {
-                formatted = digits.substring(0,4) + '-' + digits.substring(4);
-            } else if (digits.length > 7) {
-                formatted = digits.substring(0,4) + '-' + digits.substring(4,7) + '-' + digits.substring(7);
-            }
-            input.value = formatted;
         }
     </script>
 </body>

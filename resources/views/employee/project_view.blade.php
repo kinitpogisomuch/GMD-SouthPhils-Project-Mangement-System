@@ -63,17 +63,31 @@
             </div>
             @endif
 
-            <!-- Phase Tracker (read-only) -->
+            <!-- Phase Tracker (read-only) — same header as the admin and client trackers -->
+            @php
+                // the bar and badge take the current phase's colors, same as PHASE_BAR_COLORS in admin.js
+                $trackerColor = [
+                    'planning'    => ['#475569', '#F1F5F9'],
+                    'procurement' => ['#1E3A5F', '#E3EAF3'],
+                    'matl_prep'   => ['#7C5A10', '#F5EDD8'],
+                    'fabrication' => ['#2A4EAA', '#EAF0FF'],
+                    'inspection'  => ['#9A3412', '#FBE9E0'],
+                    'painting'    => ['#4D5B2A', '#EEF1E0'],
+                    'completion'  => ['#207A3A', '#E7F6EC'],
+                    'delivery'    => ['#14532D', '#DCEBDF'],
+                ][$project->current_phase] ?? ['#14532D', '#DCEBDF'];
+            @endphp
             <div class="emp-tracker">
                 <div class="emp-tracker-header">
                     <div class="emp-tracker-title">
                         <i data-lucide="layers"></i>
-                        <span class="tracker-title-text"><span>Fabrication Phase Tracker</span><span class="tracker-title-sep"> &nbsp;·&nbsp; </span><span class="tracker-title-sub">{{ $project->capacity }} {{ $project->tank_type }}</span></span>
+                        Fabrication Phase Tracker
                     </div>
-                    {{-- The bar only shows on phones (same as the admin tracker); desktop keeps just the badge --}}
-                    <div class="tracker-mobile-progress">
-                        <div class="tracker-mobile-bar"><span style="width:{{ max(0, min(100, (int) $project->progress)) }}%;"></span></div>
-                        <span class="pv-progress-badge" id="empProgressBadge">{{ $project->progress }}%</span>
+                    <div class="tracker-progress-wrap">
+                        <div class="tracker-progress-bar">
+                            <div class="tracker-progress-fill" style="width:{{ max(0, min(100, (int) $project->progress)) }}%;background:{{ $trackerColor[0] }};box-shadow:0 0 6px {{ $trackerColor[0] }}66;"></div>
+                        </div>
+                        <span class="tracker-progress-badge" style="background-color:{{ $trackerColor[1] }};color:{{ $trackerColor[0] }};">{{ $project->progress }}%</span>
                     </div>
                 </div>
                 <div class="emp-phase-steps" id="empPhaseSteps"></div>
@@ -324,7 +338,7 @@
                         <div class="pv-history-header">
                             <div class="pv-history-title-col">
                                 <div class="pv-history-phase-title">
-                                    {{ ucfirst(str_replace('_', ' ', $pendingSubmission->phase)) }} Phase
+                                    {{ \App\Models\Project::phaseLabel($pendingSubmission->phase) }} Phase
                                 </div>
                                 <div class="pv-submitter-row">
                                     <span class="pv-submitter-avatar{{ $psIsFocal ? ' is-focal' : '' }}">{{ $psInitials }}</span>
@@ -432,7 +446,7 @@
                             <div class="pv-history-header">
                                 <div class="pv-history-title-col">
                                     <div class="pv-history-phase-title">
-                                        {{ ucfirst(str_replace('_', ' ', $update->phase)) }} Phase
+                                        {{ \App\Models\Project::phaseLabel($update->phase) }} Phase
                                         @if($update->update_label === 'revision')
                                         <span class="pv-history-revision-badge">Revision</span>
                                         @endif
@@ -541,7 +555,7 @@
                             <div class="pv-history-header">
                                 <div class="pv-history-title-col">
                                     <div class="pv-history-phase-title">
-                                        {{ ucfirst(str_replace('_', ' ', $req->phase)) }} Phase
+                                        {{ \App\Models\Project::phaseLabel($req->phase) }} Phase
                                     </div>
                                     <div class="pv-history-meta-row">
                                         <i data-lucide="calendar"></i>
@@ -615,18 +629,6 @@
                     Project Information
                 </h3>
 
-                <div class="progress-wrap" style="margin-top:0;margin-bottom:18px;">
-                    <div class="progress-label">
-                        <span style="font-weight:700;font-size:13px;">Overall Progress</span>
-                        <span style="font-weight:900;color:var(--dark);">{{ $project->progress }}%</span>
-                    </div>
-                    <div class="progress-bar" style="height:10px;border-radius:999px;">
-                        <div class="progress-fill"
-                             style="width:{{ $project->progress }}%;border-radius:999px;
-                             background:{{ $project->status === 'completed' ? '#207A3A' : '' }};"></div>
-                    </div>
-                </div>
-
                 <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:18px;align-content:start;">
                     <div style="background:#FDFBF8;border:1px solid var(--border);border-radius:12px;padding:20px;">
                         <span style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">CLIENT</span>
@@ -650,7 +652,7 @@
                     </div>
                     <div style="background:#FDFBF8;border:1px solid var(--border);border-radius:12px;padding:20px;">
                         <span style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">CURRENT PHASE</span>
-                        <strong style="font-size:14px;color:var(--accent);">{{ ucfirst(str_replace('_', ' ', $project->current_phase)) }}</strong>
+                        <strong style="font-size:14px;color:var(--accent);">{{ \App\Models\Project::phaseLabel($project->current_phase) }}</strong>
                     </div>
                     @if($project->notes)
                     <div style="background:#FDFBF8;border:1px solid var(--border);border-radius:12px;padding:20px;grid-column:span 2;">
@@ -920,6 +922,7 @@
         }
 
         function ucPhase(phase) {
+            if (phase === 'delivery') return 'Pickup';
             return phase.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
         }
 

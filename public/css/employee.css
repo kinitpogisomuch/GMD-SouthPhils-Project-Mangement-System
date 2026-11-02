@@ -3210,6 +3210,40 @@ td.action-cell > .action-btn + .action-btn {
     color: var(--accent);
 }
 
+/* progress bar + % badge beside the title, in the current phase's color (same as admin / client) */
+.tracker-progress-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 0;
+}
+
+.tracker-progress-bar {
+    flex: 1;
+    height: 8px;
+    background: var(--cream-deep);
+    border-radius: 999px;
+    overflow: hidden;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,.08);
+}
+
+.tracker-progress-fill {
+    height: 100%;
+    border-radius: 999px;
+    transition: width 0.5s ease;
+}
+
+.tracker-progress-badge {
+    background-color: #E7F6EC;
+    color: #207A3A;
+    font-size: 13px;
+    font-weight: 900;
+    padding: 6px 14px;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
 .emp-phase-steps {
     display: flex;
     align-items: stretch;
@@ -3472,12 +3506,16 @@ td.action-cell > .action-btn + .action-btn {
     gap: 12px;
 }
 
+/* page titles: same size as the dashboard greeting (28px, 22px on phones) */
 .pv-page-header h1 {
-    font-size: 26px;
+    font-size: 28px;
     font-weight: 900;
     color: var(--dark);
     margin-bottom: 4px;
-    letter-spacing: -0.3px;
+    letter-spacing: -0.5px;
+}
+@media (max-width: 640px) {
+    .pv-page-header h1 { font-size: 22px; }
 }
 
 .pv-page-header h2 {
@@ -3489,7 +3527,7 @@ td.action-cell > .action-btn + .action-btn {
 }
 
 .pv-page-header p {
-    font-size: 13px;
+    font-size: 13.5px;
     color: var(--muted);
 }
 
@@ -3777,7 +3815,7 @@ td.action-cell > .action-btn + .action-btn {
 @media (max-width: 900px) {
     .settings-layout { flex-direction: column; }
     .settings-avatar-card { width: 100%; min-width: unset; }
-    /* Profile photo + GCash QR column: its desktop width is fixed inline at 260px — fill the screen once stacked */
+    /* Profile photo column: its desktop width is fixed inline at 260px — fill the screen once stacked */
     .settings-side-col { width: 100% !important; }
     .settings-single-card { justify-content: center; }
     .settings-single-card .pv-card { max-width: 100% !important; }
@@ -3794,6 +3832,18 @@ td.action-cell > .action-btn + .action-btn {
 .page-header h1 { font-size: 22px; font-weight: 900; color: var(--dark); margin: 0 0 2px; }
 .page-header p  { font-size: 13.5px; color: var(--muted); font-weight: 600; margin: 0; }
 
+/* Yellow accent line above every page title (same as My Salary and the dashboard) */
+.page-header h1::before,
+.pv-page-header h1::before,
+.page-accent::before {
+    content: "";
+    display: block;
+    width: 40px;
+    height: 4px;
+    margin-bottom: 10px;
+    border-radius: 999px;
+    background: #F5B400;
+}
 /* ================= PV CARD ================= */
 .pv-card {
     background: var(--white);
@@ -4506,26 +4556,10 @@ body.page-enter .admin-content {
         margin-top: 2px;
     }
 
-    /* "Fabrication Phase Tracker" on one line, the tank under it in smaller text */
-    .tracker-title-text {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-        min-width: 0;
-    }
-
-    .tracker-title-sep {
-        display: none;
-    }
-
-    .tracker-title-sub {
-        font-size: 12.5px;
-        font-weight: 700;
-        color: var(--muted);
-    }
-
-    .emp-tracker-header .pv-progress-badge {
+    .tracker-progress-badge {
         flex-shrink: 0;
+        font-size: 12.5px;
+        padding: 6px 12px;
     }
 
     .emp-phase-steps:has(> .phase-step:nth-child(3):last-child) {
@@ -4599,18 +4633,7 @@ body:has(.modal-overlay.show) #chatPopupWrap {
 
 
 /* ================= PHASE TRACKER PROGRESS BAR ON PHONES =================
-   Same as the admin tracker on phones: title on top, then a progress bar with the % badge
-   across the full width. On desktop only the badge shows, exactly as before. */
-.tracker-mobile-progress {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.tracker-mobile-bar {
-    display: none;
-}
-
+   Same as the admin tracker on phones: title on top, then the bar and % badge across the full width. */
 @media (max-width: 640px) {
     .emp-tracker-header {
         flex-direction: column;
@@ -4618,42 +4641,24 @@ body:has(.modal-overlay.show) #chatPopupWrap {
         gap: 10px;
     }
 
-    .tracker-mobile-progress {
+    .tracker-progress-wrap {
         width: 100%;
-    }
-
-    .tracker-mobile-bar {
-        display: block;
-        flex: 1;
-        height: 8px;
-        background: var(--cream-deep);
-        border-radius: 999px;
-        overflow: hidden;
-        box-shadow: inset 0 1px 3px rgba(0, 0, 0, .08);
-    }
-
-    .tracker-mobile-bar span {
-        display: block;
-        height: 100%;
-        border-radius: 999px;
-        background: #059669;
-    }
-
-    .tracker-mobile-progress .pv-progress-badge {
-        flex-shrink: 0;
     }
 }
 
 
 
-/* ================= PROJECT MATERIALS — USAGE LOG LIST ON PHONES =================
-   Desktop keeps the table exactly as before (full project name, icon-only button).
-   Phones: each project is a small card — name + phase badge, client, Entries Logged /
-   Total Qty Used tiles, then a full-width "View Usage Log" button. */
-.ul-name-split,
+/* ================= PROJECT MATERIALS — USAGE LOG LIST =================
+   Project name on every screen size: a small "FABRICATION OF" label over the tank name.
+   Desktop keeps the icon-only button. Phones: each project is a small card — name + phase
+   badge, client, Entries Logged / Total Qty Used tiles, then a full-width "View Usage Log" button. */
+.ul-name-full,
 .ul-action-text {
     display: none;
 }
+#usageTable .ul-name-split { display: flex; flex-direction: column; min-width: 0; }
+#usageTable .ul-prefix { font-size: 9.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+#usageTable .ul-name-split strong { font-size: 14px; line-height: 1.3; color: var(--dark); }
 
 @media (max-width: 640px) {
     #usageTable, #usageTable tbody { display: block; width: 100%; min-width: 0; }
@@ -4681,10 +4686,6 @@ body:has(.modal-overlay.show) #chatPopupWrap {
     }
     #usageTable tr.ul-row td.ul-phase { grid-column: 1 / -1; grid-row: 1; justify-self: end; align-self: start; text-align: right; }
     #usageTable tr.ul-row td.ul-name { grid-column: 1 / -1; grid-row: 2; }
-    #usageTable .ul-name-full { display: none; }
-    #usageTable .ul-name-split { display: flex; flex-direction: column; }
-    #usageTable .ul-prefix { font-size: 9.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
-    #usageTable .ul-name-split strong { font-size: 14px; line-height: 1.3; }
 
     #usageTable tr.ul-row td.ul-tile {
         grid-row: 3;
@@ -5093,17 +5094,27 @@ body:has(.modal-overlay.show) #chatPopupWrap {
 .settings-meta-item svg { flex-shrink: 0; margin-top: 2px; }
 .settings-meta-item span { text-align: left; }
 
+/* ── Summary cards: same look as the Payments / Materials / My Salary cards ── */
+.emp-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 4px 0 24px; }
+.emp-kpi { display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px; background: var(--white); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 1px 2px rgba(0,0,0,.03); min-width: 0; }
+.emp-kpi-icon { width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.emp-kpi-icon svg { width: 20px; height: 20px; }
+.emp-kpi-icon.blue   { background: #EAF0FF; color: #2A4EAA; }
+.emp-kpi-icon.purple { background: #F3E8FF; color: #7C3AED; }
+.emp-kpi-icon.green  { background: #E7F6EC; color: #207A3A; }
+.emp-kpi-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.emp-kpi-value { margin-top: 3px; font-size: 20px; font-weight: 900; color: var(--dark); letter-spacing: -.3px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.emp-kpi-sub { margin-top: 4px; font-size: 11.5px; font-weight: 600; color: var(--muted); }
+
 /* ── Phones: compact stat cards and a readable materials list (desktop unchanged) ── */
 @media (max-width: 640px) {
-    /* three summary cards → two per row, the last one full width; smaller padding and figures */
-    .page-grid.emp-compact-stats { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
-    .page-grid.emp-compact-stats > .info-card { padding: 14px !important; min-width: 0; }
-    .page-grid.emp-compact-stats > .info-card:last-child:nth-child(odd) { grid-column: 1 / -1; }
-    .page-grid.emp-compact-stats .info-card-icon { width: 32px; height: 32px; margin-bottom: 8px; }
-    .page-grid.emp-compact-stats .info-card-icon svg { width: 16px; height: 16px; }
-    .page-grid.emp-compact-stats h3 { font-size: 11.5px; }
-    .page-grid.emp-compact-stats .value { font-size: 1.35rem !important; white-space: nowrap; }
-    .page-grid.emp-compact-stats .info-card-sub { font-size: 11px; }
+    /* summary cards → two per row, an odd last one full width; no icons, smaller figures */
+    .emp-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .emp-kpi:last-child:nth-child(odd) { grid-column: 1 / -1; }
+    .emp-kpi { padding: 12px; }
+    .emp-kpi-icon { display: none; }
+    .emp-kpi-value { font-size: 16px; }
+    .emp-kpi-label { font-size: 10px; }
 
     /* materials table → one row per material: name, then quantity · unit, then notes */
     .emp-mat-table thead { display: none; }

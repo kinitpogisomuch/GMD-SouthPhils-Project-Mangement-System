@@ -35,16 +35,29 @@ class PaymentTransaction extends Model
         return $this->hasOne(OnlinePayment::class);
     }
 
-    /** Paid online through the gateway — these get a system-generated Acknowledgement Receipt */
+    /** Paid online through the gateway */
     public function isOnline(): bool
     {
         return $this->mode_of_payment === 'online_bank';
     }
 
-    /** Acknowledgement Receipt number of a system-generated receipt — digits only, like the printed booklet (e.g. 00012) */
+    /**
+     * Gets the system-generated Acknowledgement Receipt: online payments, and cash / cheque payments GMD records
+     * (their OR number is on it). Older payments keep the receipts uploaded for them; imported ones have no OR.
+     */
+    public function hasGeneratedReceipt(): bool
+    {
+        if ($this->isOnline()) {
+            return true;
+        }
+
+        return empty($this->receipt_urls) && empty($this->receipt_url) && filled($this->reference_number);
+    }
+
+    /** Number printed on the generated receipt — digits for online payments, like the booklet (e.g. 00012); otherwise the OR number */
     public function receiptNumber(): string
     {
-        return str_pad((string) $this->id, 5, '0', STR_PAD_LEFT);
+        return $this->isOnline() ? str_pad((string) $this->id, 5, '0', STR_PAD_LEFT) : (string) $this->reference_number;
     }
 
     /**

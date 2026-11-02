@@ -50,6 +50,24 @@
         .rc-stage.final    { background: #E7F6EC; color: #207A3A; }
         .rc-amount { font-weight: 900; color: var(--dark); font-variant-numeric: tabular-nums; white-space: nowrap; }
         .rc-date { color: var(--muted); font-weight: 700; white-space: nowrap; font-size: 12.5px; }
+
+        /* ── Summary cards: same look as the Materials overview cards ── */
+        .pk-overview { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:14px; margin:4px 0 24px; }
+        .pk-kpi { display:flex; align-items:flex-start; gap:14px; padding:16px 18px; background:var(--white); border:1px solid var(--border); border-radius:16px; box-shadow:0 1px 2px rgba(0,0,0,.03); }
+        .pk-kpi-icon { width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .pk-kpi-icon svg { width:20px; height:20px; }
+        .pk-kpi-label { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
+        .pk-kpi-value { margin-top:3px; font-size:20px; font-weight:900; color:var(--dark); letter-spacing:-.3px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+        .pk-kpi-sub { margin-top:4px; font-size:11.5px; font-weight:600; color:var(--muted); }
+        .pk-tone-ok { color:#16a34a; }
+        @media (max-width: 1100px) { .pk-overview { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+        @media (max-width: 640px) {
+            .pk-overview { gap:10px; }
+            .pk-kpi { padding:12px; }
+            .pk-kpi-icon { display:none; }
+            .pk-kpi-value { font-size:16px; }
+            .pk-kpi-label { font-size:10px; }
+        }
     </style>
 </head>
 <body class="page-enter">
@@ -93,31 +111,44 @@
             </div>
             @endif
 
-            <!-- Summary Cards -->
-            <div class="page-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 24px;">
-                <div class="info-card teal">
-                    <div class="info-card-icon teal"><i data-lucide="receipt"></i></div>
-                    <h3>Total Contract Value</h3>
-                    <div class="value">₱{{ number_format($totalContractValue, 0) }}</div>
-                    <div class="info-card-sub">Across all projects</div>
+            <!-- Summary Cards (same style as the Materials overview) -->
+            @php
+                $receivedPct    = $totalContractValue > 0 ? round($totalReceived / $totalContractValue * 100) : 0;
+                $outstandingPct = $totalContractValue > 0 ? round($outstanding / $totalContractValue * 100) : 0;
+                $projectCount   = $fullyPaid + $inProgress + $pendingDown;
+            @endphp
+            <div class="pk-overview">
+                <div class="pk-kpi">
+                    <div class="pk-kpi-icon" style="background:#EAF0FF;color:#2A4EAA;"><i data-lucide="receipt"></i></div>
+                    <div>
+                        <div class="pk-kpi-label">Total Contract Value</div>
+                        <div class="pk-kpi-value">₱{{ number_format($totalContractValue, 2) }}</div>
+                        <div class="pk-kpi-sub">Across all projects</div>
+                    </div>
                 </div>
-                <div class="info-card green">
-                    <div class="info-card-icon green"><i data-lucide="trending-up"></i></div>
-                    <h3>Total Received</h3>
-                    <div class="value">₱{{ number_format($totalReceived, 0) }}</div>
-                    <div class="info-card-sub">All recorded payments</div>
+                <div class="pk-kpi">
+                    <div class="pk-kpi-icon" style="background:#E7F6EC;color:#207A3A;"><i data-lucide="trending-up"></i></div>
+                    <div style="flex:1;min-width:0;">
+                        <div class="pk-kpi-label">Total Received</div>
+                        <div class="pk-kpi-value">₱{{ number_format($totalReceived, 2) }}</div>
+                        <div class="pk-kpi-sub"><strong class="pk-tone-ok">{{ $receivedPct }}%</strong> of contract value collected</div>
+                    </div>
                 </div>
-                <div class="info-card red">
-                    <div class="info-card-icon red"><i data-lucide="alert-circle"></i></div>
-                    <h3>Outstanding Balance</h3>
-                    <div class="value">₱{{ number_format($outstanding, 0) }}</div>
-                    <div class="info-card-sub">Remaining unpaid</div>
+                <div class="pk-kpi">
+                    <div class="pk-kpi-icon" style="background:#FEE2E2;color:#B91C1C;"><i data-lucide="alert-circle"></i></div>
+                    <div>
+                        <div class="pk-kpi-label">Outstanding Balance</div>
+                        <div class="pk-kpi-value">₱{{ number_format($outstanding, 2) }}</div>
+                        <div class="pk-kpi-sub">{{ $outstandingPct }}% of contract value still unpaid</div>
+                    </div>
                 </div>
-                <div class="info-card purple">
-                    <div class="info-card-icon purple"><i data-lucide="check-circle"></i></div>
-                    <h3>Fully Paid</h3>
-                    <div class="value">{{ $fullyPaid }}</div>
-                    <div class="info-card-sub">{{ $inProgress }} in progress · {{ $pendingDown }} pending</div>
+                <div class="pk-kpi">
+                    <div class="pk-kpi-icon" style="background:#F3E8FF;color:#7C3AED;"><i data-lucide="check-circle"></i></div>
+                    <div style="flex:1;min-width:0;">
+                        <div class="pk-kpi-label">Fully Paid</div>
+                        <div class="pk-kpi-value">{{ $fullyPaid }} <span style="font-size:14px;color:var(--muted);font-weight:700;">of {{ $projectCount }}</span></div>
+                        <div class="pk-kpi-sub">{{ $inProgress }} in progress · {{ $pendingDown }} pending</div>
+                    </div>
                 </div>
             </div>
 
@@ -209,11 +240,6 @@
                                         @if($row['awaiting_stage'])
                                         <span title="No payment recorded yet for {{ \App\Models\PaymentTransaction::stageLabel($row['awaiting_stage']) }}" style="display:inline-flex;align-items:center;gap:3px;margin-top:4px;font-size:10px;font-weight:800;color:#b45309;background:#fff3cd;border-radius:999px;padding:2px 8px;width:fit-content;">
                                             <i data-lucide="alert-triangle" style="width:10px;height:10px;"></i> Needs {{ \App\Models\PaymentTransaction::stageLabel($row['awaiting_stage']) }}
-                                        </span>
-                                        @endif
-                                        @if($row['billing_pending'])
-                                        <span title="{{ \App\Models\PaymentTransaction::stageLabel($row['billing_pending']) }} is due, but no billing statement has been sent — the client hasn't been asked to pay" style="display:inline-flex;align-items:center;gap:3px;margin-top:4px;font-size:10px;font-weight:800;color:#1e40af;background:#dbeafe;border-radius:999px;padding:2px 8px;width:fit-content;">
-                                            <i data-lucide="file-clock" style="width:10px;height:10px;"></i> Billing not sent
                                         </span>
                                         @endif
                                     </span>

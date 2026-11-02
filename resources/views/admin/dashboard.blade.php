@@ -27,7 +27,6 @@
                 $hour = (int) now()->timezone('Asia/Manila')->format('G');
                 $greeting = $hour < 12 ? 'Good morning' : ($hour < 18 ? 'Good afternoon' : 'Good evening');
 
-                $qNew      = $quotationPipeline[0]['count'] + $quotationPipeline[1]['count'];
                 $attnTotal = $overdueCount + $pendingPaymentsCount + $unreadMessages;
             @endphp
 
@@ -36,13 +35,7 @@
                 <div>
                     <div class="ad-eyebrow">Admin Dashboard</div>
                     <h1 class="ad-title">{{ $greeting }}, {{ $adminFirstName }}</h1>
-                    <p class="ad-sub">
-                        @if($attnTotal > 0)
-                            <strong>{{ $attnTotal }}</strong> {{ $attnTotal === 1 ? 'thing needs' : 'things need' }} your attention today.
-                        @else
-                            Everything is on track today.
-                        @endif
-                    </p>
+                    <div class="ad-sub">Here's where your projects and payments stand today.</div>
                 </div>
                 <div class="ad-head-right">
                     <div class="ad-chip"><i data-lucide="calendar-days"></i> {{ now()->format('D, M j, Y') }}</div>
@@ -67,8 +60,8 @@
                 </a>
                 <a href="{{ route('admin.project_materials') }}" class="ad-action">
                     <span class="ad-action-icon" style="background:#FFF4E0;color:#B45309;"><i data-lucide="file-text"></i></span>
-                    <span><strong>Quotations</strong><small>{{ $qNew > 0 ? $qNew . ' to cost' : 'All caught up' }}</small></span>
-                    @if($qNew > 0)<span class="ad-badge">{{ $qNew }}</span>@endif
+                    <span><strong>Quotations</strong><small>{{ $quotationsToCost > 0 ? $quotationsToCost . ' to cost' : 'All caught up' }}</small></span>
+                    @if($quotationsToCost > 0)<span class="ad-badge">{{ $quotationsToCost }}</span>@endif
                     <i data-lucide="chevron-right" class="ad-action-go"></i>
                 </a>
                 <a href="{{ route('admin.payments') }}" class="ad-action">
@@ -117,7 +110,7 @@
                 @endforeach
             </div>
 
-            {{-- ── Row: chart (2/3) + quotation pipeline & needs attention (1/3) ── --}}
+            {{-- ── Row: chart (2/3) + top client & supplier (1/3) ── --}}
             <div class="ad-grid ad-row-main">
                 <div class="ad-card">
                     <div class="ad-card-head">
@@ -137,88 +130,9 @@
                     </div>
                 </div>
 
-                <div class="ad-stack">
-                    {{-- Quotation pipeline --}}
-                    <div class="ad-card">
-                        <div class="ad-card-head">
-                            <div>
-                                <div class="ad-card-title">Quotation Pipeline</div>
-                                <div class="ad-card-sub">Client requests, right now</div>
-                            </div>
-                            <a href="{{ route('admin.project_materials') }}" class="ad-link">Open <i data-lucide="arrow-right"></i></a>
-                        </div>
-                        <div class="ad-pipe ad-scroll">
-                            @foreach($quotationPipeline as $stage)
-                            <a href="{{ route('admin.project_materials') }}" class="ad-pipe-row">
-                                <span class="ad-pipe-icon" style="background:{{ $stage['bg'] }};color:{{ $stage['color'] }};"><i data-lucide="{{ $stage['icon'] }}"></i></span>
-                                <span class="ad-pipe-text"><strong>{{ $stage['label'] }}</strong><small>{{ $stage['sub'] }}</small></span>
-                                <span class="ad-pipe-count" style="{{ $stage['count'] > 0 ? 'color:' . $stage['color'] . ';' : '' }}">{{ $stage['count'] }}</span>
-                            </a>
-                            @endforeach
-                        </div>
-                    </div>
-
-                    {{-- Needs attention --}}
-                    <div class="ad-card">
-                        <div class="ad-card-head">
-                            <div style="display:flex;align-items:center;gap:10px;">
-                                <div class="ad-card-icon" style="background:#FFF3D6;color:#8A6100;"><i data-lucide="alert-triangle" style="width:18px;height:18px;"></i></div>
-                                <div>
-                                    <div class="ad-card-title">Needs Attention</div>
-                                    <div class="ad-card-sub">{{ $attnTotal > 0 ? $attnTotal . ' item' . ($attnTotal === 1 ? '' : 's') : 'All caught up' }}</div>
-                                </div>
-                            </div>
-                        </div>
-    
-                        @if($attnTotal === 0)
-                        <div class="ad-empty ad-scroll">
-                            <i data-lucide="check-circle-2"></i>
-                            <strong>All caught up</strong>
-                            <span>No overdue projects, unpaid balances, or unread messages.</span>
-                        </div>
-                        @else
-                        <div class="ad-attn ad-scroll">
-                            <div class="ad-attn-group">
-                                <div class="ad-attn-label">Overdue projects <span class="ad-pill is-red">{{ $overdueCount }}</span></div>
-                                @forelse($overdueProjectsList as $project)
-                                <a href="{{ route('admin.project_view', $project->id) }}" class="ad-attn-row">
-                                    <span class="ad-attn-main"><strong>{{ $project->name }}</strong><small>{{ $project->live_client_name }}</small></span>
-                                    <span class="ad-attn-val is-red">{{ (int) $project->end_date->diffInDays(now(), true) }}d late</span>
-                                </a>
-                                @empty
-                                <div class="ad-attn-none">No overdue projects.</div>
-                                @endforelse
-                            </div>
-                            <div class="ad-attn-group">
-                                <div class="ad-attn-label">Unpaid balances <span class="ad-pill is-amber">{{ $pendingPaymentsCount }}</span></div>
-                                @forelse($pendingPaymentsList as $payment)
-                                <a href="{{ route('admin.payments.show', $payment->id) }}" class="ad-attn-row">
-                                    <span class="ad-attn-main"><strong>{{ $payment->client }}</strong><small>{{ $payment->project->name ?? 'Unknown project' }}</small></span>
-                                    <span class="ad-attn-val is-amber">₱{{ number_format($payment->currentBalance(), 0) }}</span>
-                                </a>
-                                @empty
-                                <div class="ad-attn-none">No unpaid balances.</div>
-                                @endforelse
-                            </div>
-                            @if($unreadMessages > 0)
-                            <a href="{{ route('admin.messages') }}" class="ad-attn-msg">
-                                <i data-lucide="message-square"></i>
-                                {{ $unreadMessages }} unread message{{ $unreadMessages !== 1 ? 's' : '' }}
-                                <i data-lucide="arrow-right" style="margin-left:auto;"></i>
-                            </a>
-                            @endif
-                        </div>
-                        @endif
-                    </div>
-                </div>
-            </div>
-
-            {{-- ── Row: top client & supplier (2/3) + operations (1/3) ── --}}
-            <div class="ad-grid ad-row-mid">
                 <div class="ad-top-pair">
                     {{-- Top Client --}}
                     <div class="ad-top ad-top--client">
-                        <i data-lucide="crown" class="ad-top-bg" aria-hidden="true"></i>
                         <div class="ad-top-head">
                             <span class="ad-top-icon"><i data-lucide="crown" style="color:#F5B400;"></i></span>
                             <div style="min-width:0;"><div class="ad-top-eyebrow">Top Client</div><div class="ad-top-by">By number of projects</div></div>
@@ -239,7 +153,6 @@
 
                     {{-- Top Supplier --}}
                     <div class="ad-top ad-top--supplier">
-                        <i data-lucide="truck" class="ad-top-bg" aria-hidden="true"></i>
                         <div class="ad-top-head">
                             <span class="ad-top-icon"><i data-lucide="truck" style="color:#10B981;"></i></span>
                             <div style="min-width:0;"><div class="ad-top-eyebrow">Top Supplier</div><div class="ad-top-by">By total materials purchased</div></div>
@@ -257,6 +170,62 @@
                         <a href="{{ route('admin.material_usage') }}" class="ad-top-link">View suppliers <i data-lucide="arrow-right"></i></a>
                     </div>
                 </div>
+            </div>
+
+            {{-- ── Row: needs attention (2/3) + operations (1/3) ── --}}
+            <div class="ad-grid ad-row-mid">
+                {{-- Needs attention --}}
+                <div class="ad-card ad-attn-card">
+                    <div class="ad-card-head">
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <div class="ad-card-icon" style="background:#FFF3D6;color:#8A6100;"><i data-lucide="alert-triangle" style="width:18px;height:18px;"></i></div>
+                            <div>
+                                <div class="ad-card-title">Needs Attention</div>
+                                <div class="ad-card-sub">{{ $attnTotal > 0 ? $attnTotal . ' item' . ($attnTotal === 1 ? '' : 's') : 'All caught up' }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    @if($attnTotal === 0)
+                    <div class="ad-empty ad-scroll">
+                        <i data-lucide="check-circle-2"></i>
+                        <strong>All caught up</strong>
+                        <span>No overdue projects, unpaid balances, or unread messages.</span>
+                    </div>
+                    @else
+                    <div class="ad-attn ad-scroll">
+                        <div class="ad-attn-group">
+                            <div class="ad-attn-label">Overdue projects <span class="ad-pill is-red">{{ $overdueCount }}</span></div>
+                            @forelse($overdueProjectsList as $project)
+                            <a href="{{ route('admin.project_view', $project->id) }}" class="ad-attn-row">
+                                <span class="ad-attn-main"><strong>{{ $project->name }}</strong><small>{{ $project->live_client_name }}</small></span>
+                                <span class="ad-attn-val is-red">{{ (int) $project->end_date->diffInDays(now(), true) }}d late</span>
+                            </a>
+                            @empty
+                            <div class="ad-attn-none">No overdue projects.</div>
+                            @endforelse
+                        </div>
+                        <div class="ad-attn-group">
+                            <div class="ad-attn-label">Unpaid balances <span class="ad-pill is-amber">{{ $pendingPaymentsCount }}</span></div>
+                            @forelse($pendingPaymentsList as $payment)
+                            <a href="{{ route('admin.payments.show', $payment->id) }}" class="ad-attn-row">
+                                <span class="ad-attn-main"><strong>{{ $payment->client }}</strong><small>{{ $payment->project->name ?? 'Unknown project' }}</small></span>
+                                <span class="ad-attn-val is-amber">₱{{ number_format($payment->currentBalance(), 0) }}</span>
+                            </a>
+                            @empty
+                            <div class="ad-attn-none">No unpaid balances.</div>
+                            @endforelse
+                        </div>
+                        @if($unreadMessages > 0)
+                        <a href="{{ route('admin.messages') }}" class="ad-attn-msg">
+                            <i data-lucide="message-square"></i>
+                            {{ $unreadMessages }} unread message{{ $unreadMessages !== 1 ? 's' : '' }}
+                            <i data-lucide="arrow-right" style="margin-left:auto;"></i>
+                        </a>
+                        @endif
+                    </div>
+                    @endif
+                </div>
 
                 {{-- Operations snapshot --}}
                 <div class="ad-card">
@@ -270,7 +239,7 @@
                         <a href="{{ route('admin.projects') }}" class="ad-op"><i data-lucide="hammer"></i><strong>{{ $activeProjects }}</strong><span>Active projects</span></a>
                         <a href="{{ route('admin.employees') }}" class="ad-op"><i data-lucide="hard-hat"></i><strong>{{ $totalEmployees }}</strong><span>Active employees</span></a>
                         <a href="{{ route('admin.clients') }}" class="ad-op"><i data-lucide="building-2"></i><strong>{{ $totalClients }}</strong><span>Clients</span></a>
-                        <a href="{{ route('admin.projects', ['tab' => 'completed']) }}" class="ad-op"><i data-lucide="badge-check"></i><strong>{{ $completedProjects }}</strong><span>Completed</span></a>
+                        <a href="{{ route('admin.projects', ['tab' => 'completed']) }}" class="ad-op"><i data-lucide="badge-check"></i><strong>{{ $completedProjects }}</strong><span>Completed Projects</span></a>
                     </div>
                 </div>
             </div>
@@ -1333,12 +1302,12 @@
         }
 
         /* ══════════ Admin dashboard layout (ad-*) ══════════ */
-        .ad-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+        /* a thin line under the header, same as the employee dashboard */
+        .ad-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 4px 4px 24px; margin-bottom: 20px; border-bottom: 1px solid var(--border); }
         .ad-eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
         .ad-eyebrow::before { content: ''; width: 22px; height: 3px; border-radius: 999px; background: #F5B400; }
         .ad-title { margin: 6px 0 4px; font-size: 28px; font-weight: 900; letter-spacing: -.5px; color: var(--dark); }
-        .ad-sub { margin: 0; font-size: 13.5px; color: var(--muted); }
-        .ad-sub strong { color: #B45309; }
+        .ad-sub { font-size: 13.5px; color: var(--muted); }
         .ad-head-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
         .ad-chip, .ad-year { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--border);
                              background: var(--white); font-size: 13px; font-weight: 700; color: var(--dark); }
@@ -1362,7 +1331,6 @@
 
 
         .ad-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 18px; margin-bottom: 18px; align-items: stretch; }
-        .ad-stack { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
         .ad-card { background: var(--white); border: 1px solid var(--border); border-radius: 18px; min-width: 0; overflow: hidden;
                    box-shadow: 0 1px 2px rgba(0,0,0,.03); display: flex; flex-direction: column; }
         .ad-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 16px 20px; border-bottom: 1px solid var(--border); }
@@ -1374,16 +1342,6 @@
         .ad-link { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 800; color: var(--dark); text-decoration: none; }
         .ad-link svg { width: 13px; height: 13px; transition: transform .15s; }
         .ad-link:hover svg { transform: translateX(2px); }
-
-        .ad-pipe { padding: 6px 10px 10px; }
-        .ad-pipe-row { display: flex; align-items: center; gap: 12px; padding: 9px 10px; border-radius: 12px; text-decoration: none; color: var(--dark); transition: background .15s; }
-        .ad-pipe-row:hover { background: var(--cream-soft, #fafafa); }
-        .ad-pipe-icon { width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
-        .ad-pipe-icon svg { width: 16px; height: 16px; }
-        .ad-pipe-text { flex: 1; min-width: 0; }
-        .ad-pipe-text strong { display: block; font-size: 13px; font-weight: 800; }
-        .ad-pipe-text small { display: block; font-size: 11.5px; color: var(--muted); }
-        .ad-pipe-count { font-size: 20px; font-weight: 900; color: #c4c4c4; font-variant-numeric: tabular-nums; }
 
         .ad-ops { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 14px; }
         .ad-op { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: 14px; background: var(--cream-soft, #fafafa); border: 1px solid var(--border);
@@ -1430,8 +1388,7 @@
         .ad-top { display: flex; flex-direction: column; padding: 20px; border-radius: 18px; color: #fff; min-width: 0;
                   background: linear-gradient(135deg, #333 0%, #1a1a1a 100%); box-shadow: 0 8px 24px rgba(0,0,0,.18); position: relative; overflow: hidden; }
         .ad-top::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: repeating-linear-gradient(135deg, #F5B400 0 10px, rgba(0,0,0,.5) 10px 20px); opacity: .9; }
-        .ad-top > *:not(.ad-top-bg) { position: relative; z-index: 1; }
-        .ad-top-bg { position: absolute; right: -26px; top: -22px; width: 150px; height: 150px; color: #fff; opacity: .045; stroke-width: 1.4; pointer-events: none; transform: rotate(-12deg); }
+        .ad-top > * { position: relative; z-index: 1; }
         .ad-top--client  { background: radial-gradient(120% 90% at 100% 0%, rgba(245,180,0,.16) 0%, transparent 55%), linear-gradient(135deg, #333 0%, #1a1a1a 100%); }
         .ad-top--supplier { background: radial-gradient(120% 90% at 100% 0%, rgba(16,185,129,.15) 0%, transparent 55%), linear-gradient(135deg, #333 0%, #1a1a1a 100%); }
         .ad-top-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
@@ -1480,35 +1437,36 @@
         .ad-grid > * { min-height: 0; }
 
         .ad-row-main { height: 560px; }
-        .ad-row-main .ad-pipe { padding: 4px 10px 6px; }
-        .ad-row-main .ad-pipe-row { padding: 6px 10px; }
-        .ad-row-main > .ad-card, .ad-row-main > .ad-stack { height: 100%; }
-        .ad-row-main .ad-stack > .ad-card:first-child { flex: 0 0 auto; }        /* pipeline: its four rows */
-        .ad-row-main .ad-stack > .ad-card:last-child  { flex: 1 1 auto; min-height: 0; }   /* needs attention: the rest */
+        .ad-row-main > .ad-card, .ad-row-main > .ad-top-pair { height: 100%; }
 
         .ad-row-mid { height: 250px; }
         .ad-row-mid > * { height: 100%; }
-        .ad-row-mid .ad-top-pair > .ad-top { height: 100%; }
 
         .ad-row-low { height: 470px; }
         .ad-row-low > .ad-card { height: 100%; }
         .ad-row-low .db-project-card-head, .ad-row-low .db-proj-table-head, .ad-row-low .db-project-card-footer { flex-shrink: 0; }
 
+        @media (min-width: 1201px) {
+            .ad-row-main > .ad-top-pair { grid-template-columns: 1fr; grid-template-rows: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (min-width: 901px) {
+            .ad-attn-card .ad-attn { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; }
+            .ad-attn-card .ad-attn-group + .ad-attn-group { border-top: 0; border-left: 1px dashed var(--border); }
+            .ad-attn-card .ad-attn-msg { grid-column: 1 / -1; }
+        }
         @media (max-width: 1200px) {
             .ad-grid { grid-template-columns: 1fr; }
-            .ad-stack { display: grid; grid-template-columns: 1fr 1fr; }
             /* stacked: each card keeps its own fixed height instead of the row's */
             .ad-row-main, .ad-row-mid, .ad-row-low { height: auto; }
             .ad-row-main > .ad-card { height: 400px; }
-            .ad-row-main > .ad-stack { height: auto; }
-            .ad-row-main .ad-stack > .ad-card { height: 330px; }
-            .ad-row-mid > .ad-top-pair, .ad-row-mid .ad-top-pair > .ad-top, .ad-row-mid > .ad-card { height: 250px; }
+            .ad-row-main > .ad-top-pair, .ad-row-main .ad-top-pair > .ad-top, .ad-row-mid > .ad-card { height: 250px; }
             .ad-row-low > .ad-card { height: 460px; }
         }
         @media (max-width: 900px) {
             .ad-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-            .ad-stack, .ad-top-pair { grid-template-columns: 1fr; }
-            .ad-row-mid > .ad-top-pair { height: auto; }   /* the two dark cards stack — each keeps its 250px */
+            .ad-top-pair { grid-template-columns: 1fr; }
+            .ad-row-main > .ad-top-pair { height: auto; }   /* the two dark cards stack — each keeps its 250px */
+            .ad-row-mid > .ad-attn-card { height: 330px; }
         }
         @media (max-width: 640px) {
             .ad-title { font-size: 22px; }

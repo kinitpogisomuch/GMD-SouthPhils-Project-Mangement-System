@@ -43,13 +43,13 @@ class FundSetting extends Model
         return $newBalance;
     }
 
-    /** The fund is set up once its starting capital (initial balance) has been entered. */
+    /** The fund is set up once its initial balance has been entered. */
     public static function isInitialized(): bool
     {
         return (float) static::instance()->initial_balance > 0;
     }
 
-    /** Additional capital invested after the initial setup — each addition is its own entry in the fund history. */
+    /** Additional fund put in after the initial setup — each addition is its own entry in the fund history. */
     public static function totalTopUps(): float
     {
         return (float) FundTransaction::where('type', 'topup')->sum('amount');
@@ -57,7 +57,7 @@ class FundSetting extends Model
 
     /**
      * Total Balance, worked out from the records rather than trusted from a stored figure:
-     *   initial balance + additional capital − fund released to projects + repaid by projects
+     *   initial balance + additional fund − fund released to projects + repaid by projects
      */
     public static function ledgerBalance(): float
     {
@@ -82,14 +82,13 @@ class FundSetting extends Model
     }
 
     /**
-     * Sets the starting capital. Only while the fund has no history yet (first setup, or fixing a typo
-     * before anything happened) — after that the initial balance is a fixed record, and more money is
-     * added as additional capital instead, so the two are never mixed up.
+     * Sets the initial balance, once, at the first setup — after that the initial balance is a fixed
+     * record, and more money is added as additional fund instead, so the two are never mixed up.
      */
     public static function setInitialBalance(float $newInitial): array
     {
-        if (static::isInitialized() && FundTransaction::exists()) {
-            return ['ok' => false, 'message' => 'The initial balance is already set and the fund is in use, so it can no longer be changed. Use Add Capital to put more money into the fund.'];
+        if (static::isInitialized()) {
+            return ['ok' => false, 'message' => 'The initial balance is already set and can no longer be changed. Use Add Fund to put more money into the fund.'];
         }
 
         $setting = static::instance();
@@ -114,7 +113,7 @@ class FundSetting extends Model
             }
 
             $newBalance = round(static::ledgerBalance() + $amount, 2);
-            $purpose    = 'Additional capital' . ($note ? ' — ' . $note : '');
+            $purpose    = 'Additional fund' . ($note ? ' — ' . $note : '');
 
             $entry = FundTransaction::create([
                 'type'          => 'topup',

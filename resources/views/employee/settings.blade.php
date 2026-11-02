@@ -38,10 +38,9 @@
             <div class="emp-tab-content active" id="tab-profile">
                 <div class="settings-layout" style="align-items:stretch;">
 
-                    <!-- Left column: Avatar Card + GCash QR, stacked so the QR doesn't take up the
-                         full page width — it only needs to be as wide as the photo card beside it. -->
-                    <div class="settings-side-col" style="display:flex;flex-direction:column;gap:10px;width:260px;flex-shrink:0;">
-                    <div class="settings-avatar-card" style="flex:1;justify-content:center;">
+                    <!-- Left column: the profile photo card -->
+                    <div class="settings-side-col" style="display:flex;flex-direction:column;gap:10px;width:260px;flex-shrink:0;align-self:flex-start;">
+                    <div class="settings-avatar-card" style="justify-content:center;">
                         <div class="settings-avatar" id="avatarDisplay">
                             @if(session('profile_photo'))
                                 <img src="{{ session('profile_photo') }}" alt="Profile"
@@ -80,49 +79,6 @@
                         </div>
                     </div>
 
-                    <!-- GCash QR Code Card — stacked below the photo card, not spanning the full page -->
-                    <div class="pv-card" style="flex:1;display:flex;flex-direction:column;">
-                        <h3 class="pv-card-title" style="margin-bottom:4px;">GCash QR Code</h3>
-                        <p style="font-size:12.5px;color:var(--muted);margin:0 0 16px;">
-                            So admin can pay your salary via GCash.
-                        </p>
-
-                        <div style="display:flex;flex-direction:column;align-items:center;gap:14px;">
-                            <div id="gcashQrDisplay" style="width:140px;height:140px;border-radius:12px;border:1.5px dashed var(--border);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;background:var(--surface-2);">
-                                @if($employee->gcash_qr)
-                                    <img src="{{ $employee->gcash_qr }}" alt="GCash QR" style="width:100%;height:100%;object-fit:contain;">
-                                @else
-                                    <i data-lucide="qr-code" style="width:32px;height:32px;color:var(--muted);opacity:.5;"></i>
-                                @endif
-                            </div>
-
-                            <div style="width:100%;text-align:center;">
-                                <form method="POST" action="{{ route('employee.settings.gcash_qr') }}"
-                                      enctype="multipart/form-data" id="gcashQrUploadForm">
-                                    @csrf
-                                    <input type="file" name="gcash_qr" id="gcashQrInput"
-                                           accept="image/jpeg,image/png,image/webp" style="display:none;">
-                                </form>
-                                <form method="POST" action="{{ route('employee.settings.gcash_qr.remove') }}" id="removeGcashQrForm" style="display:none;">
-                                    @csrf
-                                    @method('DELETE')
-                                </form>
-                                <div style="display:flex;gap:6px;justify-content:center;flex-wrap:nowrap;">
-                                    <label class="avatar-change-btn" onclick="document.getElementById('gcashQrInput').click()" style="cursor:pointer;padding:9px 10px;font-size:12px;flex:1;justify-content:center;">
-                                        <i data-lucide="upload"></i>
-                                        {{ $employee->gcash_qr ? 'Change QR' : 'Upload QR' }}
-                                    </label>
-                                    @if($employee->gcash_qr)
-                                    <button type="button" class="avatar-change-btn" onclick="confirmRemoveGcashQr()" style="padding:9px 10px;font-size:12px;flex:1;justify-content:center;">
-                                        <i data-lucide="trash-2"></i>
-                                        Remove
-                                    </button>
-                                    @endif
-                                </div>
-                                <p style="font-size:11px;color:var(--muted);margin-top:8px;">JPG, PNG, or WEBP · max 4MB</p>
-                            </div>
-                        </div>
-                    </div>
                     </div>
 
                     <!-- Right: Profile Form -->
@@ -328,58 +284,6 @@
         </div>
     </div>
 
-    <!-- ===== GCASH QR CROP MODAL ===== -->
-    <div class="modal-overlay" id="qrCropModal">
-        <div class="modal-card" style="max-width:420px;">
-            <div class="modal-header">
-                <div>
-                    <h2>Adjust QR Code</h2>
-                    <p>Drag to reposition, scroll or pinch to zoom in on just the QR code.</p>
-                </div>
-                <button class="modal-close" type="button" onclick="closeQrCropModal()">
-                    <i data-lucide="x"></i>
-                </button>
-            </div>
-            <div class="qr-crop-wrap">
-                <img id="qrCropImage" src="" alt="Crop preview">
-            </div>
-            <div class="modal-actions">
-                <button type="button" class="cancel-btn" onclick="closeQrCropModal()">Cancel</button>
-                <button type="button" class="save-btn" onclick="saveQrCrop()">
-                    <i data-lucide="check"></i> Save QR Code
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- ===== REMOVE GCASH QR CONFIRM MODAL ===== -->
-    <div class="modal-overlay" id="removeGcashQrModal">
-        <div class="modal-card" style="max-width:420px;">
-            <div class="modal-header">
-                <div>
-                    <h2>Remove GCash QR Code?</h2>
-                    <p>This will clear your current QR code.</p>
-                </div>
-                <button class="modal-close" type="button" onclick="closeRemoveGcashQrModal()">
-                    <i data-lucide="x"></i>
-                </button>
-            </div>
-            <div class="delete-confirm-body">
-                <div class="delete-confirm-icon" style="background:#fee2e2;color:#dc2626;"><i data-lucide="trash-2"></i></div>
-                <p>Are you sure you want to remove your GCash QR code?</p>
-                <p style="font-size:13px;color:var(--text-secondary);margin-top:8px;line-height:1.5;">
-                    Admin won't be able to pay your salary via GCash until you upload a new one.
-                </p>
-            </div>
-            <div class="modal-actions">
-                <button type="button" class="cancel-btn" onclick="closeRemoveGcashQrModal()">Cancel</button>
-                <button type="button" class="save-btn" style="background:#dc2626;" onclick="document.getElementById('removeGcashQrForm').submit();">
-                    <i data-lucide="trash-2"></i> Remove
-                </button>
-            </div>
-        </div>
-    </div>
-
     <!-- ===== REMOVE PHOTO CONFIRM MODAL ===== -->
     <div class="modal-overlay" id="removePhotoModal">
         <div class="modal-card" style="max-width:420px;">
@@ -470,72 +374,7 @@
             reader.readAsDataURL(file);
         });
 
-        // GCash QR — open the same "adjust before saving" flow as the profile photo, but with a
-        // square (not circular) crop box: a QR code's corners must stay intact to stay scannable.
-        document.getElementById('gcashQrInput').addEventListener('change', function () {
-            var file = this.files[0];
-            if (!file) return;
-            if (!validateFileSize(this, 4)) { this.value = ''; return; }
-            qrPendingFile = file;
-            var reader = new FileReader();
-            reader.onload = function (e) {
-                document.getElementById('qrCropImage').src = e.target.result;
-                document.getElementById('qrCropModal').classList.add('show');
-                if (qrCropper) { qrCropper.destroy(); qrCropper = null; }
-                qrCropper = new Cropper(document.getElementById('qrCropImage'), {
-                    aspectRatio: 1,
-                    viewMode: 1,
-                    dragMode: 'move',
-                    background: false,
-                    autoCropArea: 1,
-                    cropBoxResizable: true,
-                    cropBoxMovable: true,
-                    toggleDragModeOnDblclick: false,
-                });
-            };
-            reader.readAsDataURL(file);
-        });
     });
-
-    function confirmRemoveGcashQr() {
-        document.getElementById('removeGcashQrModal').classList.add('show');
-    }
-    function closeRemoveGcashQrModal() {
-        document.getElementById('removeGcashQrModal').classList.remove('show');
-    }
-
-    var qrCropper = null;
-    var qrPendingFile = null;
-
-    function closeQrCropModal() {
-        document.getElementById('qrCropModal').classList.remove('show');
-        if (qrCropper) { qrCropper.destroy(); qrCropper = null; }
-        document.getElementById('gcashQrInput').value = '';
-        qrPendingFile = null;
-    }
-
-    function saveQrCrop() {
-        if (!qrCropper) return;
-        var outputType = (qrPendingFile && qrPendingFile.type === 'image/png') ? 'image/png' : 'image/jpeg';
-        // Larger than the avatar's crop (600px vs 400px) — a QR code needs enough resolution
-        // to stay scannable once cropped down tighter than the original photo.
-        qrCropper.getCroppedCanvas({ width: 600, height: 600, imageSmoothingQuality: 'high' }).toBlob(function (blob) {
-            if (!blob) return;
-            var fileName    = (qrPendingFile && qrPendingFile.name) || 'gcash-qr.jpg';
-            var croppedFile = new File([blob], fileName, { type: blob.type });
-            var dt          = new DataTransfer();
-            dt.items.add(croppedFile);
-            document.getElementById('gcashQrInput').files = dt.files;
-
-            document.getElementById('gcashQrDisplay').innerHTML =
-                '<img src="' + URL.createObjectURL(blob) + '" alt="GCash QR" style="width:100%;height:100%;object-fit:contain;">';
-
-            document.getElementById('qrCropModal').classList.remove('show');
-            qrCropper.destroy();
-            qrCropper = null;
-            document.getElementById('gcashQrUploadForm').submit();
-        }, outputType, 0.95);
-    }
 
     function confirmRemovePhoto() {
         document.getElementById('removePhotoModal').classList.add('show');
@@ -853,7 +692,7 @@
         });
     </script>
     @if(session('success'))
-    {{-- Profile / password / photo / GCash QR saved: small dark toast centered below the header, 3 seconds --}}
+    {{-- Profile / password / photo saved: small dark toast centered below the header, 3 seconds --}}
     <div class="toast" id="empSettingsToast" role="status">
         <i data-lucide="check-circle"></i>
         <span>{{ session('success') }}</span>

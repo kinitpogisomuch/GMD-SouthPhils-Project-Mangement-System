@@ -68,7 +68,7 @@ class ProjectUpdateController extends Controller
                 'project_id'            => $update->project_id,
                 'submitted_by_name'     => $update->submittedBy ? $update->submittedBy->full_name : 'Admin',
                 'created_at_formatted'  => $update->created_at->format('F d, Y g:i A'),
-                'phase'                 => ucfirst(str_replace('_', ' ', $update->phase)),
+                'phase'                 => \App\Models\Project::phaseLabel($update->phase),
                 'phase_key'             => $update->phase,
                 'status'                => $update->status,
                 'is_pending'            => $canApprove,

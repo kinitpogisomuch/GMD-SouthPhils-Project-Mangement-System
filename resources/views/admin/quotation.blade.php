@@ -11,10 +11,11 @@
         #quotationRequestsTable th { padding: 12px 16px; }
         #quotationRequestsTable td { padding: 14px 16px; vertical-align: middle; }
         #quotationRequestsTable .qr-cell-title { font-size: 13px; font-weight: 800; color: var(--dark); line-height: 1.35; }
+        #quotationRequestsTable .qr-cell-tank { font-size: 13px; font-weight: 600; color: var(--dark); line-height: 1.35; }
+        #quotationRequestsTable .qr-sep:not(:first-child)::before { content: '·'; margin-right: 5px; }
+        #quotationRequestsTable tbody tr[data-request] { cursor: pointer; }
         #quotationRequestsTable .qr-cell-sub { display: flex; align-items: center; gap: 5px; margin-top: 3px; font-size: 11.5px; color: var(--muted); }
         #quotationRequestsTable .qr-cell-sub svg, #quotationRequestsTable .qr-cell-sub i { flex-shrink: 0; }
-        #quotationRequestsTable .qr-stack { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
-        #quotationRequestsTable .qr-cell-loc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 12px; line-height: 1.45; color: var(--dark); }
         #quotationRequestsTable .qr-actions { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; }
         #quotationRequestsTable .action-cell { padding-right: 12px; }
         #quotationRequestsTable .status-badge { white-space: nowrap; }
@@ -30,9 +31,9 @@
         .qv-count { display: inline-flex; align-items: center; justify-content: center; min-width: 19px; height: 19px; padding: 0 6px; border-radius: 999px; background: #F5B400; color: #1a1a1a; font-size: 10.5px; font-weight: 900; }
 
         /* ── Requests table polish ── */
-        #quotationRequestsTable { table-layout: fixed; width: 100%; min-width: 980px; }   /* narrower screens scroll sideways in the card */
+        #quotationRequestsTable { table-layout: fixed; width: 100%; min-width: 1140px; }   /* narrower screens scroll sideways in the card */
+        #quotationRequestsTable tbody tr[data-request] td { height: 84px; }   /* every row the same height, one- or two-line names alike */
         .qr-table-scroll { overflow-x: auto; }
-        #quotationRequestsTable .qr-client { display: flex; align-items: center; gap: 11px; min-width: 0; }
         #quotationRequestsTable .qr-ref { display: inline-flex; align-items: center; padding: 1px 7px; border-radius: 6px; background: var(--cream-deep, #ebebeb); color: var(--dark);
                                            font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; font-weight: 700; letter-spacing: .02em; }
         #quotationRequestsTable .qr-date { font-size: 13px; font-weight: 700; color: var(--dark); white-space: nowrap; }
@@ -48,20 +49,19 @@
         #quotationStatusTabs .filter-tab { padding: 6px 10px; font-size: 12px; gap: 5px; white-space: nowrap; }
         #quotationStatusTabs .filter-count { min-width: 17px; height: 17px; font-size: 10px; padding: 0 5px; }
 
+        @media (max-width: 1400px) {
+            #quotationRequestsTable tbody tr[data-request] td { height: 100px; }   /* long tank names wrap here */
+        }
         @media (max-width: 1180px) {
             #requestsViewContent .table-toolbar { flex-wrap: wrap; }
             #requestsViewContent .table-toolbar .search-box { flex: 1 1 100%; max-width: 100%; }
             #quotationStatusTabs { margin-left: 0; }
         }
-        /* phones: the shared stylesheet pins narrow columns (Client 150px) — give Client and Status room
+        /* phones: the shared stylesheet pins narrow columns (Client 150px) — keep the six equal columns
            and let the table scroll sideways inside the card instead of breaking names mid-word */
         @media (max-width: 768px) {
-            html #quotationRequestsTable { min-width: 860px !important; }
-            html #quotationRequestsTable colgroup col:nth-child(1) { width: 210px !important; }   /* Client */
-            html #quotationRequestsTable colgroup col:nth-child(2) { width: 200px !important; }   /* Tank + target */
-            html #quotationRequestsTable colgroup col:nth-child(3) { width: 120px !important; }   /* Submitted */
-            html #quotationRequestsTable colgroup col:nth-child(4) { width: 175px !important; }   /* Status */
-            html #quotationRequestsTable colgroup col:nth-child(5) { width: 150px !important; }   /* Actions */
+            html #quotationRequestsTable { min-width: 1140px !important; }
+            html #quotationRequestsTable colgroup col:nth-child(n) { width: 190px !important; }
             html #quotationRequestsTable td { word-break: normal; }
         }
     </style>
@@ -155,14 +155,16 @@
                 <div class="qr-table-scroll" style="max-height:570px;overflow-y:auto;">
                     <table class="data-table" id="quotationRequestsTable" style="margin:0;">
                         <colgroup>
-                            <col style="width:36%;">
-                            <col style="width:38%;">
-                            <col style="width:130px;">
-                            <col style="width:190px;">
-                            <col style="width:150px;">
+                            <col style="width:16.66%;">
+                            <col style="width:16.66%;">
+                            <col style="width:16.66%;">
+                            <col style="width:16.66%;">
+                            <col style="width:16.66%;">
+                            <col style="width:16.66%;">
                         </colgroup>
                         <thead style="position:sticky;top:0;z-index:2;">
                             <tr>
+                                <th>Reference</th>
                                 <th>Client</th>
                                 <th>Tank</th>
                                 <th>Submitted</th>
@@ -209,49 +211,26 @@
                                 ]) }}"
                                 >
                                 <td>
-                                    <div class="qr-client">
-                                        <div style="min-width:0;">
-                                            <div class="qr-cell-title">{{ $qr->client->name ?? '—' }}</div>
-                                            <div class="qr-cell-sub" style="flex-wrap:wrap;">
-                                                @if($qr->quotationBatch?->reference_no)<span class="qr-ref">{{ $qr->quotationBatch->reference_no }}</span>@endif
-                                                <span>{{ $qr->client->contact ?? '—' }}</span>
-                                            </div>
-                                        </div>
-                                    </div>
+                                    @if($qr->quotationBatch?->reference_no)<span class="qr-ref">{{ $qr->quotationBatch->reference_no }}</span>@else — @endif
                                 </td>
                                 <td>
-                                    <div class="qr-stack">
+                                    <div class="qr-cell-title">{{ $qr->client->name ?? '—' }}</div>
+                                    <div class="qr-cell-sub">{{ $qr->client->contact ?? '—' }}</div>
+                                </td>
+                                <td>
+                                    <div class="qr-cell-tank">
                                         @if($qr->tank_type)
-                                        <span class="qr-spec-chip qr-chip-type">
-                                            <i data-lucide="package" style="width:11px;height:11px;"></i>
-                                            {{ $qr->tank_type }}{{ $qr->quantity > 1 ? ' ×' . $qr->quantity : '' }}
-                                        </span>
+                                        {{ $qr->quantity > 1 ? $qr->quantity . ' × ' : '' }}{{ $qr->tank_type }}
                                         @else
-                                        <span class="qr-spec-chip qr-chip-type" title="No tank spec — see attached reference photos">
-                                            <i data-lucide="image" style="width:11px;height:11px;"></i>
-                                            Client's Own Tank
-                                        </span>
+                                        <span title="No tank spec — see attached reference photos">Client's Own Tank</span>
                                         @endif
-                                        <span style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;">
-                                            @if(!empty($qr->capacity))
-                                            <span class="qr-spec-chip qr-chip-capacity">
-                                                <i data-lucide="droplet" style="width:11px;height:11px;"></i>
-                                                {{ $qr->capacity }}
-                                            </span>
-                                            @endif
-                                            @if($qr->isOnsite())
-                                            <span class="qr-spec-chip" style="background:#FFFBEB;border-color:#FDE68A;color:#92400E;" title="Site: {{ $qr->location }}">
-                                                <i data-lucide="hard-hat" style="width:11px;height:11px;"></i> On site
-                                            </span>
-                                            @endif
-                                            {{-- every request is pick-up now, so only the client's target date is worth showing;
-                                                 an older delivery request still shows where it goes (in the tooltip) --}}
-                                            @if(!empty($qr->target_timeline))
-                                            <span class="qr-cell-sub" style="margin-top:0;" @if(($qr->fulfillment ?? 'delivery') !== 'pickup' && $qr->location) title="Delivery: {{ $qr->location }}" @endif>
-                                                <i data-lucide="clock" style="width:11px;height:11px;"></i> Target {{ $qr->target_timeline_display }}
-                                            </span>
-                                            @endif
-                                        </span>
+                                    </div>
+                                    {{-- every request is pick-up now, so only the client's target date is worth showing;
+                                         an older delivery request still shows where it goes (in the tooltip) --}}
+                                    <div class="qr-cell-sub" style="flex-wrap:wrap;">
+                                        @if(!empty($qr->capacity))<span>{{ $qr->capacity }}</span>@endif
+                                        @if($qr->isOnsite())<span class="qr-sep" title="Site: {{ $qr->location }}">On site</span>@endif
+                                        @if(!empty($qr->target_timeline))<span class="qr-sep" @if(($qr->fulfillment ?? 'delivery') !== 'pickup' && $qr->location) title="Delivery: {{ $qr->location }}" @endif>Target {{ $qr->target_timeline_display }}</span>@endif
                                     </div>
                                 </td>
                                 <td>
@@ -286,13 +265,13 @@
                             </tr>
                             @empty
                             <tr id="quotationBladeEmpty">
-                                <td colspan="5" style="text-align:center;padding:40px;color:var(--muted);">
+                                <td colspan="6" style="text-align:center;padding:40px;color:var(--muted);">
                                     No quotation requests yet.
                                 </td>
                             </tr>
                             @endforelse
                             <tr id="quotationEmptyState" style="display:none;">
-                                <td colspan="5" style="text-align:center;padding:48px 20px;">
+                                <td colspan="6" style="text-align:center;padding:48px 20px;">
                                     <div style="display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--muted);">
                                         <i data-lucide="inbox" style="width:36px;height:36px;opacity:0.4;"></i>
                                         <span id="quotationEmptyMsg">No requests match your search.</span>
@@ -584,7 +563,7 @@
                         return '<div class="qr-tank-row" style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;">'
                             + '<span class="qr-spec-chip qr-chip-type"><i data-lucide="' + typeIcon + '" style="width:11px;height:11px;"></i>' + escapeHtml(typeLabel) + '</span>'
                             + (item.capacity ? '<span class="qr-spec-chip qr-chip-capacity"><i data-lucide="droplet" style="width:11px;height:11px;"></i>Capacity: ' + escapeHtml(item.capacity) + '</span>' : '')
-                            + (item.target_timeline ? '<span class="qr-spec-chip qr-chip-timeline"><i data-lucide="clock" style="width:11px;height:11px;"></i>Target delivery: ' + escapeHtml(item.target_timeline) + '</span>' : '')
+                            + (item.target_timeline ? '<span class="qr-spec-chip qr-chip-timeline"><i data-lucide="clock" style="width:11px;height:11px;"></i>Target date: ' + escapeHtml(item.target_timeline) + '</span>' : '')
                             + '</div>';
                     }).join('') || '<span style="font-size:12.5px;color:var(--muted);">No tank items.</span>';
 
@@ -728,6 +707,14 @@
             });
             document.getElementById('closeViewRequestModal')
                 .addEventListener('click', function () { closeModal('viewRequestModal'); });
+
+            // A row opens its request — except clicks on its own buttons and links
+            document.querySelectorAll('#quotationRequestsTable tbody tr[data-request]').forEach(function (row) {
+                row.addEventListener('click', function (e) {
+                    if (e.target.closest('button, a')) return;
+                    row.querySelector('.view-request-btn').click();
+                });
+            });
 
             // ---- Decline Request Modal ----
             document.querySelectorAll('.decline-request-btn').forEach(function (btn) {

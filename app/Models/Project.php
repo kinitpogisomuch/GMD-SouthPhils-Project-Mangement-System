@@ -262,9 +262,15 @@ class Project extends Model
     //   delivered         — the Delivery phase has been recorded
     const DELIVERY_STATUSES = [
         'in_production'     => 'In Production',
-        'awaiting_delivery' => 'Awaiting Delivery',
-        'delivered'         => 'Delivered',
+        'awaiting_delivery' => 'Awaiting Pickup',
+        'delivered'         => 'Picked Up',
     ];
+
+    /** A phase's name as people read it. The last phase keeps its stored key 'delivery', but tanks are picked up now. */
+    public static function phaseLabel(?string $phase): string
+    {
+        return $phase === 'delivery' ? 'Pickup' : ucfirst(str_replace('_', ' ', (string) $phase));
+    }
 
     // Progress percentage reached once a given Planning sub-phase is completed
     const SUBPHASE_PROGRESS = [

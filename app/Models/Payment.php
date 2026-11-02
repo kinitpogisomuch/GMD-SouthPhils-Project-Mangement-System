@@ -58,7 +58,8 @@ class Payment extends Model
 
     /**
      * The stage the client can pay online right now and how much — the earliest open stage (same rule
-     * as GMD's Record Payment form) with what is still due on it. Null when nothing is payable.
+     * as GMD's Record Payment form) with what is still due on it, once GMD has billed it. Null when
+     * nothing is payable.
      *
      * @return array{stage: string, amount: float}|null
      */
@@ -69,7 +70,7 @@ class Payment extends Model
         }
 
         $stage = array_search('open', $this->proofStageStates(false), true);
-        if ($stage === false) {
+        if ($stage === false || !$this->isStageBilled($stage)) {
             return null;
         }
 

@@ -329,12 +329,8 @@
                     <div class="table-toolbar" style="flex-wrap:wrap;gap:6px;">
                         <div>
                             <div style="font-weight:700;font-size:15px;">"Our Work" — Choose Your Tank, Get a Quotation</div>
-                            <div style="font-size:12px;color:var(--muted);margin-top:2px;">The tank cards on the landing page and the client's quotation form. Each card opens its own details page, where clients choose a standard size and request a quotation. Click a card to change its picture, description, order or sizes; hide a tank you don't offer right now.</div>
+                            <div style="font-size:12px;color:var(--muted);margin-top:2px;">The tank cards on the landing page and the client's quotation form. Each card opens its own details page, where clients choose a standard size and request a quotation. Click a card to change its picture, description or sizes; hide a tank you don't offer right now.</div>
                         </div>
-                        <button class="add-btn" type="button" id="openAddTankCard">
-                            <i data-lucide="plus"></i>
-                            Add Tank Card
-                        </button>
                     </div>
                     <div class="portfolio-grid" id="tankCardGrid">
                         @foreach($tankCards as $card)
@@ -352,7 +348,6 @@
                             <div class="portfolio-card-body">
                                 <div class="portfolio-card-title">{{ $card['type'] }}</div>
                                 <div class="portfolio-card-chips">
-                                    <span class="portfolio-chip"><i data-lucide="hash"></i>Order {{ $card['sort_order'] }}</span>
                                     {{-- what the details page offers: services (Fuel Pipeline), standard sizes, or a typed capacity --}}
                                     @if($card['choice'])
                                     <span class="portfolio-chip" title="{{ implode(' / ', array_column($card['choice']['options'], 'value')) }}"><i data-lucide="list-checks"></i>{{ count($card['choice']['options']) }} services</span>
@@ -375,7 +370,6 @@
                                         data-custom-image="{{ $card['custom_image'] ? '1' : '0' }}"
                                         data-blurb="{{ $card['blurb'] === $card['default_blurb'] ? '' : $card['blurb'] }}"
                                         data-default-blurb="{{ $card['default_blurb'] }}"
-                                        data-order="{{ $card['sort_order'] }}"
                                         data-custom="{{ $card['custom'] ? '1' : '0' }}"
                                         data-capacity-label="{{ $card['capacity_label'] }}"
                                         data-sizes="{{ json_encode($card['sizes']) }}"
@@ -400,14 +394,6 @@
                                         aria-label="{{ $card['visible'] ? 'Hide' : 'Show' }} {{ $card['type'] }}">
                                     <i data-lucide="{{ $card['visible'] ? 'eye-off' : 'eye' }}"></i>
                                 </button>
-                                @if($card['custom'])
-                                <button class="action-btn view delete-item-btn" type="button"
-                                        data-delete-url="{{ route('admin.tank_cards.destroy', $card['slug']) }}"
-                                        data-name="{{ $card['type'] }}"
-                                        title="Delete" aria-label="Delete {{ $card['type'] }}">
-                                    <i data-lucide="trash-2"></i>
-                                </button>
-                                @endif
                             </div>
                         </div>
                         @endforeach
@@ -526,77 +512,6 @@
         </div>
     </div>
 
-    <!-- ===== ADD TANK CARD MODAL ===== -->
-    <div class="modal-overlay" id="addTankCardModal">
-        <div class="modal-card" style="max-width:600px;max-height:90vh;overflow-y:auto;">
-            <div class="modal-header">
-                <div>
-                    <h2>Add Tank Card</h2>
-                    <p>Adds a tank to "Our Work" on the landing page, with its own details page where clients pick one of your standard sizes (or type their own) and request a quotation: capacity, quantity, their requirements and optional dimensions. It is added at the end — change its order later with Edit.</p>
-                </div>
-                <button class="modal-close" type="button" id="closeAddTankCard" aria-label="Close">
-                    <i data-lucide="x"></i>
-                </button>
-            </div>
-            <form method="POST" action="{{ route('admin.tank_cards.store') }}" enctype="multipart/form-data" id="addTankCardForm">
-                @csrf
-
-                @if($errors->hasBag('tankCardAdd'))
-                <div class="alert-banner error" style="margin-bottom:14px;">
-                    <i data-lucide="alert-circle"></i>
-                    <div>
-                        @foreach($errors->getBag('tankCardAdd')->all() as $error)<div>{{ $error }}</div>@endforeach
-                        <div style="font-size:12px;margin-top:4px;">Please choose the picture again — browsers don't keep a picked file after the page reloads.</div>
-                    </div>
-                </div>
-                @endif
-
-                <div class="form-group" style="margin-bottom:14px;">
-                    <label for="addTankName">Tank Name <span style="color:#dc2626;">*</span></label>
-                    <input type="text" name="type" id="addTankName" required maxlength="100" value="{{ old('type') }}" placeholder="e.g. Septic Tank">
-                </div>
-
-                <div class="form-group form-group-full" style="margin-bottom:14px;">
-                    <label for="addTankImage">Picture <span style="color:#dc2626;">*</span> <span style="font-weight:400;color:var(--muted);">(up to 10MB)</span></label>
-                    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
-                        <img id="addTankImagePreview" src="" alt=""
-                             style="display:none;width:96px;height:72px;object-fit:cover;border-radius:10px;border:1px solid var(--border);flex-shrink:0;">
-                        <input type="file" name="image" id="addTankImage" accept="image/*" required style="flex:1;min-width:0;">
-                    </div>
-                </div>
-
-                <div class="form-group" style="margin-bottom:14px;">
-                    <label for="addTankCapacity">Capacity Label <span style="font-weight:400;color:var(--muted);">— what the capacity is called, e.g. Tank Volume</span></label>
-                    <input type="text" name="capacity_label" id="addTankCapacity" maxlength="50" value="{{ old('capacity_label') }}" placeholder="Capacity / Size">
-                </div>
-
-                <div class="form-group" style="margin-bottom:14px;">
-                    <label for="addTankBlurb">Description <span style="color:#dc2626;">*</span></label>
-                    <textarea name="blurb" id="addTankBlurb" rows="3" required maxlength="500" style="resize:none;" placeholder="One or two sentences shown on the card">{{ old('blurb') }}</textarea>
-                </div>
-
-                {{-- same editor as Edit Tank Card; a new card always saves its own list (empty = clients type the capacity) --}}
-                <div class="form-group" style="margin-bottom:14px;">
-                    <label>Standard Sizes <span style="font-weight:400;color:var(--muted);">— optional; shown on the details page</span></label>
-                    <div class="ts-head" id="addTankSizesHead"><span>Capacity</span><span>Dimensions</span><span>Est. Price (₱)</span><span></span></div>
-                    <div id="addTankSizesRows"></div>
-                    <div id="addTankSizesEmpty" class="ts-empty">No standard sizes — clients type the capacity in the form.</div>
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
-                        <button type="button" class="cancel-btn ts-btn" id="addTankSizeAdd"><i data-lucide="plus"></i> Add size</button>
-                    </div>
-                </div>
-
-                <div class="modal-actions" style="margin-top:20px;">
-                    <button type="button" class="cancel-btn" id="cancelAddTankCard">Cancel</button>
-                    <button type="submit" class="save-btn">
-                        <i data-lucide="check-circle" style="width:15px;height:15px;"></i>
-                        Add Tank Card
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
     <!-- ===== EDIT TANK CARD MODAL ===== -->
     <div class="modal-overlay" id="editTankCardModal">
         <div class="modal-card" style="max-width:600px;">
@@ -634,11 +549,6 @@
                         <input type="file" name="image" id="tankCardImageInput" accept="image/*" style="flex:1;min-width:0;">
                     </div>
                     <button type="button" class="cancel-btn" id="tankCardUseDefault" style="margin-top:10px;display:none;">Use default picture</button>
-                </div>
-
-                <div class="form-group" style="margin-bottom:14px;max-width:220px;">
-                    <label for="tankCardOrder">Order <span style="font-weight:400;color:var(--muted);">— position on the page</span></label>
-                    <input type="number" name="sort_order" id="tankCardOrder" min="1" max="99">
                 </div>
 
                 <div class="form-group" style="margin-bottom:14px;">
@@ -748,7 +658,7 @@
         <span id="toastMsg">Saved successfully.</span>
     </div>
 
-    <script>const ACTIVE_TAB = "{{ ($errors->hasBag('tankCardAdd') || $errors->hasBag('tankCard')) ? 'landing' : session('active_tab', request('tab', 'profile')) }}";</script>
+    <script>const ACTIVE_TAB = "{{ $errors->hasBag('tankCard') ? 'landing' : session('active_tab', request('tab', 'profile')) }}";</script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
     <script src="{{ asset('js/admin.js') }}"></script>
@@ -813,7 +723,6 @@
                 var blurb = document.getElementById('tankCardBlurb');
                 blurb.value = d.blurb || '';
                 blurb.placeholder = d.defaultBlurb || '';
-                document.getElementById('tankCardOrder').value = d.order || '';
                 document.getElementById('tankCardImageInput').value = '';
                 document.getElementById('tankCardResetImage').value = '0';
                 var preview = document.getElementById('tankCardImagePreview');
@@ -847,12 +756,12 @@
             });
         });
 
-        // ---- Standard Sizes editor (Edit Tank Card: ids "tankSizes…", Add Tank Card: "addTankSizes…") ----
+        // ---- Standard Sizes editor (Edit Tank Card) ----
         function makeSizesEditor(p) {
           var ed = {
             defaults: [], custom: false,
             rows: function () { return document.getElementById(p + 'SizesRows'); },
-            // Edit only: "default" keeps the built-in list, "custom" saves the rows (Add has no mode — always its own list)
+            // "default" keeps the built-in list, "custom" saves the rows
             setMode: function (mode) {
                 var input = document.getElementById(p + 'SizesMode');
                 var reset = document.getElementById(p + 'SizesReset');
@@ -909,26 +818,8 @@
           if (reset) reset.addEventListener('click', function () { ed.render(ed.defaults, 'default'); });
           return ed;
         }
-        var tankSizes    = makeSizesEditor('tank');
-        var addTankSizes = makeSizesEditor('addTank');
-        // a failed add comes back with the sizes that were typed
-        addTankSizes.render({!! json_encode($errors->hasBag('tankCardAdd') ? array_values((array) old('sizes', [])) : [], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}, 'custom');
+        var tankSizes = makeSizesEditor('tank');
 
-        // ---- Add Tank Card Modal ----
-        document.getElementById('openAddTankCard').addEventListener('click', function () { openModal('addTankCardModal'); });
-        document.getElementById('closeAddTankCard').addEventListener('click', function () { closeModal('addTankCardModal'); });
-        document.getElementById('cancelAddTankCard').addEventListener('click', function () { closeModal('addTankCardModal'); });
-        document.getElementById('addTankImage').addEventListener('change', function () {
-            var file = this.files && this.files[0];
-            var preview = document.getElementById('addTankImagePreview');
-            if (!file || (typeof validateFileSize === 'function' && !validateFileSize(this, 10))) { preview.style.display = 'none'; return; }
-            var reader = new FileReader();
-            reader.onload = function (e) { preview.src = e.target.result; preview.style.display = ''; };
-            reader.readAsDataURL(file);
-        });
-        @if($errors->hasBag('tankCardAdd'))
-        openModal('addTankCardModal');   // a failed add comes back with its errors
-        @endif
         document.getElementById('closeEditTankCard').addEventListener('click', function () { closeModal('editTankCardModal'); });
         document.getElementById('cancelEditTankCard').addEventListener('click', function () { closeModal('editTankCardModal'); });
         document.getElementById('tankCardUseDefault').addEventListener('click', function () {

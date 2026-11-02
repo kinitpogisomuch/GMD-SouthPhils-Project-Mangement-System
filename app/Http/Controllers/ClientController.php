@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Project;
+use App\Models\ProjectUpdate;
 use App\Models\Payment;
 use App\Models\Client;
 use App\Models\Review;
@@ -81,7 +82,7 @@ class ClientController extends Controller
         $paidTotal     = round($payments->sum(fn ($p) => $p->totalPaid()), 2);
         $balanceTotal  = max(0, round($contractTotal - $paidTotal, 2));
 
-        // action needed: payments the client can make right now, and quotations waiting for their answer
+        // payments the client can make right now, and quotations still open
         $paymentsDue = $payments->map(function ($p) {
             $due = $p->onlinePayableStage();
             return $due ? ['payment' => $p, 'stage' => ucwords(str_replace('_', ' ', $due['stage'])), 'amount' => $due['amount']] : null;
@@ -92,10 +93,6 @@ class ClientController extends Controller
             ->unresolved()
             ->orderBy('created_at', 'desc')
             ->get();
-        $quotesAwaiting = $openQuotes->where('status', QuotationRequest::STATUS_SENT)->values();
-        // approved quotations still waiting for the client's Purchase Order (one per quotation)
-        $quotesNeedPo = $openQuotes->filter(fn ($q) => $q->status === QuotationRequest::STATUS_APPROVED && !$q->hasPurchaseOrder())
-            ->unique('batch_id')->values();
 
         // the latest money in, across all projects
         $recentTransactions = $payments->flatMap(fn ($p) => $p->transactions->map(fn ($t) => [
@@ -106,10 +103,19 @@ class ClientController extends Controller
             'payment' => $p,
         ]))->sortByDesc('date')->take(6)->values();
 
+        // the latest progress on their projects — the same updates the project page shows the client
+        $recentUpdates = ProjectUpdate::whereIn('project_id', $projects->where('status', '!=', 'archived')->pluck('id'))
+            ->where('type', 'admin_direct')
+            ->where('status', 'approved')
+            ->with('project:id,name')
+            ->orderByDesc('created_at')
+            ->take(8)
+            ->get();
+
         return view('client.dashboard', compact(
             'projects', 'payments', 'activeProjects', 'completedCount',
             'contractTotal', 'paidTotal', 'balanceTotal',
-            'paymentsDue', 'openQuotes', 'quotesAwaiting', 'quotesNeedPo', 'recentTransactions'
+            'paymentsDue', 'openQuotes', 'recentTransactions', 'recentUpdates'
         ));
     }
 

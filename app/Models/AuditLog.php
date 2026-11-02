@@ -46,11 +46,12 @@ class AuditLog extends Model
         'quotation.rejected'           => 'Client rejected the quotation',
         'quotation.declined'           => 'Request declined by GMD',
         'quotation.converted'          => 'Converted into a project',
+        'quotation.saved_as_standard'  => 'Saved as a standard size',
         'online_payment.started'       => 'Online payment started',
         'online_payment.paid'          => 'Online payment confirmed',
         'online_payment.failed'        => 'Online payment failed',
         'online_payment.cancelled'     => 'Online payment cancelled',
         'online_payment.expired'       => 'Online payment expired',
-        'project.delivered_unpaid'     => 'Delivery authorized with an unpaid balance',
+        'project.delivered_unpaid'     => 'Pick-up authorized with an unpaid balance',
     ];
 }

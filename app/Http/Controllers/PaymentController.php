@@ -89,7 +89,6 @@ class PaymentController extends Controller
                     'balance'         => $payment ? $payment->currentBalance() : 0,
                     'awaiting_stage'  => $project->awaitingPaymentStage(),
                     // due, but no billing statement sent yet — the client hasn't been asked to pay
-                    'billing_pending' => $payment && $status !== 'Fully Paid' ? $payment->billingPendingStage() : null,
                 ];
             })
             // projects held up by a payment stage first, then newest
@@ -114,7 +113,7 @@ class PaymentController extends Controller
                     // online payments carry the gateway's payment id; their receipt is the system-generated AR
                     'or_number'    => $tx->isOnline() ? $tx->receiptNumber() : $tx->reference_number,
                     'or_tag'       => 'OR',
-                    'ar_url'       => $tx->isOnline() ? route('admin.payments.receipts.show', [$tx->payment_id, $tx->id]) : null,
+                    'ar_url'       => $tx->hasGeneratedReceipt() ? route('admin.payments.receipts.show', [$tx->payment_id, $tx->id]) : null,
                     'client'       => $tx->payment->project?->live_client_name ?? $tx->payment->client ?? '—',
                     'project'      => $tx->payment->project->name ?? '—',
                     'stage'        => PaymentTransaction::stageLabel($tx->payment_stage),
@@ -247,8 +246,6 @@ class PaymentController extends Controller
             'mode_of_payment'  => 'nullable|string|in:cheque,bank_transfer,cash',
             'reference_number' => 'required|string|max:100',
             'notes'            => 'nullable|string|max:1000',
-            'receipt_files'    => 'required|array|min:1|max:5',
-            'receipt_files.*'  => 'file|mimes:pdf,jpg,jpeg,png|max:10240',
             'proof_id'         => 'nullable|integer',
         ]);
 
@@ -288,16 +285,11 @@ class PaymentController extends Controller
             $validated['amount_paid'] = $stageRemaining;
         }
 
-        $receiptUrls = $this->storage->uploadMultiple(
-            $request->file('receipt_files', []),
-            'payments/' . $payment->id . '/receipts'
-        );
-
         // Recorded under a lock on this payment: two requests arriving together (a double click, or two
         // admins) are handled one after the other, and the second sees what the first saved — so the
         // stage, amount and OR number are checked again here before anything is written.
         try {
-            $transaction = \DB::transaction(function () use ($payment, $validated, $receiptUrls) {
+            $transaction = \DB::transaction(function () use ($payment, $validated) {
                 $locked = Payment::whereKey($payment->id)->lockForUpdate()->first();
                 $locked->load('project', 'transactions', 'proofs');
                 $stage = $validated['payment_stage'];
@@ -323,8 +315,6 @@ class PaymentController extends Controller
                     'payment_date'     => $validated['payment_date'],
                     'mode_of_payment'  => $validated['mode_of_payment'] ?? null,
                     'reference_number' => $validated['reference_number'] ?? null,
-                    'receipt_url'      => $receiptUrls[0] ?? null,
-                    'receipt_urls'     => !empty($receiptUrls) ? $receiptUrls : null,
                     'notes'            => $validated['notes'] ?? null,
                     'recorded_by'      => auth()->user()->name ?? 'Admin',
                 ]);
@@ -359,7 +349,7 @@ class PaymentController extends Controller
         NotificationService::syncPaymentDue($payment);
 
         return redirect()->route('admin.payments.show', $payment->id)
-            ->with('success', 'Payment recorded successfully.');
+            ->with('success', 'Payment recorded. Its receipt was generated automatically.');
     }
 
     public function storeBillingStatement(Request $request, $id)
@@ -447,7 +437,7 @@ class PaymentController extends Controller
         return view('client.billing_statement', compact('payment', 'statement'));
     }
 
-    /** Admin: the system-generated Acknowledgement Receipt of an online payment */
+    /** Admin: the system-generated Acknowledgement Receipt of a payment */
     public function showReceipt($id, $transactionId)
     {
         $payment = Payment::with(['project', 'transactions'])->findOrFail($id);
@@ -469,8 +459,8 @@ class PaymentController extends Controller
     private function receiptView(Payment $payment, $transactionId, string $backUrl)
     {
         $transaction = $payment->transactions->firstWhere('id', (int) $transactionId);
-        // generated only for payments the gateway confirmed; manual payments carry their own uploaded receipts
-        abort_unless($transaction && $transaction->isOnline(), 404);
+        // older payments carry their own uploaded receipts; imported ones have none
+        abort_unless($transaction && $transaction->hasGeneratedReceipt(), 404);
 
         return view('payments.receipt', [
             'payment'     => $payment,

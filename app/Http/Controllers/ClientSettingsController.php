@@ -3,10 +3,8 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Validator;
 use App\Models\Client;
 
 class ClientSettingsController extends Controller
@@ -22,101 +20,6 @@ class ClientSettingsController extends Controller
         return response()->json([
             'count' => Client::awaitingApproval()->count(),   // only email-verified sign-ups
         ]);
-    }
-
-    public function store(Request $request)
-    {
-        set_time_limit(120);
-
-        $hasEmail = $request->filled('email');
-
-        $validator = Validator::make($request->all(), [
-            'full_name' => 'required|string|max:255',
-            'contact'   => 'required|string|max:20',
-            'email'     => $hasEmail ? 'required|email' : 'nullable|email',
-        ]);
-
-        if ($validator->fails()) {
-            return redirect()->route('admin.clients')
-                ->withErrors($validator, 'client')
-                ->withInput();
-        }
-
-        $fullName = trim($request->full_name);
-
-        // A portal login (username + PIN) is always generated, same as Employees —
-        // email is only used to also send the credentials, it doesn't gate whether
-        // the account itself gets created.
-        $existing = $hasEmail ? Client::where('email', $request->email)->first() : null;
-        $username = $existing?->username ?? $this->generateUsername();
-        $pin      = $this->generatePin();
-
-        try {
-            $attributes = [
-                'name'        => $fullName,
-                'first_name'  => null,
-                'last_name'   => null,
-                'contact'     => $request->contact,
-                'email'       => $hasEmail ? $request->email : null,
-                'username'    => $username,
-                'password'    => bcrypt($pin),
-                'first_login' => true,
-                'status'      => 'Active',
-                // Created by the admin, not self sign-up — nothing to verify
-                'email_verified_at' => now(),
-            ];
-
-            $client = $hasEmail
-                ? Client::updateOrCreate(['email' => $request->email], $attributes)
-                : Client::create($attributes);
-        } catch (\Exception $e) {
-            Log::error('ClientSettings: client creation failed', ['error' => $e->getMessage()]);
-            return redirect()->route('admin.clients')
-                ->withErrors(['email' => 'Failed to save client: ' . $e->getMessage()], 'client')
-                ->withInput();
-        }
-
-        $emailSent  = false;
-        $emailError = null;
-
-        if ($hasEmail) {
-            try {
-                Mail::html(
-                    $this->buildEmailHtml($fullName, $username, $pin),
-                    function ($message) use ($request, $fullName) {
-                        $message->to($request->email, $fullName)
-                                ->from(config('mail.from.address'), config('mail.from.name'))
-                                ->replyTo(config('mail.from.address'), config('mail.from.name'))
-                                ->subject('Your GMD South Phils Client Portal Account Credentials');
-                    }
-                );
-                $emailSent = true;
-                Log::info('ClientSettings: credentials email sent', ['email' => $request->email]);
-            } catch (\Exception $e) {
-                $emailError = $e->getMessage();
-                Log::error('ClientSettings: email failed', ['error' => $emailError]);
-            }
-
-            if ($emailSent) {
-                $client->update(['credentials_sent_at' => now()]);
-            }
-        }
-
-        // A plain session write (not ->with()/flash()) — the admin header polls
-        // notifications/messages every 15-30s in the background, and any of those
-        // unrelated requests sharing this session would otherwise "age out" (silently
-        // delete) flash data before the redirect's own page load gets to read it.
-        // AdminController::clients() reads this once and forgets it explicitly.
-        session()->put([
-            'new_client_username' => $username,
-            'new_client_pin'      => $pin,
-            'new_client_name'     => $fullName,
-            'new_client_email'    => $hasEmail ? $request->email : null,
-            'email_sent'          => $emailSent,
-            'email_error'         => $emailError,
-        ]);
-
-        return redirect()->route('admin.clients');
     }
 
     public function destroy($id)
@@ -249,92 +152,6 @@ class ClientSettingsController extends Controller
                          });
 
         return response()->json($clients);
-    }
-
-    // -----------------------------------------------------------------------
-    // Shared credential helpers
-    // -----------------------------------------------------------------------
-
-    private function generateUsername(): string
-    {
-        $row = DB::selectOne(
-            "SELECT COALESCE(MAX(CAST(SUBSTRING(username FROM 6) AS INTEGER)), 0) AS max_num
-             FROM clients WHERE username ~ '^CGMD-[0-9]+$'"
-        );
-
-        $nextNum = (int) ($row->max_num ?? 0) + 1;
-
-        do {
-            $username = 'CGMD-' . str_pad($nextNum, 4, '0', STR_PAD_LEFT);
-            if (!Client::where('username', $username)->exists()) {
-                return $username;
-            }
-            $nextNum++;
-        } while (true);
-    }
-
-    private function generatePin(): string
-    {
-        return str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
-    }
-
-    private function buildEmailHtml(string $name, string $username, string $pin): string
-    {
-        return '
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <style>
-                body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 20px; }
-                .container { background: #fff; max-width: 520px; margin: 0 auto; border-radius: 12px; padding: 36px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
-                .logo { font-size: 20px; font-weight: 900; color: #1a1a2e; margin-bottom: 24px; }
-                .logo span { color: #e8900a; }
-                h2 { font-size: 18px; color: #1a1a2e; margin-bottom: 8px; }
-                p { font-size: 14px; color: #444; line-height: 1.6; }
-                .credentials-box { background: #f8f9ff; border: 1.5px solid #dde1f5; border-radius: 10px; padding: 20px 24px; margin: 24px 0; }
-                .cred-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee; }
-                .cred-row:last-child { border-bottom: none; }
-                .cred-label { font-size: 12px; font-weight: 700; color: #888; text-transform: uppercase; }
-                .cred-value { font-size: 18px; font-weight: 900; color: #1a1a2e; letter-spacing: 2px; }
-                .note { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 12px 16px; font-size: 13px; color: #92400e; margin-top: 20px; }
-                .footer { margin-top: 32px; font-size: 12px; color: #aaa; border-top: 1px solid #eee; padding-top: 16px; }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="logo">GMD <span>South Phils</span></div>
-                <h2>Your Client Portal Account is Ready</h2>
-                <p>Hello <strong>' . htmlspecialchars($name) . '</strong>,</p>
-                <p>Your client portal account has been successfully created. Use the credentials below to log in.</p>
-
-                <div class="credentials-box">
-                    <div class="cred-row">
-                        <span class="cred-label">Username</span>
-                        <span class="cred-value">' . htmlspecialchars($username) . '</span>
-                    </div>
-                    <div class="cred-row">
-                        <span class="cred-label">PIN / Password</span>
-                        <span class="cred-value">' . $pin . '</span>
-                    </div>
-                </div>
-
-                <div class="note">
-                    &#9888; For security purposes, we recommend changing your PIN after your first login.
-                </div>
-
-                <p style="margin-top:20px;">
-                    You may now log in to the Client Portal at:<br>
-                    <a href="' . url('/login') . '" style="color:#6366f1;font-weight:700;">' . url('/login') . '</a>
-                </p>
-
-                <div class="footer">
-                    Thank you,<br>
-                    <strong>GMD Construction Management Team</strong>
-                </div>
-            </div>
-        </body>
-        </html>';
     }
 
     private function buildRejectionEmailHtml(string $name): string

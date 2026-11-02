@@ -70,19 +70,18 @@
             @endif
 
             @if(!$isInitialized)
-            {{-- Not set up yet: no balance figures until there is a starting capital --}}
+            {{-- Not set up yet: no balance figures until there is an initial balance --}}
             <div class="rf-setup-prompt">
                 <div class="rf-setup-icon"><i data-lucide="wallet"></i></div>
                 <div style="flex:1;min-width:0;">
                     <h2>Set up the revolving fund</h2>
-                    <p>Enter the fund's starting capital to begin. Projects can then draw from it when their spending is more than the money received, and it is paid back from their client payments. You can add more capital later.</p>
+                    <p>Enter the fund's initial balance to begin. Projects can then draw from it when their spending is more than the money received, and it is paid back from their client payments. You can add more funds later.</p>
                 </div>
                 <button class="add-btn" type="button" data-open-setup><i data-lucide="settings"></i> Set Up Fund</button>
             </div>
             @else
             {{-- Fund overview: Total Balance (with how much of the invested money is left), Initial Balance and
-                 Additional Capital beside it, then one slim activity strip and — only when a project owes the
-                 fund — the list of who owes what. --}}
+                 Additional Fund beside it, then — only when a project owes the fund — the list of who owes what. --}}
             @php
                 $barPct   = $totalCapital > 0 ? max(0, min(100, round(($currentBalance / $totalCapital) * 100))) : 0;
                 $barTone  = $barPct >= 60 ? 'is-good' : ($barPct >= 30 ? 'is-mid' : 'is-low');
@@ -103,7 +102,7 @@
                         </div>
                         <div class="rf-bd-op">+</div>
                         <div class="rf-bd-item">
-                            <div class="rf-bd-label">Added capital</div>
+                            <div class="rf-bd-label">Added fund</div>
                             <div class="rf-bd-value">₱{{ $rfMoney($totalTopUps) }}</div>
                         </div>
                         <div class="rf-bd-op">−</div>
@@ -126,55 +125,23 @@
                             <span class="rf-side-title">Initial Balance</span>
                         </div>
                         <div class="rf-side-value">₱{{ $rfMoney($initialBalance) }}</div>
-                        <div class="rf-side-sub">
-                            Starting capital{{ $initialSetAt ? ' · set ' . $initialSetAt->format('M d, Y') : '' }}
-                            @if($canEditInitial)
-                            · <button type="button" class="rf-link" data-open-setup>Edit</button>
-                            @endif
-                        </div>
                     </div>
                     <div class="rf-side-card">
                         <div class="rf-side-head">
                             <span class="rf-side-icon is-green"><i data-lucide="circle-plus"></i></span>
-                            <span class="rf-side-title">Additional Capital</span>
-                            <button type="button" class="rf-topup-btn" data-open-topup><i data-lucide="plus"></i> Add Capital</button>
+                            <span class="rf-side-title">Additional Fund</span>
+                            <button type="button" class="rf-topup-btn" data-open-topup><i data-lucide="plus"></i> Add Fund</button>
                         </div>
                         <div class="rf-side-value">₱{{ $rfMoney($totalTopUps) }}</div>
                         <div class="rf-side-sub">
                             @if($topUpCount)
-                            {{ $topUpCount }} capital addition{{ $topUpCount === 1 ? '' : 's' }} · last {{ $lastTopUp->created_at->format('M d, Y g:i A') }}
+                            {{ $topUpCount }} fund addition{{ $topUpCount === 1 ? '' : 's' }} · last {{ $lastTopUp->created_at->format('M d, Y g:i A') }}
                             @else
-                            No additional capital yet
+                            No additional fund yet
                             @endif
                         </div>
                     </div>
                 </div>
-            </div>
-
-            {{-- Activity at a glance — one slim strip instead of three large cards --}}
-            <div class="rf-strip">
-                <div class="rf-stat">
-                    <span class="rf-stat-dot is-red"></span>
-                    <div>
-                        <div class="rf-stat-label">Total Fund Used This Month</div>
-                        <div class="rf-stat-value">₱{{ $rfMoney($totalDrawnThisMonth) }}</div>
-                    </div>
-                </div>
-                <div class="rf-stat">
-                    <span class="rf-stat-dot is-green"></span>
-                    <div>
-                        <div class="rf-stat-label">Total Replenished</div>
-                        <div class="rf-stat-value">₱{{ $rfMoney($totalReplenished) }}</div>
-                    </div>
-                </div>
-                <div class="rf-stat">
-                    <span class="rf-stat-dot is-amber"></span>
-                    <div>
-                        <div class="rf-stat-label">Pending Replenishment</div>
-                        <div class="rf-stat-value">₱{{ $rfMoney($pendingReplenishment) }}</div>
-                    </div>
-                </div>
-                <div class="rf-strip-note">Replenishes when progress billings are paid</div>
             </div>
 
             {{-- Who owes the fund — only shown when someone does --}}
@@ -197,7 +164,7 @@
             @endif
             @endif
 
-            {{-- Fund history (every release, repayment and capital addition) --}}
+            {{-- Fund history (every release, repayment and fund addition) --}}
             <div class="rf-main-grid">
 
                 <!-- Transaction Ledger -->
@@ -213,7 +180,7 @@
                                 <option value="">All</option>
                                 <option value="release">Fund Used</option>
                                 <option value="replenishment">Replenishment</option>
-                                <option value="topup">Capital Added</option>
+                                <option value="topup">Fund Added</option>
                             </select>
                         </div>
                     </div>
@@ -232,7 +199,7 @@
                             <tbody>
                                 @forelse($transactions as $tx)
                                 <tr data-type="{{ $tx->type }}"
-                                    data-search="{{ strtolower(($tx->purpose ?? $tx->description ?? '') . ' ' . ($tx->project->name ?? '')) }}">
+                                    data-search="{{ strtolower(str_replace('Additional capital', 'Additional fund', $tx->purpose ?? $tx->description ?? '') . ' ' . ($tx->project->name ?? '')) }}">
                                     <td style="overflow:hidden;">
                                         @if($tx->project)
                                         @php
@@ -250,20 +217,20 @@
                                             <span style="font-size:12.5px;font-weight:800;color:var(--dark);line-height:1.3;white-space:normal;word-break:break-word;">{{ $nameMain }}</span>
                                         </span>
                                         @elseif($tx->type === 'topup')
-                                        <span style="font-size:12.5px;font-weight:800;color:var(--dark);">Fund capital</span>
+                                        <span style="font-size:12.5px;font-weight:800;color:var(--dark);">Revolving fund</span>
                                         @else
                                         <span style="color:var(--muted);">—</span>
                                         @endif
                                     </td>
                                     <td style="font-size:13px;color:var(--muted);white-space:normal;word-break:break-word;line-height:1.5;">
-                                        {{ $tx->purpose ?? $tx->description ?? '—' }}
+                                        {{ str_replace('Additional capital', 'Additional fund', $tx->purpose ?? $tx->description ?? '—') }}
                                         @if($tx->type === 'topup' && $tx->recorded_by)
                                         <div style="font-size:11px;">by {{ $tx->recorded_by }}</div>
                                         @endif
                                     </td>
                                     <td style="text-align:center;">
                                         @if($tx->type === 'topup')
-                                        <span class="status-badge ongoing" style="font-size:11px;">Capital Added</span>
+                                        <span class="status-badge ongoing" style="font-size:11px;">Fund Added</span>
                                         @else
                                         <span class="status-badge {{ $tx->type === 'release' ? 'shortage' : 'completed' }}" style="font-size:11px;">
                                             {{ $tx->type === 'release' ? 'Fund Used' : 'Replenishment' }}
@@ -285,7 +252,7 @@
                                     <td colspan="5" style="text-align:center;vertical-align:middle;padding:48px 20px;color:var(--muted);border-bottom:none;">
                                         <i data-lucide="inbox" style="width:32px;height:32px;opacity:.35;display:block;margin:0 auto 12px;"></i>
                                         <div style="font-size:14px;font-weight:700;color:var(--dark);margin-bottom:4px;">No transactions recorded yet.</div>
-                                        <div style="font-size:12.5px;">Capital additions, fund releases and replenishments will show up here.</div>
+                                        <div style="font-size:12.5px;">Fund additions, fund releases and replenishments will show up here.</div>
                                     </td>
                                 </tr>
                                 @endforelse
@@ -302,14 +269,14 @@
         </main>
     </div>
 
-    @if(!$isInitialized || $canEditInitial)
-    <!-- Initial Fund Setup Modal — only while the fund has no history yet -->
+    @if(!$isInitialized)
+    <!-- Initial Fund Setup Modal — only at the first setup -->
     <div class="modal-overlay" id="initialFundModal" role="dialog" aria-modal="true" aria-labelledby="initialFundTitle">
         <div class="modal-card" style="max-width:440px;">
             <div class="modal-header">
                 <div>
-                    <h2 id="initialFundTitle">{{ $isInitialized ? 'Edit Initial Balance' : 'Set Up the Fund' }}</h2>
-                    <p>The fund's starting capital. It stays as a fixed record — add more later with Add Capital.</p>
+                    <h2 id="initialFundTitle">Set Up the Fund</h2>
+                    <p>The fund's initial balance. Check the amount first: it can't be edited after saving. Add more later with Add Fund.</p>
                 </div>
                 <button class="modal-close" type="button" data-close-modal aria-label="Close"><i data-lucide="x"></i></button>
             </div>
@@ -317,7 +284,7 @@
                 @csrf
                 <div class="form-group">
                     <label for="initialBalanceInput">Initial Balance (₱)</label>
-                    <input type="number" id="initialBalanceInput" name="initial_balance" required min="0.01" step="0.01" value="{{ $initialBalance ?: '' }}" placeholder="e.g. 200000">
+                    <input type="number" id="initialBalanceInput" name="initial_balance" required min="0.01" step="0.01" placeholder="e.g. 200000">
                 </div>
                 <div class="modal-actions">
                     <button type="button" class="cancel-btn" data-close-modal>Cancel</button>
@@ -329,13 +296,13 @@
     @endif
 
     @if($isInitialized)
-    <!-- Add Capital Modal -->
+    <!-- Add Fund Modal -->
     <div class="modal-overlay" id="topUpModal" role="dialog" aria-modal="true" aria-labelledby="topUpTitle">
         <div class="modal-card" style="max-width:440px;">
             <div class="modal-header">
                 <div>
-                    <h2 id="topUpTitle">Add Capital</h2>
-                    <p>Invest additional capital in the revolving fund. It is recorded in the fund history.</p>
+                    <h2 id="topUpTitle">Add Fund</h2>
+                    <p>Add more money to the revolving fund. It is recorded in the fund history.</p>
                 </div>
                 <button class="modal-close" type="button" data-close-modal aria-label="Close"><i data-lucide="x"></i></button>
             </div>
@@ -348,12 +315,12 @@
                 </div>
                 <div class="rf-topup-preview">
                     <div><span>Current balance</span><strong>₱{{ $rfMoney($currentBalance) }}</strong></div>
-                    <div><span>Additional capital</span><strong id="topUpAdding">₱0</strong></div>
+                    <div><span>Additional fund</span><strong id="topUpAdding">₱0</strong></div>
                     <div class="is-total"><span>New balance</span><strong id="topUpNewBalance">₱{{ $rfMoney($currentBalance) }}</strong></div>
                 </div>
                 <div class="modal-actions">
                     <button type="button" class="cancel-btn" data-close-modal>Cancel</button>
-                    <button type="submit" class="save-btn" id="topUpSubmit"><i data-lucide="check"></i> Add Capital</button>
+                    <button type="submit" class="save-btn" id="topUpSubmit"><i data-lucide="check"></i> Add Fund</button>
                 </div>
             </form>
         </div>
@@ -365,7 +332,7 @@
     <script>
         if (typeof lucide !== 'undefined') lucide.createIcons();
 
-        // ---- Set Up / Add Capital modals ----
+        // ---- Set Up / Add Fund modals ----
         function rfOpen(id, focusId) {
             var m = document.getElementById(id);
             if (!m) return;
@@ -395,7 +362,7 @@
             document.querySelectorAll('#initialFundModal.show, #topUpModal.show').forEach(rfClose);
         });
 
-        // Additional capital amount: thousand separators, live "new balance", and checked before it is sent
+        // Additional fund amount: thousand separators, live "new balance", and checked before it is sent
         var RF_BALANCE = {{ (float) $currentBalance }};
         function rfPeso(n) { var whole = Math.round(n * 100) % 100 === 0; return '₱' + n.toLocaleString('en-PH', { minimumFractionDigits: whole ? 0 : 2, maximumFractionDigits: 2 }); }
         function topUpValue() { var el = document.getElementById('topUpAmount'); return el ? parseFloat(el.value.replace(/,/g, '')) || 0 : 0; }
@@ -432,7 +399,7 @@
             });
         }
         @if($errors->has('amount'))
-        // A rejected capital addition comes back here — reopen the modal with the reason
+        // A rejected fund addition comes back here — reopen the modal with the reason
         rfOpen('topUpModal', 'topUpAmount');
         document.getElementById('topUpError').textContent = @json($errors->first('amount'));
         document.getElementById('topUpError').hidden = false;
@@ -461,7 +428,7 @@
     </script>
 
     <style>
-        /* ── Fund overview: Total Balance (largest), Initial Balance and Additional Capital beside it ── */
+        /* ── Fund overview: Total Balance (largest), Initial Balance and Additional Fund beside it ── */
         .rf-overview { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 16px; margin-bottom: 20px; }
         .rf-total { background: linear-gradient(180deg, #333333 0%, #1f1f1f 100%); border-radius: 20px; padding: 22px 24px; color: #fff; box-shadow: 0 8px 24px rgba(0,0,0,.2); display: flex; flex-direction: column; }
         .rf-total-label { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: rgba(255,255,255,.55); }
@@ -496,7 +463,6 @@
         .rf-side-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
         .rf-side-value { margin-top: 10px; font-size: 22px; font-weight: 900; color: var(--dark); font-variant-numeric: tabular-nums; }
         .rf-side-sub { margin-top: 2px; font-size: 12px; color: var(--muted); }
-        .rf-link { background: none; border: none; padding: 0; font: inherit; font-weight: 800; color: var(--dark); text-decoration: underline; cursor: pointer; }
         .rf-topup-btn { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; height: 32px; padding: 0 12px; border-radius: 10px; border: none; background: var(--dark); color: #fff; font-size: 12px; font-weight: 800; cursor: pointer; }
         .rf-topup-btn:hover { background: #1a1a1a; }
         .rf-topup-btn i, .rf-topup-btn svg { width: 13px; height: 13px; }
@@ -508,18 +474,6 @@
         .rf-bar.is-mid span  { background: #fbbf24; }
         .rf-bar.is-low span  { background: #f87171; }
 
-        /* activity strip — three small figures in one card */
-        .rf-strip { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 0; margin-bottom: 20px; padding: 14px 6px; background: var(--white); border: 1px solid var(--border); border-radius: 16px; }
-        .rf-stat { display: flex; align-items: center; gap: 10px; padding: 0 20px; border-right: 1px solid var(--border); }
-        .rf-stat:nth-child(3) { border-right: none; }
-        .rf-stat-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-        .rf-stat-dot.is-red   { background: #ef4444; }
-        .rf-stat-dot.is-green { background: #16a34a; }
-        .rf-stat-dot.is-amber { background: #f59e0b; }
-        .rf-stat-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
-        .rf-stat-value { margin-top: 1px; font-size: 16px; font-weight: 900; color: var(--dark); font-variant-numeric: tabular-nums; }
-        .rf-strip-note { margin-left: auto; padding: 0 18px; font-size: 12px; color: var(--muted); }
-
         /* projects that still owe the fund */
         .rf-owed { margin-bottom: 20px; background: var(--white); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
         .rf-owed-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; background: var(--cream-soft); border-bottom: 1px solid var(--border); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
@@ -529,11 +483,6 @@
         .rf-owed-name { font-size: 13.5px; font-weight: 800; color: var(--dark); }
         .rf-owed-meta { margin-top: 2px; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .rf-owed-amount { flex-shrink: 0; font-size: 14px; font-weight: 900; color: #b91c1c; font-variant-numeric: tabular-nums; }
-
-        @media (max-width: 760px) {
-            .rf-stat { flex: 1 1 100%; border-right: none; padding: 0 14px; }
-            .rf-strip-note { margin-left: 0; padding: 0 14px; }
-        }
 
         .rf-setup-prompt { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; padding: 22px 24px; margin-bottom: 20px; background: var(--white); border: 1.5px dashed var(--border-2, #d0d0d0); border-radius: 20px; }
         .rf-setup-icon { width: 52px; height: 52px; border-radius: 16px; background: var(--cream-soft); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; color: var(--dark); flex-shrink: 0; }

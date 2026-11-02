@@ -120,8 +120,10 @@
         .qc-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 800; border-radius: 999px; padding: 5px 12px; background: #fff; border: 1px solid var(--border); color: var(--dark); }
         .qc-pill.is-delivery { background: var(--dark); border-color: var(--dark); color: #fff; }
         .qc-pill i, .qc-pill svg { width: 13px; height: 13px; }
-        .qc-facts { display: flex; flex-wrap: wrap; gap: 12px 44px; }
-        .qc-fact { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+        /* a line between the facts: each has it on its left, and the first one of every row (also after wrapping)
+           sits 1px outside the clipped box, so a row never starts with a line */
+        .qc-facts { display: flex; flex-wrap: wrap; gap: 12px 0; margin-left: -22px; overflow: hidden; }
+        .qc-fact { display: flex; flex-direction: column; gap: 3px; min-width: 0; margin-left: -1px; padding: 0 22px; border-left: 1px solid var(--border-2, #d0d0d0); }
         .qc-fact span { font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
         .qc-fact strong { font-size: 13.5px; font-weight: 800; color: var(--dark); line-height: 1.4; overflow-wrap: anywhere; }
         .qc-fact-wide { flex: 1 1 100%; }

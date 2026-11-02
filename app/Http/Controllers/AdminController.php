@@ -354,14 +354,8 @@ class AdminController extends Controller
             ['label' => 'Completed', 'count' => $completedProjects, 'badge' => 'completed'],
         ];
 
-        // ── Quotation pipeline: where client requests stand right now ──
-        $quotationCounts   = \App\Models\QuotationRequest::selectRaw('status, COUNT(*) as c')->groupBy('status')->pluck('c', 'status');
-        $quotationPipeline = [
-            ['label' => 'New requests',      'sub' => 'Waiting to be costed',   'count' => (int) $quotationCounts->get('pending', 0),        'icon' => 'inbox',       'color' => '#B45309', 'bg' => '#FFF4E0'],
-            ['label' => 'In costing',        'sub' => 'Being prepared',         'count' => (int) $quotationCounts->get('in_preparation', 0), 'icon' => 'calculator',  'color' => '#2A4EAA', 'bg' => '#EAF0FF'],
-            ['label' => 'Waiting on client', 'sub' => 'Quotation sent',         'count' => (int) $quotationCounts->get('quotation_sent', 0), 'icon' => 'send',        'color' => '#6D28D9', 'bg' => '#F3E8FF'],
-            ['label' => 'Ready to convert',  'sub' => 'Approved by the client', 'count' => (int) $quotationCounts->get('approved', 0),       'icon' => 'folder-plus', 'color' => '#207A3A', 'bg' => '#E7F6EC'],
-        ];
+        // ── Client requests still to be costed (the Quotations quick action's badge) ──
+        $quotationsToCost = \App\Models\QuotationRequest::whereIn('status', ['pending', 'in_preparation'])->count();
 
         // ── Client sign-ups that verified their email and wait for the admin's approval ──
         $pendingClientApprovals = Client::awaitingApproval()->count();
@@ -403,7 +397,7 @@ class AdminController extends Controller
             'topSupplierByYear',
             'availableYears',
             'currentYear',
-            'quotationPipeline',
+            'quotationsToCost',
             'recentActivity',
             'pendingClientApprovals'
         ));
@@ -1137,26 +1131,7 @@ class AdminController extends Controller
         // fall back into normal created_at-desc order (PHP's sort is stable).
         $clients = $clients->sortBy(fn ($client) => $client->status === 'Pending' ? 0 : 1)->values();
 
-        // Read the just-created client's credentials (a plain session write, not flash —
-        // see ClientSettingsController::store()) and clear it immediately so a refresh
-        // of this page doesn't keep re-showing the modal.
-        $newClientCreds = null;
-        if (session('new_client_username')) {
-            $newClientCreds = [
-                'username'    => session('new_client_username'),
-                'pin'         => session('new_client_pin'),
-                'name'        => session('new_client_name'),
-                'email'       => session('new_client_email'),
-                'email_sent'  => session('email_sent'),
-                'email_error' => session('email_error'),
-            ];
-            session()->forget([
-                'new_client_username', 'new_client_pin', 'new_client_name',
-                'new_client_email', 'email_sent', 'email_error',
-            ]);
-        }
-
-        return view('admin.clients', compact('clients', 'newClientCreds'));
+        return view('admin.clients', compact('clients'));
     }
 
     public function weeklyRevenue(Request $request)

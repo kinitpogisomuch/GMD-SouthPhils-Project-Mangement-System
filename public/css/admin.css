@@ -5336,11 +5336,6 @@ td.action-cell .action-btn + .action-btn {
     white-space: normal;
     word-break: break-word;
 }
-#quotationRequestsTable .qr-spec-chip {
-    font-size: 10.5px;
-    padding: 3px 8px;
-    white-space: normal;
-}
 #quotationRequestsTable .action-cell {
     white-space: nowrap;
 }

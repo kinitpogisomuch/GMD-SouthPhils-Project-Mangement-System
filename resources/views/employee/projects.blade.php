@@ -10,6 +10,7 @@
         /* Phones: page title, subtitle and the Active / Completed tabs centered */
         @media (max-width: 640px) {
             .pv-page-header { justify-content: center; text-align: center; }
+            .pv-page-header h1::before { margin-left: auto; margin-right: auto; }
             #projectFilterTabs { margin-left: auto !important; margin-right: auto !important; }
         }
     </style>
@@ -109,7 +110,7 @@
                                 <div class="project-info-item">
                                     <div class="project-info-label">Current Phase</div>
                                     <div class="project-info-value project-phase-current">
-                                        {{ ucfirst(str_replace('_', ' ', $project->current_phase)) }}
+                                        {{ \App\Models\Project::phaseLabel($project->current_phase) }}
                                     </div>
                                 </div>
                             </div>
@@ -160,7 +161,10 @@
                 });
             });
 
-            applyFilter('active');
+            // ?filter=completed (from the dashboard's Completed Projects card) opens on that tab
+            var start = new URLSearchParams(location.search).get('filter') === 'completed' ? 'completed' : 'active';
+            tabs.forEach(function(t) { t.classList.toggle('active', t.dataset.filter === start); });
+            applyFilter(start);
         })();
 
     </script>

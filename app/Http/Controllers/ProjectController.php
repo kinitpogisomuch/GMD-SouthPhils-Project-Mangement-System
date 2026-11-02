@@ -910,7 +910,7 @@ class ProjectController extends Controller
             return $back->with('error', 'Record the progress payment in the Payment module before continuing to the fabrication checklist.');
         }
         if ($unpaid && $phase === 'delivery' && !$request->boolean('proceed_without_final_payment')) {
-            return $back->with('error', 'The final payment has not been recorded yet. Use "Proceed Anyway" to record the delivery before it is paid.');
+            return $back->with('error', 'The final payment has not been recorded yet. Use "Proceed Anyway" to record the pick-up before it is paid.');
         }
 
         $project->setPhaseData('payment_gates.' . $phase, [
@@ -929,8 +929,8 @@ class ProjectController extends Controller
 
         $message = match (true) {
             $phase === 'fabrication' => 'Progress payment confirmed. Complete the fabrication checklist below, then click Advance to Inspection.',
-            $unpaid                  => 'Proceeding without the final payment. Add the delivery details below, then click Mark as Delivered.',
-            default                  => 'Final payment confirmed. Add the delivery details below, then click Mark as Delivered.',
+            $unpaid                  => 'Proceeding without the final payment. Add the pick-up details below, then click Mark as Picked Up.',
+            default                  => 'Final payment confirmed. Add the pick-up details below, then click Mark as Picked Up.',
         };
 
         return $back->with('success', $message);
@@ -1552,7 +1552,7 @@ class ProjectController extends Controller
         NotificationService::projectCompleted($project, NotificationService::occurredOn($request->date_of_work));
 
         return redirect()->route('admin.project_view', $project->id)
-            ->with('success', "Final output recorded! Project marked as completed ({$newProgress}%) and is now awaiting delivery.");
+            ->with('success', "Final output recorded! Project marked as completed ({$newProgress}%) and is now awaiting pick-up.");
     }
 
     /*
@@ -1600,7 +1600,7 @@ class ProjectController extends Controller
         $this->createAdminUpdate($project, [
             'phase'        => 'delivery',
             'update_label' => 'delivery',
-            'work_done'    => $request->delivery_notes ?: 'Project delivered to the client.',
+            'work_done'    => $request->delivery_notes ?: 'Project picked up by the client.',
             'percentage'   => $newProgress,
             'photos'       => $photoUrls,
             'date_of_work' => $request->filled('date_of_work') ? $request->date_of_work : now()->toDateString(),
@@ -1609,7 +1609,7 @@ class ProjectController extends Controller
         NotificationService::projectDelivered($project, NotificationService::occurredOn($request->date_of_work));
 
         return redirect()->route('admin.project_view', $project->id)
-            ->with('success', 'Project delivered to the client!');
+            ->with('success', 'Project picked up by the client!');
     }
 
     /*
@@ -2019,7 +2019,7 @@ class ProjectController extends Controller
             NotificationService::progressApproved($project, $nextPhase, $update->submitted_by, $update->id, NotificationService::occurredOn($update->date_of_work));
 
             return redirect()->route('admin.project_view', $project->id)
-                ->with('success', 'Update approved! Project advanced to ' . ucfirst(str_replace('_', ' ', $nextPhase)) . ' phase (' . $newProgress . '% complete).');
+                ->with('success', 'Update approved! Project advanced to ' . \App\Models\Project::phaseLabel($nextPhase) . ' phase (' . $newProgress . '% complete).');
         }
 
         // Approving an update in the final (Delivery) phase records the delivery. The project
@@ -2054,7 +2054,7 @@ class ProjectController extends Controller
         NotificationService::projectDelivered($project, NotificationService::occurredOn($update->date_of_work));
 
         return redirect()->route('admin.project_view', $project->id)
-            ->with('success', 'Update approved! Project has been delivered.');
+            ->with('success', 'Update approved! Project has been picked up.');
     }
 
     /*
@@ -2082,7 +2082,7 @@ class ProjectController extends Controller
             ]);
 
             return redirect()->route('admin.project_view', $id)
-                ->with('success', 'Project advanced to ' . ucfirst(str_replace('_', ' ', $nextPhase)) . ' phase!');
+                ->with('success', 'Project advanced to ' . \App\Models\Project::phaseLabel($nextPhase) . ' phase!');
         }
 
         return redirect()->route('admin.project_view', $id)

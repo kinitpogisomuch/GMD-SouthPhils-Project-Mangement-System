@@ -12,7 +12,7 @@ class FundController extends Controller
     {
         $fund = FundSetting::instance();
 
-        // Total Balance always comes from the records: initial + additional capital − released + repaid
+        // Total Balance always comes from the records: initial + additional fund − released + repaid
         $currentBalance   = FundSetting::syncBalance();
         $initialBalance   = (float) $fund->initial_balance;
         $isInitialized    = $initialBalance > 0;
@@ -20,19 +20,9 @@ class FundController extends Controller
         $topUpCount       = FundTransaction::where('type', 'topup')->count();
         $lastTopUp        = FundTransaction::where('type', 'topup')->latest('id')->first();
         $totalCapital     = $initialBalance + $totalTopUps;   // all money ever put into the fund
-        // The initial balance can only be corrected before the fund has any history
-        $canEditInitial   = !FundTransaction::exists();
-        $initialSetAt     = $fund->updated_at;
         $totalReleased    = FundTransaction::totalReleased();
         $totalReplenished = FundTransaction::totalReplenished();
         $activeAdvances   = FundTransaction::activeProjectAdvancesCount();
-
-        // Drawn this month
-        $totalDrawnThisMonth = (float) FundTransaction::where('type', 'release')
-            ->whereMonth('date', now()->month)
-            ->whereYear('date', now()->year)
-            ->sum('amount');
-
 
         // Per-project outstanding for the balance tracker
         $projectOutstandings = FundTransaction::where('type', 'release')
@@ -57,12 +47,8 @@ class FundController extends Controller
             ->filter(fn($d) => $d['outstanding'] > 0)
             ->values();
 
-        // Pending replenishment = what each project still owes the fund, added up per project
-        // so one project's repayments can never hide another project's outstanding amount.
-        $pendingReplenishment = (float) $projectOutstandings->sum('outstanding');
-
         // Low balance threshold: < 20% of initial balance
-        // Low balance = less than 20% of all the money put into the fund (initial + additional capital)
+        // Low balance = less than 20% of all the money put into the fund (initial + additional fund)
         $isLowBalance = $totalCapital > 0 && ($currentBalance / $totalCapital) < 0.20;
 
         $transactions = FundTransaction::with('project')
@@ -73,14 +59,13 @@ class FundController extends Controller
         return view('admin.revolving_fund', compact(
             'currentBalance', 'initialBalance',
             'totalReleased', 'totalReplenished',
-            'totalDrawnThisMonth', 'pendingReplenishment',
             'activeAdvances', 'projectOutstandings',
             'isLowBalance', 'transactions',
-            'isInitialized', 'totalTopUps', 'topUpCount', 'lastTopUp', 'totalCapital', 'canEditInitial', 'initialSetAt'
+            'isInitialized', 'totalTopUps', 'topUpCount', 'lastTopUp', 'totalCapital'
         ));
     }
 
-    /** POST — invest additional capital in the fund after the initial setup; recorded in the fund history. */
+    /** POST — add more money to the fund after the initial setup; recorded in the fund history. */
     public function topUp(Request $request)
     {
         if ($request->has('amount')) {
@@ -90,9 +75,9 @@ class FundController extends Controller
             'amount' => 'required|numeric|min:0.01|max:999999999',
             'note'   => 'nullable|string|max:255',
         ], [
-            'amount.required' => 'Enter the capital amount.',
+            'amount.required' => 'Enter the fund amount.',
             'amount.numeric'  => 'Enter the amount as a number.',
-            'amount.min'      => 'The capital amount must be more than zero.',
+            'amount.min'      => 'The fund amount must be more than zero.',
             'amount.max'      => 'That amount is too large.',
         ]);
 
@@ -106,7 +91,7 @@ class FundController extends Controller
         $peso = fn ($n) => '₱' . preg_replace('/\.00$/', '', number_format((float) $n, 2));
 
         return redirect()->route('admin.revolving_fund')
-            ->with('success', $peso($entry->amount) . ' additional capital added to the revolving fund. New balance: ' . $peso($entry->balance_after) . '.');
+            ->with('success', $peso($entry->amount) . ' additional fund added to the revolving fund. New balance: ' . $peso($entry->balance_after) . '.');
     }
 
     public function setupInitial(Request $request)
@@ -126,6 +111,6 @@ class FundController extends Controller
         }
 
         return redirect()->route('admin.revolving_fund')
-            ->with('success', 'Initial revolving fund balance updated successfully.');
+            ->with('success', 'Initial revolving fund balance saved.');
     }
 }

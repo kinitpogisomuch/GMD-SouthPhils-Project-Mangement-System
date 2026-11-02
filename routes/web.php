@@ -8,7 +8,6 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectUpdateController;
 use App\Http\Controllers\ClientSettingsController;
-use App\Http\Controllers\ClientAccountController;
 use App\Http\Controllers\ClientSignupController;
 use App\Http\Controllers\EmployeeAccountController;
 use App\Http\Controllers\FirstLoginController;
@@ -102,18 +101,14 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::get('/material-usage', [MaterialUsageController::class, 'adminIndex'])->name('material_usage');
     Route::get('/material-usage/client/{client}', [MaterialUsageController::class, 'clientIndex'])->name('material_usage.client');
     Route::get('/material-usage/{projectId}', [MaterialUsageController::class, 'adminDetail'])->name('material_usage.detail');
-    Route::post('/material-usage/{projectId}', [MaterialUsageController::class, 'store'])->name('material_usage.store');
     Route::post('/material-usage/{projectId}/purchases', [MaterialUsageController::class, 'storePurchase'])->name('material_usage.store_purchase');
     Route::delete('/material-usage/{projectId}/purchases/{purchaseId}', [MaterialUsageController::class, 'destroyPurchase'])->name('material_usage.destroy_purchase');
-    Route::patch('/material-usage/{projectId}/{usageId}/archive', [MaterialUsageController::class, 'archive'])->name('material_usage.archive');
 
     Route::post('/supplier-contacts', [SupplierContactController::class, 'store'])->name('supplier_contacts.store');
     Route::put('/supplier-contacts/{id}', [SupplierContactController::class, 'update'])->name('supplier_contacts.update');
     Route::delete('/supplier-contacts/{id}', [SupplierContactController::class, 'destroy'])->name('supplier_contacts.destroy');
 
     // Landing Page "Our Work" tank cards (Choose Your Tank, Get a Quotation)
-    Route::post('/tank-cards', [\App\Http\Controllers\TankCardController::class, 'store'])->name('tank_cards.store');
-    Route::delete('/tank-cards/{slug}', [\App\Http\Controllers\TankCardController::class, 'destroy'])->name('tank_cards.destroy')->where('slug', '[a-z0-9-]+');
     Route::put('/tank-cards/{slug}', [\App\Http\Controllers\TankCardController::class, 'update'])->name('tank_cards.update')->where('slug', '[a-z0-9-]+');
     Route::patch('/tank-cards/{slug}/toggle', [\App\Http\Controllers\TankCardController::class, 'toggle'])->name('tank_cards.toggle')->where('slug', '[a-z0-9-]+');
 
@@ -162,6 +157,7 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::post('/quotation-requests/batch/{batchId}/send-quotation', [QuotationRequestController::class, 'sendBatchQuotation'])->name('quotation_requests.batch_send_quotation');
     Route::post('/quotation-requests/batch/{batchId}/markup', [QuotationRequestController::class, 'updateMarkup'])->name('quotation_requests.batch_markup');
     Route::post('/quotation-requests/batch/{batchId}/save', [QuotationRequestController::class, 'saveAll'])->name('quotation_requests.batch_save');
+    Route::post('/quotation-requests/batch/{batchId}/standard-size', [QuotationRequestController::class, 'saveAsStandardSize'])->name('quotation_requests.batch_standard_size');
     Route::get('/quotation-requests/batch/{batchId}/prefill', [QuotationRequestController::class, 'prefillBatch'])->name('quotation_requests.batch_prefill');
     Route::post('/quotation-requests/batch/{batchId}/convert', [QuotationRequestController::class, 'convertBatch'])->name('quotation_requests.batch_convert');
     // Generated quotation document: draft preview, sent versions, PDFs, and taking a sent quotation back for revision
@@ -225,7 +221,6 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::delete('/project-templates/{id}', [ProjectController::class, 'destroyTemplate'])->name('project_templates.destroy');
 
     // Client Settings (CRUD)
-    Route::post('/clients', [ClientSettingsController::class, 'store'])->name('client.store');
     Route::delete('/clients/{id}', [ClientSettingsController::class, 'destroy'])->name('client.destroy');
     Route::patch('/clients/{id}/archive', [ClientSettingsController::class, 'archive'])->name('client.archive');
     Route::patch('/clients/{id}/approve', [ClientSettingsController::class, 'approve'])->name('client.approve');
@@ -237,8 +232,6 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::get('/clients/pending-count', [ClientSettingsController::class, 'pendingCount'])->name('client.pending_count');
 
     // Client Account
-    Route::post('/client-account/store', [ClientAccountController::class, 'store'])->name('client-account.store');
-    Route::get('/client-account/next-username', [ClientAccountController::class, 'nextUsername'])->name('client-account.next-username');
 
     // Employee Account
     Route::post('/employees', [EmployeeAccountController::class, 'store'])->name('employee-account.store');
@@ -260,6 +253,9 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::post('/salary-records', [SalaryController::class, 'store'])->name('salary.store');
     Route::put('/salary-records/{id}', [SalaryController::class, 'update'])->name('salary.update');
     Route::delete('/salary-records/{id}', [SalaryController::class, 'destroy'])->name('salary.destroy');
+    Route::post('/salary-records/pay-now', [SalaryController::class, 'payNow'])->name('salary.pay_now');
+    Route::get('/salary-pay-now/{token}/return', [SalaryController::class, 'payNowReturn'])->name('salary.pay_now_return');
+    Route::get('/salary-pay-now/{token}/cancel', [SalaryController::class, 'payNowCancel'])->name('salary.pay_now_cancel');
 
     // Profile, password & photo settings
     Route::put('/settings/profile',       [ProfileController::class, 'updateAdmin'])->name('settings.profile');

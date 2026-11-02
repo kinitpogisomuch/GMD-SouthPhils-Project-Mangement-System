@@ -46,8 +46,9 @@
         .ar-pf-word { text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: 3px; font-weight: 700; }
         .ar-indent { padding-left: 80px; }
         .ar-foot { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; margin-top: 34px; }
-        .ar-no { font-weight: 800; font-size: 17px; }
+        .ar-no { font-weight: 800; font-size: 17px; white-space: nowrap; }
         .ar-no span { color: #c1121f; font-family: 'Courier New', monospace; font-size: 26px; letter-spacing: 2px; margin-left: 8px; }
+        .ar-no span.is-or { font-size: 20px; letter-spacing: 1px; }   /* an OR number is longer than the booklet's digits */
         .ar-sign { width: 300px; text-align: center; }
         .ar-sign-name { font-size: 15px; font-weight: 800; color: #111; text-transform: uppercase; letter-spacing: .04em; line-height: 1.2; }
         .ar-sign-line { border-top: 1.5px solid #222; margin-top: 4px; padding-top: 5px; font-size: 14px; }
@@ -84,7 +85,8 @@
     $paidSoFar  = (float) $payment->transactions->where('id', '<=', $transaction->id)->sum('amount_paid');
     $isFull     = $paidSoFar + 0.01 >= (float) $payment->contract_amount;
     $paidOn     = $online?->paid_at ?? $transaction->payment_date;
-    $method     = $online ? $online->methodLabel() : 'Online';
+    $isOnline   = $transaction->isOnline();
+    $method     = $online ? $online->methodLabel() : ($isOnline ? 'Online' : '');
     $reference  = $online?->provider_payment_id ?: $transaction->reference_number;
     $signatory  = $payment->billingStatements()->whereNotNull('approved_by_name')->latest('id')->value('approved_by_name') ?: 'Vince Duetiz';
     $clientName = $payment->project?->live_client_name ?? $payment->client;
@@ -124,9 +126,9 @@
                 <tr><td colspan="2" class="ar-section">FORM OF PAYMENT</td></tr>
                 <tr>
                     <td colspan="2" style="font-size:11.5px;">
-                        Cash<span class="ar-box"></span>
-                        &nbsp;&nbsp; Check<span class="ar-box"></span>
-                        &nbsp;&nbsp; Online<span class="ar-box is-checked"></span>
+                        Cash<span class="ar-box {{ $transaction->mode_of_payment === 'cash' ? 'is-checked' : '' }}"></span>
+                        &nbsp;&nbsp; Check<span class="ar-box {{ $transaction->mode_of_payment === 'cheque' ? 'is-checked' : '' }}"></span>
+                        &nbsp;&nbsp; Online<span class="ar-box {{ $isOnline ? 'is-checked' : '' }}"></span>
                     </td>
                 </tr>
                 <tr><td class="ar-small">Ref. #</td><td class="ar-hand" style="font-size:10.5px;word-break:break-all;">{{ $reference }}</td></tr>
@@ -169,7 +171,7 @@
             </div>
 
             <div class="ar-foot">
-                <div class="ar-no">No.<span>{{ $transaction->receiptNumber() }}</span></div>
+                <div class="ar-no">No.<span class="{{ $isOnline ? '' : 'is-or' }}">{{ $transaction->receiptNumber() }}</span></div>
                 <div class="ar-sign">
                     <div class="ar-sign-name">{{ $signatory }}</div>
                     <div class="ar-sign-line">Signature over printed name</div>
@@ -178,8 +180,12 @@
 
             <div class="ar-disclaimer">“NOT VALID TO CLAIM INPUT TAXES”</div>
             <div class="ar-system">
+                @if($isOnline)
                 System-generated receipt — this payment was made online via PayMongo ({{ $method }}) and verified with the bank automatically.
                 @if($reference) Payment ref: {{ $reference }}.@endif
+                @else
+                System-generated receipt — this payment was received and recorded by GMD South Phils.
+                @endif
             </div>
         </div>
     </div>

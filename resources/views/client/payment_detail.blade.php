@@ -93,23 +93,44 @@
             .pf-proofs-table .pfm-nofile { font-weight: 700; }
             .ph-table td.ph-receipt [data-receipt-set] { flex-direction: row !important; gap: 8px !important; }
 
-            /* payment notes: a soft box at the bottom, only when there are notes */
-            .ph-table td.ph-notes { grid-column: 1 / -1; grid-row: 4; margin-top: 10px; font-size: 12px; color: var(--dark);
-                                    background: var(--cream-soft); border-radius: 8px; padding: 7px 10px !important; }
-            .ph-table td.ph-notes.is-empty { display: none; }
+            /* method and reference: a second labelled row, same style as date and receipt */
+            .ph-table td.ph-method, .ph-table td.ph-ref {
+                grid-row: 4;
+                margin-top: 8px;
+                padding: 9px 10px 0 !important;
+                border-top: 1px dashed var(--border) !important;
+                font-size: 12px; font-weight: 800; color: var(--dark);
+            }
+            .ph-table td.ph-method { grid-column: 1; padding-left: 0 !important; }
+            .ph-table td.ph-ref { grid-column: 2; border-left: 1px solid var(--border) !important; overflow-wrap: anywhere; }
 
             /* room under the last card so the floating chat button doesn't cover it */
             main { padding-bottom: 92px !important; }
 
-            /* the 4 summary cards sit 2 by 2 — icon on top, then the amount and label */
-            .pd-stats { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 12px !important; }
-            .pd-stats .stat-card { flex-direction: column; gap: 10px; padding: 16px 14px 16px 16px; border-radius: 18px; min-width: 0; }
-            .pd-stats .stat-card::before { top: 16px; height: 34px; }
-            .pd-stats .stat-icon { width: 36px; height: 36px; border-radius: 10px; }
-            .pd-stats .stat-icon svg { width: 18px; height: 18px; }
-            .pd-stats .stat-info { min-width: 0; width: 100%; }
-            .pd-stats .stat-value { font-size: clamp(16px, 5vw, 22px) !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-            .pd-stats .stat-label { font-size: 11.5px; line-height: 1.3; }
+        }
+
+        /* Billing Statements: every column after the date centered under its header (desktop) */
+        @media (min-width: 641px) {
+            .pd-stmt-table th:not(:first-child), .pd-stmt-table td:not(:first-child) { text-align: center; }
+        }
+
+        /* ── Summary cards: same look as the admin's Materials and Payments cards ── */
+        .pk-overview { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:14px; margin:4px 0 24px; }
+        .pk-kpi { display:flex; align-items:flex-start; gap:14px; padding:16px 18px; background:var(--white); border:1px solid var(--border); border-radius:16px; box-shadow:0 1px 2px rgba(0,0,0,.03); }
+        .pk-kpi-icon { width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .pk-kpi-icon svg { width:20px; height:20px; }
+        .pk-kpi-label { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
+        .pk-kpi-value { margin-top:3px; font-size:20px; font-weight:900; color:var(--dark); letter-spacing:-.3px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+        .pk-kpi-sub { margin-top:4px; font-size:11.5px; font-weight:600; color:var(--muted); }
+        .pk-tone-ok { color:#16a34a; }
+        @media (max-width: 1100px) { .pk-overview { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+        /* phones: the 4 summary cards sit 2 by 2, without icons */
+        @media (max-width: 640px) {
+            .pk-overview { gap:10px; }
+            .pk-kpi { padding:12px; }
+            .pk-kpi-icon { display:none; }
+            .pk-kpi-value { font-size:16px; }
+            .pk-kpi-label { font-size:10px; }
         }
 
         .pfm-file-word { display: none; }
@@ -209,7 +230,7 @@
                             @endforeach
                             </span><span class="pay-detail-meta-sep"> &nbsp;·&nbsp; </span>
                         @endif
-                        <span class="pay-detail-meta-item">{{ $payment->payment_terms }}</span><span class="pay-detail-meta-sep"> &nbsp;·&nbsp; </span><span class="pay-detail-meta-item">Contract signed {{ $payment->date ? \Carbon\Carbon::parse($payment->date)->format('M d, Y') : '—' }}</span>
+                        <span class="pay-detail-meta-item">{{ $payment->payment_terms }}</span>
                     </p>
                 </div>
                 <span class="status-badge {{ \App\Models\Payment::statusBadgeClass($status) }}" style="font-size:13px;padding:8px 16px;">
@@ -218,33 +239,37 @@
             </div>
 
             <!-- Summary Cards -->
-            <div class="stats-grid pd-stats">
-                <div class="stat-card teal">
-                    <div class="stat-icon teal"><i data-lucide="file-text"></i></div>
-                    <div class="stat-info">
-                        <div class="stat-value">₱{{ number_format($payment->contract_amount, 0) }}</div>
-                        <div class="stat-label">Contract Amount</div>
+            <div class="pk-overview">
+                <div class="pk-kpi">
+                    <div class="pk-kpi-icon" style="background:#EAF0FF;color:#2A4EAA;"><i data-lucide="file-text"></i></div>
+                    <div>
+                        <div class="pk-kpi-label">Contract Amount</div>
+                        <div class="pk-kpi-value">₱{{ number_format($payment->contract_amount, 2) }}</div>
+                        <div class="pk-kpi-sub">{{ $payment->payment_terms }}</div>
                     </div>
                 </div>
-                <div class="stat-card green">
-                    <div class="stat-icon green"><i data-lucide="check-circle"></i></div>
-                    <div class="stat-info">
-                        <div class="stat-value">₱{{ number_format($totalPaid, 0) }}</div>
-                        <div class="stat-label">Total Paid</div>
+                <div class="pk-kpi">
+                    <div class="pk-kpi-icon" style="background:#E7F6EC;color:#207A3A;"><i data-lucide="check-circle"></i></div>
+                    <div>
+                        <div class="pk-kpi-label">Total Paid</div>
+                        <div class="pk-kpi-value">₱{{ number_format($totalPaid, 2) }}</div>
+                        <div class="pk-kpi-sub">Amount received</div>
                     </div>
                 </div>
-                <div class="stat-card blue">
-                    <div class="stat-icon blue"><i data-lucide="wallet"></i></div>
-                    <div class="stat-info">
-                        <div class="stat-value">₱{{ number_format($balance, 0) }}</div>
-                        <div class="stat-label">Remaining Balance</div>
+                <div class="pk-kpi">
+                    <div class="pk-kpi-icon" style="background:#FEE2E2;color:#B91C1C;"><i data-lucide="wallet"></i></div>
+                    <div>
+                        <div class="pk-kpi-label">Remaining Balance</div>
+                        <div class="pk-kpi-value">₱{{ number_format($balance, 2) }}</div>
+                        <div class="pk-kpi-sub">Still outstanding</div>
                     </div>
                 </div>
-                <div class="stat-card orange">
-                    <div class="stat-icon orange"><i data-lucide="badge-check"></i></div>
-                    <div class="stat-info">
-                        <div class="stat-value">{{ $pct }}%</div>
-                        <div class="stat-label">Paid of Contract</div>
+                <div class="pk-kpi">
+                    <div class="pk-kpi-icon" style="background:#F3E8FF;color:#7C3AED;"><i data-lucide="badge-check"></i></div>
+                    <div>
+                        <div class="pk-kpi-label">Paid of Contract</div>
+                        <div class="pk-kpi-value">{{ $pct }}%</div>
+                        <div class="pk-kpi-sub">Payment progress</div>
                     </div>
                 </div>
             </div>
@@ -260,10 +285,9 @@
             @php
                 $pendingOnline = $onlinePayments->firstWhere('status', \App\Models\OnlinePayment::STATUS_PENDING);
                 // Records list only real payments — cancelled / expired / declined checkouts moved no money
-                $onlinePayments = $onlinePayments->whereIn('status', [\App\Models\OnlinePayment::STATUS_PAID, \App\Models\OnlinePayment::STATUS_PENDING])->values();
-                // The stage payable now: billed = GMD sent its statement ("Pay Now"); not billed yet = "Pay in Advance"
+                $onlinePayments = $onlinePayments->where('status', \App\Models\OnlinePayment::STATUS_PAID)->values();
+                // The stage payable now: GMD has sent its billing statement
                 $payStage      = $payable['stage'] ?? null;
-                $payBilled     = $payStage ? $payment->isStageBilled($payStage) : false;
                 $proofInReview = $payStage && $payment->proofs
                     ->where('payment_stage', $payStage)
                     ->where('status', \App\Models\PaymentProof::STATUS_PENDING)
@@ -282,29 +306,24 @@
                 </div>
                 <div class="card-body po-body">
 
-                    {{-- What to pay now (or ahead of time) --}}
+                    {{-- What to pay now --}}
                     @if($payable)
-                    <div class="po-due {{ $payBilled ? 'is-due' : 'is-upcoming' }}">
+                    <div class="po-due is-due">
                         <div class="po-due-info">
                             <div class="po-label">
-                                @if($payBilled)
                                 <i data-lucide="file-check-2"></i> Amount due now
-                                @else
-                                <i data-lucide="calendar-clock"></i> Upcoming bill
-                                @endif
                             </div>
                             <div class="po-amount">₱{{ number_format($payable['amount'], 2) }}</div>
                             <div class="po-sub">
-                                {{ \App\Models\PaymentTransaction::stageLabel($payStage) }} ·
-                                {{ $payBilled ? 'Billed by GMD' : 'Not billed yet — you can settle it early' }}
+                                {{ \App\Models\PaymentTransaction::stageLabel($payStage) }} · Billed by GMD
                             </div>
                         </div>
                         @if($canPayOnline)
                         <form method="POST" action="{{ route('client.payments.online.pay', $payment->id) }}" class="po-form">
                             @csrf
-                            <button type="submit" class="save-btn po-btn {{ $payBilled ? '' : 'is-advance' }}">
-                                <i data-lucide="{{ $payBilled ? 'landmark' : 'fast-forward' }}"></i>
-                                {{ $pendingOnline && $pendingOnline->payment_stage === $payStage ? 'Continue Payment' : ($payBilled ? 'Pay Now' : 'Pay in Advance') }}
+                            <button type="submit" class="save-btn po-btn">
+                                <i data-lucide="landmark"></i>
+                                {{ $pendingOnline && $pendingOnline->payment_stage === $payStage ? 'Continue Payment' : 'Pay Now' }}
                             </button>
                             <span class="po-secure"><i data-lucide="lock"></i> Secured by PayMongo</span>
                         </form>
@@ -321,24 +340,11 @@
                         <i data-lucide="info"></i>
                         <span>Online payment isn't available right now. Please pay GMD by cash or cheque — GMD records it and it appears in your Payment History.</span>
                     </div>
-                    @elseif(!$payBilled)
-                    <p class="po-note"><i data-lucide="info"></i> Paying in advance is optional. GMD will still send the billing statement for this phase — it will simply show as paid.</p>
                     @endif
                     @else
                     <div class="po-done">
                         <i data-lucide="{{ $payment->currentBalance() <= 0 ? 'party-popper' : 'check-circle-2' }}"></i>
                         <span>{{ $payment->currentBalance() <= 0 ? 'This project is fully paid. Thank you!' : 'Nothing is due right now. The next payment opens when your project reaches its payment stage.' }}</span>
-                    </div>
-                    @endif
-
-                    @if($pendingOnline)
-                    <div class="alert-banner" style="margin:0;background:#fffbeb;border:1px solid #fde68a;color:#92400e;align-items:center;">
-                        <i data-lucide="hourglass"></i>
-                        <span style="flex:1;">An online payment of <strong>₱{{ number_format($pendingOnline->amount, 2) }}</strong> ({{ $pendingOnline->reference }}) is waiting for your bank's confirmation. If you completed it, it will be recorded automatically.</span>
-                        <form method="POST" action="{{ route('client.payments.online.check', $pendingOnline->id) }}" style="margin:0;">
-                            @csrf
-                            <button type="submit" class="cancel-btn" style="white-space:nowrap;">Check status</button>
-                        </form>
                     </div>
                     @endif
 
@@ -352,7 +358,7 @@
                                 @endforeach
                             </div>
                             <ol class="po-steps">
-                                <li>Press <strong>Pay Now</strong> (or <strong>Pay in Advance</strong>) — you'll go to PayMongo's secure payment page.</li>
+                                <li>Press <strong>Pay Now</strong> — you'll go to PayMongo's secure payment page.</li>
                                 <li>Choose how to pay: <strong>{{ $poMethods->join(', ', ' or ') }}</strong>.</li>
                                 <li>Your payment is confirmed directly with the bank and recorded here automatically — no proof upload needed.</li>
                             </ol>
@@ -382,16 +388,12 @@
 
                 /* The pay panel */
                 .po-due { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; padding:18px 20px; border-radius:18px; background:var(--cream-soft); border:1px solid var(--border); border-left:4px solid var(--dark); }
-                .po-due.is-upcoming { background:#f7f9ff; border-color:#dbe4fb; border-left-color:var(--info); }
                 .po-label { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
-                .po-due.is-upcoming .po-label { color:var(--info); }
                 .po-label svg { width:14px; height:14px; }
                 .po-amount { font-size:28px; font-weight:900; color:var(--dark); letter-spacing:-.5px; margin-top:2px; }
                 .po-sub { font-size:12.5px; color:var(--muted); font-weight:600; }
                 .po-form { display:flex; flex-direction:column; align-items:flex-end; gap:6px; margin:0; }
                 .po-btn { padding:13px 28px; font-size:14.5px; }
-                .po-btn.is-advance { background:var(--info); border-color:var(--info); }
-                .po-btn.is-advance:hover { background:#203d88; }
                 .po-secure { display:inline-flex; align-items:center; gap:5px; font-size:11.5px; color:var(--muted); font-weight:700; }
                 .po-secure svg { width:12px; height:12px; }
                 .po-done { display:flex; align-items:center; gap:12px; padding:16px 18px; border-radius:16px; background:#E7F6EC; color:var(--success); font-size:13px; font-weight:700; }
@@ -412,9 +414,8 @@
                 .po-method { padding:5px 11px; border-radius:999px; border:1px solid var(--border); background:var(--cream-soft); font-size:11.5px; font-weight:800; color:var(--dark); }
 
                 .po-section-title { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:6px; }
-                .po-table { width:100%; border-collapse:collapse; font-size:12.5px; }
-                .po-table th { text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); padding:8px 10px; border-bottom:1px solid var(--border); }
-                .po-table td { padding:9px 10px; border-bottom:1px solid var(--border); }
+                /* same header and cell look as the other Payment Records tables (the page's default th / td) */
+                .po-table { width:100%; border-collapse:collapse; }
 
                 @media (max-width:640px) {
                     .po-due { padding:16px; }
@@ -537,25 +538,44 @@
                 </div>
                 @else
                 <div class="table-wrap">
-                    <table>
+                    <table class="pd-stmt-table">
                         <thead>
                             <tr>
                                 <th>Date</th>
+                                <th>Reference No.</th>
                                 <th>Stage</th>
+                                <th>Amount</th>
+                                <th>Status</th>
                                 <th>Bill</th>
                             </tr>
                         </thead>
                         <tbody>
+                            @php
+                                $stmtStageAmounts = $payment->stageAmounts();
+                                $stmtPaidStages   = $payment->paidStages();
+                            @endphp
                             @foreach($payment->billingStatements as $statement)
                             @php
                                 $stmtStageLabel = $statement->billing_stage
                                     ? \App\Models\PaymentTransaction::stageLabel($statement->billing_stage)
                                     : 'Full Statement';
+                                // what the bill asks for, and whether it's been paid (a full statement covers the whole contract)
+                                $stmtAmount = $statement->billing_stage
+                                    ? (float) ($stmtStageAmounts[$statement->billing_stage] ?? 0)
+                                    : (float) $payment->contract_amount;
+                                $stmtPaid = $statement->billing_stage
+                                    ? in_array($statement->billing_stage, $stmtPaidStages, true)
+                                    : $payment->currentBalance() <= 0;
                             @endphp
                             <tr>
                                 <td>{{ $statement->statement_date->format('M d, Y') }}</td>
+                                <td style="font-family:monospace;font-size:12px;">{{ $statement->reference_no ?: '—' }}</td>
                                 <td>
                                     <span style="display:inline-flex;align-items:center;font-size:11px;font-weight:700;color:var(--accent);background:var(--accent-soft, rgba(0,0,0,.05));border-radius:20px;padding:3px 10px;">{{ $stmtStageLabel }}</span>
+                                </td>
+                                <td style="font-weight:800;color:var(--dark);white-space:nowrap;">₱{{ number_format($stmtAmount, 2) }}</td>
+                                <td>
+                                    <span class="status-badge {{ $stmtPaid ? 'completed' : 'pending' }}">{{ $stmtPaid ? 'Paid' : 'Unpaid' }}</span>
                                 </td>
                                 <td>
                                     <a href="{{ route('client.payments.billing_statements.show', [$payment->id, $statement->id]) }}" target="_blank" data-receipt="doc" style="display:inline-flex;align-items:center;gap:5px;color:var(--accent);font-weight:700;text-decoration:none;">
@@ -585,17 +605,20 @@
                                     <th>Date</th>
                                     <th>Stage</th>
                                     <th>Amount Paid</th>
-                                    <th>Notes</th>
+                                    <th>Method</th>
+                                    <th>Reference</th>
                                     <th>Receipt</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach($payment->transactions->sortByDesc('payment_date') as $tx)
+                                    @php $txOnline = $onlinePayments->firstWhere('payment_transaction_id', $tx->id); @endphp
                                     <tr class="ph-row">
                                         <td class="ph-date" data-label="Date Paid">{{ \Carbon\Carbon::parse($tx->payment_date)->format('M d, Y') }}</td>
                                         <td class="ph-stage">{{ \App\Models\PaymentTransaction::stageLabel($tx->payment_stage) }}</td>
                                         <td class="ph-amount"><strong style="color:var(--success);">₱{{ number_format($tx->amount_paid, 2) }}</strong></td>
-                                        <td class="ph-notes{{ $tx->notes ? '' : ' is-empty' }}">{{ $tx->notes ?? '—' }}</td>
+                                        <td class="ph-method" data-label="Method">{{ $txOnline ? $txOnline->methodLabel() : \App\Models\PaymentProof::modeLabel($tx->mode_of_payment) }}</td>
+                                        <td class="ph-ref" data-label="Reference" style="font-family:monospace;font-size:11.5px;">{{ $txOnline->reference ?? $tx->reference_number ?: '—' }}</td>
                                         <td class="ph-receipt" data-label="Receipt">
                                             @php $receiptUrls = !empty($tx->receipt_urls) ? $tx->receipt_urls : array_filter([$tx->receipt_url]); @endphp
                                             @if(!empty($receiptUrls))
@@ -606,8 +629,8 @@
                                                 </a>
                                                 @endforeach
                                             </div>
-                                            @elseif($tx->isOnline())
-                                            {{-- paid online: the system generates the Acknowledgement Receipt --}}
+                                            @elseif($tx->hasGeneratedReceipt())
+                                            {{-- the system generates the Acknowledgement Receipt --}}
                                             <a href="{{ route('client.payments.receipts.show', [$payment->id, $tx->id]) }}" target="_blank" data-receipt="page" style="display:inline-flex;align-items:center;gap:5px;color:var(--accent);font-weight:700;text-decoration:none;">
                                                 <i data-lucide="receipt" style="width:14px;height:14px;"></i> View
                                             </a>

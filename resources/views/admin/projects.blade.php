@@ -23,10 +23,6 @@
                     <h1>Projects</h1>
                     <p>Manage storage tank fabrication projects, timelines, and progress.</p>
                 </div>
-                <button class="add-btn" type="button" id="openAddProjectModal">
-                    <i data-lucide="plus"></i>
-                    Add Project
-                </button>
             </div>
 
             @if(session('success'))
@@ -178,7 +174,7 @@
                                 <td colspan="7" style="text-align:center;padding:60px 20px;color:var(--muted);">
                                     <i data-lucide="inbox" style="width:36px;height:36px;opacity:.35;display:block;margin:0 auto 12px;"></i>
                                     <div style="font-size:14px;font-weight:700;">No active projects.</div>
-                                    <div style="font-size:13px;margin-top:4px;">Click <strong>Add Project</strong> to start one.</div>
+                                    <div style="font-size:13px;margin-top:4px;">Convert an approved quotation to start one.</div>
                                 </td>
                             </tr>
                             @endforelse
@@ -201,7 +197,7 @@
                                 <th>Client</th>
                                 <th style="text-align:center;">{{ $panel === 'completed' ? 'Completed Projects' : 'Archived Projects' }}</th>
                                 @if($panel === 'completed')
-                                <th style="text-align:center;">Awaiting Delivery</th>
+                                <th style="text-align:center;">Awaiting Pickup</th>
                                 @endif
                                 <th style="text-align:center;">{{ $panel === 'completed' ? 'Last Completed' : 'Last Archived' }}</th>
                                 <th style="text-align:center;">Action</th>
@@ -508,7 +504,7 @@
                     </div>
                     <p style="display:flex;align-items:flex-start;gap:6px;margin:8px 0 0;font-size:12px;color:var(--muted);line-height:1.5;">
                         <i data-lucide="info" style="width:13px;height:13px;flex-shrink:0;margin-top:2px;"></i>
-                        <span>This schedule covers the project from <strong>Planning to Completion</strong> — delivery isn't included. The End Date is the planned completion date used for the On-Time Completion Rate.</span>
+                        <span>This schedule covers the project from <strong>Planning to Completion</strong> — pick-up isn't included. The End Date is the planned completion date used for the On-Time Completion Rate.</span>
                     </p>
 
                 </div>

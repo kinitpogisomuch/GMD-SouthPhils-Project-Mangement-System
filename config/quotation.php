@@ -27,8 +27,8 @@ return [
     'validity_days' => (int) env('QUOTATION_VALIDITY_DAYS', 30),
 
     'payment_terms' => [
-        'big_project'   => '50% down payment, 30% progress billing, 20% full payment upon pull-out / delivery of tank.',
-        'small_project' => '50% down payment, 50% full payment upon pull-out / delivery of tank.',
+        'big_project'   => '50% down payment, 30% progress billing, 20% full payment upon pull-out of tank.',
+        'small_project' => '50% down payment, 50% full payment upon pull-out of tank.',
     ],
 
     'warranty' => 'Six (6) months warranty on the tank\'s workmanship under normal operating conditions. Not intended for storage of corrosive chemicals.',

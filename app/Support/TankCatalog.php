@@ -697,6 +697,42 @@ class TankCatalog
         return $clean;
     }
 
+    /** The number in a capacity ("10,000 liters" → 10000), so sizes compare however they're written */
+    public static function capacityNumber($capacity): float
+    {
+        return (float) preg_replace('/[^0-9.]/', '', str_replace(',', '', (string) $capacity));
+    }
+
+    /**
+     * The costing saved with a standard size that came from a real quotation, or null. It sits beside the size in
+     * tank_cards.sizes but outside cleanSizes(), so it is internal: public pages and Settings never receive it.
+     */
+    public static function savedCosting(string $slug, ?string $capacity): ?array
+    {
+        $number = self::capacityNumber($capacity);
+        foreach ((array) (self::edits()->get($slug)?->sizes ?? []) as $size) {
+            if (!empty($size['costing']) && self::capacityNumber($size['capacity'] ?? '') === $number) {
+                return $size['costing'];
+            }
+        }
+
+        return null;
+    }
+
+    /** Sizes coming back from Settings don't carry their saved costing — puts it back on the ones still there */
+    public static function keepCostings(array $sizes, $stored): array
+    {
+        return array_map(function ($size) use ($stored) {
+            foreach ((array) $stored as $old) {
+                if (!empty($old['costing']) && self::capacityNumber($old['capacity'] ?? '') === self::capacityNumber($size['capacity'])) {
+                    $size['costing'] = $old['costing'];
+                }
+            }
+
+            return $size;
+        }, $sizes);
+    }
+
     /** The visible card for a slug (what the tank's details page shows), or null */
     public static function card(?string $slug): ?array
     {

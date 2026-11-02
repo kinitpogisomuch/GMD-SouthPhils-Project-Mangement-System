@@ -17,6 +17,8 @@ use App\Models\QuotationBatch;
  * GMD paid on past projects; MS plates make up the rest, and a few angle bars / sanding papers absorb what's left,
  * so every quantity stays a whole number and the price comes within a few pesos of the estimate.
  * The admin can still change any row before saving.
+ *
+ * A size saved from a real quotation (saveAsStandard()) skips all that: it starts from that quotation's own costing.
  */
 class StandardCosting
 {
@@ -104,10 +106,10 @@ class StandardCosting
     public static function all(): array
     {
         $out = [];
-        foreach (self::recipes() as $type => $recipe) {
-            foreach (TankCatalog::forType($type)['sizes'] ?? [] as $i => $size) {
-                if ($costing = self::build($type, $size, $recipe, $i)) {
-                    $out[$type . '|' . $size['capacity']] = $costing;
+        foreach (TankCatalog::all() as $def) {
+            foreach ($def['sizes'] ?? [] as $i => $size) {
+                if ($costing = self::forSize($def, $size, $i)) {
+                    $out[$def['type'] . '|' . $size['capacity']] = $costing;
                 }
             }
         }
@@ -115,18 +117,134 @@ class StandardCosting
         return $out;
     }
 
+    /** A size's costing: the one saved from a quotation, otherwise the type's recipe */
+    private static function forSize(array $def, array $size, int $index): ?array
+    {
+        if ($saved = TankCatalog::savedCosting($def['slug'], $size['capacity'])) {
+            return self::fromSaved($def['type'], $size, $saved);
+        }
+        $recipe = self::recipes()[$def['type']] ?? null;
+
+        return $recipe ? self::build($def['type'], $size, $recipe, $index) : null;
+    }
+
+    private static function fromSaved(string $type, array $size, array $saved): array
+    {
+        return [
+            'id'                     => 'std:' . $type . '|' . $size['capacity'],
+            'name'                   => $type . ' — ' . $size['capacity'],
+            'tank_type'              => $type,
+            'capacity'               => $size['capacity'],
+            'estimated_price'        => (float) ($size['price'] ?? $saved['unit_price']),
+            'factor'                 => $saved['factor'],
+            'estimated_working_days' => $saved['estimated_working_days'],
+            'markup_percent'         => $saved['markup_percent'],
+            'contingency_percent'    => $saved['contingency_percent'],
+            'payment_term_type'      => null,   // follows the contract value on the page
+            'materials'              => $saved['materials'],
+            'labor'                  => $saved['labor'],
+        ];
+    }
+
+    /**
+     * What "Save as Standard Size" would add for this quotation, or null when it doesn't apply: a catalog tank sold
+     * by size (not a rate per meter), at a capacity it doesn't list yet, with room for one more size.
+     * The caller checks the costing itself is complete.
+     */
+    public static function offerFor(QuotationBatch $batch): ?array
+    {
+        $def = TankCatalog::forType($batch->tank_type);
+        if (!$batch->capacity || $def['slug'] === 'others' || !empty($def['rate']) || !empty($def['custom'])) {
+            return null;
+        }
+        $number = TankCatalog::capacityNumber($batch->capacity);
+        $sizes  = $def['sizes'] ?? [];
+        if ($number <= 0 || count($sizes) >= 12
+            || collect($sizes)->contains(fn ($s) => TankCatalog::capacityNumber($s['capacity']) === $number)) {
+            return null;
+        }
+        $price = self::unitPriceOf($batch);
+        if ($price <= 0) {
+            return null;
+        }
+
+        $dimensions = collect(\App\Services\QuotationDocument::specifications($batch))
+            ->first(fn ($l) => stripos((string) ($l['label'] ?? ''), 'dimension') !== false);
+
+        return [
+            'type'       => $def['type'],
+            'capacity'   => \App\Models\ProjectTankItem::normalizeCapacity($batch->capacity),
+            'dimensions' => trim((string) ($dimensions['value'] ?? '')),
+            'price'      => $price,
+        ];
+    }
+
+    /** One tank's price from a saved costing — on-site costs are for that one job, so they stay out of it */
+    private static function unitPriceOf(QuotationBatch $batch): float
+    {
+        $budget = $batch->estimatedBudget();
+
+        return round($budget['unit_total'] * (1 + $budget['contingency_percent'] / 100) * (1 + (float) $batch->markup_percent / 100), 2);
+    }
+
+    /** Adds the quotation's size to its tank's standard sizes (the landing pages show it), with the costing behind it */
+    public static function saveAsStandard(QuotationBatch $batch, string $capacity, string $dimensions): array
+    {
+        $offer = self::offerFor($batch);
+        if (!$offer) {
+            throw new \DomainException('This size can no longer be saved as a standard size.');
+        }
+        $def      = TankCatalog::forType($batch->tank_type);
+        $capacity = \App\Models\ProjectTankItem::normalizeCapacity($capacity);
+        $materials = $batch->activeMaterials()->orderBy('created_at')->get();
+
+        $costing = [
+            'unit_price'             => $offer['price'],
+            'factor'                 => (float) ($materials->first()->factor ?? \App\Models\ProjectMaterial::DEFAULT_FACTOR),
+            'estimated_working_days' => $batch->estimated_working_days,
+            'markup_percent'         => (float) $batch->markup_percent,
+            'contingency_percent'    => (float) $batch->contingency_percent,
+            'materials'              => $materials->map(fn ($m) => [
+                'name' => $m->material_name, 'unit' => $m->unit, 'qty' => (float) $m->quantity, 'price' => (float) $m->price_per_unit,
+            ])->values()->all(),
+            // labor is saved as "Name (Role)"
+            'labor'                  => $batch->activeLabor()->orderBy('created_at')->get()->map(function ($l) {
+                preg_match('/^(.*?)\s*\(([^()]*)\)\s*$/', (string) $l->description, $m);
+
+                return ['name' => $m[1] ?? trim((string) $l->description), 'role' => $m[2] ?? '', 'rate' => (float) $l->daily_rate];
+            })->values()->all(),
+            'from_quotation'         => $batch->reference_no,
+        ];
+
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($def, $capacity, $dimensions, $offer, $costing) {
+            $card = \App\Models\TankCard::whereKey($def['slug'])->lockForUpdate()->first()
+                ?? new \App\Models\TankCard(['slug' => $def['slug'], 'is_visible' => true]);
+
+            // no list of its own yet: keep the catalog's sizes, this one goes after them
+            $sizes  = $card->sizes ?? $def['default_sizes'] ?? [];
+            $number = TankCatalog::capacityNumber($capacity);
+            if (collect($sizes)->contains(fn ($s) => TankCatalog::capacityNumber($s['capacity'] ?? '') === $number)) {
+                throw new \DomainException('"' . $capacity . '" is already a standard size of ' . $def['type'] . '.');
+            }
+
+            $size = ['capacity' => $capacity, 'dimensions' => trim($dimensions), 'price' => $offer['price'], 'costing' => $costing];
+            $card->sizes = array_merge($sizes, [$size]);
+            $card->save();
+
+            return $size;
+        });
+    }
+
     /** The default costing for this tank type and capacity, or null when it isn't a standard size with a price */
     public static function forTank(?string $type, ?string $capacity): ?array
     {
-        $type   = \App\Models\ProjectTankItem::canonicalType($type);
-        $recipe = self::recipes()[$type] ?? null;
-        if (!$recipe || !$capacity) {
+        if (!$capacity) {
             return null;
         }
-        $num = fn ($s) => (float) preg_replace('/[^0-9.]/', '', str_replace(',', '', (string) $s));
-        foreach (TankCatalog::forType($type)['sizes'] ?? [] as $i => $size) {
-            if ($num($size['capacity']) === $num($capacity)) {
-                return self::build($type, $size, $recipe, $i);
+        $def = TankCatalog::forType($type);
+        foreach ($def['sizes'] ?? [] as $i => $size) {
+            if (TankCatalog::capacityNumber($size['capacity']) === TankCatalog::capacityNumber($capacity)) {
+                return self::forSize($def, $size, $i);
             }
         }
 

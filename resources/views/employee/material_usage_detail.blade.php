@@ -7,33 +7,13 @@
     <title>{{ $project->name }} — Material Usage | GMD South Phils</title>
     <link href="{{ asset('css/employee.css') }}" rel="stylesheet">
     <style>
-        /* ── Project header card ── */
-        .mu-proj { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 20px 24px; flex-wrap: wrap; }
-        .mu-proj-main { display: flex; align-items: center; gap: 14px; min-width: 0; flex: 1 1 320px; }
-        .mu-proj-icon { width: 46px; height: 46px; border-radius: 14px; background: var(--dark); color: var(--white);
-                        display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-        .mu-proj-icon svg { width: 22px; height: 22px; }
-        .mu-proj-text { min-width: 0; }
-        .mu-proj-prefix { font-size: 10px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
-        .mu-proj-name { font-size: 18px; font-weight: 900; color: var(--dark); line-height: 1.25; }
-        .mu-proj-client { display: flex; align-items: center; gap: 6px; margin-top: 5px; font-size: 13px; font-weight: 700; color: var(--muted); }
-        .mu-proj-client svg { width: 14px; height: 14px; flex-shrink: 0; }
-        .mu-proj-pills { display: flex; gap: 10px; flex-wrap: wrap; }
-        .mu-proj-pill { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; padding: 10px 14px;
-                        border: 1px solid var(--border); border-radius: 12px; background: var(--cream-soft); min-width: 110px; }
-        .mu-proj-pill-label { font-size: 10px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
-        @media (max-width: 640px) {
-            .mu-proj { padding: 16px; gap: 14px; }
-            .mu-proj-main { flex-basis: 100%; align-items: flex-start; }
-            .mu-proj-icon { width: 40px; height: 40px; border-radius: 12px; }
-            .mu-proj-name { font-size: 16px; }
-            .mu-proj-pills { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-            .mu-proj-pill { min-width: 0; }
-        }
-
-        /* ── Materials vs Usage: scroll inside the card, header stays visible ── */
+        /* ── Material Stock & Usage: scroll inside the card, header stays visible ── */
         .mvu-scroll { max-height: 440px; overflow-y: auto; }
         .mvu-scroll thead th { position: sticky; top: 0; z-index: 1; background: var(--cream-soft); }
+        /* material name on the left; Purchased / Used / Remaining / Status centered under their headers (desktop — phones use cards) */
+        @media (min-width: 641px) {
+            #mvuTable th:not(:first-child), #mvuTable td:not(:first-child) { text-align: center; }
+        }
 
         /* Phones only: full-width search and button; each material row becomes a small card
            (name + status on top, Purchased / Used / Remaining underneath). Desktop unchanged. */
@@ -115,7 +95,7 @@
         .ulog-scroll { max-height: 440px; overflow-y: auto; }
         .ulog-scroll thead th { position: sticky; top: 0; z-index: 1; background: var(--cream-soft); }
 
-        /* Phones only: each entry becomes a small card in the same style as Materials vs Usage —
+        /* Phones only: each entry becomes a small card in the same style as Material Stock & Usage —
            material name on top, then Date Used / Quantity / Recorded By as three tiles,
            with Used For underneath only when it has something in it. */
         @media (max-width: 640px) {
@@ -277,58 +257,31 @@
             </div>
             @endif
 
-            {{-- Project Info --}}
-            @php
-                // "Fabrication of X" → small prefix + X as the headline
-                $muPrefix = '';
-                $muName   = $project->name;
-                if (preg_match('/^(Fabrication of)\s+(.+)$/i', (string) $project->name, $muM)) {
-                    [$muPrefix, $muName] = [$muM[1], $muM[2]];
-                }
-                $muPhase       = ucfirst(str_replace('_', ' ', $project->current_phase ?? 'Planning'));
-                $muStatus      = $project->status ?? 'planning';
-                $muStatusClass = strtolower($muStatus);
-            @endphp
-            {{-- Project header (all screen sizes) --}}
-            <div class="table-card mu-proj" style="margin-bottom:24px;">
-                <div class="mu-proj-main">
-                    <div class="mu-proj-text">
-                        @if($muPrefix)<div class="mu-proj-prefix">{{ $muPrefix }}</div>@endif
-                        <div class="mu-proj-name">{{ $muName }}</div>
-                        <div class="mu-proj-client"><i data-lucide="building-2"></i>{{ $project->live_client_name }}</div>
-                    </div>
-                </div>
-                <div class="mu-proj-pills">
-                    <div class="mu-proj-pill">
-                        <span class="mu-proj-pill-label">Phase</span>
-                        <span class="status-badge {{ $muStatus === 'completed' ? 'completed' : 'ongoing' }}">{{ $muPhase }}</span>
-                    </div>
-                    <div class="mu-proj-pill">
-                        <span class="mu-proj-pill-label">Status</span>
-                        <span class="status-badge {{ $muStatusClass }}">{{ ucfirst($muStatus) }}</span>
-                    </div>
-                </div>
-            </div>
-
             {{-- Summary Cards --}}
-            <div class="page-grid emp-compact-stats" style="margin-bottom:24px;">
-                <div class="info-card blue">
-                    <div class="info-card-icon blue"><i data-lucide="package"></i></div>
-                    <h3>Planned Materials</h3>
-                    <div class="value">{{ $totalPlanned }}</div>
-                    <div class="info-card-sub">From the project BOM</div>
+            <div class="emp-kpis">
+                <div class="emp-kpi">
+                    <div class="emp-kpi-icon blue"><i data-lucide="package"></i></div>
+                    <div>
+                        <div class="emp-kpi-label">Planned Materials</div>
+                        <div class="emp-kpi-value">{{ $totalPlanned }}</div>
+                        <div class="emp-kpi-sub">From the project BOM</div>
+                    </div>
                 </div>
-                <div class="info-card purple">
-                    <div class="info-card-icon purple"><i data-lucide="clipboard-list"></i></div>
-                    <h3>Usage Entries Logged</h3>
-                    <div class="value">{{ $totalLogged }}</div>
-                    <div class="info-card-sub">Active log entries</div>
+                <div class="emp-kpi">
+                    <div class="emp-kpi-icon purple"><i data-lucide="clipboard-list"></i></div>
+                    <div>
+                        <div class="emp-kpi-label">Usage Entries Logged</div>
+                        <div class="emp-kpi-value">{{ $totalLogged }}</div>
+                        <div class="emp-kpi-sub">Active log entries</div>
+                    </div>
                 </div>
-                <div class="info-card green">
-                    <div class="info-card-icon green"><i data-lucide="layers"></i></div>
-                    <h3>Total Quantity Used</h3>
-                    <div class="value">{{ number_format($totalQtyUsed, 0) }}</div>
-                    <div class="info-card-sub">Combined units consumed</div>
+                <div class="emp-kpi">
+                    <div class="emp-kpi-icon green"><i data-lucide="layers"></i></div>
+                    <div>
+                        <div class="emp-kpi-label">Total Quantity Used</div>
+                        <div class="emp-kpi-value">{{ number_format($totalQtyUsed, 0) }}</div>
+                        <div class="emp-kpi-sub">Combined units consumed</div>
+                    </div>
                 </div>
             </div>
 
@@ -337,10 +290,10 @@
                 $materialComparison = $materialComparison->sortBy(fn ($r) => $r['purchasedQty'] > 0 ? 0 : 1)->values();
             @endphp
 
-            {{-- Materials vs Usage --}}
+            {{-- Material Stock & Usage --}}
             <div class="table-card" style="margin-bottom:24px;">
                 <div class="table-toolbar mvu-toolbar" style="padding-bottom:0;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-                    <span class="mvu-title" style="font-weight:700;font-size:15px;">Materials vs Usage</span>
+                    <span class="mvu-title" style="font-weight:700;font-size:15px;">Material Stock &amp; Usage</span>
                     @if($materialComparison->isNotEmpty())
                     <div class="mvu-tools" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex:1;justify-content:flex-end;">
                         <div class="search-box" style="height:42px;max-width:300px;">

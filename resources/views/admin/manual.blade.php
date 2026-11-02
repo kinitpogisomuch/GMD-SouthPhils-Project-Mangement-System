@@ -155,9 +155,6 @@
                     <button type="button" class="manual-nav-link" data-topic="projects">
                         <i data-lucide="folder-kanban"></i><span>Projects</span>
                     </button>
-                    <button type="button" class="manual-nav-link sub" data-topic="add-project">
-                        <span>— Add a new project</span>
-                    </button>
                     <button type="button" class="manual-nav-link sub" data-topic="track-progress">
                         <span>— Track project progress</span>
                     </button>
@@ -349,70 +346,8 @@
                                 <li>The main list shows each client and how many active, completed, and archived projects they have.</li>
                                 <li>Click a client's row to see their individual projects.</li>
                                 <li>Click a project to open its details page — schedule, phase tracker, assigned employees, and progress updates.</li>
-                                <li>Use <strong>+ Add Project</strong> at the top to create a new one — see the guide below.</li>
+                                <li>New projects are created from approved quotations — use <strong>Convert to Project</strong> on the quotation.</li>
                             </ul>
-                        </div>
-                    </div>
-
-                    {{-- ADD A NEW PROJECT --}}
-                    <div class="manual-panel" data-panel="add-project">
-                        <div class="manual-topic-header">
-                            <div class="manual-topic-icon"><i data-lucide="plus-circle"></i></div>
-                            <h2>Add a New Project</h2>
-                        </div>
-                        <p class="manual-tagline">Create a new project for a client, step by step.</p>
-                        <div class="manual-content">
-                            <div class="manual-guide-badge"><i data-lucide="list-ordered"></i> 5-step guide</div>
-                            <div class="manual-steps">
-                                <div class="manual-step">
-                                    <div class="manual-step-num">1</div>
-                                    <div class="manual-step-body">
-                                        <h3>Go to Projects</h3>
-                                        <p>Click <strong>Projects</strong> in the sidebar, then click <strong>+ Add Project</strong>.</p>
-                                    </div>
-                                </div>
-                                <div class="manual-step">
-                                    <div class="manual-step-num">2</div>
-                                    <div class="manual-step-body">
-                                        <h3>Pick the client</h3>
-                                        <p>Search for the client and click their card, then click <strong>Continue</strong>.</p>
-                                    </div>
-                                </div>
-                                <div class="manual-step">
-                                    <div class="manual-step-num">3</div>
-                                    <div class="manual-step-body">
-                                        <h3>Pick a starting point</h3>
-                                        <p>Choose <strong>Start from Scratch</strong> for a brand-new setup, or pick a saved template to reuse specs from a past project. Click <strong>Continue</strong>.</p>
-                                        <div class="manual-note alert-banner info">
-                                            <i data-lucide="info"></i>
-                                            <span>Every project you build from scratch is automatically saved as a template, so it shows up here for next time — no extra step needed.</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="manual-step">
-                                    <div class="manual-step-num">4</div>
-                                    <div class="manual-step-body">
-                                        <h3>Fill in the details</h3>
-                                        <ul>
-                                            <li><strong>Project Name</strong> — pick from the list, or choose "Others" to type your own.</li>
-                                            <li><strong>Specifications</strong> — type of tank, shape, quantity, dimensions, and capacity.</li>
-                                            <li><strong>Materials list</strong> (only if you picked a template) — adjust or add materials; this can also be done later.</li>
-                                            <li><strong>Schedule</strong> — start and end dates.</li>
-                                        </ul>
-                                    </div>
-                                </div>
-                                <div class="manual-step">
-                                    <div class="manual-step-num">5</div>
-                                    <div class="manual-step-body">
-                                        <h3>Save</h3>
-                                        <p>Click <strong>Save Project</strong>.</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="manual-done-note">
-                                <i data-lucide="check-circle-2"></i>
-                                Done — you'll land on that client's project list with a confirmation message.
-                            </div>
                         </div>
                     </div>
 
@@ -455,7 +390,7 @@
                                                 <tr><td>Inspection</td><td>Check off Pressure Test & Soap Test</td><td>"Save Progress Update"</td></tr>
                                                 <tr><td>Painting</td><td>Upload photos + optional notes</td><td>"Save Progress Update"</td></tr>
                                                 <tr><td>Completion</td><td>Upload final photos + optional notes — this marks the project <strong>Completed</strong> (100%)</td><td>"Mark as Completed"</td></tr>
-                                                <tr><td>For Pickup</td><td>Confirm final payment, upload pick-up photos — delivery is tracked separately from completion</td><td>"Mark as Delivered"</td></tr>
+                                                <tr><td>For Pickup</td><td>Confirm final payment, upload pick-up photos — pick-up is tracked separately from completion</td><td>"Mark as Picked Up"</td></tr>
                                             </tbody>
                                         </table>
                                         <div class="manual-note alert-banner warning">
@@ -594,7 +529,7 @@
                         </div>
                         <p class="manual-tagline">View and manage client contact records and portal accounts.</p>
                         <div class="manual-content">
-                            <p>Add clients manually, or approve/decline client sign-up requests here. Approving a request creates their portal login automatically.</p>
+                            <p>Clients sign up from the website — approve or decline their requests here. Approving a request creates their portal login automatically.</p>
                         </div>
                     </div>
 

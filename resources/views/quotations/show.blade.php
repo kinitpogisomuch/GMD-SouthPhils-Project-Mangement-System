@@ -154,7 +154,7 @@
             <form method="POST" action="{{ $decision['revision_url'] }}" @if($embedded) target="_top" @endif>
                 @csrf
                 <input type="hidden" name="version_id" value="{{ $decision['version_id'] }}">
-                <textarea name="reason" required maxlength="1000" placeholder="e.g. Please quote a 4.5 mm shell instead, or adjust the delivery date…"></textarea>
+                <textarea name="reason" required maxlength="1000" placeholder="e.g. Please quote a 4.5 mm shell instead, or adjust the pick-up date…"></textarea>
                 <div class="qv-actions">
                     <button type="button" class="qv-btn ghost" onclick="qvClose('qvRevision')">Cancel</button>
                     <button type="submit" class="qv-btn"><i data-lucide="send"></i> Send request</button>

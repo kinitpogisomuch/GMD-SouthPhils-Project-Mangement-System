@@ -144,6 +144,7 @@ class QuotationRequestController extends Controller
         ], $specRules), [
             'tank_items.required'                     => 'Please choose the tank you need.',
             'tank_items.min'                          => 'Please choose the tank you need.',
+            'tank_items.max'                          => 'You can request up to 10 tanks at a time.',
             'tank_items.*.tank_slug.required'         => 'Choose a tank type.',
             'tank_items.*.tank_slug.in'               => 'Choose one of the tank types shown.',
             'tank_items.*.capacity.required'          => 'Enter the capacity / size.',
@@ -154,16 +155,15 @@ class QuotationRequestController extends Controller
 
         // A second, identical request seconds after the first (double click that slipped past the browser
         // guard, a refresh, or a retried slow upload) is the same request — don't create it twice.
-        $first = reset($items);
-        $recentDuplicate = QuotationRequest::where('client_id', $client->id)
+        $alreadySent = collect($items)->every(fn ($item) => QuotationRequest::where('client_id', $client->id)
             ->where('created_at', '>=', now()->subMinutes(2))
-            ->where('tank_type', TankCatalog::find(TankCatalog::storedSlug($first['tank_slug'], (array) ($first['specs'] ?? [])))['type'] ?? null)
-            ->where('capacity', ProjectTankItem::normalizeCapacity($first['capacity'] ?? null) ?? ($first['capacity'] ?? null))
-            ->where('quantity', (int) ($first['quantity'] ?? 0))
-            ->exists();
-        if ($recentDuplicate && count($items) === 1) {
+            ->where('tank_type', TankCatalog::find(TankCatalog::storedSlug($item['tank_slug'], (array) ($item['specs'] ?? [])))['type'] ?? null)
+            ->where('capacity', ProjectTankItem::normalizeCapacity($item['capacity'] ?? null) ?? ($item['capacity'] ?? null))
+            ->where('quantity', (int) ($item['quantity'] ?? 0))
+            ->exists());
+        if ($alreadySent) {
             return redirect()->route('client.quotation.create', ['tab' => 'pending'])
-                ->with('success', 'This request was already submitted a moment ago — it is listed below.');
+                ->with('success', (count($items) === 1 ? 'This request was' : 'These requests were') . ' already submitted a moment ago — listed below.');
         }
 
         // Every tank is its own request — its own batch, so its own quotation, its own approval, project and
@@ -634,12 +634,9 @@ class QuotationRequestController extends Controller
             'reference_files' => $referenceFiles,
             'summary' => [
                 'notes' => trim(implode("\n", array_filter([
-                    'Quotation ' . ($batch->latestVersion()?->quotation_number ?? $batch->reference_no) . ' (approved by the client).',
                     $requests->first()->notes,
                     $requests->filter(fn ($qr) => $qr->tank_type && !in_array($qr->tank_type, ProjectTankItem::TANK_TYPES, true))
                         ->map(fn ($qr) => 'Tank type (Others): ' . $qr->tank_type)->unique()->implode('; '),
-                    // the approved specifications travel with the project
-                    collect($specLines)->map(fn ($l) => trim(($l['label'] ?? '') . ': ' . ($l['value'] ?? ''), ': '))->implode("\n"),
                 ]))),
             ],
         ]);
@@ -855,6 +852,9 @@ class QuotationRequestController extends Controller
         $costingReady = empty($costingGaps);
         $step         = request('step') === 'document' && ($costingReady || $isLocked) ? 'document' : 'costing';
 
+        // A finished costing for a size the tank doesn't list yet can become one of its standard sizes
+        $standardSizeOffer = $costingReady ? \App\Support\StandardCosting::offerFor($batch) : null;
+
         return view('admin.quotation_batch_detail', compact(
             'batch', 'tankItems', 'batchStatus', 'isLocked',
             'materials', 'totalMaterials', 'estimatedCost', 'materialFactor',
@@ -862,8 +862,35 @@ class QuotationRequestController extends Controller
             'estimatedBudget', 'regularEmployees', 'standardCostings',
             'builderTank', 'tankTypeOptions', 'priceGuide', 'costingIsNew',
             'specLines', 'docSettings', 'versions', 'activity',
-            'costingReady', 'costingGaps', 'step'
+            'costingReady', 'costingGaps', 'step', 'standardSizeOffer'
         ));
+    }
+
+    /** Admin: adds this quotation's size to the tank's standard sizes, with its saved costing behind it */
+    public function saveAsStandardSize(Request $request, $batchId)
+    {
+        $batch = $this->resolveBatch($batchId);
+        $data  = $request->validate([
+            'capacity'   => 'required|string|max:60',
+            'dimensions' => 'nullable|string|max:80',
+        ], ['capacity.required' => 'Enter the capacity to show for this size.']);
+
+        $back = redirect()->route('admin.quotation_requests.batch_detail', $batch->id);
+        if ($gaps = $this->quotationGaps($batch)) {
+            return $back->with('error', 'Complete and save the costing first: ' . implode(', ', $gaps) . '.');
+        }
+
+        try {
+            $size = \App\Support\StandardCosting::saveAsStandard($batch, $data['capacity'], (string) ($data['dimensions'] ?? ''));
+        } catch (\DomainException $e) {
+            return $back->with('error', $e->getMessage());
+        }
+
+        AuditTrail::record('quotation', $batch->id, 'quotation.saved_as_standard', [
+            'tank_type' => $batch->tank_type, 'capacity' => $size['capacity'], 'price' => $size['price'],
+        ]);
+
+        return $back->with('success', '"' . $size['capacity'] . '" is now a standard size of ' . $batch->tank_type . ' and shows on its page.');
     }
 
     /**

@@ -45,7 +45,7 @@
                 };
                 $statusLabel = match($project->status) {
                     // completion and delivery are separate — say which one the client is waiting on
-                    'completed' => $project->isDelivered() ? 'Completed · Delivered' : 'Completed · Awaiting Delivery',
+                    'completed' => $project->isDelivered() ? 'Completed · Picked Up' : 'Completed · Awaiting Pickup',
                     'ongoing'   => 'In Progress',
                     'archived'  => 'Archived',
                     default     => 'Planning',
@@ -57,7 +57,6 @@
                     default     => 'clock',
                 };
                 $currentPhaseLabel = $phaseLabels[$project->current_phase] ?? ucfirst(str_replace('_', ' ', $project->current_phase));
-                $payment = $project->getPaymentRecord();
             @endphp
 
             <!-- Breadcrumb -->
@@ -93,16 +92,30 @@
             @endif
 
             <!-- Phase Tracker Card — matches admin style exactly -->
+            @php
+                // the bar and badge take the current phase's colors, same as PHASE_BAR_COLORS in admin.js
+                $trackerColor = [
+                    'planning'    => ['#475569', '#F1F5F9'],
+                    'procurement' => ['#1E3A5F', '#E3EAF3'],
+                    'matl_prep'   => ['#7C5A10', '#F5EDD8'],
+                    'fabrication' => ['#2A4EAA', '#EAF0FF'],
+                    'inspection'  => ['#9A3412', '#FBE9E0'],
+                    'painting'    => ['#4D5B2A', '#EEF1E0'],
+                    'completion'  => ['#207A3A', '#E7F6EC'],
+                    'delivery'    => ['#14532D', '#DCEBDF'],
+                ][$project->current_phase] ?? ['#14532D', '#DCEBDF'];
+            @endphp
             <div class="tracker-card">
                 <div class="tracker-card-header">
                     <div class="tracker-title">
                         <i data-lucide="layers"></i>
-                        <span class="tracker-title-text"><span>Fabrication Phase Tracker</span><span class="tracker-title-sep"> &nbsp;·&nbsp; </span><span class="tracker-title-sub">{{ $project->capacity }} {{ $project->tank_type }}</span></span>
+                        Fabrication Phase Tracker
                     </div>
-                    {{-- The bar only shows on phones (same as the admin tracker); desktop keeps just the badge --}}
-                    <div class="tracker-mobile-progress">
-                        <div class="tracker-mobile-bar"><span style="width:{{ max(0, min(100, (int) $project->progress)) }}%;"></span></div>
-                        <span class="tracker-progress-badge">{{ $project->progress }}%</span>
+                    <div class="tracker-progress-wrap">
+                        <div class="tracker-progress-bar">
+                            <div class="tracker-progress-fill" style="width:{{ max(0, min(100, (int) $project->progress)) }}%;background:{{ $trackerColor[0] }};box-shadow:0 0 6px {{ $trackerColor[0] }}66;"></div>
+                        </div>
+                        <span class="tracker-progress-badge" style="background-color:{{ $trackerColor[1] }};color:{{ $trackerColor[0] }};">{{ $project->progress }}%</span>
                     </div>
                 </div>
                 <div class="phase-steps" id="phaseSteps"></div>
@@ -262,13 +275,6 @@
             @endif
             @endif
 
-            <!-- Project & Payment Status (operational progress and payments tracked separately) -->
-            @if($payment)
-            <div style="margin-top:20px;">
-                @include('partials.project_settlement_status', ['project' => $project, 'portal' => 'client'])
-            </div>
-            @endif
-
             <!-- Two-column layout: Project Info (left) + Progress History (right) -->
             <div class="pv-grid">
 
@@ -277,21 +283,6 @@
                     <div class="pv-card-title">
                         <i data-lucide="clipboard-list"></i>
                         Project Information
-                    </div>
-
-                    <!-- Progress bar -->
-                    <div style="margin-bottom:18px;">
-                        <div class="progress-wrap" style="margin-top:0;">
-                            <div class="progress-label">
-                                <span style="font-weight:700;font-size:13px;">Overall Progress</span>
-                                <span style="font-weight:900;color:var(--dark);">{{ $project->progress }}%</span>
-                            </div>
-                            <div class="progress-bar" style="height:10px;border-radius:999px;">
-                                <div class="progress-fill"
-                                     style="width:{{ $project->progress }}%;border-radius:999px;
-                                     background:{{ $project->status === 'completed' ? '#207A3A' : '' }};"></div>
-                            </div>
-                        </div>
                     </div>
 
                     <!-- Key stats grid -->
