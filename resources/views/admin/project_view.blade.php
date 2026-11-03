@@ -949,8 +949,8 @@
 
                         @endif
 
-                        {{-- not asked anywhere in Planning (incl. Payment) — the server records today's date --}}
-                        @unless($project->current_phase === 'planning')
+                        {{-- not asked in Planning (incl. Payment) through Completion — the server records today's date --}}
+                        @unless(in_array($project->current_phase, ['planning', 'procurement', 'matl_prep', 'fabrication', 'inspection', 'painting', 'completion'], true))
                         <div class="form-group" style="margin-top:14px;">
                             <label class="log-label">DATE OF WORK
                                 <span style="font-weight:400;color:var(--muted);text-transform:none;">(defaults to today — set an earlier date when backfilling history)</span>
