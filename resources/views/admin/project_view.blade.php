@@ -504,7 +504,9 @@
                         // "Confirm Payment"/"Proceed Anyway" click; planning/payment has no
                         // separate fields to reveal, so it submits directly — no redundant
                         // second button that just repeats the same action.
-                        $needsConfirmStep = $fabricationGate || $deliveryGate;
+                        // (Pick-up has no fields any more — just a message and "Mark as Ready for Pickup" — so it
+                        //  needs no separate confirm step either.)
+                        $needsConfirmStep = $fabricationGate;
                         // If this render is a redirect-back from a failed submission, the real
                         // form fields must already be showing (that's what was submitted), so
                         // skip the confirm step and go straight to the fields + errors.
@@ -516,6 +518,7 @@
                         // payment is settled, so it offers "Proceed Anyway" instead of blocking.
                         $paymentBlocked   = $showConfirmGate && !$gateSettled && !$deliveryGate;
                         $sparsePhase    = $planningPaymentGate
+                                          || $deliveryGate
                                           || $project->current_phase === 'procurement'
                                           || $project->current_phase === 'matl_prep'
                                           || $project->current_phase === 'inspection'
@@ -528,8 +531,8 @@
                             <i data-lucide="check-circle-2" style="width:38px;height:38px;color:#16a34a;"></i>
                         </div>
                         <div>
-                            <p style="font-size:17px;font-weight:900;color:var(--dark);margin-bottom:6px;">Project Completed &amp; Picked Up</p>
-                            <p style="font-size:13.5px;color:var(--muted);max-width:320px;line-height:1.6;">All phases are completed and the project has been picked up. No further progress updates are required.</p>
+                            <p style="font-size:17px;font-weight:900;color:var(--dark);margin-bottom:6px;">Project Completed &amp; Ready for Pick-up</p>
+                            <p style="font-size:13.5px;color:var(--muted);max-width:320px;line-height:1.6;">All phases are completed and the tank is ready for pick-up. No further progress updates are required.</p>
                         </div>
                     </div>
                     @else
@@ -541,6 +544,7 @@
                         $hideRequestBtn = $project->current_phase === 'planning'
                             || ($project->current_phase === 'procurement' && !($project->activeMaterials()->exists() && $project->activeLabor()->exists()))
                             || $procurementNeedsMaterials
+                            || $deliveryGate   // pick-up is GMD's own step: just the button, no update to request
                             || ($needsConfirmStep && !$revealFormFields);
                     @endphp
                     <div id="requestFromEmployeeWrap" style="display:flex;justify-content:flex-end;margin-bottom:14px;{{ $hideRequestBtn ? 'display:none;' : '' }}">
@@ -897,63 +901,78 @@
 
                         @elseif($project->current_phase === 'delivery')
 
-                            <div id="deliveryConfirmStep" style="display:{{ $revealFormFields ? 'none' : 'flex' }};justify-content:center;padding:10px 20px;">
-                                @if($gateSettled)
-                                <div class="pv-payment-gate-card pv-payment-gate-success">
+                            {{-- Pick-up: just a message and one button — same style as the payment phase. The tank can be
+                                 marked ready before the final payment is in (it's settled afterwards), after a confirm.
+                                 The card also sums up the payment and says what the button does. --}}
+                            @php
+                                $puContract = (float) ($payment->contract_amount ?? 0);
+                                $puPaid     = $payment ? (float) $payment->totalPaid() : 0;
+                                $puBalance  = max(0, $puContract - $puPaid);
+                            @endphp
+                            <div style="display:flex;justify-content:center;padding:10px 20px;">
+                                <div class="pv-payment-gate-card {{ $gateSettled ? 'pv-payment-gate-success' : 'pv-payment-gate-warning' }} pu-card">
                                     <div class="pv-payment-gate-icon">
+                                        @if($gateSettled)
                                         <i data-lucide="check-circle-2" style="width:26px;height:26px;color:#16a34a;"></i>
-                                    </div>
-                                    <p class="pv-payment-gate-title">{{ $isBigProject ? 'Final 20% Payment' : 'Final 50% Payment' }} Confirmed</p>
-                                    <p class="pv-payment-gate-text">Final payment has been confirmed. Click Confirm Payment below to proceed to the pick-up details.</p>
-                                </div>
-                                @else
-                                <div class="pv-payment-gate-card pv-payment-gate-warning">
-                                    <div class="pv-payment-gate-icon">
+                                        @else
                                         <i data-lucide="alert-triangle" style="width:26px;height:26px;color:#b45309;"></i>
+                                        @endif
                                     </div>
+                                    @if($gateSettled)
+                                    <p class="pv-payment-gate-title">{{ $isBigProject ? 'Final 20% Payment' : 'Final 50% Payment' }} Confirmed</p>
+                                    <p class="pv-payment-gate-text">The final payment has been confirmed. The tank can now be marked as ready for pick-up.</p>
+                                    @else
                                     <p class="pv-payment-gate-title">Payment Reminder</p>
-                                    <p class="pv-payment-gate-text">The final payment has not been recorded yet. It can still be settled after the tank is picked up — click Proceed Anyway to record the pick-up now.</p>
+                                    <p class="pv-payment-gate-text">The final payment has not been recorded yet. You can still mark the tank as ready for pick-up — the final payment can be settled afterwards.</p>
+                                    @endif
+
+                                    @if($payment)
+                                    {{-- the payment at a glance --}}
+                                    <div class="pu-sum">
+                                        <div><span>Contract</span><strong>₱{{ number_format($puContract, 2) }}</strong></div>
+                                        <div><span>Paid</span><strong class="is-paid">₱{{ number_format($puPaid, 2) }}</strong></div>
+                                        <div><span>Balance</span><strong class="{{ $puBalance > 0 ? 'is-due' : 'is-paid' }}">{{ $puBalance > 0 ? '₱' . number_format($puBalance, 2) : 'Fully paid' }}</strong></div>
+                                    </div>
+                                    @endif
+
+                                    {{-- what "Mark as Ready for Pickup" does --}}
+                                    <ul class="pu-next">
+                                        <li><i data-lucide="bell-ring"></i> The client is notified that the tank is ready</li>
+                                        <li><i data-lucide="flag"></i> The project is closed as completed</li>
+                                        <li><i data-lucide="history"></i> It's logged in the progress history</li>
+                                    </ul>
+
+                                    @unless($gateSettled)
                                     <a href="{{ $paymentUrl }}" class="pv-payment-gate-link">
                                         <i data-lucide="credit-card" style="width:13px;height:13px;"></i>
                                         View Payment Status
                                     </a>
+                                    @endunless
                                 </div>
-                                @endif
+                                @unless($gateSettled)
+                                <input type="hidden" name="proceed_without_final_payment" value="1">
+                                @endunless
                             </div>
-                            <div id="deliveryFormFields" style="display:{{ $revealFormFields ? 'block' : 'none' }};">
-                            @unless($gateSettled)
-                            <input type="hidden" name="proceed_without_final_payment" value="1">
-                            @endunless
+                            <style>
+                                .pu-card { max-width: 440px; }
+                                .pu-sum { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; width: 100%; margin-top: 14px; }
+                                .pu-sum > div { padding: 8px 6px; border-radius: 10px; background: rgba(255,255,255,.75); border: 1px solid rgba(0,0,0,.06); text-align: center; min-width: 0; }
+                                .pu-sum span { display: block; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+                                .pu-sum strong { display: block; margin-top: 2px; font-size: 13px; font-weight: 900; color: var(--dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+                                .pu-sum strong.is-paid { color: #16a34a; }
+                                .pu-sum strong.is-due { color: #b45309; }
+                                .pu-next { list-style: none; margin: 14px 0 0; padding: 12px 0 0; width: 100%; border-top: 1px dashed rgba(0,0,0,.12); display: flex; flex-direction: column; gap: 6px; text-align: left; }
+                                .pu-next li { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--dark); }
+                                .pu-next svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--muted); }
+                                @media (max-width: 480px) { .pu-sum { grid-template-columns: 1fr; } }
+                            </style>
 
-                            <div class="form-group">
-                                <label class="log-label">DELIVERY PHOTOS *</label>
-                                <label class="pv-upload-dropzone" id="deliveryDropzone">
-                                    <i data-lucide="upload-cloud" style="width:32px;height:32px;color:var(--accent);"></i>
-                                    <span style="font-size:14px;font-weight:700;color:var(--text-primary);">Click to upload pick-up photos</span>
-                                    <span style="font-size:12px;color:var(--muted);">Required — up to 5 photos, JPG/PNG, max 5MB each</span>
-                                    <input type="file" name="photos[]" multiple accept="image/*"
-                                           data-preview-id="deliveryPreview" data-dropzone-id="deliveryDropzone" data-max="5"
-                                           style="display:none;" onchange="previewAdminFiles(this)" required>
-                                </label>
-                                <div id="deliveryPreview" class="pv-file-grid"></div>
-                            </div>
-
-                            <div class="form-group" style="margin-top:14px;flex:1;display:flex;flex-direction:column;">
-                                <label class="log-label">DELIVERY NOTES
-                                    <span style="font-weight:400;color:var(--muted);text-transform:none;">(optional)</span>
-                                </label>
-                                <textarea name="delivery_notes" class="log-textarea" style="flex:1;min-height:120px;resize:vertical;"
-                                          placeholder="Any notes about the pick-up..."></textarea>
-                            </div>
-
-                            </div>
-
-                            @php $submitLabel = 'Mark as Picked Up'; @endphp
+                            @php $submitLabel = 'Mark as Ready for Pickup'; @endphp
 
                         @endif
 
                         {{-- not asked in Planning (incl. Payment) through Completion — the server records today's date --}}
-                        @unless(in_array($project->current_phase, ['planning', 'procurement', 'matl_prep', 'fabrication', 'inspection', 'painting', 'completion'], true))
+                        @unless(in_array($project->current_phase, ['planning', 'procurement', 'matl_prep', 'fabrication', 'inspection', 'painting', 'completion', 'delivery'], true))
                         <div class="form-group" style="margin-top:14px;">
                             <label class="log-label">DATE OF WORK
                                 <span style="font-weight:400;color:var(--muted);text-transform:none;">(defaults to today — set an earlier date when backfilling history)</span>
@@ -998,8 +1017,11 @@
                             </button>
                             @endif
                             @if(empty($hideSubmitButton) && !$paymentBlocked)
-                            <button type="submit" class="{{ $project->current_phase === 'inspection' ? 'cancel-btn' : 'save-btn' }}" id="progressSubmitBtn" style="font-size:13.5px;padding:11px 24px;{{ ($needsConfirmStep && !$revealFormFields) ? 'display:none;' : '' }}">
-                                <i data-lucide="save"></i>
+                            @php $askUnpaidFirst = $deliveryGate && !$gateSettled; /* "ready for pick-up" before the final payment: confirm first */ @endphp
+                            <button type="{{ $askUnpaidFirst ? 'button' : 'submit' }}" class="{{ $project->current_phase === 'inspection' ? 'cancel-btn' : 'save-btn' }}" id="progressSubmitBtn"
+                                    @if($askUnpaidFirst) onclick="openProceedUnpaidModal()" @endif
+                                    style="font-size:13.5px;padding:11px 24px;{{ ($needsConfirmStep && !$revealFormFields) ? 'display:none;' : '' }}">
+                                <i data-lucide="{{ $deliveryGate ? 'package-check' : 'save' }}"></i>
                                 {{ $submitLabel ?? 'Save Progress Update' }}
                             </button>
                             @endif
@@ -1684,16 +1706,17 @@
             </div>
             <div class="delete-confirm-body">
                 <div class="delete-confirm-icon" style="background:#fef3c7;color:#b45309;"><i data-lucide="alert-triangle"></i></div>
-                <p>Are you sure you want to record the pick-up now?</p>
+                <p>Are you sure you want to mark the tank as ready for pick-up now?</p>
                 <div style="margin-top:8px;font-size:13px;color:var(--muted);line-height:1.6;padding:0 12px;">
-                    The project will be marked as picked up. The final payment stays open in the Payment module and can be settled after pick-up.
+                    The client will be told the tank is ready for pick-up. The final payment stays open in the Payment module and can be settled afterwards.
                 </div>
             </div>
             <div class="modal-actions">
                 <button type="button" class="cancel-btn" onclick="closeProceedUnpaidModal()">Cancel</button>
-                <button type="submit" class="save-btn" form="paymentGateForm">
-                    <i data-lucide="arrow-right"></i>
-                    Yes, Proceed Anyway
+                {{-- submits the progress form itself (it carries proceed_without_final_payment) --}}
+                <button type="submit" class="save-btn" form="addUpdateForm">
+                    <i data-lucide="package-check"></i>
+                    Yes, Mark as Ready
                 </button>
             </div>
         </div>

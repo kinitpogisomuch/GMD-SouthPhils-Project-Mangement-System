@@ -206,8 +206,20 @@ class NotificationService
         $occurredAt = null,
         ?string $eventKey = null
     ): bool {
-        // The linked client account first (stable even if the client renames or changes email),
-        // then the older email / name matching for projects created before that link existed.
+        $client = self::projectClient($project);
+
+        if ($client) {
+            return self::send($client->id, 'client', $title, $message, $type, $priority, $project->id, $progressId, $actionUrl, $occurredAt, $eventKey);
+        }
+        return false;
+    }
+
+    /**
+     * The client account a project belongs to: the linked account first (stable even if the client renames or
+     * changes email), then the older email / name matching for projects created before that link existed.
+     */
+    public static function projectClient(Project $project): ?Client
+    {
         $client = $project->client_id ? Client::find($project->client_id) : null;
 
         if (!$client && !empty($project->email)) {
@@ -218,10 +230,7 @@ class NotificationService
             $client = Client::where('name', $project->client)->first();
         }
 
-        if ($client) {
-            return self::send($client->id, 'client', $title, $message, $type, $priority, $project->id, $progressId, $actionUrl, $occurredAt, $eventKey);
-        }
-        return false;
+        return $client;
     }
 
     /** Notify a specific client by their clients.id (not tied to any project) */
@@ -1182,8 +1191,8 @@ class NotificationService
     {
         self::notifyProjectClient(
             $project,
-            'Project Picked Up',
-            "Your project \"{$project->name}\" has been picked up.",
+            'Ready for Pick-up',
+            "Your project \"{$project->name}\" is ready for pick-up.",
             self::TYPE_PHASE_ADVANCED,
             'success',
             null,
@@ -1192,8 +1201,8 @@ class NotificationService
         );
 
         self::notifyAllEmployees(
-            'Project Picked Up',
-            "Project {$project->name} has been picked up by the client.",
+            'Ready for Pick-up',
+            "Project {$project->name} is ready for pick-up by the client.",
             self::TYPE_PHASE_ADVANCED,
             'success',
             $project->id,
@@ -1201,5 +1210,101 @@ class NotificationService
             "/employee/project-view/{$project->id}",
             $occurredAt
         );
+
+        self::emailReadyForPickup($project);
+    }
+
+    /**
+     * Email the client that their tank is ready for pick-up (alongside the in-app notification). A mail problem
+     * is only logged — it never stops the project from being marked ready.
+     */
+    public static function emailReadyForPickup(Project $project): bool
+    {
+        $client = self::projectClient($project);
+        $email  = $client->email ?? $project->email ?? null;
+        if (!$email) {
+            \Illuminate\Support\Facades\Log::warning('ReadyForPickup: no client email', ['project_id' => $project->id]);
+            return false;
+        }
+        $name = $client->name ?? $project->live_client_name ?? $project->client ?? 'Client';
+
+        try {
+            \Illuminate\Support\Facades\Mail::html(self::readyForPickupEmailHtml($project, $name), function ($message) use ($email, $name, $project) {
+                $message->to($email, $name)
+                        ->from(config('mail.from.address'), config('mail.from.name'))
+                        ->replyTo(config('mail.from.address'), config('mail.from.name'))
+                        ->subject('Your Project Is Ready for Pick-up — ' . $project->name);
+            });
+            \Illuminate\Support\Facades\Log::info('ReadyForPickup: email sent', ['project_id' => $project->id, 'email' => $email]);
+            return true;
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('ReadyForPickup: email failed', ['project_id' => $project->id, 'email' => $email, 'error' => $e->getMessage()]);
+            return false;
+        }
+    }
+
+    private static function readyForPickupEmailHtml(Project $project, string $name): string
+    {
+        $e        = fn ($v) => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
+        $company  = config('quotation.company');
+        $shop     = $company['shop'] ?? 'GMD Fabrication Shop';
+        $address  = $company['address'] ?? '';
+        $contact  = trim(implode(' · ', array_filter([$company['phone'] ?? '', $company['email'] ?? ''])));
+        $link     = url('/client/project-view/' . $project->id);
+
+        // the final payment, if any is still owed — a friendly heads-up, not a blocker
+        $payment  = $project->payments()->latest('id')->first();
+        $balance  = $payment ? max(0, (float) $payment->contract_amount - (float) $payment->totalPaid()) : 0;
+        $balanceNote = $balance > 0.009
+            ? '<p style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 14px;color:#92400e;font-size:13px;">'
+              . 'A remaining balance of <strong>₱' . number_format($balance, 2) . '</strong> is still open. You can settle it under Payments in your client portal or upon pick-up.</p>'
+            : '';
+
+        return '
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 20px; }
+                .container { background: #fff; max-width: 520px; margin: 0 auto; border-radius: 12px; padding: 36px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+                .logo { font-size: 20px; font-weight: 900; color: #1a1a2e; margin-bottom: 24px; }
+                .logo span { color: #e8900a; }
+                .badge { display: inline-block; background: #dcfce7; color: #15803d; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; border-radius: 999px; padding: 6px 14px; margin-bottom: 18px; }
+                h2 { font-size: 18px; color: #1a1a2e; margin-bottom: 8px; }
+                p { font-size: 14px; color: #444; line-height: 1.6; }
+                .box { background: #f8f8f8; border: 1px solid #eee; border-radius: 10px; padding: 14px 16px; margin: 18px 0; font-size: 13.5px; color: #333; line-height: 1.7; }
+                .box strong { color: #1a1a2e; }
+                .cta { display: inline-block; margin-top: 6px; background: #1a1a2e; color: #fff !important; text-decoration: none; font-weight: 700; font-size: 15px; padding: 14px 28px; border-radius: 8px; }
+                .footer { margin-top: 32px; font-size: 12px; color: #aaa; border-top: 1px solid #eee; padding-top: 16px; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="logo">GMD <span>South Phils</span></div>
+                <div class="badge">&#10003; Ready for Pick-up</div>
+                <h2>Your project is ready for pick-up!</h2>
+                <p>Hello <strong>' . $e($name) . '</strong>,</p>
+                <p>Good news — your project <strong>' . $e($project->name) . '</strong> has been completed and is now ready for pick-up.</p>
+
+                <div class="box">
+                    <strong>Pick-up location</strong><br>
+                    ' . $e($shop) . ($address ? '<br>' . $e($address) : '') . '
+                    ' . ($contact ? '<br><br><strong>Contact us</strong><br>' . $e($contact) : '') . '
+                </div>
+
+                ' . $balanceNote . '
+
+                <p>Please coordinate with us before coming over so we can have everything ready for you.</p>
+
+                <a href="' . $e($link) . '" class="cta">View Your Project</a>
+
+                <div class="footer">
+                    Thank you for choosing GMD South Phils,<br>
+                    <strong>GMD Construction Management Team</strong>
+                </div>
+            </div>
+        </body>
+        </html>';
     }
 }

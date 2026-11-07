@@ -1560,20 +1560,17 @@ class ProjectController extends Controller
     */
     private function handleDelivery(Request $request, Project $project)
     {
-        // The payment gate is enforced in addUpdate() before this runs.
+        // The payment gate is enforced in addUpdate() before this runs. The admin page is now just a
+        // "Mark as Ready for Pickup" button — photos and notes are optional (none are asked for).
         $request->validate([
-            'photos'         => 'required|array|min:1',
-            'photos.*'       => 'required|image|max:5120',
+            'photos'         => 'nullable|array',
+            'photos.*'       => 'image|max:5120',
             'delivery_notes' => 'nullable|string',
         ]);
 
-        $photoUrls = $this->storage->uploadMultiple($request->file('photos'), 'projects/' . $project->id . '/delivery');
-
-        if (empty($photoUrls)) {
-            return redirect()->back()
-                ->withInput()
-                ->withErrors(['photos' => 'Photo upload failed. Please check your connection and try again.']);
-        }
+        $photoUrls = $request->hasFile('photos')
+            ? $this->storage->uploadMultiple($request->file('photos'), 'projects/' . $project->id . '/delivery')
+            : [];
 
         // Delivery is tracked separately from completion: the project was already marked
         // completed when its Completion phase finished, so this only records the delivery
@@ -1598,7 +1595,7 @@ class ProjectController extends Controller
         $this->createAdminUpdate($project, [
             'phase'        => 'delivery',
             'update_label' => 'delivery',
-            'work_done'    => $request->delivery_notes ?: 'Project picked up by the client.',
+            'work_done'    => $request->delivery_notes ?: 'Tank marked as ready for pick-up.',
             'percentage'   => $newProgress,
             'photos'       => $photoUrls,
             'date_of_work' => $request->filled('date_of_work') ? $request->date_of_work : now()->toDateString(),
@@ -1607,7 +1604,7 @@ class ProjectController extends Controller
         NotificationService::projectDelivered($project, NotificationService::occurredOn($request->date_of_work));
 
         return redirect()->route('admin.project_view', $project->id)
-            ->with('success', 'Project picked up by the client!');
+            ->with('success', 'Tank marked as ready for pick-up — the client has been notified.');
     }
 
     /*
