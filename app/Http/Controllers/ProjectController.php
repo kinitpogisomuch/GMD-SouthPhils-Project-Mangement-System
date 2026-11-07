@@ -1205,7 +1205,7 @@ class ProjectController extends Controller
         // there must be real purchase records logged in the Materials module.
         if (!$project->hasEnoughPurchasedMaterials()) {
             return redirect()->route('admin.project_view', $project->id)
-                ->with('error', 'Materials must be purchased and logged in the Materials module before procurement can be marked complete.');
+                ->with('error', 'Log the materials you purchased in the Materials module first, then mark procurement complete.');
         }
 
         $request->validate([

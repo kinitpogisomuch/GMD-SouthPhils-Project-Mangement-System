@@ -580,9 +580,12 @@
                                 <i data-lucide="shopping-cart" style="width:32px;height:32px;color:#1e40af;"></i>
                             </div>
                             <div>
-                                <p style="font-size:16px;font-weight:800;color:var(--dark);margin-bottom:6px;">Materials Pending</p>
-                                <p style="font-size:13.5px;color:var(--muted);max-width:320px;line-height:1.6;">Materials must be purchased and logged in the Materials module before procurement can be marked complete.</p>
-                                <p style="font-size:13px;font-weight:700;color:var(--dark);margin-top:10px;">{{ $project->purchasedMaterialsCount() }} of {{ \App\Models\Project::MIN_PURCHASED_MATERIALS }} different materials logged</p>
+                                <p style="font-size:16px;font-weight:800;color:var(--dark);margin-bottom:6px;">Log Your Material Purchases</p>
+                                <p style="font-size:13.5px;color:var(--muted);max-width:320px;line-height:1.6;">Log the materials you've purchased for this project in the Materials module, then come back here to mark procurement complete.</p>
+                                <p style="font-size:12.5px;color:var(--muted);max-width:320px;line-height:1.6;margin-top:8px;display:inline-flex;align-items:flex-start;gap:6px;text-align:left;">
+                                    <i data-lucide="info" style="width:14px;height:14px;flex-shrink:0;margin-top:2px;"></i>
+                                    <span>No need to log everything now — if you buy more materials later, you can add them anytime on the Materials page.</span>
+                                </p>
                             </div>
                             <a href="{{ route('admin.material_usage.detail', $project->id) }}" class="save-btn" style="display:inline-flex;align-items:center;gap:8px;font-size:13.5px;padding:11px 22px;text-decoration:none;">
                                 <i data-lucide="shopping-cart"></i>

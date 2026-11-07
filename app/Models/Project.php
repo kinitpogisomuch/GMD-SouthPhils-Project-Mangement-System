@@ -214,11 +214,10 @@ class Project extends Model
         return $this->tankItems->first();
     }
 
-    // Minimum number of distinct materials that must have an actual purchase
-    // logged (not just planned in the BOM) before Procurement can be marked
-    // complete — keeps the "Materials Delivered" checkbox from being a pure
-    // rubber stamp with nothing purchased behind it.
-    const MIN_PURCHASED_MATERIALS = 6;
+    // No set number of materials: Procurement can be marked complete once at least one purchase has been
+    // logged in the Materials module — so the "Materials Delivered" checkbox is never a rubber stamp with
+    // nothing purchased behind it, but GMD logs only what it actually bought.
+    const MIN_PURCHASED_MATERIALS = 1;
 
     // Define the phase order
     const PHASES = [
