@@ -504,14 +504,10 @@ class QuotationRequestController extends Controller
     }
 
     /** GET /admin/quotation-requests/pending-count — powers the sidebar nav badge (counts batches, not raw tank rows) */
+    /** The sidebar badge: new requests + Purchase Orders received and ready to convert */
     public function pendingCount()
     {
-        $count = QuotationRequest::where('status', 'pending')
-            ->get(['id', 'batch_id'])
-            ->groupBy(fn ($r) => $r->batch_id ?: ('single-' . $r->id))
-            ->count();
-
-        return response()->json(compact('count'));
+        return response()->json(['count' => QuotationRequest::adminActionCount()]);
     }
 
     /** Declines every tank request in the batch together — a batch is one combined quotation. */
@@ -916,6 +912,7 @@ class QuotationRequestController extends Controller
             'doc.notes'            => 'nullable|string|max:4000',
             'doc.signatory_name'   => 'nullable|string|max:120',
             'doc.signatory_title'  => 'nullable|string|max:120',
+            'doc.signatory_signature' => 'nullable|string|max:1000',
         ]);
 
         // same shaping as the builder's Save (saveBatch), applied without saving
@@ -933,7 +930,7 @@ class QuotationRequestController extends Controller
         }
         if ($request->has('doc')) {
             $doc = collect($request->input('doc', []))
-                ->only(['project_title', 'project_location', 'rfq_ref', 'validity_days', 'warranty', 'notes', 'signatory_name', 'signatory_title'])
+                ->only(['project_title', 'project_location', 'rfq_ref', 'validity_days', 'warranty', 'notes', 'signatory_name', 'signatory_title', 'signatory_signature'])
                 ->map(fn ($v) => is_string($v) ? trim($v) : $v)
                 ->all();
             $doc['show_breakdown'] = $request->boolean('doc.show_breakdown');
@@ -942,6 +939,32 @@ class QuotationRequestController extends Controller
 
         return response()->view('quotations.live_preview', ['doc' => QuotationDocument::build($batch)])
             ->header('Cache-Control', 'no-store');
+    }
+
+    /**
+     * Admin: upload the signatory's e-signature image from the Quotation Document step. Stored straight away
+     * and its URL returned; the builder keeps it in doc[signatory_signature] and it is saved with the quotation.
+     */
+    public function uploadSignature(Request $request, $batchId)
+    {
+        $this->resolveBatch($batchId);
+
+        $request->validate([
+            'signature' => 'required|image|mimes:png,jpg,jpeg,webp|max:2048',
+        ], [
+            'signature.image' => 'The signature must be a PNG, JPG or WEBP image.',
+            'signature.max'   => 'The signature image must be 2 MB or smaller.',
+        ]);
+
+        $url = $this->storage->upload($request->file('signature'), 'quotations/signatures');
+        if (!$url) {
+            return response()->json(['message' => 'The signature upload failed. Please check your connection and try again.'], 500);
+        }
+
+        // the newest upload is the default signature for every quotation from now on
+        \App\Models\ESignature::record(\App\Models\ESignature::QUOTATION, $url);
+
+        return response()->json(['url' => $url]);
     }
 
     /** Admin: the quotation as it would be generated right now, before sending (nothing is saved) */
@@ -1484,7 +1507,9 @@ class QuotationRequestController extends Controller
             'doc.show_breakdown'     => 'nullable|boolean',
             'doc.signatory_name'     => 'nullable|string|max:120',
             'doc.signatory_title'    => 'nullable|string|max:120',
+            'doc.signatory_signature' => 'required_with:doc|nullable|string|max:1000',
         ], [
+            'doc.signatory_signature.required_with' => 'Please upload the signatory\'s e-signature (Quotation Document step).',
             'markup_percent.min'     => 'Markup must be between ' . QuotationBatch::MARKUP_MIN . '% and ' . QuotationBatch::MARKUP_MAX . '%.',
             'markup_percent.max'     => 'Markup must be between ' . QuotationBatch::MARKUP_MIN . '% and ' . QuotationBatch::MARKUP_MAX . '%.',
             'contingency_percent.max' => 'Contingency can be up to ' . QuotationBatch::CONTINGENCY_MAX . '%.',
@@ -1636,7 +1661,7 @@ class QuotationRequestController extends Controller
             }
             if ($request->has('doc')) {
                 $doc = collect($request->input('doc', []))
-                    ->only(['project_title', 'project_location', 'rfq_ref', 'validity_days', 'warranty', 'notes', 'signatory_name', 'signatory_title'])
+                    ->only(['project_title', 'project_location', 'rfq_ref', 'validity_days', 'warranty', 'notes', 'signatory_name', 'signatory_title', 'signatory_signature'])
                     ->map(fn ($v) => is_string($v) ? trim($v) : $v)
                     ->all();
                 $doc['show_breakdown'] = $request->boolean('doc.show_breakdown');

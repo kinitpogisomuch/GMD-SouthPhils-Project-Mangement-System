@@ -248,6 +248,23 @@ body {
     text-align: center;
 }
 
+/* e-signature slot — the same height in every block, signed or not, so the names and lines stay level;
+   it sits over the printed name, pulling into the label's gap above */
+.bs-sig-area {
+    height: 56px;
+    margin: -26px 0 -8px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+}
+
+.bs-sig-img {
+    display: block;
+    max-height: 100%;
+    max-width: 80%;
+    object-fit: contain;
+}
+
 .bs-sig-line {
     border-top: 1px solid #1a1a1a;
     margin-bottom: 4px;
@@ -373,6 +390,25 @@ body {
     border-radius: 4px;
 }
 
+/* Measuring for print (html.bs-measure, set for a moment just before printing): the sheet laid out exactly as
+   the print rules below lay it out — printable width of a Letter page with 8mm margins — so its height can be
+   measured and the page scaled to fit one sheet. Keep in step with the @media print block. */
+html.bs-measure .bs-sheet { width: 755px; max-width: none; margin: 0; padding: 0; border: none; box-shadow: none; font-size: 11.5px; zoom: 1; }
+html.bs-measure .bs-title { margin: 10px 0 12px; }
+html.bs-measure .bs-fields { margin-bottom: 12px; }
+html.bs-measure .bs-fields td { padding-top: 3px; padding-bottom: 3px; }
+html.bs-measure .bs-particulars { margin-bottom: 10px; }
+html.bs-measure .bs-particulars td { padding: 5px 8px; }
+html.bs-measure .bs-particulars th { padding: 6px 8px; }
+html.bs-measure .bs-final-balance { margin: 8px 0 10px; }
+html.bs-measure .bs-deposit { margin-bottom: 12px; }
+html.bs-measure .bs-deposit-text { min-height: 20px; }
+html.bs-measure .bs-questions { margin-bottom: 14px; }
+html.bs-measure .bs-signatures { margin-top: 14px; }
+html.bs-measure .bs-sig-label { margin-bottom: 12px; }
+html.bs-measure .bs-sig-area { height: 44px; margin: -10px 0 -6px; }
+html.bs-measure .bs-auto-note { margin-top: 16px; padding-top: 8px; }
+
 @media print {
     @page {
         size: letter;
@@ -388,7 +424,7 @@ body {
     }
 
     body { background: #fff; }
-    .bs-toolbar { display: none; }
+    .bs-toolbar, .bs-flash { display: none !important; }
 
     .bs-sheet {
         box-shadow: none;
@@ -397,6 +433,7 @@ body {
         padding: 0;
         max-width: 100%;
         font-size: 11.5px;
+        zoom: var(--bs-fit, 1);   /* set just before printing so the statement always fits ONE page (see billing_statement_document) */
     }
 
     /* Trim the on-screen breathing room that pushes a mostly-empty extra
@@ -413,6 +450,7 @@ body {
     .bs-questions { margin-bottom: 14px; }
     .bs-signatures { margin-top: 14px; }
     .bs-sig-label { margin-bottom: 12px; }
+    .bs-sig-area { height: 44px; margin: -10px 0 -6px; }
     .bs-auto-note { margin-top: 16px; padding-top: 8px; }
 
     /* Keep rows/blocks intact if the sheet is ever tight on space */

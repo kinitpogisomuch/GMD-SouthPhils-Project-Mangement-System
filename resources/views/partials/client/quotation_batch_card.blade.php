@@ -85,6 +85,18 @@
 
     @once
     <style>
+        /* The one part of the card the client has to act on (the decision, or the Purchase Order form): a yellow
+           border + glow and a tag on its top edge. Doubled class so it out-ranks the box's own border. */
+        .qc-highlight.qc-highlight { position: relative; border: 2px solid #F5B400; border-radius: 16px; background: #fffdf5;
+                                     box-shadow: 0 0 0 4px rgba(245,180,0,.14), 0 8px 22px rgba(245,180,0,.10); }
+        .qc-decision.qc-highlight { padding: 20px 16px 16px; margin-top: 4px; }
+        .qc-po.qc-highlight { padding-top: 22px; margin-top: 4px; }   /* room for the tag on its top edge */
+        .qc-action-flag { position: absolute; top: -12px; left: 16px; z-index: 2; display: inline-flex; align-items: center; gap: 6px; padding: 3px 11px; border-radius: 999px;
+                          background: #F5B400; color: #1a1a1a; font-size: 10.5px; font-weight: 900; text-transform: uppercase; letter-spacing: .05em; box-shadow: 0 2px 6px rgba(0,0,0,.12); }
+        .qc-action-dot { width: 7px; height: 7px; border-radius: 50%; background: #1a1a1a; animation: qcPulse 1.4s ease-in-out infinite; }
+        @keyframes qcPulse { 50% { opacity: .25; } }
+        @media (prefers-reduced-motion: reduce) { .qc-action-dot { animation: none; } }
+
         /* Progress tracker + what-happens-next message */
         .qc-track { list-style: none; display: flex; align-items: flex-start; margin: 0 0 12px; padding: 0; }
         .qc-track li { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; position: relative; text-align: center; }
@@ -217,7 +229,7 @@
         </div>
         <div class="qc-files" style="border-top:1px dashed #c7d7fe;">
             {{-- opens in the in-page viewer (ctrl/middle-click still opens a tab) --}}
-            <a href="{{ route('client.quotation.show', $first->batch_id) }}" target="_blank" data-receipt="doc" class="qc-file"><i data-lucide="eye"></i> View full quotation</a>
+            <a href="{{ route('client.quotation.show', $first->batch_id) }}" target="_blank" data-receipt="doc" data-own-close class="qc-file"><i data-lucide="eye"></i> View full quotation</a>
             <a href="{{ route('client.quotation.pdf', [$first->batch_id, $latestVersion->version]) }}" class="qc-file"><i data-lucide="download"></i> Download PDF</a>
             @if(!empty($quotationBatch->quotation_files))
                 <span data-receipt-set style="display:contents;">
@@ -274,8 +286,9 @@
     <div class="qc-section">
         <i data-lucide="gavel"></i> Your decision
     </div>
-    <div class="qc-decision">
-        <a href="{{ route('client.quotation.show', $first->batch_id) }}" target="_blank" data-receipt="doc" class="save-btn" style="text-decoration:none;">
+    <div class="qc-decision qc-highlight">
+        <span class="qc-action-flag"><span class="qc-action-dot"></span> Needs your action</span>
+        <a href="{{ route('client.quotation.show', $first->batch_id) }}" target="_blank" data-receipt="doc" data-own-close class="save-btn" style="text-decoration:none;">
             <i data-lucide="file-search"></i>
             Review &amp; Decide
         </a>
@@ -286,7 +299,8 @@
     <div class="qc-section">
         <i data-lucide="gavel"></i> Your decision
     </div>
-    <div class="qc-decision">
+    <div class="qc-decision qc-highlight">
+        <span class="qc-action-flag"><span class="qc-action-dot"></span> Needs your action</span>
         <button type="button" class="save-btn" onclick="openModal('approveQuotationModal-{{ $first->batch_id }}')">
             <i data-lucide="thumbs-up"></i>
             Approve Quotation
@@ -401,7 +415,11 @@
     @endif
     @if($status === 'approved')
     <form method="POST" action="{{ route('client.quotation.purchase_order', $first->batch_id) }}" enctype="multipart/form-data"
-          class="qc-po" @if($hasPo) x-show="editing" x-cloak @endif data-po-form>
+          class="qc-po{{ $hasPo ? '' : ' qc-highlight' }}" @if($hasPo) x-show="editing" x-cloak @endif data-po-form>
+        @unless($hasPo)
+        {{-- the PO is what the client still has to send: this form is the part highlighted --}}
+        <span class="qc-action-flag"><span class="qc-action-dot"></span> Needs your action</span>
+        @endunless
         @csrf
         <input type="hidden" name="po_batch" value="{{ $first->batch_id }}">
         <p class="qc-po-lead">

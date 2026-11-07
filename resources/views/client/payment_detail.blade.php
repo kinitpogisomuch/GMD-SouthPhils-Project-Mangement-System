@@ -185,6 +185,19 @@
         }
 
         /* Matches the system header's own dark gradient + white text */
+        /* under the project name: its references, and where the client stands in one line */
+        .pd-ref { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:6px; font-size:12.5px; font-weight:600; color:var(--muted); }
+        .pd-ref span { display:inline-flex; align-items:center; gap:5px; }
+        .pd-ref svg { width:13px; height:13px; }
+        .pd-ref-code { padding:2px 8px; border-radius:6px; background:var(--cream-deep, #ebebeb); color:var(--dark); font-family:'JetBrains Mono', ui-monospace, monospace; font-size:11px; font-weight:700; }
+        .pd-standing { display:inline-flex; align-items:center; gap:8px; margin-top:12px; padding:8px 14px; border-radius:999px; background:var(--cream-soft); border:1px solid var(--border); font-size:13px; font-weight:600; color:var(--dark); }
+        .pd-standing svg { width:15px; height:15px; flex-shrink:0; color:var(--muted); }
+        .pd-standing.is-due { background:#FFF8E1; border-color:#F5B400; }
+        .pd-standing.is-due svg { color:#b45309; }
+        .pd-standing.is-good { background:#E7F6EC; border-color:#86efac; color:#14532d; }
+        .pd-standing.is-good svg { color:#16a34a; }
+        @media (max-width: 640px) { .pd-standing { border-radius:14px; align-items:flex-start; } }
+
         .pf-header-dark {
             background: linear-gradient(135deg, var(--dark) 0%, var(--dark-deep) 100%);
             justify-content: center;
@@ -219,57 +232,68 @@
                 <span style="color:var(--dark);font-weight:700;">{{ $payment->project->name ?? 'Payment Detail' }}</span>
             </div>
 
+            @php
+                // the quotation this project came from, and when the project started — for the reference line
+                $hdBatch  = $payment->project_id ? \App\Models\QuotationBatch::where('project_id', $payment->project_id)->latest('id')->first() : null;
+                $hdQuote  = $hdBatch ? ($hdBatch->versions()->value('quotation_number') ?: $hdBatch->reference_no) : null;
+                $hdStart  = $payment->project?->start_date;
+                // where the client stands, in one sentence: what's paid, and what (if anything) they need to do next
+                $hdPaid   = collect($paidStages ?? [])->map(fn ($s) => \App\Models\PaymentTransaction::stageLabel($s))->implode(', ');
+                $hdNext   = $payment->openStage();
+                if ($balance <= 0) {
+                    $hdLine = ['tone' => 'is-good', 'icon' => 'party-popper', 'html' => 'All payments complete — thank you!'];
+                } elseif (!empty($payable)) {
+                    $hdLine = ['tone' => 'is-due', 'icon' => 'bell-ring', 'html' => ($hdPaid ? e($hdPaid) . ' paid · ' : '')
+                        . '<strong>' . e(\App\Models\PaymentTransaction::stageLabel($payable['stage'])) . ' of ₱' . number_format($payable['amount'], 2) . ' is due now</strong>'];
+                } else {
+                    $hdLine = ['tone' => '', 'icon' => 'clock', 'html' => ($hdPaid ? e($hdPaid) . ' paid · ' : '')
+                        . ($hdNext ? 'the ' . e(\App\Models\PaymentTransaction::stageLabel($hdNext)) . ' opens when GMD sends you the billing statement' : 'nothing is due right now')];
+                }
+            @endphp
             <div class="page-header" style="margin-bottom:24px;align-items:flex-start;">
                 <div>
                     <h1 class="page-title" style="margin:0;">{{ $payment->project->name ?? 'Payment Detail' }}</h1>
-                    <p class="page-subtitle pay-detail-meta">
-                        @if($payment->project && $payment->project->tankItems->isNotEmpty())
-                            <span class="pay-detail-meta-item">
-                            @foreach($payment->project->tankItems as $ti)
-                            <strong>{{ $ti->quantity }}×</strong> {{ $ti->tank_type }}@if($ti->capacity) ({{ $ti->capacity }})@endif{{ !$loop->last ? ', ' : '' }}
-                            @endforeach
-                            </span><span class="pay-detail-meta-sep"> &nbsp;·&nbsp; </span>
-                        @endif
-                        <span class="pay-detail-meta-item">{{ $payment->payment_terms }}</span>
-                    </p>
+                    @if($hdQuote || $hdStart)
+                    <div class="pd-ref">
+                        @if($hdQuote)<span class="pd-ref-code">{{ $hdQuote }}</span>@endif
+                        @if($hdStart)<span><i data-lucide="calendar"></i> Started {{ \Carbon\Carbon::parse($hdStart)->format('M d, Y') }}</span>@endif
+                    </div>
+                    @endif
+                    <div class="pd-standing {{ $hdLine['tone'] }}"><i data-lucide="{{ $hdLine['icon'] }}"></i><span>{!! $hdLine['html'] !!}</span></div>
                 </div>
                 <span class="status-badge {{ \App\Models\Payment::statusBadgeClass($status) }}" style="font-size:13px;padding:8px 16px;">
                     {{ $status }}
                 </span>
             </div>
 
-            <!-- Summary Cards -->
-            <div class="pk-overview">
-                <div class="pk-kpi">
-                    <div class="pk-kpi-icon" style="background:#EAF0FF;color:#2A4EAA;"><i data-lucide="file-text"></i></div>
-                    <div>
-                        <div class="pk-kpi-label">Contract Amount</div>
-                        <div class="pk-kpi-value">₱{{ number_format($payment->contract_amount, 2) }}</div>
-                        <div class="pk-kpi-sub">{{ $payment->payment_terms }}</div>
-                    </div>
+            <!-- Payment Overview — the same dark panel as the Payments pages -->
+            <div class="fd-overview" style="margin:4px 0 24px;">
+                <div class="fd-overview-title">
+                    <i data-lucide="bar-chart-2"></i>
+                    Payment Overview
                 </div>
-                <div class="pk-kpi">
-                    <div class="pk-kpi-icon" style="background:#E7F6EC;color:#207A3A;"><i data-lucide="check-circle"></i></div>
-                    <div>
-                        <div class="pk-kpi-label">Total Paid</div>
-                        <div class="pk-kpi-value">₱{{ number_format($totalPaid, 2) }}</div>
-                        <div class="pk-kpi-sub">Amount received</div>
+                <div class="fd-overview-grid">
+                    <div class="fd-ov-item">
+                        <span class="fd-ov-label">Contract Amount</span>
+                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">{{ $payment->payment_terms }}</span>
+                        <span class="fd-ov-val">₱{{ number_format($payment->contract_amount, 2) }}</span>
                     </div>
-                </div>
-                <div class="pk-kpi">
-                    <div class="pk-kpi-icon" style="background:#FEE2E2;color:#B91C1C;"><i data-lucide="wallet"></i></div>
-                    <div>
-                        <div class="pk-kpi-label">Remaining Balance</div>
-                        <div class="pk-kpi-value">₱{{ number_format($balance, 2) }}</div>
-                        <div class="pk-kpi-sub">Still outstanding</div>
+                    <div class="fd-ov-item">
+                        <span class="fd-ov-label">Total Paid</span>
+                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Amount paid</span>
+                        <span class="fd-ov-val" style="color:#4ade80;">₱{{ number_format($totalPaid, 2) }}</span>
                     </div>
-                </div>
-                <div class="pk-kpi">
-                    <div class="pk-kpi-icon" style="background:#F3E8FF;color:#7C3AED;"><i data-lucide="badge-check"></i></div>
-                    <div>
-                        <div class="pk-kpi-label">Paid of Contract</div>
-                        <div class="pk-kpi-value">{{ $pct }}%</div>
-                        <div class="pk-kpi-sub">Payment progress</div>
+                    <div class="fd-ov-item">
+                        <span class="fd-ov-label">Remaining Balance</span>
+                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Still outstanding</span>
+                        <span class="fd-ov-val" style="color:{{ $balance > 0 ? '#facc15' : 'rgba(255,255,255,0.35)' }};">
+                            {{ $balance > 0 ? '₱' . number_format($balance, 2) : '—' }}
+                        </span>
+                    </div>
+                    <div class="fd-ov-item fd-ov-highlight">
+                        <span class="fd-ov-label">Paid of Contract</span>
+                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Payment progress</span>
+                        <span class="fd-ov-val">{{ $pct }}%</span>
                     </div>
                 </div>
             </div>
@@ -294,41 +318,94 @@
                     ->isNotEmpty();
                 $canPayOnline  = $onlineEnabled && $payable && !$proofInReview
                     && $payable['amount'] >= \App\Services\OnlinePayments::MIN_AMOUNT;
+                // Once a stage is billed the client may also settle the whole remaining contract in one go —
+                // offered only when that is more than the stage due now
+                $fullBalance   = round($payment->currentBalance(), 2);
+                $canPayFull    = $onlineEnabled && $payable && !$proofInReview
+                    && $fullBalance > $payable['amount'] + 0.01;
                 $poMethods     = collect(config('services.paymongo.payment_methods'))
                     ->map(fn ($m) => \App\Models\OnlinePayment::METHOD_LABELS[$m] ?? strtoupper($m));
                 // proofs sent back for correction before uploads were retired — they can still be resubmitted
                 $needsFixing   = $payment->proofs->filter(fn ($p) => $p->needsCorrection())->count();
             @endphp
             {{-- ===== Make a Payment: online through PayMongo. Cash and cheque are handed to GMD, who records them. ===== --}}
-            <div class="card po-card">
-                <div class="card-header pf-header-dark">
-                    <div class="card-title">Make a Payment</div>
+            {{-- a billed amount is due (and no proof is already being reviewed): highlighted in yellow until it's paid --}}
+            @php $paymentNeedsAction = $payable && !$proofInReview; @endphp
+            <div class="card po-card{{ $paymentNeedsAction ? ' po-needs-action' : '' }}">
+                @if($paymentNeedsAction)
+                <span class="po-action-flag"><span class="po-action-dot"></span> Payment due</span>
+                @endif
+                {{-- white header, same as the Payment Records card below --}}
+                <div class="pd-rec-head">
+                    <div class="pd-rec-titles">
+                        <div class="pd-rec-title">Make a Payment</div>
+                        <div class="pd-rec-sub">{{ $payable ? 'Pay the amount GMD billed you — online, or by cash or cheque handed to GMD' : 'Nothing to pay right now' }}</div>
+                    </div>
                 </div>
                 <div class="card-body po-body">
 
-                    {{-- What to pay now --}}
+                    {{-- What to pay now: the billed stage, and (when it's more) the whole remaining balance — side by side --}}
                     @if($payable)
-                    <div class="po-due is-due">
-                        <div class="po-due-info">
-                            <div class="po-label">
-                                <i data-lucide="file-check-2"></i> Amount due now
+                    <div class="po-options{{ $canPayFull ? ' has-two' : '' }}">
+                        <div class="po-opt is-due">
+                            <div class="po-opt-top">
+                                <span class="po-opt-icon"><i data-lucide="file-check-2"></i></span>
+                                <div class="po-opt-head">
+                                    <div class="po-opt-kicker">Amount due now</div>
+                                    <div class="po-opt-name">{{ \App\Models\PaymentTransaction::stageLabel($payStage) }}</div>
+                                </div>
+                                <span class="po-opt-tag">Billed by GMD</span>
                             </div>
-                            <div class="po-amount">₱{{ number_format($payable['amount'], 2) }}</div>
-                            <div class="po-sub">
-                                {{ \App\Models\PaymentTransaction::stageLabel($payStage) }} · Billed by GMD
-                            </div>
+                            <div class="po-opt-amount">₱{{ number_format($payable['amount'], 2) }}</div>
+                            <ul class="po-opt-facts">
+                                <li><span>Balance after this</span><strong>₱{{ number_format(max(0, $fullBalance - $payable['amount']), 2) }}</strong></li>
+                            </ul>
+                            @if($canPayOnline)
+                            <form method="POST" action="{{ route('client.payments.online.pay', $payment->id) }}" class="po-opt-form">
+                                @csrf
+                                <button type="submit" class="save-btn po-opt-btn">
+                                    <i data-lucide="landmark"></i>
+                                    {{ $pendingOnline && $pendingOnline->payment_stage === $payStage ? 'Continue Payment' : 'Pay ₱' . number_format($payable['amount'], 2) }}
+                                </button>
+                            </form>
+                            @endif
                         </div>
-                        @if($canPayOnline)
-                        <form method="POST" action="{{ route('client.payments.online.pay', $payment->id) }}" class="po-form">
-                            @csrf
-                            <button type="submit" class="save-btn po-btn">
-                                <i data-lucide="landmark"></i>
-                                {{ $pendingOnline && $pendingOnline->payment_stage === $payStage ? 'Continue Payment' : 'Pay Now' }}
-                            </button>
-                            <span class="po-secure"><i data-lucide="lock"></i> Secured by PayMongo</span>
-                        </form>
+
+                        @if($canPayFull)
+                        <div class="po-opt is-full">
+                            <div class="po-opt-top">
+                                <span class="po-opt-icon"><i data-lucide="badge-check"></i></span>
+                                <div class="po-opt-head">
+                                    <div class="po-opt-kicker">Or pay in full</div>
+                                    <div class="po-opt-name">Full Payment</div>
+                                </div>
+                                <span class="po-opt-tag is-good">Settles everything</span>
+                            </div>
+                            <div class="po-opt-amount">₱{{ number_format($fullBalance, 2) }}</div>
+                            <ul class="po-opt-facts">
+                                <li><span>Covers</span><strong>Every remaining stage</strong></li>
+                                <li><span>Balance after this</span><strong class="is-zero">₱0.00</strong></li>
+                            </ul>
+                            <form method="POST" action="{{ route('client.payments.online.pay', $payment->id) }}" class="po-opt-form">
+                                @csrf
+                                <input type="hidden" name="full" value="1">
+                                <button type="submit" class="cancel-btn po-opt-btn">
+                                    <i data-lucide="landmark"></i>
+                                    {{ $pendingOnline && $pendingOnline->payment_stage === 'full_payment' ? 'Continue Payment' : 'Pay in Full' }}
+                                </button>
+                            </form>
+                        </div>
                         @endif
                     </div>
+                    @if($canPayOnline)
+                    {{-- one line for both options: who handles the payment and how it can be paid --}}
+                    <div class="po-trust">
+                        <span class="po-secure"><i data-lucide="shield-check"></i> Secured by PayMongo</span>
+                        <span class="po-trust-methods">
+                            @foreach($poMethods as $label)<span class="po-method">{{ $label }}</span>@endforeach
+                        </span>
+                    </div>
+                    @endif
 
                     @if($proofInReview)
                     <div class="alert-banner info" style="margin:0;">
@@ -344,7 +421,7 @@
                     @else
                     <div class="po-done">
                         <i data-lucide="{{ $payment->currentBalance() <= 0 ? 'party-popper' : 'check-circle-2' }}"></i>
-                        <span>{{ $payment->currentBalance() <= 0 ? 'This project is fully paid. Thank you!' : 'Nothing is due right now. The next payment opens when your project reaches its payment stage.' }}</span>
+                        <span>{{ $payment->currentBalance() <= 0 ? 'This project is fully paid. Thank you!' : 'Nothing is due right now. The next payment opens when your project reaches its payment stage, or when GMD sends you a billing statement asking you to pay.' }}</span>
                     </div>
                     @endif
 
@@ -352,13 +429,8 @@
                     <details class="po-how">
                         <summary><i data-lucide="help-circle"></i> How online payment works <i data-lucide="chevron-down" class="po-how-caret"></i></summary>
                         <div class="po-how-body">
-                            <div class="po-methods">
-                                @foreach($poMethods as $label)
-                                <span class="po-method">{{ $label }}</span>
-                                @endforeach
-                            </div>
                             <ol class="po-steps">
-                                <li>Press <strong>Pay Now</strong> — you'll go to PayMongo's secure payment page.</li>
+                                <li>Press <strong>Pay</strong> for the amount due (or <strong>Pay in Full</strong>) — you'll go to PayMongo's secure payment page.</li>
                                 <li>Choose how to pay: <strong>{{ $poMethods->join(', ', ' or ') }}</strong>.</li>
                                 <li>Your payment is confirmed directly with the bank and recorded here automatically — no proof upload needed.</li>
                             </ol>
@@ -373,6 +445,14 @@
 
                 /* Tabs inside a card (Make a Payment / Payment Records) */
                 .pd-records { overflow:hidden; }
+                /* header like the admin cards: titles left, underlined tabs right, both on the divider line */
+                .pd-rec-head { display:flex; align-items:flex-end; justify-content:space-between; gap:8px 16px; flex-wrap:wrap; padding:18px 20px 0; border-bottom:1px solid var(--border); background:var(--white); }
+                .pd-rec-titles { padding-bottom:14px; min-width:0; }
+                .pd-rec-title { font-size:15px; font-weight:800; color:var(--dark); }
+                .pd-rec-sub { margin-top:2px; font-size:12px; color:var(--muted); }
+                .pd-rec-head .pd-tabs { padding:0; border-bottom:0; background:none; }
+                /* table headers: small, uppercase and muted — same as the admin's data tables */
+                .pd-records thead th { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
                 .pd-tabs { display:flex; gap:4px; padding:6px 16px 0; border-bottom:1px solid var(--border); background:var(--white); overflow-x:auto; scrollbar-width:none; }
                 .pd-tabs::-webkit-scrollbar { display:none; }
                 .pd-tab { display:inline-flex; align-items:center; gap:7px; padding:13px 14px 12px; margin-bottom:-1px; border:0; border-bottom:2px solid transparent; background:none; font:inherit; font-size:13px; font-weight:800; color:var(--muted); white-space:nowrap; cursor:pointer; transition:color .15s ease, border-color .15s ease; }
@@ -388,6 +468,40 @@
 
                 /* The pay panel */
                 .po-due { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; padding:18px 20px; border-radius:18px; background:var(--cream-soft); border:1px solid var(--border); border-left:4px solid var(--dark); }
+                .po-due-full { border-left-color:var(--muted); }
+                /* something to settle: a yellow border + glow and a tag on the card's top edge (same as the quotation cards) */
+                .po-card.po-needs-action { position:relative; overflow:visible; border:2px solid #F5B400 !important; box-shadow:0 0 0 4px rgba(245,180,0,.16), 0 10px 28px rgba(245,180,0,.12) !important; }
+                .po-action-flag { position:absolute; top:-12px; left:22px; z-index:2; display:inline-flex; align-items:center; gap:6px; padding:3px 11px; border-radius:999px; background:#F5B400; color:#1a1a1a; font-size:10.5px; font-weight:900; text-transform:uppercase; letter-spacing:.05em; box-shadow:0 2px 6px rgba(0,0,0,.12); }
+                .po-action-dot { width:7px; height:7px; border-radius:50%; background:#1a1a1a; animation:poPulse 1.4s ease-in-out infinite; }
+                @keyframes poPulse { 50% { opacity:.25; } }
+                @media (prefers-reduced-motion: reduce) { .po-action-dot { animation:none; } }
+                /* Payment options: the billed stage and "pay in full", as cards side by side */
+                .po-options { display:grid; grid-template-columns:1fr; gap:14px; }
+                .po-options.has-two { grid-template-columns:1fr 1fr; }
+                .po-opt { display:flex; flex-direction:column; gap:12px; min-width:0; padding:18px 20px; border-radius:18px; background:var(--white); border:1px solid var(--border); box-shadow:0 1px 2px rgba(0,0,0,.03); }
+                .po-opt.is-due { border:1.5px solid var(--dark); box-shadow:0 8px 22px rgba(0,0,0,.06); }
+                .po-opt-top { display:flex; align-items:center; gap:10px; }
+                .po-opt-icon { width:36px; height:36px; border-radius:11px; display:flex; align-items:center; justify-content:center; flex-shrink:0; background:var(--dark); color:#F5B400; }
+                .po-opt.is-full .po-opt-icon { background:#E7F6EC; color:#16a34a; }
+                .po-opt-icon svg { width:17px; height:17px; }
+                .po-opt-head { min-width:0; }
+                .po-opt-kicker { font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
+                .po-opt-name { font-size:14px; font-weight:900; color:var(--dark); }
+                .po-opt-tag { margin-left:auto; align-self:flex-start; padding:3px 9px; border-radius:999px; background:var(--cream-soft); border:1px solid var(--border); font-size:10.5px; font-weight:800; color:var(--muted); white-space:nowrap; }
+                .po-opt-tag.is-good { background:#E7F6EC; border-color:#86efac; color:#15803d; }
+                .po-opt-amount { font-size:30px; font-weight:900; color:var(--dark); letter-spacing:-.6px; line-height:1.1; }
+                .po-opt-facts { list-style:none; margin:0; padding:10px 0 0; border-top:1px dashed var(--border); display:flex; flex-direction:column; gap:5px; }
+                .po-opt-facts li { display:flex; justify-content:space-between; gap:10px; font-size:12.5px; }
+                .po-opt-facts span { color:var(--muted); font-weight:600; }
+                .po-opt-facts strong { color:var(--dark); font-weight:800; text-align:right; }
+                .po-opt-facts strong.is-zero { color:#16a34a; }
+                .po-opt-form { margin:auto 0 0; }   /* the button sits at the bottom, so both cards' buttons line up */
+                .po-opt-btn { width:100%; justify-content:center; padding:12px 18px; font-size:14px; display:inline-flex; align-items:center; gap:8px; }
+                .po-trust { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; padding:10px 14px; border-radius:14px; background:var(--cream-soft); border:1px solid var(--border); }
+                .po-trust .po-secure { color:var(--dark); }
+                .po-trust .po-secure svg { width:14px; height:14px; color:#16a34a; }
+                .po-trust-methods { display:flex; flex-wrap:wrap; gap:6px; }
+
                 .po-label { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
                 .po-label svg { width:14px; height:14px; }
                 .po-amount { font-size:28px; font-weight:900; color:var(--dark); letter-spacing:-.5px; margin-top:2px; }
@@ -417,7 +531,13 @@
                 /* same header and cell look as the other Payment Records tables (the page's default th / td) */
                 .po-table { width:100%; border-collapse:collapse; }
 
+                @media (max-width:760px) {
+                    .po-options.has-two { grid-template-columns:1fr; }   /* phones: one option under the other */
+                }
                 @media (max-width:640px) {
+                    .po-opt { padding:16px; }
+                    .po-opt-amount { font-size:26px; }
+                    .po-trust { justify-content:center; text-align:center; }
                     .po-due { padding:16px; }
                     .po-amount { font-size:24px; }
                     .po-form { align-items:stretch; width:100%; }
@@ -440,6 +560,13 @@
                     'proofs'     => ['Submitted Proofs',   'file-check',  $payment->proofs->count()],
                     'checkouts'  => ['Online Payments',    'credit-card', $onlinePayments->count()],
                 ];
+                // the card's subtitle follows the open tab (like the admin's Payment History card)
+                $recordSubs = [
+                    'history'    => 'All payments recorded for this project',
+                    'statements' => 'Billing statements GMD sent you — open one to view or print it',
+                    'proofs'     => 'Proof of payment you sent to GMD',
+                    'checkouts'  => 'Payments you made online through PayMongo',
+                ];
                 // proof uploads are retired — the tab only stays for projects that still have older submissions
                 if ($payment->proofs->isEmpty()) {
                     unset($recordTabs['proofs']);
@@ -448,16 +575,21 @@
                 $recordTab = $needsFixing ? 'proofs' : 'history';
             @endphp
             <div class="card pd-records" data-tabs>
-                <div class="card-header pf-header-dark">
-                    <div class="card-title">Payment Records</div>
-                </div>
-                <div class="pd-tabs" role="tablist">
-                    @foreach($recordTabs as $key => [$label, $icon, $count])
-                    <button type="button" class="pd-tab {{ $recordTab === $key ? 'is-active' : '' }}" data-tab="{{ $key }}" role="tab">
-                        <i data-lucide="{{ $icon }}"></i> {{ $label }}
-                        <span class="pd-count {{ $key === 'proofs' && $needsFixing ? 'is-alert' : '' }}">{{ $count }}</span>
-                    </button>
-                    @endforeach
+                {{-- white header like the admin's Payment History card: title + subtitle on the left (they follow the
+                     open tab), the underlined tabs on the right, sitting on the divider line --}}
+                <div class="pd-rec-head">
+                    <div class="pd-rec-titles">
+                        <div class="pd-rec-title" data-tab-title>{{ $recordTabs[$recordTab][0] }}</div>
+                        <div class="pd-rec-sub" data-tab-sub>{{ $recordSubs[$recordTab] }}</div>
+                    </div>
+                    <div class="pd-tabs" role="tablist">
+                        @foreach($recordTabs as $key => [$label, $icon, $count])
+                        <button type="button" class="pd-tab {{ $recordTab === $key ? 'is-active' : '' }}" data-tab="{{ $key }}" data-title="{{ $label }}" data-sub="{{ $recordSubs[$key] }}" role="tab">
+                            <i data-lucide="{{ $icon }}"></i> {{ $label }}
+                            <span class="pd-count {{ $key === 'proofs' && $needsFixing ? 'is-alert' : '' }}">{{ $count }}</span>
+                        </button>
+                        @endforeach
+                    </div>
                 </div>
 
             <!-- Submitted Proofs -->
@@ -822,7 +954,16 @@
         // ── Card tabs: each [data-tabs] card switches its own panels; [data-goto-tab] links jump to a tab ──
         (function () {
             function activate(card, name) {
-                card.querySelectorAll('.pd-tab').forEach(function (t) { t.classList.toggle('is-active', t.dataset.tab === name); });
+                card.querySelectorAll('.pd-tab').forEach(function (t) {
+                    var on = t.dataset.tab === name;
+                    t.classList.toggle('is-active', on);
+                    // the header's title + subtitle follow the open tab
+                    if (on && t.dataset.title) {
+                        var title = card.querySelector('[data-tab-title]'), sub = card.querySelector('[data-tab-sub]');
+                        if (title) title.textContent = t.dataset.title;
+                        if (sub) sub.textContent = t.dataset.sub || '';
+                    }
+                });
                 card.querySelectorAll('.pd-panel').forEach(function (p) { p.hidden = p.dataset.panel !== name; });
             }
             document.querySelectorAll('[data-tabs]').forEach(function (card) {

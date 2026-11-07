@@ -84,7 +84,8 @@ class PaymentTransaction extends Model
             'down_payment'      => 'Down Payment',
             'progress_payment'  => 'Progress Payment',
             'final_payment'     => 'Final Payment',
-            default             => ucfirst(str_replace('_', ' ', $stage)),
+            'full_payment'      => 'Full Payment',
+            default            => ucfirst(str_replace('_', ' ', $stage)),
         };
     }
 }

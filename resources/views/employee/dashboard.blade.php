@@ -54,7 +54,11 @@
         .db-link svg { width: 14px; height: 14px; transition: transform .15s ease; }
         .db-link:hover svg { transform: translateX(2px); }
         .db-scroll { max-height: 360px; overflow-y: auto; }
-        .db-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 30px 16px; color: var(--muted); }
+        .db-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; padding: 30px 16px; color: var(--muted);
+                    width: 100%; box-sizing: border-box; white-space: normal; }
+        .db-empty-sub { max-width: 300px; overflow-wrap: anywhere; }
+        /* an empty feed: the message sits in the middle of the card, up and down too */
+        .db-feed:has(> .db-empty) { display: flex; align-items: center; justify-content: center; }
         .db-empty-icon { width: 44px; height: 44px; border-radius: 14px; background: var(--cream-soft); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; margin-bottom: 4px; }
         .db-empty-icon svg { width: 20px; height: 20px; }
         .db-empty-title { font-size: 14px; font-weight: 800; color: var(--dark); }
@@ -376,7 +380,7 @@
                     <div class="db-feed">
                     @forelse($activity as $act)
                     @php
-                        $phaseName = $act['phase'] ? $phaseLabelOf($act['phase']) : null;
+                        $phaseName = !empty($act['phase']) ? $phaseLabelOf($act['phase']) : null;   // material usage has no phase
                         if ($act['kind'] === 'update') {
                             [$tone, $state] = $updateState($act['status']);
                             [$icon, $title, $meta] = ['send', 'You sent a progress update', trim(($phaseName ? $phaseName . ' · ' : '') . $state)];

@@ -55,17 +55,28 @@
         </a>
         @endif
         @php
-            // quotations waiting for this client's decision
+            // quotations waiting on this client: a decision to make, or an approved one still needing their Purchase Order
             $__quotesToReview = isset($__messagingClient)
                 ? \App\Models\QuotationRequest::where('client_id', $__messagingClient->id)->where('status', 'quotation_sent')->distinct('batch_id')->count('batch_id')
                 : 0;
+            $__posToSend = isset($__messagingClient)
+                ? \App\Models\QuotationRequest::where('quotation_requests.client_id', $__messagingClient->id)
+                    ->where('quotation_requests.status', 'approved')
+                    ->whereHas('quotationBatch', fn ($q) => $q->whereNull('po_submitted_at'))
+                    ->distinct('batch_id')->count('batch_id')
+                : 0;
+            $__quoteActions = $__quotesToReview + $__posToSend;
+            $__quoteTitle   = collect([
+                $__quotesToReview ? $__quotesToReview . ' quotation' . ($__quotesToReview > 1 ? 's' : '') . ' waiting for your decision' : null,
+                $__posToSend ? $__posToSend . ' Purchase Order' . ($__posToSend > 1 ? 's' : '') . ' to send' : null,
+            ])->filter()->implode(' · ');
         @endphp
         <a href="{{ route('client.quotation.create') }}"
            class="{{ request()->routeIs('client.quotation.*') ? 'active' : '' }}" style="position:relative;">
             <i data-lucide="clipboard-list"></i>
             <span>Quotation</span>
-            @if($__quotesToReview > 0)
-            <span class="notification-count-badge" title="{{ $__quotesToReview }} quotation{{ $__quotesToReview > 1 ? 's' : '' }} waiting for your decision">{{ $__quotesToReview }}</span>
+            @if($__quoteActions > 0)
+            <span class="notification-count-badge" title="{{ $__quoteTitle }}">{{ $__quoteActions }}</span>
             @endif
         </a>
     </nav>

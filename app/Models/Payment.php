@@ -28,7 +28,29 @@ class Payment extends Model
         'down_payment'    => 'decimal:2',
         'balance'         => 'decimal:2',
         'date'            => 'date',
+        'admin_viewed_at' => 'datetime',
     ];
+
+    /**
+     * The client paid since an admin last opened this payment: an online payment confirmed by the gateway, or a
+     * proof of payment they sent. (Payments GMD records itself don't count.) Cleared by markViewedByAdmin().
+     */
+    public function hasNewClientPayment(): bool
+    {
+        $since = $this->admin_viewed_at;
+
+        $online = $this->transactions()->where('mode_of_payment', 'online_bank')
+            ->when($since, fn ($q) => $q->where('created_at', '>', $since))->exists();
+
+        return $online || $this->proofs()->when($since, fn ($q) => $q->where('created_at', '>', $since))->exists();
+    }
+
+    /** An admin opened the payment — any "New Payment" highlight on the list is cleared */
+    public function markViewedByAdmin(): void
+    {
+        // written straight to the table so it doesn't bump updated_at
+        \Illuminate\Support\Facades\DB::table('payments')->where('id', $this->id)->update(['admin_viewed_at' => now()]);
+    }
 
     public function project()
     {

@@ -169,20 +169,42 @@
 
                 <!-- Transaction Ledger -->
                 <div class="table-card" style="margin-bottom:0;display:flex;flex-direction:column;">
-                    <div class="table-toolbar" style="margin-bottom:14px;">
-                        <span style="font-size:14px;font-weight:800;color:var(--dark);">Transaction ledger</span>
-                        <div style="display:flex;gap:8px;align-items:center;">
-                            <div class="search-box" style="min-width:180px;">
-                                <i data-lucide="search"></i>
-                                <input type="text" id="fundSearch" placeholder="Search...">
+                    @php
+                        // header summary: entries, money in (replenished + added) and money out (used)
+                        $ledgerIn  = $transactions->whereIn('type', ['replenishment', 'topup'])->sum('amount');
+                        $ledgerOut = $transactions->where('type', 'release')->sum('amount');
+                        $ledgerTabs = [
+                            ''              => 'All',
+                            'release'       => 'Fund Used',
+                            'replenishment' => 'Replenishment',
+                            'topup'         => 'Fund Added',
+                        ];
+                    @endphp
+                    <div class="rf-ledger-head">
+                        <div class="rf-ledger-heading">
+                            <span class="rf-ledger-icon"><i data-lucide="book-open-text"></i></span>
+                            <div style="min-width:0;">
+                                <div class="rf-ledger-title">Transaction Ledger</div>
+                                <div class="rf-ledger-chips">
+                                    <span class="rf-chip">{{ $transactions->count() }} entr{{ $transactions->count() === 1 ? 'y' : 'ies' }}</span>
+                                    <span class="rf-chip is-in"><i data-lucide="arrow-down-left"></i> In ₱{{ number_format($ledgerIn, 2) }}</span>
+                                    <span class="rf-chip is-out"><i data-lucide="arrow-up-right"></i> Out ₱{{ number_format($ledgerOut, 2) }}</span>
+                                </div>
                             </div>
-                            <select id="fundTypeFilter" class="filter-select" style="height:40px;">
-                                <option value="">All</option>
-                                <option value="release">Fund Used</option>
-                                <option value="replenishment">Replenishment</option>
-                                <option value="topup">Fund Added</option>
-                            </select>
                         </div>
+                        <div class="search-box rf-ledger-search">
+                            <i data-lucide="search"></i>
+                            <input type="text" id="fundSearch" placeholder="Search project or purpose...">
+                        </div>
+                    </div>
+                    {{-- filter by type — the tabs replace the old dropdown --}}
+                    <div class="rf-ledger-tabs" id="fundTypeTabs" role="tablist">
+                        @foreach($ledgerTabs as $tKey => $tLabel)
+                        <button type="button" class="rf-ledger-tab {{ $tKey === '' ? 'is-active' : '' }}" data-type="{{ $tKey }}" role="tab">
+                            {{ $tLabel }}
+                            <span class="rf-ledger-count">{{ $tKey === '' ? $transactions->count() : $transactions->where('type', $tKey)->count() }}</span>
+                        </button>
+                        @endforeach
                     </div>
 
                     <div class="table-wrapper" style="flex:1;overflow-y:auto;max-height:480px;">
@@ -407,27 +429,59 @@
 
         // Search + filter
         var searchInput = document.getElementById('fundSearch');
-        var typeFilter  = document.getElementById('fundTypeFilter');
         var noMatchRow  = document.getElementById('noFundMatchRow');
+        var fundType    = '';   // set by the type tabs ('' = all)
 
         function applyFundFilters() {
             var q    = (searchInput.value || '').toLowerCase();
-            var type = typeFilter.value;
+            var type = fundType;
+            var rows = document.querySelectorAll('#fundLedgerTable tbody tr[data-type]');
             var visible = 0;
-            document.querySelectorAll('#fundLedgerTable tbody tr[data-type]').forEach(function(row) {
+            rows.forEach(function(row) {
                 var ms = !q || (row.dataset.search || '').includes(q);
                 var mt = !type || row.dataset.type === type;
                 row.style.display = (ms && mt) ? '' : 'none';
                 if (ms && mt) visible++;
             });
-            noMatchRow.style.display = visible === 0 ? '' : 'none';
+            // "no match" only when there are transactions to filter — an empty ledger already has its own message
+            if (noMatchRow) noMatchRow.style.display = rows.length && visible === 0 ? '' : 'none';
         }
 
         if (searchInput) searchInput.addEventListener('input', applyFundFilters);
-        if (typeFilter) typeFilter.addEventListener('change', applyFundFilters);
+        document.querySelectorAll('#fundTypeTabs .rf-ledger-tab').forEach(function (tab) {
+            tab.addEventListener('click', function () {
+                document.querySelectorAll('#fundTypeTabs .rf-ledger-tab').forEach(function (t) { t.classList.toggle('is-active', t === tab); });
+                fundType = tab.dataset.type;
+                applyFundFilters();
+            });
+        });
     </script>
 
     <style>
+        /* ── Transaction Ledger header: icon, title and a money in / out summary; search; type tabs underneath ── */
+        /* the card itself has no side padding (admin .table-card is padding:20px 0), so the header and tabs carry their own */
+        .rf-ledger-head { display: flex; align-items: center; justify-content: space-between; gap: 12px 16px; flex-wrap: wrap; margin-bottom: 14px; padding: 0 20px; }
+        .rf-ledger-heading { display: flex; align-items: center; gap: 12px; min-width: 0; }
+        .rf-ledger-icon { width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: #333; color: #fff; }
+        .rf-ledger-icon svg { width: 19px; height: 19px; }
+        .rf-ledger-title { font-size: 15.5px; font-weight: 800; color: var(--dark); }
+        .rf-ledger-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px; }
+        .rf-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 999px; background: var(--cream-soft); border: 1px solid var(--border); font-size: 11px; font-weight: 700; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+        .rf-chip svg { width: 12px; height: 12px; }
+        .rf-chip.is-in  { background: #E7F6EC; border-color: #bbf7d0; color: #15803d; }
+        .rf-chip.is-out { background: #FEE4E2; border-color: #fecaca; color: #b91c1c; }
+        .rf-ledger-search { min-width: 240px; height: 42px; border-radius: 999px !important; }
+        .rf-ledger-tabs { display: flex; gap: 4px; margin: 0 0 14px; padding: 0 12px; border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
+        .rf-ledger-tabs::-webkit-scrollbar { display: none; }
+        .rf-ledger-tab { display: inline-flex; align-items: center; gap: 7px; padding: 10px 12px 9px; margin-bottom: -1px; border: 0; border-bottom: 2px solid transparent; background: none; font: inherit; font-size: 13px; font-weight: 800; color: var(--muted); white-space: nowrap; cursor: pointer; }
+        .rf-ledger-tab:hover { color: var(--dark); }
+        .rf-ledger-tab.is-active { color: var(--dark); border-bottom-color: var(--dark); }
+        .rf-ledger-count { min-width: 20px; padding: 1px 7px; border-radius: 999px; background: var(--accent-soft, #f0f0f0); font-size: 10.5px; font-weight: 800; color: var(--muted); text-align: center; }
+        .rf-ledger-tab.is-active .rf-ledger-count { background: var(--dark); color: #fff; }
+        @media (max-width: 640px) {
+            .rf-ledger-search { min-width: 0; width: 100%; }
+        }
+
         /* ── Fund overview: Total Balance (largest), Initial Balance and Additional Fund beside it ── */
         .rf-overview { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 16px; margin-bottom: 20px; }
         .rf-total { background: linear-gradient(180deg, #333333 0%, #1f1f1f 100%); border-radius: 20px; padding: 22px 24px; color: #fff; box-shadow: 0 8px 24px rgba(0,0,0,.2); display: flex; flex-direction: column; }

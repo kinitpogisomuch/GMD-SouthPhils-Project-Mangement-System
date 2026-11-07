@@ -111,18 +111,24 @@
                                 }
                                 $awaitingStage  = $payment->project ? $payment->project->awaitingPaymentStage() : null;
                                 // due, but no billing statement sent yet — the client hasn't been asked to pay
+                                $newPayment     = $payment->hasNewClientPayment();   // paid since an admin last opened it
                             @endphp
                             <tr data-search="{{ strtolower($payment->project->name ?? '') }}" data-status="{{ $payment->project?->status }}"
-                                class="{{ $awaitingStage ? 'row-needs-action' : '' }}">
+                                class="{{ $awaitingStage || $newPayment ? 'row-needs-action' : '' }}">
                                 <td style="overflow:hidden;">
                                     <span style="display:inline-flex;flex-direction:column;max-width:100%;min-width:0;">
                                         @if($namePrefix)
                                             <span style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:.05em;line-height:1.2;text-transform:uppercase;white-space:nowrap;">{{ $namePrefix }}</span>
                                         @endif
                                         <span style="font-size:12.5px;font-weight:800;color:var(--dark);line-height:1.3;white-space:normal;word-break:break-word;">{{ $nameMain }}</span>
+                                        @if($newPayment)
+                                        <span class="needs-flag" title="The client made a payment — open it to see; this goes away once you do">
+                                            <span class="needs-flag-dot"></span> New Payment
+                                        </span>
+                                        @endif
                                         @if($awaitingStage)
-                                        <span title="No payment recorded yet for {{ \App\Models\PaymentTransaction::stageLabel($awaitingStage) }}" style="display:inline-flex;align-items:center;gap:3px;margin-top:3px;font-size:9.5px;font-weight:800;color:#b45309;background:#fff3cd;border-radius:999px;padding:2px 7px;width:fit-content;">
-                                            <i data-lucide="alert-triangle" style="width:9px;height:9px;"></i> Needs {{ \App\Models\PaymentTransaction::stageLabel($awaitingStage) }}
+                                        <span class="needs-flag" title="No payment recorded yet for {{ \App\Models\PaymentTransaction::stageLabel($awaitingStage) }}">
+                                            <span class="needs-flag-dot"></span> Needs {{ \App\Models\PaymentTransaction::stageLabel($awaitingStage) }}
                                         </span>
                                         @endif
                                     </span>

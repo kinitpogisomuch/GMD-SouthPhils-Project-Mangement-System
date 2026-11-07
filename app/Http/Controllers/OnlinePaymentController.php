@@ -50,7 +50,7 @@ class OnlinePaymentController extends Controller
                 'id'    => $client?->id,
                 'name'  => $client?->name,
                 'email' => $client?->email,
-            ]);
+            ], $request->boolean('full'));
         } catch (\DomainException $e) {
             return redirect()->route('client.payments.show', $payment->id)->with('error', $e->getMessage());
         }

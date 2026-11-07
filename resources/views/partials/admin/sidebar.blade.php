@@ -38,7 +38,8 @@
             <span>Projects</span>
         </a>
 
-        @php $pendingQuotationCount = \App\Models\QuotationRequest::where('status', 'pending')->count(); @endphp
+        {{-- new requests to start on + Purchase Orders received and ready to convert (same count the 30s refresh uses) --}}
+        @php $pendingQuotationCount = \App\Models\QuotationRequest::adminActionCount(); @endphp
         <a href="{{ route('admin.quotation_requests') }}"
            class="{{ request()->routeIs(['admin.quotation_requests', 'admin.project_materials', 'admin.project_materials.client', 'admin.project_materials.detail', 'admin.quotation_requests.batch_detail']) ? 'active' : '' }}"
            title="Quotation">

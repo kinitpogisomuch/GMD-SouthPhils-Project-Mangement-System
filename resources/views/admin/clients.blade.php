@@ -103,6 +103,9 @@
                                 ]) }}">
                                 <td class="td-wrap" style="min-width:180px;">
                                     {{ $client->full_name }}
+                                    @if($client->status === 'Pending')
+                                    <div><span class="needs-flag" title="A new sign-up — waiting for your approval"><span class="needs-flag-dot"></span> Needs Approval</span></div>
+                                    @endif
                                 </td>
                                 <td>
                                     <span style="font-family:monospace;font-weight:600;color:var(--text-secondary);font-size:13px;">

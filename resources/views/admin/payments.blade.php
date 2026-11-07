@@ -39,7 +39,15 @@
         #receiptsTable { table-layout: fixed; min-width: 0; width: 100%; }
         #receiptsTable td { vertical-align: middle; }
         #receiptsTable .client-pill { white-space: normal; line-height: 1.35; max-width: 100%; }
-        .rc-or { display: inline-flex; align-items: center; gap: 6px; font-weight: 900; color: var(--dark); font-variant-numeric: tabular-nums; }
+        /* Client and Project sit a little further right — more room from the column before them */
+        #receiptsTable th:nth-child(2), #receiptsTable td:nth-child(2),
+        #receiptsTable th:nth-child(3), #receiptsTable td:nth-child(3) { padding-left: 28px; }
+        /* the tag stays beside the first line; a long OR number wraps onto the next line instead of being cut off */
+        .rc-or { display: inline-flex; align-items: flex-start; gap: 6px; max-width: 100%; font-weight: 900; color: var(--dark); font-variant-numeric: tabular-nums; }
+        .rc-or-tag { flex-shrink: 0; margin-top: 1px; }
+        .rc-or-num { min-width: 0; font-size: 12px; line-height: 1.4; white-space: normal; overflow-wrap: anywhere; word-break: break-all; }
+        /* table cells don't wrap by default (.data-table td is nowrap) — the OR column has to, or a long number runs into Client */
+        #receiptsTable td:first-child { white-space: normal; overflow: hidden; }
         .rc-or-tag { font-size: 9.5px; font-weight: 800; letter-spacing: .05em; color: var(--muted); background: var(--accent-soft); border-radius: 6px; padding: 2px 6px; }
         .rc-project { display: flex; flex-direction: column; min-width: 0; }
         .rc-project-prefix { font-size: 9px; font-weight: 700; color: var(--muted); letter-spacing: .05em; text-transform: uppercase; line-height: 1.2; }
@@ -111,43 +119,39 @@
             </div>
             @endif
 
-            <!-- Summary Cards (same style as the Materials overview) -->
+            <!-- Overall Payments Overview — the same dark panel the client's Payments page uses -->
             @php
                 $receivedPct    = $totalContractValue > 0 ? round($totalReceived / $totalContractValue * 100) : 0;
                 $outstandingPct = $totalContractValue > 0 ? round($outstanding / $totalContractValue * 100) : 0;
                 $projectCount   = $fullyPaid + $inProgress + $pendingDown;
             @endphp
-            <div class="pk-overview">
-                <div class="pk-kpi">
-                    <div class="pk-kpi-icon" style="background:#EAF0FF;color:#2A4EAA;"><i data-lucide="receipt"></i></div>
-                    <div>
-                        <div class="pk-kpi-label">Total Contract Value</div>
-                        <div class="pk-kpi-value">₱{{ number_format($totalContractValue, 2) }}</div>
-                        <div class="pk-kpi-sub">Across all projects</div>
-                    </div>
+            <div class="fd-overview" style="margin-bottom:24px;">
+                <div class="fd-overview-title">
+                    <i data-lucide="bar-chart-2"></i>
+                    Overall Payments Overview
                 </div>
-                <div class="pk-kpi">
-                    <div class="pk-kpi-icon" style="background:#E7F6EC;color:#207A3A;"><i data-lucide="trending-up"></i></div>
-                    <div style="flex:1;min-width:0;">
-                        <div class="pk-kpi-label">Total Received</div>
-                        <div class="pk-kpi-value">₱{{ number_format($totalReceived, 2) }}</div>
-                        <div class="pk-kpi-sub"><strong class="pk-tone-ok">{{ $receivedPct }}%</strong> of contract value collected</div>
+                <div class="fd-overview-grid">
+                    <div class="fd-ov-item">
+                        <span class="fd-ov-label">Total Contract Value</span>
+                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Across all projects</span>
+                        <span class="fd-ov-val">₱{{ number_format($totalContractValue, 2) }}</span>
                     </div>
-                </div>
-                <div class="pk-kpi">
-                    <div class="pk-kpi-icon" style="background:#FEE2E2;color:#B91C1C;"><i data-lucide="alert-circle"></i></div>
-                    <div>
-                        <div class="pk-kpi-label">Outstanding Balance</div>
-                        <div class="pk-kpi-value">₱{{ number_format($outstanding, 2) }}</div>
-                        <div class="pk-kpi-sub">{{ $outstandingPct }}% of contract value still unpaid</div>
+                    <div class="fd-ov-item">
+                        <span class="fd-ov-label">Total Received</span>
+                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">{{ $receivedPct }}% of contract value collected</span>
+                        <span class="fd-ov-val" style="color:#4ade80;">₱{{ number_format($totalReceived, 2) }}</span>
                     </div>
-                </div>
-                <div class="pk-kpi">
-                    <div class="pk-kpi-icon" style="background:#F3E8FF;color:#7C3AED;"><i data-lucide="check-circle"></i></div>
-                    <div style="flex:1;min-width:0;">
-                        <div class="pk-kpi-label">Fully Paid</div>
-                        <div class="pk-kpi-value">{{ $fullyPaid }} <span style="font-size:14px;color:var(--muted);font-weight:700;">of {{ $projectCount }}</span></div>
-                        <div class="pk-kpi-sub">{{ $inProgress }} in progress · {{ $pendingDown }} pending</div>
+                    <div class="fd-ov-item">
+                        <span class="fd-ov-label">Outstanding Balance</span>
+                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">{{ $outstandingPct }}% of contract value still unpaid</span>
+                        <span class="fd-ov-val" style="color:{{ $outstanding > 0 ? '#facc15' : 'rgba(255,255,255,0.35)' }};">
+                            {{ $outstanding > 0 ? '₱' . number_format($outstanding, 2) : '—' }}
+                        </span>
+                    </div>
+                    <div class="fd-ov-item fd-ov-highlight">
+                        <span class="fd-ov-label">Fully Paid</span>
+                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">{{ $inProgress }} in progress · {{ $pendingDown }} pending</span>
+                        <span class="fd-ov-val">{{ $fullyPaid }} <span style="font-size:13px;color:rgba(255,255,255,0.45);font-weight:700;">of {{ $projectCount }}</span></span>
                     </div>
                 </div>
             </div>
@@ -176,13 +180,6 @@
                         <input type="text" id="paymentSearch" placeholder="{{ $tab === 'active' ? 'Search project or client...' : 'Search client...' }}">
                     </div>
                     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-                        <select class="filter-select" id="paymentStatusSelect" title="Payment status" @if($tab !== 'active') style="display:none;" @endif>
-                            <option value="">All statuses</option>
-                            <option value="no_setup">No Setup ({{ $activeRows->where('filter', 'no_setup')->count() }})</option>
-                            <option value="pending">Pending ({{ $activeRows->where('filter', 'pending')->count() }})</option>
-                            <option value="in_progress">In Progress ({{ $activeRows->where('filter', 'in_progress')->count() }})</option>
-                            <option value="fully_paid">Fully Paid ({{ $activeRows->where('filter', 'fully_paid')->count() }})</option>
-                        </select>
                         <div class="filter-tabs" id="paymentListTabs">
                             <button type="button" class="filter-tab {{ $tab === 'active' ? 'active' : '' }}" data-tab="active">
                                 Active
@@ -226,20 +223,27 @@
                                 }
                                 // a payment record opens its breakdown; no setup yet → the project
                                 $rowUrl = $row['payment'] ? route('admin.payments.show', $row['payment']->id) : url('/admin/project-view/' . $project->id);
+                                // the client paid (online / sent proof) since an admin last opened it — until it's opened
+                                $newPayment = $row['payment'] && $row['payment']->hasNewClientPayment();
                             @endphp
                             <tr data-search="{{ strtolower($project->name . ' ' . $project->live_client_name) }}"
                                 data-status="{{ $row['filter'] }}"
                                 data-href="{{ $rowUrl }}"
-                                class="pay-row {{ $row['awaiting_stage'] ? 'row-needs-action' : '' }}">
+                                class="pay-row {{ $row['awaiting_stage'] || $newPayment ? 'row-needs-action' : '' }}">
                                 <td class="td-wrap" style="min-width:200px;">
                                     <span style="display:inline-flex;flex-direction:column;max-width:100%;min-width:0;">
                                         @if($namePrefix)
                                             <span style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:.05em;line-height:1.2;text-transform:uppercase;white-space:nowrap;">{{ $namePrefix }}</span>
                                         @endif
                                         <span style="font-size:13px;font-weight:800;color:var(--dark);line-height:1.3;white-space:normal;word-break:break-word;">{{ $nameMain }}</span>
+                                        @if($newPayment)
+                                        <span class="needs-flag" title="The client made a payment — open it to see; this goes away once you do">
+                                            <span class="needs-flag-dot"></span> New Payment
+                                        </span>
+                                        @endif
                                         @if($row['awaiting_stage'])
-                                        <span title="No payment recorded yet for {{ \App\Models\PaymentTransaction::stageLabel($row['awaiting_stage']) }}" style="display:inline-flex;align-items:center;gap:3px;margin-top:4px;font-size:10px;font-weight:800;color:#b45309;background:#fff3cd;border-radius:999px;padding:2px 8px;width:fit-content;">
-                                            <i data-lucide="alert-triangle" style="width:10px;height:10px;"></i> Needs {{ \App\Models\PaymentTransaction::stageLabel($row['awaiting_stage']) }}
+                                        <span class="needs-flag" title="No payment recorded yet for {{ \App\Models\PaymentTransaction::stageLabel($row['awaiting_stage']) }}">
+                                            <span class="needs-flag-dot"></span> Needs {{ \App\Models\PaymentTransaction::stageLabel($row['awaiting_stage']) }}
                                         </span>
                                         @endif
                                     </span>
@@ -304,8 +308,8 @@
                                 <td>
                                     <span class="client-pill">{{ $group['client'] }}</span>
                                     @if($group['needs_settlement'])
-                                    <span title="A completed project for this client is still waiting on a payment stage" style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;font-size:10px;font-weight:800;color:#b45309;background:#fff3cd;border-radius:999px;padding:2px 8px;">
-                                        <i data-lucide="alert-triangle" style="width:10px;height:10px;"></i> Needs Settlement
+                                    <span class="needs-flag" style="margin:0 0 0 6px;vertical-align:middle;" title="A completed project for this client is still waiting on a payment stage">
+                                        <span class="needs-flag-dot"></span> Needs Settlement
                                     </span>
                                     @endif
                                 </td>
@@ -394,7 +398,7 @@
                                     @endphp
                                     <td>
                                         @if($r['or_number'])
-                                        <span class="rc-or"><span class="rc-or-tag">{{ $r['or_tag'] ?? 'OR' }}</span>{{ $r['or_number'] }}</span>
+                                        <span class="rc-or"><span class="rc-or-tag">{{ $r['or_tag'] ?? 'OR' }}</span><span class="rc-or-num">{{ $r['or_number'] }}</span></span>
                                         @else
                                         {{-- historical payment — no OR number on record --}}
                                         <span style="color:var(--muted);">—</span>
@@ -529,7 +533,6 @@
         document.querySelectorAll('.pay-panel').forEach(function(p) {
             p.style.display = p.dataset.panel === tab ? '' : 'none';
         });
-        document.getElementById('paymentStatusSelect').style.display = tab === 'active' ? '' : 'none';
         document.getElementById('paymentSearch').placeholder = tab === 'active' ? 'Search project or client...' : 'Search client...';
         applyFilters();
         // keep the tab on refresh / when coming back from a payment or client page
@@ -541,10 +544,6 @@
     }
 
     document.getElementById('paymentSearch').addEventListener('input', applyFilters);
-    document.getElementById('paymentStatusSelect').addEventListener('change', function() {
-        currentPaymentFilter = this.value;
-        applyFilters();
-    });
     document.querySelectorAll('#paymentListTabs .filter-tab').forEach(function(btn) {
         btn.addEventListener('click', function() { showPaymentTab(this.dataset.tab); });
     });

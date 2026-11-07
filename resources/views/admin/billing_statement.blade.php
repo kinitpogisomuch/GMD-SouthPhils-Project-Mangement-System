@@ -9,8 +9,15 @@
 </head>
 <body>
 
+    {{-- ?embed=1: shown inside the payment page's Review & Send modal — just the statement, the modal has the actions --}}
+    @if(request()->boolean('embed'))
+    <style>
+        body { background: #fff; }
+        .bs-sheet { margin-top: 0; box-shadow: none; }
+    </style>
+    @else
     @if(session('success'))
-    <div style="max-width:850px;margin:16px auto 0;background:#dcfce7;border:1px solid #86efac;color:#15803d;border-radius:10px;padding:12px 18px;font-size:13.5px;font-weight:700;display:flex;align-items:center;gap:8px;">
+    <div class="bs-flash" style="max-width:850px;margin:16px auto 0;background:#dcfce7;border:1px solid #86efac;color:#15803d;border-radius:10px;padding:12px 18px;font-size:13.5px;font-weight:700;display:flex;align-items:center;gap:8px;">
         <i data-lucide="check-circle" style="width:16px;height:16px;"></i>
         {{ session('success') }}
     </div>
@@ -22,6 +29,11 @@
             Back to Payment
         </a>
         <div style="display:flex;align-items:center;gap:12px;">
+            {{-- editable any time, sent or not --}}
+            <a href="{{ route('admin.payments.show', ['id' => $payment->id, 'edit_statement' => $statement->id]) }}">
+                <i data-lucide="pencil" style="width:15px;height:15px;"></i>
+                Edit
+            </a>
             <button type="button" onclick="window.print()">
                 <i data-lucide="printer" style="width:15px;height:15px;"></i>
                 Print / Save as PDF
@@ -43,6 +55,7 @@
             @endif
         </div>
     </div>
+    @endif
 
     @include('partials.billing_statement_document', compact('payment', 'statement'))
 

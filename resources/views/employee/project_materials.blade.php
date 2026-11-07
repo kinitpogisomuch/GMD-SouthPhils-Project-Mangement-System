@@ -11,6 +11,13 @@
         @media (min-width: 641px) {
             #usageTable th:nth-child(n+3), #usageTable td:nth-child(n+3) { text-align: center; }
             #usageTable td.action-cell { justify-content: center; }
+
+            /* the table runs the full width of its card (edge to edge), like the other tables — the card's
+               padding moves onto the search bar row instead */
+            .usage-card { padding: 0; overflow: hidden; }
+            .usage-card .table-toolbar { padding: 20px 20px 0; }
+            #usageTable th:first-child, #usageTable td:first-child { padding-left: 24px; }
+            #usageTable th:last-child, #usageTable td:last-child { padding-right: 24px; }
         }
     </style>
 </head>
@@ -34,7 +41,7 @@
             </div>
             @endif
 
-            <div class="table-card">
+            <div class="table-card usage-card">
                 <div class="table-toolbar">
                     <div class="search-box">
                         <i data-lucide="search"></i>

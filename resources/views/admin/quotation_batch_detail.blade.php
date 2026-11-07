@@ -277,6 +277,32 @@
         .qb-locked .qb-cell-total:disabled { background: transparent; }
         .qb-locked .qb-chip { cursor: default; }
 
+        /* Edit first — a saved quotation opens read-only (.qb-viewing) until Edit is pressed */
+        .qb-edit-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+        .qb-edit-actions .cancel-btn { display: inline-flex; align-items: center; gap: 6px; }
+        .qb-view-hint { display: none; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--muted); }
+        .qb-view-hint svg { width: 13px; height: 13px; }
+        .qb-viewing .qb-view-hint { display: inline-flex; }
+        #qbEditBtn { display: none; }
+        .qb-viewing #qbEditBtn { display: inline-flex; }
+        .qb-viewing #qbSaveBtn, .qb-viewing #qbCancelEditBtn { display: none; }
+        #qbCancelEditBtn[hidden] { display: none; }
+        .qb-viewing .add-btn, .qb-viewing .qb-icon-btn, .qb-viewing .qb-pill-btn, .qb-viewing .qd-add-line,
+        .qb-viewing .qd-sig-tools, .qb-viewing #applyStdCostingBtn { display: none !important; }
+        .qb-viewing input:disabled, .qb-viewing select:disabled, .qb-viewing textarea:disabled { background: rgba(0,0,0,.03); color: var(--dark); -webkit-text-fill-color: var(--dark); opacity: 1; cursor: default; }
+        .qb-viewing .qb-cell-total:disabled { background: transparent; }
+        .qb-viewing .qb-chip, .qb-viewing .qd-sig-drop { cursor: default; pointer-events: none; }
+        /* Quotation Document step (narrow form column): Cancel + Save share one row, the read-only hint sits above */
+        .qd-layout .qb-edit-actions { width: 100%; }
+        .qd-layout .qb-foot .qb-edit-actions .save-btn,     /* out-ranks the later ".qd-layout .qb-foot .save-btn { width:100% }" */
+        .qd-layout .qb-foot .qb-edit-actions .cancel-btn { width: auto; flex: 1 1 0; justify-content: center; }
+        .qd-layout .qb-view-hint { flex-basis: 100%; justify-content: center; }
+        @media (max-width: 768px) {
+            .qb-edit-actions { width: 100%; }
+            .qb-edit-actions .save-btn, .qb-edit-actions .cancel-btn { flex: 1; justify-content: center; }
+            .qb-view-hint { width: 100%; justify-content: center; }
+        }
+
         /* ── Two steps: Costing → Quotation Document ── */
         .qb-card[data-step="document"] .qb-section:not(.qb-doc-section) { display: none; }   /* still in the form, so Save keeps them */
         .qb-card[data-step="costing"] .qb-doc-section { display: none; }
@@ -286,6 +312,8 @@
         /* ── Quotation Document step: form | live preview (full length) ── */
         .qd-layout { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 20px; align-items: start; }
         .qd-layout > .qb-card { min-width: 0; margin-bottom: 0; }
+        .qd-side { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+        .qd-side > .table-card { margin: 0; }
         /* the summary + Save, tidied for the narrower form column */
         .qd-layout .qb-foot { flex-direction: column; align-items: stretch; gap: 12px; }
         .qd-layout .qb-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -308,6 +336,42 @@
         .qd-span-2 { grid-column: 1 / -1; }
         .qd-suffix-wrap { position: relative; }
         .qd-suffix-wrap .qb-input { padding-right: 52px; }
+        /* Signatory e-signature upload */
+        .qd-sig { position: relative; }
+        .qd-sig-drop { display: flex !important; flex-direction: column; align-items: center; justify-content: center; gap: 4px; height: 104px; margin: 0 !important; padding: 10px;
+                       border: 1.5px dashed var(--border); border-radius: 12px; background: var(--cream-soft); color: var(--dark); text-align: center; cursor: pointer; transition: border-color .15s ease; }
+        .qd-sig-drop[hidden] { display: none !important; }
+        .qd-sig-drop:hover, .qd-sig-drop.is-over { border-color: var(--dark); }
+        .qd-sig-drop svg { width: 18px; height: 18px; color: var(--muted); }
+        .qd-sig-drop span { font-size: 12.5px; font-weight: 800; }
+        .qd-sig-drop small { font-size: 10.5px; font-weight: 600; color: var(--muted); }
+        .qd-sig-preview { position: relative; display: flex; align-items: center; justify-content: center; height: 104px; padding: 8px; border: 1px solid var(--border); border-radius: 12px; background: #fff; }
+        .qd-sig-preview[hidden] { display: none; }
+        .qd-sig-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        .qd-sig-tools { position: absolute; top: 6px; right: 6px; display: flex; gap: 5px; }
+        .qd-sig-tool { width: 26px; height: 26px; display: flex !important; align-items: center; justify-content: center; margin: 0 !important; padding: 0; border: none; border-radius: 50%; background: var(--dark); color: #fff; cursor: pointer; }
+        .qd-sig-tool svg { width: 13px; height: 13px; }
+        .qd-sig-busy { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 12px; background: rgba(255,255,255,.85); font-size: 12.5px; font-weight: 800; color: var(--dark); }
+        .qd-sig-busy[hidden] { display: none; }
+        .qd-sig-spin { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--border); border-top-color: var(--dark); animation: qdSigSpin .8s linear infinite; }
+        @keyframes qdSigSpin { to { transform: rotate(360deg); } }
+        .qd-sig.qb-bad .qd-sig-drop { border-color: #dc2626; background: #fef2f2; }
+        .qd-sig-err { display: block; margin-top: 6px; font-size: 12px; font-weight: 700; color: #dc2626; }
+        .qd-sig-err[hidden] { display: none; }
+
+        /* Save → review the quotation document before it's saved */
+        .qr-review-card { max-width: 1000px; height: 92vh; max-height: 92vh; display: flex; flex-direction: column; overflow: hidden; }
+        .qr-review-summary { padding: 10px 14px; margin-bottom: 12px; border-radius: 12px; background: var(--cream-soft); border: 1px solid var(--border); font-size: 13px; color: var(--muted); line-height: 1.7; }
+        .qr-review-frame { position: relative; flex: 1; min-height: 0; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: #f3f3f3; }
+        .qr-review-frame iframe { width: 100%; height: 100%; border: 0; display: block; background: #fff; }
+        .qr-review-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px; background: rgba(255,255,255,.8); font-size: 13px; font-weight: 800; color: var(--dark); }
+        .qr-review-loading[hidden] { display: none; }
+        .qr-review-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; padding-top: 14px; }
+        @media (max-width: 768px) {
+            .qr-review-card { height: 95vh; max-height: 95vh; }
+            .qr-review-actions > * { flex: 1; justify-content: center; }
+        }
+
         .qd-suffix { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 12px; font-weight: 700; color: var(--muted); pointer-events: none; }
         .qd-spec-wrap .qb-table { min-width: 0 !important; }
         /* specification text: a fixed, slightly taller box (not resizable), in the page's font; long text scrolls */
@@ -996,6 +1060,31 @@
                                 <label for="docSignTitle">Position</label>
                                 <input type="text" name="doc[signatory_title]" id="docSignTitle" class="qb-input" maxlength="120" value="{{ $docSettings['signatory_title'] }}">
                             </div>
+                            {{-- E-signature (required): uploaded the moment it's picked; its URL rides in doc[signatory_signature]
+                                 and is saved with the quotation. Defaults to the latest one saved on any quotation. --}}
+                            <div class="qb-field qd-span-2">
+                                <label>E-Signature <span style="color:#dc2626;">*</span></label>
+                                <div class="qd-sig" id="docSigBox">
+                                    <input type="hidden" name="doc[signatory_signature]" id="docSignSignature" value="{{ $docSettings['signatory_signature'] }}">
+                                    <input type="file" id="docSigFile" accept="image/png,image/jpeg,image/webp" hidden>
+                                    <div class="qd-sig-preview" @if(!$docSettings['signatory_signature']) hidden @endif>
+                                        <img id="docSigImg" src="{{ $docSettings['signatory_signature'] }}" alt="Signature">
+                                        @unless($isLocked)
+                                        <div class="qd-sig-tools">
+                                            <label for="docSigFile" class="qd-sig-tool" title="Replace signature"><i data-lucide="refresh-cw"></i></label>
+                                            <button type="button" class="qd-sig-tool" id="docSigRemove" title="Remove signature"><i data-lucide="x"></i></button>
+                                        </div>
+                                        @endunless
+                                    </div>
+                                    <label for="docSigFile" class="qd-sig-drop" @if($docSettings['signatory_signature']) hidden @endif>
+                                        <i data-lucide="pen-line"></i>
+                                        <span>Upload signature</span>
+                                        <small>PNG with a transparent background works best · max 2 MB</small>
+                                    </label>
+                                    <div class="qd-sig-busy" hidden><span class="qd-sig-spin"></span> Uploading…</div>
+                                </div>
+                                <small id="docSigErr" class="qd-sig-err" hidden></small>
+                            </div>
                         </div>
                     </div>
 
@@ -1027,14 +1116,24 @@
                             <small>Budget <span id="sumBudget">₱0</span> + Markup <span id="sumMarkup">₱0</span> (<span id="sumMarkupPct">0%</span>)</small>
                         </div>
                     </div>
-                    <button type="submit" class="save-btn" id="qbSaveBtn">
-                        <i data-lucide="save"></i>
-                        Save
-                    </button>
+                    {{-- Edit first: a saved quotation opens read-only; Edit unlocks it, then Cancel or Save --}}
+                    @unless($isLocked)
+                    <div class="qb-edit-actions">
+                        <span class="qb-view-hint"><i data-lucide="lock"></i> Read-only — press Edit to make changes</span>
+                        <button type="button" class="save-btn" id="qbEditBtn"><i data-lucide="pencil"></i> Edit</button>
+                        <button type="button" class="cancel-btn" id="qbCancelEditBtn"><i data-lucide="x"></i> Cancel</button>
+                        <button type="submit" class="save-btn" id="qbSaveBtn">
+                            <i data-lucide="save"></i>
+                            Save
+                        </button>
+                    </div>
+                    @endunless
                 </div>
             </form>
 
             @if($step === 'document')
+              {{-- right column: the preview, then the versions + activity under it (fills the space beside the longer form) --}}
+              <div class="qd-side">
                 <aside class="qd-preview" aria-label="Live preview of the quotation document">
                     <div class="qd-preview-head">
                         <span class="qd-preview-icon"><i data-lucide="file-text"></i></span>
@@ -1051,48 +1150,14 @@
                         <div class="qd-preview-loading" id="qdPreviewLoading"><span></span></div>
                     </div>
                 </aside>
+                @include('partials.admin.quotation_history')
+              </div>{{-- /.qd-side --}}
             </div>{{-- /.qd-layout --}}
-            @endif
-
-            {{-- Every quotation sent for this request (revisions keep the earlier versions) + who did what --}}
+            @else
             <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:20px;margin-top:24px;">
-                <div class="table-card" style="padding:18px 20px;">
-                    <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px;">Quotation Versions</div>
-                    @forelse($versions as $v)
-                    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-top:{{ $loop->first ? 'none' : '1px solid var(--border)' }};flex-wrap:wrap;">
-                        <div style="min-width:0;">
-                            <a href="{{ route('admin.quotation_requests.version', [$batch->id, $v->version]) }}" style="font-weight:900;color:var(--dark);text-decoration:none;">{{ $v->quotation_number }}</a>
-                            <div style="font-size:12px;color:var(--muted);">
-                                Sent {{ $v->sent_at?->format('M d, Y g:i A') }}{{ $v->sent_by ? ' by ' . $v->sent_by : '' }} · ₱{{ number_format($v->contract_value, 2) }}
-                                @if($v->response_reason)<br><em>“{{ $v->response_reason }}”</em>@endif
-                            </div>
-                        </div>
-                        <div style="display:flex;align-items:center;gap:8px;">
-                            <span class="status-badge {{ $v->badgeClass() }}">{{ $v->statusLabel() }}</span>
-                            <a class="action-btn view" href="{{ route('admin.quotation_requests.version_pdf', [$batch->id, $v->version]) }}" title="Download PDF" aria-label="Download {{ $v->quotation_number }} PDF"><i data-lucide="download"></i></a>
-                        </div>
-                    </div>
-                    @empty
-                    <p style="font-size:13px;color:var(--muted);margin:0;">Nothing sent yet. When you press <strong>Send to Client</strong>, the system generates the quotation document from this builder and it appears here.</p>
-                    @endforelse
-                </div>
-                <div class="table-card" style="padding:18px 20px;">
-                    <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px;">Activity</div>
-                    <div style="max-height:320px;overflow-y:auto;">
-                    @forelse($activity as $log)
-                    <div style="padding:8px 0;border-top:{{ $loop->first ? 'none' : '1px solid var(--border)' }};font-size:12.5px;">
-                        <strong style="color:var(--dark);">{{ $log->label }}</strong>
-                        @if(!empty($log->details['quotation_number']))· {{ $log->details['quotation_number'] }}@endif
-                        @if(!empty($log->details['changes']))<div style="color:var(--muted);">{{ $log->details['changes'] }}</div>@endif
-                        @if(!empty($log->details['reason']))<div style="color:var(--muted);">“{{ $log->details['reason'] }}”</div>@endif
-                        <div style="color:var(--muted);font-size:11.5px;">{{ $log->created_at?->format('M d, Y g:i A') }}{{ $log->actor_name ? ' · ' . $log->actor_name : '' }}</div>
-                    </div>
-                    @empty
-                    <p style="font-size:13px;color:var(--muted);margin:0;">No activity recorded yet.</p>
-                    @endforelse
-                    </div>
-                </div>
+                @include('partials.admin.quotation_history')
             </div>
+            @endif
 
 
         </main>
@@ -1178,26 +1243,55 @@
 
     @unless($isLocked)
     {{-- ===================== SAVE CONFIRMATION MODAL ===================== --}}
-    <div class="modal-overlay" id="confirmSaveQuotationModal">
-        <div class="modal-card" style="max-width:460px;">
+    {{-- Cancel while editing with changes made: discard them (reload as saved) or keep editing --}}
+    <div class="modal-overlay" id="discardChangesModal">
+        <div class="modal-card" style="max-width:440px;">
             <div class="modal-header">
                 <div>
-                    <h2>Save Quotation</h2>
-                    <p>Please double-check the figures before saving.</p>
+                    <h2>Discard Changes?</h2>
+                    <p>You've edited this quotation but haven't saved it.</p>
+                </div>
+                <button class="modal-close" type="button" id="closeDiscardChanges">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="delete-confirm-body">
+                <div class="delete-confirm-icon"><i data-lucide="undo-2"></i></div>
+                <p>Discard the changes you made? The quotation goes back to how it was last saved.</p>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="cancel-btn" id="keepEditingBtn">Keep Editing</button>
+                <button type="button" class="save-btn" id="confirmDiscardBtn" style="background:#dc2626;">
+                    <i data-lucide="trash-2"></i> Discard Changes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    {{-- Save shows the quotation document as it will be saved (live preview of what's typed, nothing saved yet):
+         Back to Edit returns to the builder, Save saves it. --}}
+    <div class="modal-overlay" id="confirmSaveQuotationModal">
+        <div class="modal-card qr-review-card">
+            <div class="modal-header">
+                <div>
+                    <h2>Review Quotation</h2>
+                    <p>Check the quotation before saving — go back to edit anything that's not right.</p>
                 </div>
                 <button class="modal-close" type="button" id="closeConfirmSaveQuotation">
                     <i data-lucide="x"></i>
                 </button>
             </div>
-            <div class="delete-confirm-body">
-                <div class="delete-confirm-icon icon-success"><i data-lucide="save"></i></div>
-                <p>Are you sure you want to save this quotation?</p>
-                <div id="confirmSaveSummary" style="margin-top:10px;font-size:13px;color:var(--muted);line-height:1.7;"></div>
+            <div id="confirmSaveSummary" class="qr-review-summary"></div>
+            <div class="qr-review-frame">
+                <iframe id="confirmSaveFrame" title="Quotation preview" sandbox="allow-same-origin"></iframe>
+                <div class="qr-review-loading" id="confirmSaveLoading"><span class="qd-sig-spin"></span> Preparing the quotation…</div>
             </div>
-            <div class="modal-actions">
-                <button type="button" class="cancel-btn" id="cancelConfirmSaveQuotation">Cancel</button>
+            <div class="qr-review-actions">
+                <button type="button" class="cancel-btn" id="cancelConfirmSaveQuotation" style="display:inline-flex;align-items:center;gap:6px;">
+                    <i data-lucide="pencil"></i> Back to Edit
+                </button>
                 <button type="button" class="save-btn" id="confirmSaveQuotationBtn">
-                    <i data-lucide="check"></i> Yes, Save
+                    <i data-lucide="save"></i> Save
                 </button>
             </div>
         </div>
@@ -1343,6 +1437,7 @@
     if (openSendQBtn) openSendQBtn.addEventListener('click', function () {
         // Save everything on the page first (through the normal validated submit), then
         // reload and auto-open the modal so it always shows what is actually persisted.
+        qbSetViewing(false);   // read-only fields are disabled, and disabled fields aren't submitted
         document.getElementById('openSendModalFlag').value = '1';
         quotationForm.requestSubmit();
     });
@@ -2235,7 +2330,13 @@
     var openedSnapshot = null;
     function formSnapshot() {
         var parts = [];
-        new FormData(quotationForm).forEach(function (v, k) {
+        // fields disabled only because the form is read-only (Edit first) still count — FormData skips disabled ones,
+        // so they're switched on just for this read; otherwise the snapshot taken while read-only would never match
+        var viewOnly = quotationForm.querySelectorAll('[data-qb-view]');
+        viewOnly.forEach(function (el) { el.disabled = false; });
+        var data = new FormData(quotationForm);
+        viewOnly.forEach(function (el) { el.disabled = true; });
+        data.forEach(function (v, k) {
             if (k === '_token') return;
             v = v instanceof File ? v.name : String(v).trim();
             if (/^-?[\d,]*\.?\d+$/.test(v)) v = String(parseFloat(v.replace(/,/g, '')));
@@ -2629,6 +2730,32 @@
         });
     });
 
+    // ---- Save → Review Quotation: the document exactly as typed (live preview, nothing saved) ----
+    var LIVE_PREVIEW_URL = @json(route('admin.quotation_requests.batch_live_preview', $batch->id));
+    // only what the document step edits: the details + specification lines (+ the CSRF token)
+    function docPayload() {
+        var all = new FormData(quotationForm), data = new FormData();
+        all.forEach(function (v, k) {
+            if (k === '_token' || k.indexOf('doc[') === 0 || k === 'spec_label[]' || k === 'spec_value[]') data.append(k, v);
+        });
+        return data;
+    }
+    function fetchDocPreview() {
+        // token sent as a header too: on a view-only quotation every form field (the token included) is disabled
+        return fetch(LIVE_PREVIEW_URL, { method: 'POST', body: docPayload(), headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html', 'X-CSRF-TOKEN': @json(csrf_token()) } })
+            .then(function (r) { if (!r.ok) throw new Error(r.status === 422 ? 'invalid' : 'http'); return r.text(); });
+    }
+    function loadReviewPreview() {
+        var frame = document.getElementById('confirmSaveFrame'), loading = document.getElementById('confirmSaveLoading');
+        if (!frame) return;
+        loading.hidden = false;
+        loading.lastChild.textContent = ' Preparing the quotation…';
+        fetchDocPreview()
+            .then(function (html) { frame.srcdoc = html; })
+            .catch(function () { frame.srcdoc = '<p style="font-family:sans-serif;padding:24px;color:#666;">The preview could not be loaded — you can still save, or go back and check the Quotation Document step.</p>'; })
+            .finally(function () { loading.hidden = true; });
+    }
+
     // ---- Save confirmation ----
     var qbSaveConfirmed = false;
     var confirmSaveBtn  = document.getElementById('confirmSaveQuotationBtn');
@@ -2761,6 +2888,9 @@
             flagRow('Labor', i + 1, missing);
         });
 
+        // 5 · Quotation Document — the signatory's e-signature is required
+        if (!document.getElementById('docSignSignature').value) flag(document.getElementById('docSigBox'), 'E-Signature (Quotation Document step)');
+
         if (problems.length > 0) {
             e.preventDefault();
             document.getElementById('openSendModalFlag').value = '0';
@@ -2783,6 +2913,7 @@
                 escapeHtml(daysEl.value.trim()) + ' working days<br>' +
                 'Contract Value: <strong style="color:var(--dark);">' + escapeHtml(document.getElementById('sumUnitPrice').textContent) +
                 ' × ' + qtyNow + ' = ' + escapeHtml(document.getElementById('sumContract').textContent) + '</strong>';
+            loadReviewPreview();
             openModal('confirmSaveQuotationModal');
             if (typeof lucide !== 'undefined') lucide.createIcons();
             return;
@@ -2842,24 +2973,28 @@
     }
 
     function updateSendState() {
-        // Step 1 → 2: "Generate Quotation Document" opens once the costing is complete AND saved —
-        // any unsaved change greys it out again until Save
+        // Step 1 → 2: "Generate Quotation Document" opens once the costing is complete AND saved — whether or not
+        // Edit is pressed. Only a real unsaved change (the form differs from how it opened) greys it out until Save.
         var gen = document.getElementById('generateDocBtn');
         if (gen) {
-            var savedOk = gen.dataset.ready === '1';
-            var genReady = savedOk && !qbDirty && builderIsComplete();
+            var unsaved  = typeof hasUnsavedChanges === 'function' ? hasUnsavedChanges() : qbDirty;
+            var genReady = gen.dataset.ready === '1' && !unsaved && builderIsComplete();
             gen.setAttribute('aria-disabled', genReady ? 'false' : 'true');
             gen.title = genReady ? ''
-                : (qbDirty ? 'Save the costing first, then generate the quotation document.'
-                           : (gen.title || 'Complete and save the costing first — every required field, at least one material and one labor entry.'));
+                : (unsaved ? 'Save the costing first, then generate the quotation document.'
+                           : 'Complete and save the costing first — every required field, at least one material and one labor entry.');
         }
 
         var btn = document.getElementById('openSendQuotationModal');
         if (!btn) return;
-        var ready = builderIsComplete();
+        // sending also needs the signatory's e-signature (set on the Quotation Document step)
+        var hasSignature = !!(document.getElementById('docSignSignature') || {}).value;
+        var ready = builderIsComplete() && hasSignature;
         btn.disabled = !ready;
         btn.setAttribute('aria-disabled', ready ? 'false' : 'true');
-        btn.title = ready ? '' : 'Complete the Costing first — every required field, at least one material and one labor entry.';
+        btn.title = ready ? '' : (hasSignature
+            ? 'Complete the Costing first — every required field, at least one material and one labor entry.'
+            : 'Upload the signatory\'s e-signature first.');
     }
 
     // ---- Send to Client: quotation file picker (dropzone + thumbnails, like the project page uploads) ----
@@ -2997,13 +3132,63 @@
     updateSendState();
     if (typeof lucide !== 'undefined') lucide.createIcons();
 
+    // ---- Signatory e-signature: uploaded as soon as it's picked (or dropped); the URL goes in doc[signatory_signature] ----
+    (function () {
+        var box = document.getElementById('docSigBox');
+        if (!box) return;
+        var file    = document.getElementById('docSigFile');
+        var hidden  = document.getElementById('docSignSignature');
+        var preview = box.querySelector('.qd-sig-preview');
+        var drop    = box.querySelector('.qd-sig-drop');
+        var busy    = box.querySelector('.qd-sig-busy');
+        var img     = document.getElementById('docSigImg');
+        var err     = document.getElementById('docSigErr');
+        var uploadUrl = @json(route('admin.quotation_requests.batch_signature', $batch->id));
+
+        function set(url) {
+            hidden.value = url || '';
+            if (url) img.src = url;
+            preview.hidden = !url;
+            drop.hidden    = !!url;
+            if (url) box.classList.remove('qb-bad');
+            // let the live preview (and Send's readiness check) pick up the change
+            quotationForm.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        function showErr(msg) { err.textContent = msg || ''; err.hidden = !msg; }
+
+        function upload(f) {
+            showErr('');
+            if (!f) return;
+            if (!/^image\/(png|jpe?g|webp)$/.test(f.type)) { showErr('Please choose a PNG, JPG or WEBP image.'); return; }
+            if (f.size > 2 * 1024 * 1024) { showErr('The signature image must be 2 MB or smaller.'); return; }
+            var data = new FormData();
+            data.append('signature', f);
+            busy.hidden = false;
+            fetch(uploadUrl, { method: 'POST', body: data, headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json', 'X-CSRF-TOKEN': @json(csrf_token()) } })
+                .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error((j.errors && j.errors.signature && j.errors.signature[0]) || j.message || 'Upload failed.'); return j; }); })
+                .then(function (j) { set(j.url); })
+                .catch(function (e) { showErr(e.message || 'The signature upload failed. Please try again.'); })
+                .finally(function () { busy.hidden = true; file.value = ''; });
+        }
+
+        file.addEventListener('change', function () { upload(file.files[0]); });
+        var removeBtn = document.getElementById('docSigRemove');
+        if (removeBtn) removeBtn.addEventListener('click', function () { set(''); });
+        ['dragover', 'dragenter'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('is-over'); }); });
+        ['dragleave', 'drop'].forEach(function (ev) { drop.addEventListener(ev, function () { drop.classList.remove('is-over'); }); });
+        drop.addEventListener('drop', function (e) {
+            e.preventDefault();
+            if (quotationForm.classList.contains('qb-viewing') || file.disabled) return;   // read-only: press Edit first
+            upload(e.dataTransfer.files[0]);
+        });
+    })();
+
     // ---- Quotation Document step: live preview of the document as typed (nothing is saved) ----
     (function () {
         var frame = document.getElementById('qdPreviewFrame');
         if (!frame) return;
         var status  = document.getElementById('qdPreviewStatus');
         var loading = document.getElementById('qdPreviewLoading');
-        var url     = @json(route('admin.quotation_requests.batch_live_preview', $batch->id));
         var timer = null, seq = 0, keepScroll = 0, loaded = false;
 
         // Plain text fields are written straight into the preview as you type — no round trip at all
@@ -3050,7 +3235,16 @@
                 list.appendChild(li);
             });
         }
-        function applyAllLive() { Object.keys(LIVE).forEach(applyLive); applySpecs(); applyNotes(); fitFrame(); updateSpecCount(); }
+        // the e-signature over the name — straight from the uploaded image's URL
+        function applySignature() {
+            var d = frameDoc(), url = document.getElementById('docSignSignature').value;
+            if (!d) return;
+            d.querySelectorAll('[data-live-signature]').forEach(function (img) {
+                if (url) img.src = url;
+                img.style.display = url ? '' : 'none';
+            });
+        }
+        function applyAllLive() { Object.keys(LIVE).forEach(applyLive); applySpecs(); applyNotes(); applySignature(); fitFrame(); updateSpecCount(); }
 
         // Full length: the frame is as tall as the document, so the whole quotation is visible and the page scrolls
         function fitFrame() {
@@ -3082,22 +3276,11 @@
             sheet.querySelectorAll('img').forEach(function (img) { if (!img.complete) img.addEventListener('load', fitFrame, { once: true }); });
         }
 
-        function payload() {
-            // only what the document step edits: the details + specification lines (+ the CSRF token)
-            var all = new FormData(quotationForm), data = new FormData();
-            all.forEach(function (v, k) {
-                if (k === '_token' || k.indexOf('doc[') === 0 || k === 'spec_label[]' || k === 'spec_value[]') data.append(k, v);
-            });
-            return data;
-        }
-
         function refresh() {
             var mine = ++seq;
             loading.classList.add('show');
             setStatus('is-busy', 'Updating…');
-            // token sent as a header too: on a view-only quotation every form field (the token included) is disabled
-            fetch(url, { method: 'POST', body: payload(), headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html', 'X-CSRF-TOKEN': @json(csrf_token()) } })
-                .then(function (r) { if (!r.ok) throw new Error(r.status === 422 ? 'invalid' : 'http'); return r.text(); })
+            fetchDocPreview()
                 .then(function (html) {
                     if (mine !== seq) return;          // a newer refresh is on its way
                     swapSheet(html);
@@ -3122,6 +3305,59 @@
         });
         quotationForm.addEventListener('change', schedule);
         refresh();
+    })();
+
+    // ---- Edit first: a saved quotation opens read-only until Edit is pressed ----
+    // Every field is disabled while viewing (tracked with data-qb-view so fields disabled for other reasons stay so).
+    function qbSetViewing(on) {
+        if (!document.getElementById('qbEditBtn')) return;   // view-only (locked) quotations have no Edit
+        quotationForm.classList.toggle('qb-viewing', on);
+        if (on) {
+            quotationForm.querySelectorAll('input:not([type="hidden"]), select, textarea, button').forEach(function (el) {
+                if (el.id === 'qbEditBtn' || el.disabled) return;
+                el.disabled = true;
+                el.setAttribute('data-qb-view', '');
+            });
+        } else {
+            quotationForm.querySelectorAll('[data-qb-view]').forEach(function (el) {
+                el.disabled = false;
+                el.removeAttribute('data-qb-view');
+            });
+        }
+    }
+    (function () {
+        var editBtn = document.getElementById('qbEditBtn');
+        if (!editBtn) return;
+
+        editBtn.addEventListener('click', function () {
+            qbSetViewing(false);
+            var first = document.getElementById(quotationForm.dataset.step === 'document' ? 'docTitle' : 'tankQtyInput');
+            if (first && first.offsetParent) first.focus();
+        });
+        // Cancel: nothing changed → just back to read-only; otherwise discard the changes (reload as saved)
+        document.getElementById('qbCancelEditBtn').addEventListener('click', function () {
+            var changed = typeof hasUnsavedChanges === 'function' ? hasUnsavedChanges() : qbDirty;
+            if (!changed) { qbSetViewing(true); return; }
+            openModal('discardChangesModal');
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        });
+        document.getElementById('confirmDiscardBtn').addEventListener('click', function () {
+            this.disabled = true;
+            qbSubmitting = true;   // no "leave this page?" warning
+            window.location.reload();
+        });
+        ['keepEditingBtn', 'closeDiscardChanges'].forEach(function (id) {
+            document.getElementById(id).addEventListener('click', function () { closeModal('discardChangesModal'); });
+        });
+        document.getElementById('discardChangesModal').addEventListener('click', function (e) {
+            if (e.target === this) closeModal('discardChangesModal');
+        });
+
+        // Opens read-only once the costing has been saved complete; a new / incomplete quotation, or one that
+        // came back with errors, opens ready to edit.
+        @if($costingReady && !$errors->any() && !session()->hasOldInput())
+        qbSetViewing(true);
+        @endif
     })();
 
     @if($isLocked)

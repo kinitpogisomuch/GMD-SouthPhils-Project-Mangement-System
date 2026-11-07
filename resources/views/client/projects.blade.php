@@ -202,11 +202,14 @@
 
     {{-- ===================== REVIEW MODAL ===================== --}}
     <div class="modal-overlay" id="reviewModal">
-        <div class="modal-card" style="max-width:520px;">
+        <div class="modal-card rv-card" style="max-width:540px;">
             <div class="modal-header">
-                <div>
-                    <h2>Leave a Review</h2>
-                    <p id="reviewProjectName">Share your experience with this project.</p>
+                <div class="rv-head">
+                    <span class="rv-head-icon"><i data-lucide="star"></i></span>
+                    <div>
+                        <h2 id="reviewTitle">Leave a Review</h2>
+                        <p id="reviewProjectName">Share your experience with this project.</p>
+                    </div>
                 </div>
                 <button class="modal-close" type="button" onclick="closeModal('reviewModal')">
                     <i data-lucide="x"></i>
@@ -222,46 +225,58 @@
                     @endforeach
                 </div>
                 @endif
-                <div class="form-grid">
-                    <div class="form-group form-group-full">
-                        <label>Your Rating <span style="color:#dc2626;">*</span></label>
-                        <div class="star-rating" id="reviewStarRating">
+                <div class="rv-body">
+                    {{-- 1 · Rating: big stars in a box, with a word for the score (hover previews it) --}}
+                    <div class="rv-rating-box" id="reviewRatingBox">
+                        <div class="rv-label">How would you rate this project? <span class="rv-req">*</span></div>
+                        <div class="star-rating rv-stars" id="reviewStarRating">
                             @for($i=1;$i<=5;$i++)
-                            <button type="button" data-value="{{ $i }}" onclick="setReviewRating({{ $i }})">
+                            <button type="button" data-value="{{ $i }}" onclick="setReviewRating({{ $i }})" aria-label="{{ $i }} star{{ $i > 1 ? 's' : '' }}">
                                 <i data-lucide="star"></i>
                             </button>
                             @endfor
                         </div>
+                        <div class="rv-rating-word" id="reviewRatingWord">Tap a star to rate</div>
                         <input type="hidden" name="rating" id="reviewRatingInput">
                         <div class="review-error" id="reviewRatingError" hidden>Please choose a star rating.</div>
                     </div>
-                    <div class="form-group form-group-full">
-                        <label>Your Review <span style="color:#dc2626;">*</span></label>
-                        <textarea name="comment" id="reviewCommentInput" rows="3" maxlength="1000" placeholder="Tell us about your experience with this project..." style="min-height:auto;resize:none;"></textarea>
-                        <div style="display:flex;justify-content:space-between;gap:10px;margin-top:6px;">
+
+                    {{-- 2 · The review, with a few one-tap phrases to start from --}}
+                    <div>
+                        <div class="rv-label">Your Review <span class="rv-req">*</span></div>
+                        <div class="rv-chips" aria-label="Quick phrases">
+                            @foreach(['Quality workmanship', 'Delivered on time', 'Great communication', 'Professional team', 'Would recommend'] as $phrase)
+                            <button type="button" class="rv-chip" data-phrase="{{ $phrase }}"><i data-lucide="plus"></i> {{ $phrase }}</button>
+                            @endforeach
+                        </div>
+                        <textarea name="comment" id="reviewCommentInput" rows="4" maxlength="1000" class="rv-textarea" placeholder="What went well? How was the quality, the timeline and working with the GMD team?"></textarea>
+                        <div class="rv-under">
                             <div class="review-error" id="reviewCommentError" hidden>Please write a short review.</div>
-                            <span id="reviewCommentCount" style="margin-left:auto;font-size:11.5px;font-weight:700;color:var(--muted);">0 / 1000</span>
+                            <span id="reviewCommentCount" class="rv-count">0 / 1000</span>
                         </div>
                     </div>
-                    <div class="form-group form-group-full">
-                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;">
-                            <input type="checkbox" name="hide_name" id="reviewHideNameInput" value="1" style="width:16px;height:16px;">
-                            Hide my name on the public review
-                        </label>
-                        @php
-                            $clientDisplayName = session('full_name', 'Client');
-                            $maskedPreview = (new \App\Models\Review(['client_name' => $clientDisplayName]))->masked_client_name;
-                        @endphp
-                        <p style="font-size:11.5px;color:var(--muted);margin-top:6px;">
-                            Your name will show as <strong>"{{ $maskedPreview }}"</strong> instead of "{{ $clientDisplayName }}" on the public site.
-                        </p>
-                    </div>
+
+                    {{-- 3 · Show or hide the name, with a live preview of how it will appear --}}
+                    @php
+                        $clientDisplayName = session('full_name', 'Client');
+                        $maskedPreview = (new \App\Models\Review(['client_name' => $clientDisplayName]))->masked_client_name;
+                    @endphp
+                    <label class="rv-privacy" for="reviewHideNameInput">
+                        <span class="rv-privacy-text">
+                            <strong><i data-lucide="eye-off"></i> Hide my name on the public review</strong>
+                            <small>Shown as: <span id="reviewNamePreview" data-full="{{ $clientDisplayName }}" data-masked="{{ $maskedPreview }}">{{ $clientDisplayName }}</span></small>
+                        </span>
+                        <span class="rv-switch">
+                            <input type="checkbox" name="hide_name" id="reviewHideNameInput" value="1">
+                            <span class="rv-switch-track"></span>
+                        </span>
+                    </label>
                 </div>
-                <div style="padding:14px 20px;border-top:1px solid rgba(0,0,0,0.06);display:flex;justify-content:flex-end;gap:10px;">
+                <div class="rv-foot">
                     <button type="button" class="cancel-btn" onclick="closeModal('reviewModal')">Cancel</button>
-                    <button type="submit" class="save-btn">
-                        <i data-lucide="check-circle" style="width:15px;height:15px;"></i>
-                        Submit Review
+                    <button type="submit" class="save-btn" id="reviewSubmitBtn">
+                        <i data-lucide="send" style="width:15px;height:15px;"></i>
+                        <span id="reviewSubmitLabel">Submit Review</span>
                     </button>
                 </div>
             </form>
@@ -271,6 +286,53 @@
     <style>
         .review-error { font-size: 12.5px; font-weight: 700; color: #b91c1c; }
         .review-error[hidden] { display: none; }
+
+        /* Leave a Review */
+        .rv-head { display: flex; align-items: flex-start; gap: 12px; }
+        .rv-head-icon { width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: #FFF4D6; color: #F59E0B; }
+        .rv-head-icon svg { width: 20px; height: 20px; fill: #F59E0B; }
+        .rv-body { display: flex; flex-direction: column; gap: 18px; padding: 0 0 4px; }
+        .rv-label { margin-bottom: 8px; font-size: 13px; font-weight: 800; color: var(--dark); }
+        .rv-req { color: #dc2626; }
+        .rv-rating-box { padding: 16px; border: 1px solid var(--border); border-radius: 16px; background: var(--cream-soft); text-align: center; }
+        .rv-rating-box .rv-label { margin-bottom: 6px; }
+        .rv-stars { justify-content: center; gap: 8px; }
+        .rv-stars button { padding: 2px; transition: transform .12s ease; }
+        .rv-stars button:hover { transform: scale(1.12); }
+        .rv-stars button svg { width: 36px; height: 36px; }
+        .rv-stars button.hover svg { color: #FCD34D; fill: #FCD34D; }   /* hover preview */
+        .rv-rating-word { margin-top: 6px; min-height: 18px; font-size: 13px; font-weight: 800; color: var(--muted); }
+        .rv-rating-word.is-set { color: #b45309; }
+        .rv-rating-box.has-error { border-color: #fca5a5; background: #fff5f5; }
+        .rv-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+        .rv-chip { display: inline-flex; align-items: center; gap: 4px; padding: 5px 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--white); font: inherit; font-size: 11.5px; font-weight: 700; color: var(--dark); cursor: pointer; transition: border-color .15s ease, background .15s ease; }
+        .rv-chip svg { width: 12px; height: 12px; color: var(--muted); }
+        .rv-chip:hover { border-color: var(--dark); }
+        .rv-chip.is-used { background: var(--dark); border-color: var(--dark); color: #fff; }
+        .rv-chip.is-used svg { color: #fff; }
+        /* fixed height, not resizable — longer reviews scroll inside the box */
+        .rv-textarea { width: 100%; height: 110px; min-height: 110px; max-height: 110px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--white); font: inherit; font-size: 13.5px; line-height: 1.55; resize: none !important; overflow-y: auto; }
+        .rv-textarea:focus { outline: none; border-color: var(--dark); }
+        .rv-under { display: flex; justify-content: space-between; gap: 10px; margin-top: 6px; }
+        .rv-count { margin-left: auto; font-size: 11.5px; font-weight: 700; color: var(--muted); }
+        .rv-privacy { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--white); cursor: pointer; margin: 0; }
+        .rv-privacy-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+        .rv-privacy-text strong { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--dark); }
+        .rv-privacy-text strong svg { width: 14px; height: 14px; color: var(--muted); }
+        .rv-privacy-text small { font-size: 11.5px; color: var(--muted); overflow-wrap: anywhere; }
+        .rv-privacy-text small span { font-weight: 800; color: var(--dark); }
+        .rv-switch { position: relative; flex-shrink: 0; width: 42px; height: 24px; }
+        .rv-switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+        .rv-switch-track { position: absolute; inset: 0; border-radius: 999px; background: #d4d4d4; transition: background .15s ease; pointer-events: none; }
+        .rv-switch-track::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.2); transition: transform .15s ease; }
+        .rv-switch input:checked + .rv-switch-track { background: var(--dark); }
+        .rv-switch input:checked + .rv-switch-track::after { transform: translateX(18px); }
+        .rv-foot { display: flex; justify-content: flex-end; gap: 10px; padding-top: 16px; margin-top: 16px; border-top: 1px solid var(--border); }
+        .rv-foot .cancel-btn, .rv-foot .save-btn { display: inline-flex; align-items: center; gap: 7px; }
+        @media (max-width: 560px) {
+            .rv-stars button svg { width: 32px; height: 32px; }
+            .rv-foot > * { flex: 1; justify-content: center; }
+        }
     </style>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>
@@ -291,22 +353,80 @@
             });
         });
 
+        var REVIEW_WORDS = ['Tap a star to rate', 'Poor', 'Fair', 'Good', 'Very good', 'Excellent'];
+
         function setReviewRating(value) {
             document.getElementById('reviewRatingInput').value = value > 0 ? value : '';   // empty means "not chosen yet"
             document.getElementById('reviewRatingError').hidden = true;
+            document.getElementById('reviewRatingBox').classList.remove('has-error');
             document.querySelectorAll('#reviewStarRating button').forEach(function (btn) {
                 btn.classList.toggle('filled', parseInt(btn.dataset.value, 10) <= value);
             });
+            var word = document.getElementById('reviewRatingWord');
+            word.textContent = REVIEW_WORDS[value] || REVIEW_WORDS[0];
+            word.classList.toggle('is-set', value > 0);
         }
+
+        // hovering a star previews that score (and its word); leaving goes back to the chosen one
+        (function () {
+            var stars = document.querySelectorAll('#reviewStarRating button');
+            var word  = document.getElementById('reviewRatingWord');
+            stars.forEach(function (star) {
+                star.addEventListener('mouseenter', function () {
+                    var v = parseInt(star.dataset.value, 10);
+                    stars.forEach(function (s) { s.classList.toggle('hover', parseInt(s.dataset.value, 10) <= v); });
+                    word.textContent = REVIEW_WORDS[v];
+                });
+            });
+            document.getElementById('reviewStarRating').addEventListener('mouseleave', function () {
+                stars.forEach(function (s) { s.classList.remove('hover'); });
+                var v = parseInt(document.getElementById('reviewRatingInput').value, 10) || 0;
+                word.textContent = REVIEW_WORDS[v];
+            });
+        })();
+
+        // the name preview follows the switch: full name, or the masked one
+        function updateNamePreview() {
+            var el = document.getElementById('reviewNamePreview');
+            el.textContent = document.getElementById('reviewHideNameInput').checked ? el.dataset.masked : el.dataset.full;
+        }
+        document.getElementById('reviewHideNameInput').addEventListener('change', updateNamePreview);
+
+        // quick phrases: tap to add one to the review (tap again to take it out)
+        function syncReviewChips() {
+            var text = document.getElementById('reviewCommentInput').value;
+            document.querySelectorAll('.rv-chip').forEach(function (chip) {
+                chip.classList.toggle('is-used', text.indexOf(chip.dataset.phrase) !== -1);
+            });
+        }
+        document.querySelectorAll('.rv-chip').forEach(function (chip) {
+            chip.addEventListener('click', function () {
+                var box = document.getElementById('reviewCommentInput'), phrase = chip.dataset.phrase;
+                if (box.value.indexOf(phrase) !== -1) {
+                    box.value = box.value.replace(phrase + '. ', '').replace(phrase + '.', '').replace(phrase, '').trim();
+                } else {
+                    box.value = (box.value.trim() ? box.value.trim().replace(/[.!]?$/, '.') + ' ' : '') + phrase + '.';
+                }
+                box.value = box.value.slice(0, 1000);
+                box.dispatchEvent(new Event('input'));
+                box.focus();
+            });
+        });
 
         function openReviewModal(projectId, projectName, rating, comment, isAnonymous) {
             document.getElementById('reviewForm').action = '/client/projects/' + projectId + '/review';
             document.getElementById('reviewProjectName').textContent = 'Share your experience with "' + projectName + '".';
+            // editing an existing review (it already has a rating) vs writing a new one
+            var editing = (rating || 0) > 0;
+            document.getElementById('reviewTitle').textContent = editing ? 'Edit Your Review' : 'Leave a Review';
+            document.getElementById('reviewSubmitLabel').textContent = editing ? 'Save Review' : 'Submit Review';
             document.getElementById('reviewCommentInput').value = comment || '';
             document.getElementById('reviewHideNameInput').checked = !!isAnonymous;
+            updateNamePreview();
             setReviewRating(rating || 0);
             document.getElementById('reviewCommentError').hidden = true;
             updateReviewCount();
+            syncReviewChips();
             openModal('reviewModal');
         }
 
@@ -318,6 +438,7 @@
         }
         document.getElementById('reviewCommentInput').addEventListener('input', function () {
             updateReviewCount();
+            syncReviewChips();
             if (this.value.trim()) document.getElementById('reviewCommentError').hidden = true;
         });
 
@@ -327,6 +448,7 @@
             var noRating  = !document.getElementById('reviewRatingInput').value;
             var noComment = !document.getElementById('reviewCommentInput').value.trim();
             document.getElementById('reviewRatingError').hidden  = !noRating;
+            document.getElementById('reviewRatingBox').classList.toggle('has-error', noRating);
             document.getElementById('reviewCommentError').hidden = !noComment;
             if (noRating || noComment) {
                 e.preventDefault();

@@ -22,24 +22,27 @@
 
         /* key figures */
         .cd-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 20px; }
-        .cd-kpi { display: flex; flex-direction: column; background: var(--white); border: 1px solid var(--border); border-radius: 18px; padding: 16px 18px; box-shadow: 0 1px 2px rgba(0,0,0,.03); min-width: 0;
-                  color: inherit; text-decoration: none; transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease; }
-        .cd-kpi:hover { border-color: var(--dark); box-shadow: 0 8px 20px rgba(0,0,0,.08); transform: translateY(-2px); }
-        .cd-kpi:focus-visible { outline: 2px solid var(--dark); outline-offset: 2px; }
+        /* Summary cards — dark, like the header */
+        .cd-kpi { display: flex; flex-direction: column; background: linear-gradient(135deg, var(--dark) 0%, var(--dark-deep, #111) 100%); border: 1px solid rgba(255,255,255,.06); border-radius: 18px; padding: 16px 18px; box-shadow: 0 10px 24px rgba(0,0,0,.14); min-width: 0;
+                  color: #fff; text-decoration: none; transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease; }
+        .cd-kpi:hover { border-color: rgba(245,180,0,.55); box-shadow: 0 14px 30px rgba(0,0,0,.22); transform: translateY(-2px); }
+        .cd-kpi:focus-visible { outline: 2px solid #F5B400; outline-offset: 2px; }
         .cd-kpi-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
-        .cd-kpi-icon { width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: var(--cream-deep); color: var(--dark); }
+        .cd-kpi-icon { width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,.08); color: #fff; }
         .cd-kpi-icon svg { width: 17px; height: 17px; }
-        .cd-kpi-icon.is-blue  { background: #EAF0FF; color: #2A4EAA; }
-        .cd-kpi-icon.is-green { background: #E7F6EC; color: #207A3A; }
-        .cd-kpi-icon.is-amber { background: #FFF3D6; color: #8A6100; }
-        .cd-kpi-label { flex: 1; min-width: 0; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; line-height: 1.3; color: var(--muted); }
-        .cd-kpi-go { width: 16px; height: 16px; flex-shrink: 0; color: var(--muted-light); transition: color .15s ease, transform .15s ease; }
-        .cd-kpi:hover .cd-kpi-go { color: var(--dark); transform: translateX(2px); }
-        .cd-kpi-value { font-size: 26px; font-weight: 900; color: var(--dark); letter-spacing: -.5px; margin-top: 12px; line-height: 1.1; overflow-wrap: anywhere; }
-        .cd-kpi-value.is-paid { color: #207A3A; }
-        .cd-kpi-sub { font-size: 12px; color: var(--muted); margin-top: auto; padding-top: 6px; }
-        .cd-kpi-sub strong { color: var(--dark); }
-        .cd-kpi-sub.is-due { color: #8A6100; font-weight: 700; }
+        .cd-kpi-icon.is-blue  { background: rgba(96,165,250,.16); color: #93c5fd; }
+        .cd-kpi-icon.is-green { background: rgba(74,222,128,.14); color: #4ade80; }
+        .cd-kpi-icon.is-amber { background: rgba(245,180,0,.18); color: #F5B400; }
+        .cd-kpi-label { flex: 1; min-width: 0; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; line-height: 1.3; color: rgba(255,255,255,.6); }
+        .cd-kpi-go { width: 16px; height: 16px; flex-shrink: 0; color: rgba(255,255,255,.35); transition: color .15s ease, transform .15s ease; }
+        .cd-kpi:hover .cd-kpi-go { color: #F5B400; transform: translateX(2px); }
+        .cd-kpi-value { font-size: 26px; font-weight: 900; color: #fff; letter-spacing: -.5px; margin-top: 12px; line-height: 1.1; overflow-wrap: anywhere; }
+        .cd-kpi-value.is-paid { color: #4ade80; }
+        .cd-kpi-sub { font-size: 12px; color: rgba(255,255,255,.55); margin-top: auto; padding-top: 6px; }
+        .cd-kpi-sub strong { color: #fff; }
+        .cd-kpi-sub.is-due { color: #facc15; font-weight: 700; }
+        .cd-kpi .cd-bar { background: rgba(255,255,255,.12); }
+        .cd-kpi .cd-bar > span { background: #4ade80; }
         .cd-bar { height: 6px; border-radius: 999px; background: var(--cream-deep); overflow: hidden; margin-top: 10px; }
         .cd-bar > span { display: block; height: 100%; border-radius: inherit; background: #207A3A; }
 
@@ -58,8 +61,17 @@
         .cd-link:hover { border-color: var(--dark); }
         .cd-link svg, .cd-link i { width: 14px; height: 14px; }
         .cd-scroll { max-height: 420px; overflow-y: auto; scrollbar-width: thin; }
-        .cd-empty { padding: 34px 20px; text-align: center; color: var(--muted); font-size: 13px; }
-        .cd-empty a { color: var(--dark); font-weight: 800; }
+        /* Empty card: an icon, a short title, one helper line and (when there's something to do) a button —
+           centred in the card, up and down too */
+        .cd-scroll:has(> .cd-empty) { display: flex; align-items: center; justify-content: center; }
+        .cd-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; padding: 34px 20px; text-align: center; color: var(--muted); font-size: 12.5px; line-height: 1.5; }
+        .cd-empty-icon { width: 52px; height: 52px; margin-bottom: 6px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--cream-soft); border: 1px solid var(--border); color: var(--muted); }
+        .cd-empty-icon svg { width: 22px; height: 22px; }
+        .cd-empty-title { font-size: 14px; font-weight: 800; color: var(--dark); }
+        .cd-empty-text { max-width: 280px; }
+        .cd-empty-btn { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; padding: 8px 16px; border-radius: 999px; background: var(--dark); color: #fff !important; font-size: 12.5px; font-weight: 800; text-decoration: none; transition: transform .15s ease, box-shadow .15s ease; }
+        .cd-empty-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(0,0,0,.15); }
+        .cd-empty-btn svg { width: 14px; height: 14px; }
 
         /* projects */
         .cd-proj { display: flex; align-items: center; gap: 14px; padding: 16px 20px; border-bottom: 1px solid var(--cream-deep); text-decoration: none; color: inherit; transition: background .15s; }
@@ -275,7 +287,12 @@
                         <span class="cd-proj-arrow"><i data-lucide="chevron-right"></i></span>
                     </a>
                     @empty
-                    <div class="cd-empty">No projects yet. <a href="{{ route('client.quotation.create') }}">Request a quotation</a> to get started.</div>
+                    <div class="cd-empty">
+                        <span class="cd-empty-icon"><i data-lucide="folder-open"></i></span>
+                        <div class="cd-empty-title">No projects yet</div>
+                        <div class="cd-empty-text">Your projects show up here once a quotation is approved and GMD starts the work.</div>
+                        <a href="{{ route('client.quotation.create') }}" class="cd-empty-btn"><i data-lucide="plus"></i> Request a quotation</a>
+                    </div>
                     @endforelse
                 </div>
             </div>
@@ -313,7 +330,11 @@
                         @endif
                     </a>
                     @empty
-                    <div class="cd-empty">No updates yet. They'll appear here as work on your tank moves forward.</div>
+                    <div class="cd-empty">
+                        <span class="cd-empty-icon"><i data-lucide="activity"></i></span>
+                        <div class="cd-empty-title">No updates yet</div>
+                        <div class="cd-empty-text">They'll appear here as work on your tank moves forward.</div>
+                    </div>
                     @endforelse
                 </div>
             </div>
@@ -343,7 +364,11 @@
                             <span class="cd-tx-amt">{{ $peso($tx['amount']) }}</span>
                         </a>
                         @empty
-                        <div class="cd-empty">No payments recorded yet.</div>
+                        <div class="cd-empty">
+                            <span class="cd-empty-icon"><i data-lucide="wallet"></i></span>
+                            <div class="cd-empty-title">No payments yet</div>
+                            <div class="cd-empty-text">Payments you make — online, by cash or cheque — will be listed here.</div>
+                        </div>
                         @endforelse
                     </div>
                 </div>
@@ -377,7 +402,12 @@
                             <span class="cd-pill {{ $qClass }}">{{ $qLabel }}</span>
                         </a>
                         @empty
-                        <div class="cd-empty">No open requests. <a href="{{ route('client.quotation.create') }}">Request a quotation</a></div>
+                        <div class="cd-empty">
+                            <span class="cd-empty-icon"><i data-lucide="clipboard-list"></i></span>
+                            <div class="cd-empty-title">No open requests</div>
+                            <div class="cd-empty-text">Need a tank? Send a request and GMD will prepare a quotation for you.</div>
+                            <a href="{{ route('client.quotation.create') }}" class="cd-empty-btn"><i data-lucide="plus"></i> Request a quotation</a>
+                        </div>
                         @endforelse
                     </div>
                 </div>

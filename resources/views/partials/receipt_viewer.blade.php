@@ -10,7 +10,7 @@
     .rv-stage img { display: block; max-width: 90vw; max-height: 90vh; border-radius: 8px; box-shadow: 0 24px 60px rgba(0,0,0,.4); }
     .rv-stage iframe { width: min(900px, 90vw); height: 90vh; border: 0; border-radius: 8px; background: #fff; box-shadow: 0 24px 60px rgba(0,0,0,.4); }
     .rv-stage iframe.rv-page { width: min(1000px, 92vw); height: min(650px, 90vh); }   /* landscape: acknowledgement receipt */
-    .rv-stage iframe.rv-doc  { width: min(920px, 92vw);  height: 90vh; }                /* portrait: billing statement */
+    .rv-stage iframe.rv-doc  { width: min(960px, 92vw);  height: 92vh; border-radius: 22px; }   /* portrait: billing statement, quotation review — a rounded card like the admin modals */
     .rv-note { max-width: 360px; padding: 28px 24px; border-radius: 12px; background: #fff; text-align: center; font-size: 14px; line-height: 1.6; color: #444; }
     .rv-note a { display: inline-block; margin-top: 10px; font-weight: 700; color: #1a1a1a; }
     .rv-round { position: absolute; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border: none; border-radius: 50%; background: rgba(255,255,255,.12); color: #fff; font-size: 20px; line-height: 1; cursor: pointer; }
@@ -38,7 +38,7 @@
     var prevBtn = document.getElementById('receiptViewerPrev');
     var nextBtn = document.getElementById('receiptViewerNext');
     var count   = document.getElementById('receiptViewerCount');
-    var urls = [], pages = [], index = 0;
+    var urls = [], pages = [], ownClose = [], index = 0;
 
     function kind(url) {
         // a system-generated document: data-receipt="page" (landscape, e.g. an Acknowledgement Receipt)
@@ -57,6 +57,8 @@
         var url = urls[index];
         var k = kind(url);
         stage.innerHTML = '';
+        // a page with its own close button (link marked data-own-close, e.g. the quotation review) hides the floating one
+        document.getElementById('receiptViewerClose').style.display = ownClose[index] ? 'none' : '';
 
         if (k === 'image') {
             var img = document.createElement('img');
@@ -90,8 +92,8 @@
         count.textContent = (index + 1) + ' / ' + urls.length;
     }
 
-    function open(list, start, pageFlags) {
-        urls = list; pages = pageFlags || []; index = start;
+    function open(list, start, pageFlags, closeFlags) {
+        urls = list; pages = pageFlags || []; ownClose = closeFlags || []; index = start;
         render();
         overlay.classList.add('show');
         document.body.style.overflow = 'hidden';
@@ -120,10 +122,18 @@
         var set = link.closest('[data-receipt-set]');
         var links = set ? Array.prototype.slice.call(set.querySelectorAll('a[data-receipt]')) : [link];
         open(links.map(function (a) { return a.getAttribute('href'); }), Math.max(0, links.indexOf(link)),
-             links.map(function (a) { var t = a.getAttribute('data-receipt'); return (t === 'page' || t === 'doc') ? t : false; }));
+             links.map(function (a) { var t = a.getAttribute('data-receipt'); return (t === 'page' || t === 'doc') ? t : false; }),
+             links.map(function (a) { return a.hasAttribute('data-own-close'); }));
     });
 
     document.getElementById('receiptViewerClose').addEventListener('click', close);
+    // a page shown in the viewer that has its own × (the quotation review): it asks to close, and hides the floating ×
+    window.addEventListener('message', function (e) {
+        var frame = stage.querySelector('iframe');
+        if (!frame || e.source !== frame.contentWindow || !e.data) return;   // only the page currently shown
+        if (e.data.rvClose) close();
+        if (e.data.rvOwnClose) document.getElementById('receiptViewerClose').style.display = 'none';
+    });
     prevBtn.addEventListener('click', function (e) { e.stopPropagation(); step(-1); });
     nextBtn.addEventListener('click', function (e) { e.stopPropagation(); step(1); });
     // clicking the dark backdrop (not the file itself) closes it

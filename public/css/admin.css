@@ -1636,14 +1636,47 @@ input[type="number"] {
     background-color: rgba(0, 0, 0, 0.03);
 }
 
-/* Rows still awaiting admin action (e.g. a pending quotation request) */
+/* Rows still awaiting action (e.g. a pending quotation request, a payment due) — the same yellow highlight the
+   client portal uses: a yellow border all round with a soft glow inside, on a pale yellow row */
 .data-table tbody tr.row-needs-action {
-    background-color: #fffbeb;
-    box-shadow: inset 3px 0 0 #f59e0b;
+    background-color: #fffdf5;
+    box-shadow: inset 0 0 0 2px #F5B400, inset 0 0 0 6px rgba(245, 180, 0, .12);
 }
 
 .data-table tbody tr.row-needs-action:hover {
-    background-color: #fef3c7;
+    background-color: #fff8e1;
+}
+
+/* the matching tag on such a row ("Needs Final Payment") — yellow, with a blinking dot */
+.needs-flag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    width: fit-content;
+    margin-top: 5px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: #F5B400;
+    color: #1a1a1a;
+    font-size: 9.5px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    white-space: nowrap;
+}
+
+.needs-flag-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #1a1a1a;
+    animation: needsFlagPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes needsFlagPulse { 50% { opacity: .25; } }
+
+@media (prefers-reduced-motion: reduce) {
+    .needs-flag-dot { animation: none; }
 }
 
 .data-table tbody tr:last-child td {

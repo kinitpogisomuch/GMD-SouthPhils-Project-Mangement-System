@@ -48,11 +48,59 @@
                 <span class="epv-crumb-current" style="color:var(--dark);font-weight:700;">{{ $project->name }}</span>
             </div>
 
-            {{-- No page title here: the project name already shows in the breadcrumb above --}}
+            {{-- Page header: the project, its current phase, and the key facts (same idea as the client's project page) --}}
+            @php
+                $hdPhaseColor = [
+                    'planning'    => ['#475569', '#F1F5F9'],
+                    'procurement' => ['#1E3A5F', '#E3EAF3'],
+                    'matl_prep'   => ['#7C5A10', '#F5EDD8'],
+                    'fabrication' => ['#2A4EAA', '#EAF0FF'],
+                    'inspection'  => ['#9A3412', '#FBE9E0'],
+                    'painting'    => ['#4D5B2A', '#EEF1E0'],
+                    'completion'  => ['#207A3A', '#E7F6EC'],
+                    'delivery'    => ['#14532D', '#DCEBDF'],
+                ][$project->current_phase] ?? ['#14532D', '#DCEBDF'];
+                $hdDone  = $project->status === 'completed';
+                $hdTanks = $project->tankItems ?? collect();
+                $hdTank  = $hdTanks->isNotEmpty()
+                    ? $hdTanks->map(fn ($t) => ($t->quantity > 1 ? $t->quantity . '× ' : '') . $t->tank_type . ($t->capacity ? ' (' . $t->capacity . ')' : ''))->implode(', ')
+                    : trim(($project->tank_type ?? '') . ($project->capacity ? ' (' . $project->capacity . ')' : ''));
+            @endphp
+            <div class="epv-head">
+                <div class="epv-head-main">
+                    <div class="epv-title-row">
+                        <h1 class="epv-title">{{ $project->name }}</h1>
+                        @if($hdDone)
+                        <span class="epv-phase" style="background:#E7F6EC;color:#207A3A;"><i data-lucide="check-circle-2"></i> Completed</span>
+                        @else
+                        <span class="epv-phase" style="background:{{ $hdPhaseColor[1] }};color:{{ $hdPhaseColor[0] }};"><span class="epv-phase-dot"></span> {{ \App\Models\Project::phaseLabel($project->current_phase) }}</span>
+                        @endif
+                    </div>
+                    <div class="epv-meta">
+                        <span><i data-lucide="building-2"></i> {{ $project->live_client_name }}</span>
+                        @if($hdTank)<span><i data-lucide="package"></i> {{ $hdTank }}</span>@endif
+                        @if($project->start_date)
+                        <span><i data-lucide="calendar"></i> {{ $project->start_date->format('M d, Y') }}{{ $project->end_date ? ' – ' . $project->end_date->format('M d, Y') : '' }}</span>
+                        @endif
+                    </div>
+                </div>
+            </div>
             <style>
+                .epv-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 22px; }
+                .epv-head-main { min-width: 0; }
+                .epv-title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+                .epv-title { margin: 0; font-size: 26px; font-weight: 900; color: var(--dark); letter-spacing: -.4px; line-height: 1.2; }
+                .epv-phase { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 800; white-space: nowrap; }
+                .epv-phase svg { width: 13px; height: 13px; }
+                .epv-phase-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+                .epv-meta { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 8px; font-size: 13px; font-weight: 600; color: var(--muted); }
+                .epv-meta span { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+                .epv-meta svg { width: 14px; height: 14px; flex-shrink: 0; }
                 @media (max-width: 640px) {
                     .epv-crumb { font-size: 12px !important; margin-bottom: 14px !important; min-width: 0; }
                     .epv-crumb-current { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+                    .epv-title { font-size: 20px; }
+                    .epv-meta { font-size: 12px; gap: 4px 12px; }
                 }
             </style>
 

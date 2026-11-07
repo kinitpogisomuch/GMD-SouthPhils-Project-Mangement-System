@@ -3046,12 +3046,25 @@ td.action-cell > .action-btn + .action-btn {
 
 .project-progress-info {
     display: flex;
-    gap: 24px;
+    gap: 0;
 }
 
 .project-info-item {
     display: flex;
     flex-direction: column;
+}
+
+/* a thin line between Start Date | End Date | Current Phase (phones already had one — see the mobile block) */
+.project-progress-info .project-info-item {
+    padding: 0 22px;
+}
+
+.project-progress-info .project-info-item:first-child {
+    padding-left: 0;
+}
+
+.project-progress-info .project-info-item + .project-info-item {
+    border-left: 1px solid var(--border);
 }
 
 .project-info-label {
@@ -4503,7 +4516,8 @@ body.page-enter .admin-content {
         padding: 10px 4px;
     }
 
-    .project-progress-info .project-info-item {
+    .project-progress-info .project-info-item,
+    .project-progress-info .project-info-item:first-child {
         min-width: 0;
         padding: 0 8px;
         text-align: center;

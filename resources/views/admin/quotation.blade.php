@@ -49,6 +49,37 @@
         #quotationStatusTabs .filter-tab { padding: 6px 10px; font-size: 12px; gap: 5px; white-space: nowrap; }
         #quotationStatusTabs .filter-count { min-width: 17px; height: 17px; font-size: 10px; padding: 0 5px; }
 
+        /* ── View Request modal ── */
+        .vr-card { padding-bottom: 0; }
+        .vr-body { display: flex; flex-direction: column; gap: 18px; padding-bottom: 20px; }
+        .vr-body > .alert-banner { margin: 0; }
+        .vr-status:empty { display: none; }
+        .vr-section-title { display: flex; align-items: center; gap: 7px; margin-bottom: 9px; font-size: 11.5px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+        .vr-section-title svg { width: 14px; height: 14px; }
+        .vr-section-hint { font-weight: 600; text-transform: none; letter-spacing: 0; }
+        .vr-tank-items { display: flex; flex-direction: column; gap: 8px; }
+        .vr-client { border: 1px solid var(--border); border-radius: 14px; background: var(--surface-2); padding: 14px 16px; }
+        .vr-client-head { display: flex; align-items: center; gap: 12px; min-width: 0; }
+        .vr-avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--dark); color: var(--white); display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; flex-shrink: 0; }
+        .vr-client-name { font-size: 15px; font-weight: 800; color: var(--dark); min-width: 0; overflow-wrap: anywhere; }
+        .vr-client-lines { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border); }
+        .vr-client-line { display: inline-flex; align-items: center; gap: 7px; min-width: 0; font-size: 13px; font-weight: 700; color: var(--dark); text-decoration: none; overflow-wrap: anywhere; }
+        .vr-client-line:hover span { text-decoration: underline; }
+        .vr-client-line svg { width: 14px; height: 14px; color: var(--muted); flex-shrink: 0; }
+        .vr-text { border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); padding: 11px 14px; font-size: 13px; font-weight: 600; color: var(--dark); line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; }
+        .vr-footer { position: sticky; bottom: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+                     margin: 0 -24px; padding: 14px 24px 18px; background: var(--white); border-top: 1px solid var(--border); }
+        .vr-footer-left, .vr-footer-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .vr-footer-right { margin-left: auto; }
+        .vr-btn { text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+        /* the secondary links on the left (Open Quotation, View Purchase Order) — smaller than the main action */
+        .vr-footer-left .vr-btn { padding: 8px 14px; font-size: 12.5px; border-radius: 12px; gap: 6px; min-height: 0; }
+        .vr-footer-left .vr-btn svg { width: 15px; height: 15px; }
+        @media (max-width: 768px) {
+            .vr-footer-left, .vr-footer-right, .vr-footer .vr-btn { width: 100%; }
+            .vr-footer .vr-btn { justify-content: center; }
+        }
+
         @media (max-width: 1400px) {
             #quotationRequestsTable tbody tr[data-request] td { height: 100px; }   /* long tank names wrap here */
         }
@@ -175,7 +206,7 @@
                         <tbody>
                             @forelse($requests as $qr)
                             <tr
-                                class="{{ $qr->status === 'pending' ? 'row-needs-action' : '' }}"
+                                class="{{ $qr->status === 'pending' || $qr->readyToConvert() ? 'row-needs-action' : '' }}"
                                 data-status="{{ $qr->status }}"
                                 data-name="{{ strtolower(($qr->client->name ?? '') . ' ' . ($qr->quotationBatch->reference_no ?? '') . ' ' . $qr->tank_type) }}"
                                 data-request="{{ json_encode([
@@ -216,6 +247,11 @@
                                 <td>
                                     <div class="qr-cell-title">{{ $qr->client->name ?? '—' }}</div>
                                     <div class="qr-cell-sub">{{ $qr->client->contact ?? '—' }}</div>
+                                    @if($qr->status === 'pending')
+                                    <span class="needs-flag" title="A new request — waiting for you to start the costing"><span class="needs-flag-dot"></span> New Request</span>
+                                    @elseif($qr->readyToConvert())
+                                    <span class="needs-flag" title="The client sent their Purchase Order — convert this quotation into a project"><span class="needs-flag-dot"></span> Ready to Convert</span>
+                                    @endif
                                 </td>
                                 <td>
                                     <div class="qr-cell-tank">
@@ -353,7 +389,7 @@
 
     <!-- ===== VIEW REQUEST MODAL ===== -->
     <div class="modal-overlay" id="viewRequestModal">
-        <div class="modal-card" style="max-width:600px;max-height:90vh;overflow-y:auto;">
+        <div class="modal-card vr-card" style="max-width:600px;max-height:90vh;overflow-y:auto;">
             <div class="modal-header">
                 <div>
                     <h2 id="viewRequestTitle">Quotation Request</h2>
@@ -364,106 +400,92 @@
                 </button>
             </div>
 
-            <div style="padding:0 28px 4px;">
-                <div id="viewRequestStatusBadge" style="margin-bottom:16px;"></div>
+            <div class="vr-body">
+                <div id="viewRequestStatusBadge" class="vr-status"></div>
 
-                <div id="viewRequestReferenceFilesWrap" style="display:none;margin-bottom:20px;background:var(--cream-soft);border:1px solid var(--border);border-radius:14px;padding:14px 16px;">
-                    <div style="display:flex;align-items:center;gap:7px;font-size:12px;font-weight:800;color:var(--dark);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;">
-                        <i data-lucide="paperclip" style="width:14px;height:14px;color:var(--muted);"></i>
-                        Client Attached Design Files
-                    </div>
-                    <div id="viewRequestReferenceFiles" style="display:flex;flex-wrap:wrap;gap:10px;"></div>
-                </div>
-
-                <label style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:8px;">
-                    Tank Requirements
-                </label>
-                <div id="viewRequestTankItems" style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;"></div>
-
-                <div class="form-grid" style="margin-bottom:6px;">
-                    <div class="form-group">
-                        <label>Client</label>
-                        <input type="text" id="viewRequestClientName" disabled>
-                    </div>
-                    <div class="form-group">
-                        <label>Contact</label>
-                        <input type="text" id="viewRequestClientContact" disabled>
-                    </div>
-                    <div class="form-group form-group-full">
-                        <label>Email</label>
-                        <input type="text" id="viewRequestClientEmail" disabled>
-                    </div>
-                    <div class="form-group form-group-full" id="viewRequestLocationGroup" style="display:none;">
-                        <label>Site Location <span style="font-weight:400;color:var(--muted);">(assembled on site)</span></label>
-                        <textarea id="viewRequestLocation" rows="2" disabled style="resize:none;"></textarea>
-                    </div>
-                    <div class="form-group form-group-full" id="viewRequestNotesGroup" style="display:none;">
-                        <label>Notes</label>
-                        <textarea id="viewRequestNotes" rows="3" disabled style="resize:none;"></textarea>
-                    </div>
-                </div>
-
+                <!-- Where the request stands / what to do next -->
                 <div id="viewRequestDeclineReasonWrap" class="alert-banner"
-                     style="display:none;align-items:flex-start;margin-bottom:16px;background:#fee2e2;border:1px solid #fca5a5;color:#dc2626;">
+                     style="display:none;align-items:flex-start;background:#fee2e2;border:1px solid #fca5a5;color:#dc2626;">
                     <i data-lucide="circle-alert"></i>
                     <span id="viewRequestDeclineReason" style="flex:1;min-width:0;overflow-wrap:anywhere;word-break:break-word;"></span>
                 </div>
-
-                <div id="viewRequestFilesWrap" style="display:none;margin-bottom:16px;">
-                    <label style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:8px;">
-                        Quotation Files Sent
-                    </label>
-                    <div id="viewRequestFiles" style="display:flex;flex-direction:column;gap:6px;"></div>
+                <div id="sendQuotationSection" style="display:none;" class="alert-banner info">
+                    <i data-lucide="info"></i>
+                    <span>Do the costing (materials, labor and pricing), generate the quotation document, then send it to the client for approval.</span>
                 </div>
-
-                <!-- Build & Send Quotation (pending only) — happens on the Build Quotation page,
-                     which covers the whole batch (all tanks in this request) at once. -->
-                <div id="sendQuotationSection" style="display:none;">
-                    <div class="alert-banner info" style="margin-bottom:14px;">
-                        <i data-lucide="info"></i>
-                        Do the costing (materials, labor and pricing), generate the quotation document, then send it to the client for approval.
-                    </div>
-                    <div class="modal-actions" style="border-top:none;padding-top:0;">
-                        <a id="buildQuotationBtn" href="#" class="save-btn" style="text-decoration:none;">
-                            <i data-lucide="calculator"></i> Start Costing
-                        </a>
-                    </div>
-                </div>
-
-                <!-- Quotation already made (sent / approved / converted): open its page — view, withdraw & revise, PDF -->
-                <div id="openQuotationSection" style="display:none;margin-bottom:14px;">
-                    <a id="openQuotationBtn" href="#" class="cancel-btn" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
-                        <i data-lucide="file-text"></i> Open Quotation
-                    </a>
-                </div>
-
-                <!-- Awaiting client approval -->
                 <div id="awaitingApprovalSection" style="display:none;" class="alert-banner info">
                     <i data-lucide="clock"></i>
-                    Waiting for the client to review and approve this quotation.
+                    <span>Waiting for the client to review and approve this quotation.</span>
                 </div>
-
-                <!-- Approved — waiting for the client's Purchase Order -->
                 <div id="awaitingPoSection" style="display:none;" class="alert-banner info">
                     <i data-lucide="file-signature"></i>
-                    The client approved this quotation. Waiting for their Purchase Order — you can convert it into a project once they send it.
+                    <span>The client approved this quotation. Waiting for their Purchase Order — you can convert it into a project once they send it.</span>
+                </div>
+                <div id="readyToConvertSection" style="display:none;" class="alert-banner success">
+                    <i data-lucide="check-circle"></i>
+                    <span>The client approved this quotation and sent Purchase Order <strong id="readyToConvertPo"></strong>. You may now convert it into a project — the down payment opens for the client.</span>
                 </div>
 
-                <!-- Approved + PO received — ready to convert -->
-                <div id="readyToConvertSection" style="display:none;">
-                    <div class="alert-banner success" style="margin-bottom:14px;">
-                        <i data-lucide="check-circle"></i>
-                        <span>The client approved this quotation and sent Purchase Order <strong id="readyToConvertPo"></strong>. You may now convert it into a project — the down payment opens for the client.</span>
+                <section class="vr-section">
+                    <div class="vr-section-title"><i data-lucide="package"></i> Tank Requirements</div>
+                    <div id="viewRequestTankItems" class="vr-tank-items"></div>
+                </section>
+
+                <section class="vr-section">
+                    <div class="vr-section-title"><i data-lucide="user-round"></i> Client</div>
+                    <div class="vr-client">
+                        <div class="vr-client-head">
+                            <span class="vr-avatar" id="viewRequestClientInitials"></span>
+                            <span class="vr-client-name" id="viewRequestClientName"></span>
+                        </div>
+                        <div class="vr-client-lines">
+                            <a class="vr-client-line" id="viewRequestClientContact" href="#"><i data-lucide="phone"></i><span></span></a>
+                            <a class="vr-client-line" id="viewRequestClientEmail" href="#"><i data-lucide="mail"></i><span></span></a>
+                        </div>
                     </div>
-                    <div id="readyToConvertPoFiles" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;"></div>
-                    <div class="modal-actions" style="border-top:none;padding-top:0;">
-                        <a id="readyToConvertBtn" href="#" class="save-btn" style="text-decoration:none;">
-                            <i data-lucide="folder-plus"></i> Convert to Project
+                </section>
+
+                <section class="vr-section" id="viewRequestLocationGroup" style="display:none;">
+                    <div class="vr-section-title"><i data-lucide="map-pin"></i> Site Location <span class="vr-section-hint">(assembled on site)</span></div>
+                    <div class="vr-text" id="viewRequestLocation"></div>
+                </section>
+
+                <section class="vr-section" id="viewRequestNotesGroup" style="display:none;">
+                    <div class="vr-section-title"><i data-lucide="sticky-note"></i> Notes</div>
+                    <div class="vr-text" id="viewRequestNotes"></div>
+                </section>
+
+                <section class="vr-section" id="viewRequestReferenceFilesWrap" style="display:none;">
+                    <div class="vr-section-title"><i data-lucide="paperclip"></i> Client Attached Design Files</div>
+                    <div id="viewRequestReferenceFiles" style="display:flex;flex-wrap:wrap;gap:10px;"></div>
+                </section>
+
+                <section class="vr-section" id="viewRequestFilesWrap" style="display:none;">
+                    <div class="vr-section-title"><i data-lucide="files"></i> Quotation Files Sent</div>
+                    <div id="viewRequestFiles" style="display:flex;flex-direction:column;gap:6px;"></div>
+                </section>
+            </div>
+
+            <!-- Actions for the request's current status — pinned to the bottom of the modal -->
+            <div class="vr-footer" id="viewRequestFooter">
+                <div class="vr-footer-left">
+                    <!-- a quotation already made (sent / approved / converted): open its page — view, withdraw & revise, PDF -->
+                    <span id="openQuotationSection" style="display:none;">
+                        <a id="openQuotationBtn" href="#" class="cancel-btn vr-btn">
+                            <i data-lucide="file-text"></i> Open Quotation
                         </a>
-                    </div>
+                    </span>
+                    <span id="readyToConvertPoFiles" class="vr-footer-left" data-receipt-set></span>
                 </div>
-
-                <div style="height:20px;"></div>
+                <div class="vr-footer-right">
+                    <!-- costing covers the whole batch (all tanks in this request) at once -->
+                    <a id="buildQuotationBtn" href="#" class="save-btn vr-btn" style="display:none;">
+                        <i data-lucide="calculator"></i> Start Costing
+                    </a>
+                    <a id="readyToConvertBtn" href="#" class="save-btn vr-btn" style="display:none;">
+                        <i data-lucide="folder-plus"></i> Convert to Project
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -504,6 +526,8 @@
             </form>
         </div>
     </div>
+
+    @include('partials.receipt_viewer')
 
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="{{ asset('js/admin.js') }}"></script>
@@ -548,10 +572,17 @@
 
                     document.getElementById('viewRequestTitle').textContent = r.reference_no ? 'Quotation Request ' + r.reference_no : 'Quotation Request';
                     document.getElementById('viewRequestSubtitle').textContent = 'Submitted ' + r.submitted_at;
-                    document.getElementById('viewRequestClientName').value    = r.client_name;
-                    document.getElementById('viewRequestClientContact').value = r.client_contact;
-                    document.getElementById('viewRequestClientEmail').value   = r.client_email;
-                    document.getElementById('viewRequestLocation').value      = r.location || '';
+                    document.getElementById('viewRequestClientName').textContent = r.client_name || '—';
+                    document.getElementById('viewRequestClientInitials').textContent = (r.client_name || '?').trim().split(/\s+/)
+                        .slice(0, 2).map(function (w) { return w.charAt(0); }).join('').toUpperCase();
+                    // phone / email as links (call, mail) — a missing one is hidden
+                    [['viewRequestClientContact', r.client_contact, 'tel:'], ['viewRequestClientEmail', r.client_email, 'mailto:']].forEach(function (c) {
+                        var link = document.getElementById(c[0]);
+                        link.style.display = c[1] ? '' : 'none';
+                        link.href = c[1] ? c[2] + String(c[1]).replace(/\s+/g, '') : '#';
+                        link.querySelector('span').textContent = c[1] || '';
+                    });
+                    document.getElementById('viewRequestLocation').textContent = r.location || '';
                     document.getElementById('viewRequestLocationGroup').style.display = r.location ? '' : 'none';
 
                     var tankItemsWrap = document.getElementById('viewRequestTankItems');
@@ -581,7 +612,7 @@
                     var notesGroup = document.getElementById('viewRequestNotesGroup');
                     if (r.notes) {
                         notesGroup.style.display = '';
-                        document.getElementById('viewRequestNotes').value = r.notes;
+                        document.getElementById('viewRequestNotes').textContent = r.notes;
                     } else {
                         notesGroup.style.display = 'none';
                     }
@@ -672,6 +703,9 @@
                     document.getElementById('awaitingApprovalSection').style.display = 'none';
                     document.getElementById('readyToConvertSection').style.display   = 'none';
                     document.getElementById('awaitingPoSection').style.display       = 'none';
+                    document.getElementById('buildQuotationBtn').style.display       = 'none';
+                    document.getElementById('readyToConvertBtn').style.display       = 'none';
+                    document.getElementById('readyToConvertPoFiles').innerHTML       = '';
 
                     // any quotation past costing (and not declined) can still be opened from here
                     var hasQuotation = r.batch_id && ['pending', 'in_preparation', 'declined'].indexOf(r.status) === -1;
@@ -680,6 +714,7 @@
 
                     if (r.status === 'pending' || r.status === 'in_preparation') {
                         document.getElementById('sendQuotationSection').style.display = '';
+                        document.getElementById('buildQuotationBtn').style.display = '';
                         document.getElementById('buildQuotationBtn').href = r.build_quotation_url;
                     } else if (r.status === 'quotation_sent') {
                         document.getElementById('awaitingApprovalSection').style.display = '';
@@ -687,19 +722,27 @@
                         document.getElementById('awaitingPoSection').style.display = '';
                     } else if (r.status === 'approved') {
                         document.getElementById('readyToConvertSection').style.display = '';
+                        document.getElementById('readyToConvertBtn').style.display = '';
                         document.getElementById('readyToConvertBtn').href = r.convert_url;
                         document.getElementById('readyToConvertPo').textContent = r.po_number + (r.po_submitted_at ? ' (' + r.po_submitted_at + ')' : '');
                         var poWrap = document.getElementById('readyToConvertPoFiles');
                         poWrap.innerHTML = '';
                         (r.po_files || []).forEach(function (url, i) {
                             var a = document.createElement('a');
-                            a.href = url; a.target = '_blank'; a.className = 'cancel-btn';
-                            a.style.cssText = 'text-decoration:none;display:inline-flex;align-items:center;gap:6px;';
+                            // opens in the file viewer over the page (ctrl/middle-click still opens a new tab)
+                            a.href = url; a.target = '_blank'; a.className = 'cancel-btn vr-btn';
+                            a.setAttribute('data-receipt', '');
                             a.innerHTML = '<i data-lucide="paperclip"></i>';
                             a.appendChild(document.createTextNode(r.po_files.length > 1 ? 'PO file ' + (i + 1) : 'View Purchase Order'));
                             poWrap.appendChild(a);
                         });
                     }
+
+                    // no action for this status (e.g. declined) — drop the empty bar
+                    var footer = document.getElementById('viewRequestFooter');
+                    footer.style.display = hasQuotation || ['buildQuotationBtn', 'readyToConvertBtn'].some(function (id) {
+                        return document.getElementById(id).style.display !== 'none';
+                    }) ? '' : 'none';
 
                     openModal('viewRequestModal');
                     if (typeof lucide !== 'undefined') lucide.createIcons();

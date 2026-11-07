@@ -140,6 +140,11 @@ class ClientController extends Controller
         $payments      = $this->ownPaymentsQuery()->orderBy('created_at', 'desc')->get();
         $onlineEnabled = app(\App\Services\OnlinePayments::class)->enabled();
 
-        return view('client.payments', compact('payments', 'onlineEnabled'));
+        // A project with a billed amount still to pay goes to the top (newest first within each group) —
+        // the view highlights those cards. sortBy is stable, so the date order holds inside each group.
+        $dueIds   = $payments->filter(fn ($p) => $p->onlinePayableStage() !== null)->pluck('id')->all();
+        $payments = $payments->sortBy(fn ($p) => in_array($p->id, $dueIds, true) ? 0 : 1)->values();
+
+        return view('client.payments', compact('payments', 'onlineEnabled', 'dueIds'));
     }
 }

@@ -150,10 +150,8 @@
                                         @endif
                                         <span style="font-size:13px;font-weight:800;color:var(--dark);line-height:1.3;white-space:normal;word-break:break-word;">{{ $nameMain }}</span>
                                         @if($needsReview)
-                                        <span title="An employee submitted a progress update for this project — waiting on your review"
-                                              style="display:inline-flex;align-items:center;gap:3px;margin-top:4px;font-size:10px;font-weight:800;color:#b45309;background:#fff3cd;border-radius:999px;padding:2px 8px;white-space:nowrap;width:fit-content;">
-                                            <i data-lucide="bell" style="width:10px;height:10px;"></i>
-                                            Update Pending Review
+                                        <span class="needs-flag" title="An employee submitted a progress update for this project — waiting on your review">
+                                            <span class="needs-flag-dot"></span> Update Pending Review
                                         </span>
                                         @endif
                                     </span>
@@ -329,7 +327,7 @@
                             <input type="date" name="end_date" id="cqEndDate" required>
                         </div>
                     </div>
-                    <p class="cq-hint" id="cqHint"><i data-lucide="info"></i><span>The end date is estimated from the quotation's working days (Sundays off). You can adjust both.</span></p>
+                    <p class="cq-hint" id="cqHint"><i data-lucide="info"></i><span>This is the estimated timeline of the project — the end date is counted from the quotation's working days (Sundays off). You can adjust both.</span></p>
                 </div>
 
                 <div class="modal-actions" style="flex-shrink:0;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">

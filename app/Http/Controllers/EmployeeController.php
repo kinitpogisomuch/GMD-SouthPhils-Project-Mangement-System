@@ -60,6 +60,7 @@ class EmployeeController extends Controller
                 ->active()
                 ->latest()->take(10)->get()
                 ->map(fn ($m) => ['kind' => 'usage', 'at' => $m->created_at, 'project' => $m->project, 'project_id' => $m->project_id,
+                                  'phase' => null,   // usage isn't tied to a phase — the key is still there for the feed
                                   'material' => $m->material_name, 'qty' => (float) $m->quantity_used, 'unit' => $m->unit]))
             ->filter(fn ($a) => $a['at'])
             ->sortByDesc('at')

@@ -69,15 +69,6 @@
             <div class="page-header">
                 <div>
                     <h1 style="margin:0;">{{ $payment->project->name ?? 'Payment Detail' }}</h1>
-                    <p>
-                        <span class="client-pill">{{ $payment->client }}</span>
-                        @if($payment->project && $payment->project->tankItems->isNotEmpty())
-                            @foreach($payment->project->tankItems as $ti)
-                            &nbsp;·&nbsp; <strong>{{ $ti->quantity }}×</strong> {{ $ti->tank_type }}@if($ti->capacity) ({{ $ti->capacity }})@endif
-                            @endforeach
-                        @endif
-                        &nbsp;·&nbsp; {{ $payment->payment_terms }}
-                    </p>
                 </div>
                 <div style="display:flex;gap:10px;align-items:center;">
                     @if($status !== 'Fully Paid')
@@ -134,8 +125,10 @@
                     </div>
                 </div>
                 @if($billingDraft)
-                {{-- generated, waiting to be sent: open it and press Send there --}}
-                <a href="{{ route('admin.payments.billing_statements.show', [$payment->id, $billingDraft->id]) }}" class="save-btn" style="text-decoration:none;white-space:nowrap;">
+                {{-- generated, waiting to be sent: review it in the modal and press Send there
+                     (ctrl/middle-click still opens the full statement page) --}}
+                <a href="{{ route('admin.payments.billing_statements.show', [$payment->id, $billingDraft->id]) }}" class="save-btn" style="text-decoration:none;white-space:nowrap;"
+                   @include('partials.admin.review_statement_attrs', ['statement' => $billingDraft])>
                     <i data-lucide="send"></i> Review &amp; Send
                 </a>
                 @else
@@ -407,16 +400,27 @@
                 });
             </script>
 
-            <!-- Payment History -->
-            <div class="table-card">
-                <div class="table-toolbar" style="padding-bottom:14px;margin-bottom:0;border-bottom:1px solid var(--border);">
+            <!-- Payment History — switch between the recorded payments and the billing statements -->
+            @php $statements = $payment->billingStatements()->get(); @endphp
+            <div class="table-card" id="historyCard">
+                {{-- same underlined tabs as the Client Payments card above --}}
+                <div class="table-toolbar" style="padding-bottom:0;margin-bottom:0;border-bottom:1px solid var(--border);flex-wrap:wrap;">
                     <div>
-                        <div style="font-weight:800;font-size:15px;color:var(--dark);">Payment History</div>
-                        <div style="font-size:12px;color:var(--muted);margin-top:2px;">All recorded transactions for this project</div>
+                        <div style="font-weight:800;font-size:15px;color:var(--dark);" id="historyTitle">Payment History</div>
+                        <div style="font-size:12px;color:var(--muted);margin-top:2px;" id="historySub">All recorded transactions for this project</div>
                     </div>
-                    <span style="font-size:13px;font-weight:700;color:var(--muted);">{{ $payment->transactions->count() }} transaction{{ $payment->transactions->count() !== 1 ? 's' : '' }}</span>
+                    <div class="cp-tabs" id="historyTabs" role="tablist">
+                        <button type="button" class="cp-tab is-active" data-history="payments" role="tab">
+                            <i data-lucide="receipt"></i> Payments
+                            <span class="cp-count">{{ $payment->transactions->count() }}</span>
+                        </button>
+                        <button type="button" class="cp-tab" data-history="statements" role="tab">
+                            <i data-lucide="file-text"></i> Billing Statements
+                            <span class="cp-count">{{ $statements->count() }}</span>
+                        </button>
+                    </div>
                 </div>
-                <div class="table-wrapper">
+                <div class="table-wrapper" data-history-panel="payments">
                     <table class="data-table">
                         <thead>
                             <tr>
@@ -480,7 +484,71 @@
                         </tbody>
                     </table>
                 </div>
+
+                {{-- Billing statements, newest first — each opens in the Review & Send modal (edit / print / send) --}}
+                <div class="table-wrapper" data-history-panel="statements" hidden>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="text-align:left;">Date</th>
+                                <th style="text-align:left;">Billing For</th>
+                                <th style="text-align:left;">Subject / Ref.</th>
+                                <th style="text-align:center;">Status</th>
+                                <th style="text-align:center;">View</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($statements as $st)
+                            <tr>
+                                <td style="white-space:nowrap;color:var(--muted);">{{ $st->statement_date?->format('M d, Y') }}</td>
+                                <td><strong>{{ $st->billing_stage ? \App\Models\PaymentTransaction::stageLabel($st->billing_stage) : 'Full Statement' }}</strong></td>
+                                <td>
+                                    <div style="font-weight:700;color:var(--dark);">{{ $st->subject ?: '—' }}</div>
+                                    @if($st->reference_no)<div style="font-size:11.5px;color:var(--muted);">{{ $st->reference_no }}</div>@endif
+                                </td>
+                                <td style="text-align:center;">
+                                    @if($st->sent_at)
+                                    <span class="status-badge completed" title="Sent {{ $st->sent_at->format('M d, Y g:i A') }}">Sent {{ $st->sent_at->format('M d') }}</span>
+                                    @else
+                                    <span class="status-badge pending">Not sent yet</span>
+                                    @endif
+                                </td>
+                                <td style="text-align:center;">
+                                    <a href="{{ route('admin.payments.billing_statements.show', [$payment->id, $st->id]) }}" class="action-btn view" title="Review statement"
+                                       @include('partials.admin.review_statement_attrs', ['statement' => $st])>
+                                        <i data-lucide="file-text"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            @empty
+                            <tr>
+                                <td colspan="5" style="text-align:center;padding:40px;color:var(--muted);">
+                                    <i data-lucide="file-text" style="width:32px;height:32px;opacity:.3;display:block;margin:0 auto 10px;"></i>
+                                    No billing statements yet.
+                                </td>
+                            </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
             </div>
+            <style>[data-history-panel][hidden] { display: none !important; }</style>
+            <script>
+            // Payment History: Payments | Billing Statements
+            (function () {
+                var subs = { payments: 'All recorded transactions for this project', statements: 'Every billing statement for this project — open one to review, print or send it' };
+                var titles = { payments: 'Payment History', statements: 'Billing Statements' };
+                document.querySelectorAll('#historyTabs [data-history]').forEach(function (btn) {
+                    btn.addEventListener('click', function () {
+                        var key = btn.dataset.history;
+                        document.querySelectorAll('#historyTabs [data-history]').forEach(function (b) { b.classList.toggle('is-active', b === btn); });
+                        document.querySelectorAll('[data-history-panel]').forEach(function (p) { p.hidden = p.dataset.historyPanel !== key; });
+                        document.getElementById('historyTitle').textContent = titles[key];
+                        document.getElementById('historySub').textContent = subs[key];
+                    });
+                });
+            })();
+            </script>
 
         </main>
     </div>
@@ -541,6 +609,23 @@
                                     @endif
                                 </div>
                                 @endforeach
+                                {{-- Pays off the whole remaining contract balance at once — settles every unpaid stage --}}
+                                <div class="stage-select-option{{ $balance > 0 ? '' : ' disabled' }}"
+                                     data-value="full_payment"
+                                     data-label="Full Payment"
+                                     data-remaining="{{ $balance }}"
+                                     data-partial="0"
+                                     data-full="1"
+                                     data-carry="0"
+                                     @if($balance > 0) onclick="selectStage(this)" @endif
+                                     style="border-top:1px solid var(--border);">
+                                    <span>Full Payment</span>
+                                    @if($balance > 0)
+                                        <span class="stage-select-status" style="color:var(--muted);">₱{{ number_format($balance, 2) }}</span>
+                                    @else
+                                        <span class="stage-select-status" style="color:#16a34a;">✓ Paid</span>
+                                    @endif
+                                </div>
                             </div>
                         </div>
                         <select name="payment_stage" id="stageSelect" style="display:none;">
@@ -548,6 +633,7 @@
                             @foreach($payment->stages() as $stage)
                             <option value="{{ $stage }}"></option>
                             @endforeach
+                            <option value="full_payment"></option>
                         </select>
                         <span id="stageSelectErr" style="display:none;color:#b91c1c;font-size:12px;font-weight:600;margin-top:6px;">Please select a payment stage.</span>
                     </div>
@@ -609,66 +695,86 @@
         </div>
     </div>
 
-    <!-- Generate Billing Statement Modal -->
-    <div class="modal-overlay" id="billingStatementModal">
+    <!-- Generate / Edit Billing Statement Modal -->
+    @php
+        // ?edit_statement={id} (the statement page's Edit button) opens this form on that statement — any
+        // statement, sent or not. Otherwise it generates a new one, starting from this project's last statement.
+        $lastStatement = $payment->billingStatements()->latest('id')->first();
+        $editStatement = request('edit_statement') ? $payment->billingStatements()->find(request('edit_statement')) : null;
+        $bsSource      = $editStatement ?? $lastStatement;   // where carried-over details and signatures come from
+        $bsValue       = fn (string $field, $default = '') => $editStatement ? ($editStatement->{$field} ?? '') : $default;
+        // Signatories (name, role, e-signature) aren't per project: a new statement starts from the latest ones
+        // saved on ANY statement, so an upload or change carries into every billing statement after it.
+        $bsSignatory   = [
+            'prepared_by' => $editStatement ?? \App\Models\BillingStatement::latestSignatory('prepared_by') ?? $lastStatement,
+            'approved_by' => $editStatement ?? \App\Models\BillingStatement::latestSignatory('approved_by') ?? $lastStatement,
+        ];
+    @endphp
+    <div class="modal-overlay" id="billingStatementModal" @if($editStatement) data-autoopen="1" @endif>
         <div class="modal-card" style="max-width:640px;max-height:90vh;overflow-y:auto;">
             <div class="modal-header">
                 <div>
+                    @if($editStatement)
+                    <h2>Edit Billing Statement</h2>
+                    <p>Update the statement details for <strong>{{ $payment->project->name ?? 'this project' }}</strong>{{ $editStatement->sent_at ? ' — it was already sent, so the client will see the updated version' : '' }}.</p>
+                    @else
                     <h2>Generate Billing Statement</h2>
                     <p>Fill in the statement details for <strong>{{ $payment->project->name ?? 'this project' }}</strong> — you can review it and send it to the client next.</p>
+                    @endif
                 </div>
                 <button class="modal-close" type="button" id="closeBillingStatementModal">
                     <i data-lucide="x"></i>
                 </button>
             </div>
 
-            <form method="POST" action="{{ route('admin.payments.billing_statements.store', $payment->id) }}" id="billingStatementForm">
+            <form method="POST" id="billingStatementForm" enctype="multipart/form-data"
+                  action="{{ $editStatement ? route('admin.payments.billing_statements.update', [$payment->id, $editStatement->id]) : route('admin.payments.billing_statements.store', $payment->id) }}">
                 @csrf
+                @if($editStatement) @method('PUT') @endif
                 {{-- details that stay the same from bill to bill come from this project's last statement --}}
-                @php $lastStatement = $payment->billingStatements()->latest('id')->first(); @endphp
                 <div class="form-grid">
                     <div class="form-group">
                         <label>Attention</label>
-                        <input type="text" name="attention" placeholder="e.g. Mr. Juan Dela Cruz" value="{{ $lastStatement->attention ?? '' }}">
+                        <input type="text" name="attention" placeholder="e.g. Mr. Juan Dela Cruz" value="{{ $bsSource->attention ?? '' }}">
                     </div>
                     <div class="form-group">
                         <label>Bill To</label>
-                        <input type="text" name="bill_to" value="{{ $lastStatement?->bill_to ?: $payment->client }}">
+                        <input type="text" name="bill_to" value="{{ $bsSource?->bill_to ?: $payment->client }}">
                     </div>
                     <div class="form-group">
                         <label>Statement Date</label>
-                        <input type="date" name="statement_date" required value="{{ now()->format('Y-m-d') }}">
+                        <input type="date" name="statement_date" required value="{{ $editStatement?->statement_date?->format('Y-m-d') ?? now()->format('Y-m-d') }}">
                     </div>
                     <div class="form-group">
                         <label>Reference No.</label>
-                        <input type="text" name="reference_no" placeholder="e.g. BS-2026-001">
+                        <input type="text" name="reference_no" placeholder="e.g. BS-2026-001" value="{{ $bsValue('reference_no') }}">
                     </div>
                     <div class="form-group">
                         <label>Client TIN#</label>
-                        <input type="text" name="tin_number" placeholder="e.g. 123-456-789-000" value="{{ $lastStatement->tin_number ?? '' }}">
+                        <input type="text" name="tin_number" placeholder="e.g. 123-456-789-000" value="{{ $bsSource->tin_number ?? '' }}">
                     </div>
                     <div class="form-group">
                         <label>Project Title</label>
-                        <input type="text" name="project_title" value="{{ $payment->project->name ?? '' }}">
+                        <input type="text" name="project_title" value="{{ $bsValue('project_title', $payment->project->name ?? '') }}">
                     </div>
                     <div class="form-group form-group-full">
                         <label>Project Location</label>
-                        <input type="text" name="project_location" value="{{ $payment->project->address ?? '' }}">
+                        <input type="text" name="project_location" value="{{ $bsValue('project_location', $payment->project->address ?? '') }}">
                     </div>
                     <div class="form-group">
                         <label>P.O. Number</label>
                         {{-- the Purchase Order the client sent with their approved quotation --}}
-                        <input type="text" name="po_number" value="{{ $payment->project_id ? \App\Models\QuotationBatch::where('project_id', $payment->project_id)->whereNotNull('po_number')->latest('id')->value('po_number') : '' }}">
+                        <input type="text" name="po_number" value="{{ $bsValue('po_number', $payment->project_id ? \App\Models\QuotationBatch::where('project_id', $payment->project_id)->whereNotNull('po_number')->latest('id')->value('po_number') : '') }}">
                     </div>
                     <div class="form-group">
                         <label>P.R. Number</label>
-                        <input type="text" name="pr_number">
+                        <input type="text" name="pr_number" value="{{ $bsValue('pr_number') }}">
                     </div>
                     <div class="form-group form-group-full">
                         {{-- Billing For starts on the phase that's due (the one in the "not sent" banner), and the
                              subject follows it — e.g. "Request for Final Billing" --}}
                         @php
-                            $billingDefaultStage = $billingPending ?? $payment->openStage();
+                            $billingDefaultStage = $editStatement ? $editStatement->billing_stage : ($billingPending ?? $payment->openStage());
                             $billingSubjects = [
                                 ''                 => 'Request for Billing',
                                 'down_payment'     => 'Request for Down Payment Billing',
@@ -677,14 +783,16 @@
                             ];
                         @endphp
                         <label>Subject</label>
-                        <input type="text" name="subject" id="billingSubjectInput" value="{{ $billingSubjects[$billingDefaultStage ?? ''] ?? $billingSubjects[''] }}" data-subjects='@json($billingSubjects)'>
+                        <input type="text" name="subject" id="billingSubjectInput" value="{{ $bsValue('subject', $billingSubjects[$billingDefaultStage ?? ''] ?? $billingSubjects['']) }}" data-subjects='@json($billingSubjects)'>
                     </div>
                     <div class="form-group form-group-full">
                         <label>Billing For <span style="font-weight:400;color:var(--muted);">(which payment stage the client should pay now)</span></label>
                         <select name="billing_stage" id="billingStageSelect">
                             <option value="">Full Statement — show all stages</option>
                             @foreach($payment->stages() as $stage)
-                            <option value="{{ $stage }}" @if(in_array($stage, $paidStages)) disabled @elseif($stage === $billingDefaultStage) selected @endif>
+                            {{-- a paid stage can't be billed — except the one an edited statement already bills --}}
+                            @php $stageLocked = in_array($stage, $paidStages) && $stage !== $editStatement?->billing_stage; @endphp
+                            <option value="{{ $stage }}" @if($stageLocked) disabled @elseif($stage === $billingDefaultStage) selected @endif>
                                 {{ \App\Models\PaymentTransaction::stageLabel($stage) }}@if(in_array($stage, $paidStages)) — Already Paid @endif
                             </option>
                             @endforeach
@@ -692,41 +800,169 @@
                     </div>
                     <div class="form-group form-group-full">
                         <label>Deposit Instructions</label>
-                        <textarea name="deposit_instructions" rows="2" placeholder="e.g. Bank name, account name, account number...">{{ $lastStatement->deposit_instructions ?? '' }}</textarea>
+                        <textarea name="deposit_instructions" rows="2" placeholder="e.g. Bank name, account name, account number...">{{ $bsSource->deposit_instructions ?? '' }}</textarea>
                     </div>
                     <div class="form-group">
                         <label>Prepared By (Name)</label>
-                        <input type="text" name="prepared_by_name" value="{{ $lastStatement?->prepared_by_name ?: 'Bernabeth Maceda' }}">
+                        <input type="text" name="prepared_by_name" value="{{ $bsSignatory['prepared_by']?->prepared_by_name ?: 'Bernabeth Maceda' }}">
                     </div>
                     <div class="form-group">
                         <label>Prepared By (Role)</label>
-                        <input type="text" name="prepared_by_role" value="{{ $lastStatement?->prepared_by_role ?: 'Accounting Dept.' }}">
+                        <input type="text" name="prepared_by_role" value="{{ $bsSignatory['prepared_by']?->prepared_by_role ?: 'Accounting Dept.' }}">
                     </div>
                     <div class="form-group">
                         <label>Approved By (Name)</label>
-                        <input type="text" name="approved_by_name" value="{{ $lastStatement?->approved_by_name ?: 'Vince Duetiz' }}">
+                        <input type="text" name="approved_by_name" value="{{ $bsSignatory['approved_by']?->approved_by_name ?: 'Vince Duetiz' }}">
                     </div>
                     <div class="form-group">
                         <label>Approved By (Role)</label>
-                        <input type="text" name="approved_by_role" value="{{ $lastStatement?->approved_by_role ?: 'Operation Manager' }}">
+                        <input type="text" name="approved_by_role" value="{{ $bsSignatory['approved_by']?->approved_by_role ?: 'Operation Manager' }}">
                     </div>
+                    {{-- E-signatures (required): an image shown above each name on the statement. The current one —
+                         or for a new statement, the latest one saved on any statement — is kept unless replaced. --}}
+                    @foreach(['prepared_by' => 'Prepared By', 'approved_by' => 'Approved By'] as $who => $whoLabel)
+                    {{-- editing: the statement's own signature; new: the most recently uploaded one --}}
+                    @php $prevSig = ($editStatement?->{$who . '_signature'}) ?: \App\Models\BillingStatement::latestSignature($who); @endphp
+                    <div class="form-group">
+                        <label>{{ $whoLabel }} (E-Signature) <span style="color:#dc2626;">*</span></label>
+                        <div class="sig-upload" data-sig="{{ $who }}">
+                            <input type="hidden" name="keep_{{ $who }}_signature" value="{{ $prevSig ? 1 : 0 }}" class="sig-keep">
+                            <input type="file" name="{{ $who }}_signature_file" accept="image/png,image/jpeg,image/webp" class="sig-file" id="sigFile_{{ $who }}" hidden>
+                            <div class="sig-preview" @if(!$prevSig) style="display:none;" @endif>
+                                <img src="{{ $prevSig }}" alt="{{ $whoLabel }} signature">
+                                <button type="button" class="sig-remove" title="Remove signature"><i data-lucide="x"></i></button>
+                            </div>
+                            <label for="sigFile_{{ $who }}" class="sig-drop" @if($prevSig) style="display:none;" @endif>
+                                <i data-lucide="pen-line"></i>
+                                <span>Upload signature</span>
+                                <small>PNG with a transparent background works best · max 2 MB</small>
+                            </label>
+                            <small class="sig-err">Please upload the {{ $whoLabel }} signature.</small>
+                        </div>
+                    </div>
+                    @endforeach
                 </div>
 
                 <div class="modal-actions">
                     <button type="button" class="cancel-btn" id="cancelBillingStatement">Cancel</button>
                     <button type="submit" class="save-btn">
-                        <i data-lucide="file-text"></i>
-                        Generate Statement
+                        <i data-lucide="{{ $editStatement ? 'save' : 'file-text' }}"></i>
+                        {{ $editStatement ? 'Save Changes' : 'Generate Statement' }}
                     </button>
                 </div>
             </form>
         </div>
     </div>
 
+    <!-- Review & Send Billing Statement Modal — the statement itself (embedded), with Edit / Print / Send -->
+    <div class="modal-overlay" id="reviewStatementModal">
+        <div class="modal-card rs-card">
+            <div class="modal-header">
+                <div>
+                    <h2>Review Billing Statement</h2>
+                    <p id="rsSubtitle"></p>
+                </div>
+                <button class="modal-close" type="button" id="closeReviewStatement">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="rs-frame-wrap">
+                <iframe id="rsFrame" title="Billing statement"></iframe>
+            </div>
+            <div class="rs-actions">
+                <a id="rsEdit" href="#" class="cancel-btn rs-btn"><i data-lucide="pencil"></i> Edit</a>
+                <button type="button" id="rsPrint" class="cancel-btn rs-btn"><i data-lucide="printer"></i> Print / PDF</button>
+                <span id="rsSent" class="rs-sent" style="display:none;"><i data-lucide="check-circle-2"></i> <span></span></span>
+                <form method="POST" id="rsSendForm" style="display:none;">
+                    @csrf
+                    <input type="hidden" name="from" value="payment">
+                    <button type="submit" class="save-btn rs-btn" id="rsSendBtn"><i data-lucide="send"></i> Send to Client</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {{-- just generated / edited (?review_statement=id): open it in the modal straight away --}}
+    @php $reviewStatement = request('review_statement') ? $payment->billingStatements()->find(request('review_statement')) : null; @endphp
+    @if($reviewStatement)
+    <span hidden data-review-autoopen @include('partials.admin.review_statement_attrs', ['statement' => $reviewStatement])></span>
+    @endif
+    <style>
+        .rs-card { max-width: 960px; height: 92vh; max-height: 92vh; display: flex; flex-direction: column; overflow: hidden; }
+        .rs-frame-wrap { flex: 1; min-height: 0; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: #f3f3f3; }
+        .rs-frame-wrap iframe { width: 100%; height: 100%; border: 0; display: block; background: #fff; }
+        .rs-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; padding-top: 14px; }
+        .rs-actions form { margin: 0; }
+        .rs-btn { text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+        .rs-sent { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 800; color: #16a34a; }
+        .rs-sent svg { width: 15px; height: 15px; }
+        .rs-actions .po-btn-spinner { display: inline-block; width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(255,255,255,.35); border-top-color: #fff; animation: rsSpin .8s linear infinite; }
+        @keyframes rsSpin { to { transform: rotate(360deg); } }
+        @media (max-width: 768px) {
+            .rs-card { height: 95vh; max-height: 95vh; }
+            .rs-actions .rs-btn, .rs-actions form, .rs-sent { width: 100%; justify-content: center; }
+        }
+    </style>
+
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="{{ asset('js/admin.js') }}"></script>
     <script>
     lucide.createIcons();
+
+    // ── Review & Send modal ──────────────────────────────────────────────
+    (function () {
+        var modal    = document.getElementById('reviewStatementModal');
+        var frame    = document.getElementById('rsFrame');
+        var sendForm = document.getElementById('rsSendForm');
+        var sendBtn  = document.getElementById('rsSendBtn');
+        var sent     = document.getElementById('rsSent');
+
+        function open(el) {
+            frame.src = el.dataset.reviewUrl;
+            document.getElementById('rsSubtitle').textContent = el.dataset.title || '';
+            document.getElementById('rsEdit').href = el.dataset.editUrl;
+            // already sent: show when instead of the Send button
+            sendForm.style.display = el.dataset.sent ? 'none' : '';
+            sendForm.action = el.dataset.sendUrl;
+            sent.style.display = el.dataset.sent ? '' : 'none';
+            sent.querySelector('span').textContent = el.dataset.sent ? 'Sent ' + el.dataset.sent : '';
+            modal.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+        function close() {
+            modal.classList.remove('show');
+            document.body.style.overflow = '';
+            frame.src = 'about:blank';
+        }
+
+        document.addEventListener('click', function (e) {
+            var el = e.target.closest('[data-review-statement]');
+            if (!el || e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) return;
+            e.preventDefault();
+            open(el);
+        });
+        document.getElementById('closeReviewStatement').addEventListener('click', close);
+        modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && modal.classList.contains('show')) close(); });
+        document.getElementById('rsPrint').addEventListener('click', function () {
+            try { frame.contentWindow.focus(); frame.contentWindow.print(); } catch (err) { window.open(frame.src.replace(/[?&]embed=1/, ''), '_blank'); }
+        });
+        // one click sends once — the button locks while it goes
+        sendForm.addEventListener('submit', function () {
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = '<span class="po-btn-spinner"></span> Sending…';
+        });
+
+        var auto = document.querySelector('[data-review-autoopen]');
+        if (auto) {
+            open(auto);
+            // drop ?review_statement from the address so a refresh doesn't reopen it
+            if (window.history.replaceState) {
+                var url = new URL(window.location.href);
+                url.searchParams.delete('review_statement');
+                window.history.replaceState(null, '', url.toString());
+            }
+        }
+    })();
 
     const openBtn    = document.getElementById('openRecordModal');
     const closeBtn   = document.getElementById('closeRecordModal');
@@ -815,12 +1051,69 @@
         });
     }
 
-    if (billingBtn) {
-        billingBtn.addEventListener('click', openBillingModal);
-        closeBillingBtn.addEventListener('click', closeBillingModal);
-        cancelBillingBtn.addEventListener('click', closeBillingModal);
-        billingModal.addEventListener('click', e => { if (e.target === billingModal) closeBillingModal(); });
-    }
+    // E-signature uploads: preview the picked image; removing it also stops the last statement's one being reused
+    document.querySelectorAll('.sig-upload').forEach(function (box) {
+        var file    = box.querySelector('.sig-file');
+        var keep    = box.querySelector('.sig-keep');
+        var preview = box.querySelector('.sig-preview');
+        var drop    = box.querySelector('.sig-drop');
+        var img     = preview.querySelector('img');
+
+        function show(src) {
+            img.src = src || '';
+            preview.style.display = src ? '' : 'none';
+            drop.style.display    = src ? 'none' : '';
+            if (src) box.classList.remove('is-missing');
+        }
+        function pick(f) {
+            if (!f || !/^image\/(png|jpe?g|webp)$/.test(f.type)) { alert('Please choose a PNG, JPG or WEBP image.'); file.value = ''; return; }
+            if (f.size > 2 * 1024 * 1024) { alert('The signature image must be 2 MB or smaller.'); file.value = ''; return; }
+            show(URL.createObjectURL(f));
+        }
+
+        file.addEventListener('change', function () { pick(file.files[0]); });
+        box.querySelector('.sig-remove').addEventListener('click', function () {
+            file.value = '';
+            keep.value = '0';
+            show('');
+        });
+        // drag & drop an image onto the box
+        ['dragover', 'dragenter'].forEach(function (ev) {
+            drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('is-over'); });
+        });
+        ['dragleave', 'drop'].forEach(function (ev) {
+            drop.addEventListener(ev, function () { drop.classList.remove('is-over'); });
+        });
+        drop.addEventListener('drop', function (e) {
+            e.preventDefault();
+            var f = e.dataTransfer.files[0];
+            if (!f) return;
+            var dt = new DataTransfer();
+            dt.items.add(f);
+            file.files = dt.files;
+            pick(f);
+        });
+    });
+
+    // both e-signatures are required — flag an empty box instead of submitting
+    document.getElementById('billingStatementForm').addEventListener('submit', function (e) {
+        var missing = Array.prototype.filter.call(this.querySelectorAll('.sig-upload'), function (box) {
+            var has = box.querySelector('.sig-file').files.length || box.querySelector('.sig-keep').value === '1';
+            box.classList.toggle('is-missing', !has);
+            return !has;
+        });
+        if (missing.length) {
+            e.preventDefault();
+            missing[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    });
+
+    if (billingBtn) billingBtn.addEventListener('click', openBillingModal);
+    // the same form edits a statement (opened from its Edit button) — even when there's no Generate button
+    closeBillingBtn.addEventListener('click', closeBillingModal);
+    cancelBillingBtn.addEventListener('click', closeBillingModal);
+    billingModal.addEventListener('click', e => { if (e.target === billingModal) closeBillingModal(); });
+    if (billingModal.dataset.autoopen) openBillingModal();
 
     stageTrigger.addEventListener('click', function (e) {
         e.stopPropagation();
@@ -865,7 +1158,9 @@
             amountInput.classList.add('amount-locked');
             amountInput.value = remaining.toFixed(2);
             formatMoneyInput(amountInput);
-            hint.textContent = 'Fixed amount' + (percent ? ' — ' + percent + '% of the contract' : '') + '. This stage must be paid in full.';
+            hint.textContent = el.dataset.full === '1'
+                ? 'Fixed amount — the whole remaining contract balance. Settles every unpaid stage at once.'
+                : 'Fixed amount' + (percent ? ' — ' + percent + '% of the contract' : '') + '. This stage must be paid in full.';
         }
     }
 
@@ -1030,6 +1325,21 @@
         .pd-rev { padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; margin-bottom: 8px; font-size: 12.5px; line-height: 1.6; color: var(--dark); }
         .pd-rev-head { display: flex; justify-content: space-between; gap: 10px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
         .pd-rev-reason { margin-top: 4px; padding: 6px 9px; border-radius: 8px; background: #fffbeb; color: #92400e; font-size: 12px; }
+
+        /* Billing statement e-signature upload */
+        /* .form-group .sig-drop — the drop box is a <label>, so it has to out-rank the form's own label style */
+        .form-group .sig-drop { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; height: 96px; margin: 0; padding: 10px; border: 1.5px dashed var(--border); border-radius: 12px; background: var(--cream-soft); color: var(--dark); text-align: center; cursor: pointer; transition: border-color .15s ease; }
+        .form-group .sig-drop:hover, .form-group .sig-drop.is-over { border-color: var(--dark); }
+        .sig-drop svg { width: 18px; height: 18px; color: var(--muted); }
+        .sig-drop span { font-size: 12.5px; font-weight: 800; }
+        .sig-drop small { font-size: 10.5px; font-weight: 600; color: var(--muted); }
+        .sig-upload.is-missing .sig-drop { border-color: #dc2626; background: #fef2f2; }
+        .sig-err { display: none; margin-top: 6px; font-size: 12px; font-weight: 700; color: #dc2626; }
+        .sig-upload.is-missing .sig-err { display: block; }
+        .sig-preview { position: relative; display: flex; align-items: center; justify-content: center; height: 96px; padding: 8px; border: 1px solid var(--border); border-radius: 12px; background: #fff; }
+        .sig-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        .sig-remove { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border: none; border-radius: 50%; background: var(--dark); color: #fff; cursor: pointer; }
+        .sig-remove svg { width: 13px; height: 13px; }
     </style>
 
     {{-- ===== RETURN A CLIENT SUBMISSION FOR CORRECTION ===== --}}

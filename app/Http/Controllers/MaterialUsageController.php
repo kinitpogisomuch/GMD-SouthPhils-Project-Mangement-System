@@ -261,6 +261,11 @@ class MaterialUsageController extends Controller
         $quantities = collect($request->input('quantity_used', []))
             ->filter(fn ($qty) => is_numeric($qty) && (float) $qty > 0);
 
+        // the form no longer asks for a date — usage is logged as of today
+        if (!$request->filled('used_date')) {
+            $request->merge(['used_date' => now()->toDateString()]);
+        }
+
         $request->validate([
             'quantity_used'   => 'required|array',
             'quantity_used.*' => 'nullable|numeric|min:0',

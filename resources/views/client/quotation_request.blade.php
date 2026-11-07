@@ -287,10 +287,38 @@
         </div>
 
         {{-- ===================== HISTORY ===================== --}}
-        <div class="emp-tab-content {{ $activeTab === 'history' ? 'active' : '' }}" id="tab-history" role="tabpanel" :class="{ active: tab === 'history' }">
+        <div class="emp-tab-content {{ $activeTab === 'history' ? 'active' : '' }}" id="tab-history" role="tabpanel" :class="{ active: tab === 'history' }"
+             x-data="{ q: '', shown: {{ $historyBatches->count() }},
+                       matches(text) { return !this.q.trim() || text.indexOf(this.q.trim().toLowerCase()) !== -1; },
+                       recount() { this.$nextTick(() => { this.shown = [...this.$el.querySelectorAll('[data-history-item]')].filter(el => el.style.display !== 'none').length; }); } }"
+             x-init="$watch('q', () => recount())">
+            @if($historyBatches->isNotEmpty())
+            {{-- search the history: reference / quotation no., tank, capacity, status or date --}}
+            <div class="qh-search">
+                <i data-lucide="search"></i>
+                <input type="search" x-model="q" placeholder="Search by reference, tank, capacity, status or date…" aria-label="Search quotation history">
+                <button type="button" class="qh-search-clear" x-show="q" x-cloak @click="q = ''" aria-label="Clear search"><i data-lucide="x"></i></button>
+            </div>
+            @endif
             <div style="display:flex;flex-direction:column;gap:24px;">
             @forelse($historyBatches as $batch)
-                @include('partials.client.quotation_batch_card', ['batch' => $batch])
+                @php
+                    // everything the search box matches against for this quotation
+                    $hFirst  = $batch->first();
+                    $hSearch = strtolower(implode(' ', array_filter([
+                        $hFirst->quotationBatch?->reference_no,
+                        $hFirst->quotationBatch?->versions?->pluck('quotation_number')->implode(' '),
+                        $batch->pluck('tank_type')->filter()->implode(' '),
+                        $batch->pluck('capacity')->filter()->implode(' '),
+                        $hFirst->status_label ?? $hFirst->status,
+                        str_replace('_', ' ', $hFirst->status),
+                        $hFirst->created_at?->format('M d, Y'),
+                        $hFirst->created_at?->format('F Y'),
+                    ])));
+                @endphp
+                <div data-history-item x-show="matches(@js($hSearch))">
+                    @include('partials.client.quotation_batch_card', ['batch' => $batch])
+                </div>
             @empty
                 <div class="pv-card" style="text-align:center;padding:48px 20px;">
                     @include('partials.empty_tank_art')
@@ -298,7 +326,32 @@
                     <p style="font-size:13px;color:var(--muted);">Accepted, rejected or declined requests will show up here.</p>
                 </div>
             @endforelse
+            @if($historyBatches->isNotEmpty())
+                {{-- nothing matches the search --}}
+                <div class="pv-card qh-nomatch" x-show="shown === 0" x-cloak>
+                    <span class="qh-nomatch-icon"><i data-lucide="search-x"></i></span>
+                    <p style="font-weight:800;color:var(--dark);margin:0 0 4px;">No quotations match “<span x-text="q.trim()"></span>”</p>
+                    <p style="font-size:13px;color:var(--muted);margin:0 0 12px;">Try a reference number, a tank type or a month.</p>
+                    <button type="button" class="qh-nomatch-btn" @click="q = ''">Clear search</button>
+                </div>
+            @endif
             </div>
+            <style>
+                .qh-search { position: relative; display: flex; align-items: center; margin: 0 auto 18px; width: 100%; max-width: 520px; }   /* centred above the cards */
+                .qh-search > svg { position: absolute; left: 14px; width: 17px; height: 17px; color: var(--muted); pointer-events: none; }
+                .qh-search input { width: 100%; height: 46px; padding: 0 42px; border: 1px solid var(--border); border-radius: 999px; background: var(--white); font: inherit; font-size: 13.5px; color: var(--dark); box-shadow: 0 1px 2px rgba(0,0,0,.03); }
+                .qh-search input:focus { outline: none; border-color: var(--dark); box-shadow: 0 0 0 3px rgba(0,0,0,.06); }
+                .qh-search input::-webkit-search-cancel-button { display: none; }
+                .qh-search-clear { position: absolute; right: 8px; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border: none; border-radius: 50%; background: var(--cream-soft); color: var(--muted); cursor: pointer; }
+                .qh-search-clear:hover { background: var(--border); color: var(--dark); }
+                .qh-search-clear svg { width: 14px; height: 14px; }
+                .qh-nomatch { text-align: center; padding: 40px 20px; }
+                .qh-nomatch-icon { width: 52px; height: 52px; margin: 0 auto 10px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--cream-soft); border: 1px solid var(--border); color: var(--muted); }
+                .qh-nomatch-icon svg { width: 22px; height: 22px; }
+                .qh-nomatch-btn { padding: 8px 16px; border: 1px solid var(--border); border-radius: 999px; background: var(--white); font: inherit; font-size: 12.5px; font-weight: 800; color: var(--dark); cursor: pointer; }
+                .qh-nomatch-btn:hover { border-color: var(--dark); }
+                @media (max-width: 640px) { .qh-search { max-width: none; } }
+            </style>
         </div>
 
         {{-- ===================== NEW REQUEST ===================== --}}

@@ -45,11 +45,13 @@ class MonthlyExpenseController extends Controller
             ->pluck('project_id')
             ->toArray();
 
-        // All non-completed, non-archived projects for selection
-        $projects = Project::whereNotIn('status', ['completed', 'archived'])
+        // Projects to choose from: every non-completed, non-archived one — plus the ones already sharing this
+        // month's overhead, even if they've finished since. Otherwise they'd be counted in the split but
+        // missing from the list (nothing ticked), and saving would quietly drop them.
+        $projects = Project::where(fn ($q) => $q->whereNotIn('status', ['completed', 'archived'])->orWhereIn('id', $allocated))
             ->with('tankItems')
             ->orderBy('name')
-            ->get(['id', 'name', 'client', 'tank_type']);
+            ->get(['id', 'name', 'client', 'tank_type', 'status']);
 
         // Per-project amount for preview
         $perProject = count($allocated) > 0 && $total > 0

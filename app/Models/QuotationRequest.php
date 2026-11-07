@@ -120,6 +120,30 @@ class QuotationRequest extends Model
         return (bool) $this->quotationBatch?->hasPurchaseOrder();
     }
 
+    /** Approved, and the client's Purchase Order is in — GMD's turn to convert it into a project */
+    public function readyToConvert(): bool
+    {
+        return $this->status === self::STATUS_APPROVED && $this->hasPurchaseOrder();
+    }
+
+    /**
+     * Quotations waiting on GMD (the admin sidebar badge): new requests to start on, plus approved ones whose
+     * Purchase Order has arrived and are ready to convert. Counted per quotation (batch), not per tank.
+     */
+    public static function adminActionCount(): int
+    {
+        $pending = static::where('status', self::STATUS_PENDING)
+            ->get(['id', 'batch_id'])
+            ->groupBy(fn ($r) => $r->batch_id ?: ('single-' . $r->id))
+            ->count();
+
+        $poReceived = static::where('status', self::STATUS_APPROVED)
+            ->whereHas('quotationBatch', fn ($q) => $q->whereNotNull('po_submitted_at'))
+            ->distinct('batch_id')->count('batch_id');
+
+        return $pending + $poReceived;
+    }
+
     public function getStatusLabelAttribute(): string
     {
         return self::STATUS_META[$this->display_status]['label'] ?? ucfirst(str_replace('_', ' ', $this->status));

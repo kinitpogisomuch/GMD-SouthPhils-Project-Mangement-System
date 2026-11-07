@@ -23,6 +23,9 @@ class QuotationDocument
 {
     private const PDF_DISK = 'local';
 
+    /** Bump when the PDF's look changes, so stored PDFs of sent versions are rendered again (see pdfFor) */
+    private const PDF_LAYOUT = 2;
+
     /** Default document settings for a batch, merged with whatever the admin saved in the builder */
     public static function settings(QuotationBatch $batch): array
     {
@@ -54,7 +57,26 @@ class QuotationDocument
             'show_breakdown'   => false,
             'signatory_name'   => $saved['signatory_name'] ?? config('quotation.signatory.name'),
             'signatory_title'  => $saved['signatory_title'] ?? config('quotation.signatory.title'),
+            // e-signature image: this quotation's own, else the latest one saved on any quotation
+            'signatory_signature' => ($saved['signatory_signature'] ?? null) ?: self::latestSignature(),
         ];
+    }
+
+    /**
+     * The default e-signature: the most recently uploaded one (an upload becomes the default straight away),
+     * else — for signatures from before uploads were recorded — the latest one saved on any quotation.
+     */
+    public static function latestSignature(): ?string
+    {
+        if ($uploaded = \App\Models\ESignature::latestUrl(\App\Models\ESignature::QUOTATION)) {
+            return $uploaded;
+        }
+
+        return QuotationBatch::whereNotNull('document->signatory_signature')
+            ->latest('updated_at')
+            ->get(['document'])
+            ->map(fn ($b) => $b->document['signatory_signature'] ?? null)
+            ->first(fn ($url) => !empty($url));
     }
 
     /** The specification lines the document prints — saved in the builder, or the type's defaults */
@@ -231,9 +253,39 @@ class QuotationDocument
             'warranty'          => $settings['warranty'],
             'notes'             => $notes,
             'closing'           => config('quotation.closing'),
-            'signatory'         => ['name' => $settings['signatory_name'], 'title' => $settings['signatory_title']],
+            'signatory'         => ['name' => $settings['signatory_name'], 'title' => $settings['signatory_title'], 'signature' => $settings['signatory_signature'] ?? null],
             'estimated_days'    => ['per_unit' => $days, 'total' => $days * $qty],
         ];
+    }
+
+    /**
+     * An uploaded image (e.g. the e-signature) as a data: URI for the PDF — dompdf runs with remote loading off,
+     * so a local upload is read from disk and a cloud one downloaded. Null when it can't be read (the PDF then
+     * just goes without it) or GD isn't available to decode it.
+     */
+    public static function embeddableImage(?string $url): ?string
+    {
+        if (!$url || !extension_loaded('gd')) {
+            return null;
+        }
+
+        try {
+            $local = asset('storage') . '/';
+            $bytes = str_starts_with($url, $local)
+                ? Storage::disk('public')->get(substr($url, strlen($local)))
+                : \Illuminate\Support\Facades\Http::timeout(8)->get($url)->throw()->body();
+        } catch (\Throwable $e) {
+            return null;
+        }
+        if (!$bytes) {
+            return null;
+        }
+
+        $mime = (new \finfo(FILEINFO_MIME_TYPE))->buffer($bytes);
+
+        return in_array($mime, ['image/png', 'image/jpeg', 'image/webp'], true)
+            ? 'data:' . $mime . ';base64,' . base64_encode($bytes)
+            : null;
     }
 
     /** The HTML document (shared partial) for a snapshot */
@@ -242,13 +294,28 @@ class QuotationDocument
         return view('partials.quotation_document', ['doc' => $doc, 'forPdf' => $forPdf])->render();
     }
 
-    /** Render a snapshot to PDF bytes */
+    /**
+     * Render a snapshot to PDF bytes — on ONE page, like the on-screen preview. If the quotation runs long (many
+     * specification lines, notes, logos + signature) it is rendered again slightly smaller (a higher dpi scales the
+     * whole page down evenly) until it fits. Versions sent with the cost-breakdown annex keep it on its own page.
+     */
     public static function pdfBytes(array $doc): string
     {
-        return Pdf::loadView('quotations.pdf', ['doc' => $doc])
-            ->setPaper('a4')
-            ->setOption(['isRemoteEnabled' => false, 'chroot' => public_path(), 'defaultFont' => 'DejaVu Sans', 'isFontSubsettingEnabled' => true])
-            ->output();
+        $bd       = $doc['breakdown'] ?? [];
+        $hasAnnex = !empty($bd['show']) && (count($bd['materials'] ?? []) || count($bd['labor'] ?? []));
+
+        foreach ([96, 104, 112, 120, 130, 140] as $dpi) {
+            $pdf = Pdf::loadView('quotations.pdf', ['doc' => $doc])
+                ->setPaper('a4')
+                ->setOption(['isRemoteEnabled' => false, 'chroot' => public_path(), 'defaultFont' => 'DejaVu Sans', 'isFontSubsettingEnabled' => true, 'dpi' => $dpi]);
+            $pdf->render();
+
+            if ($hasAnnex || $pdf->getDomPDF()->getCanvas()->get_page_count() <= 1) {
+                break;   // fits (or, with the annex, page count isn't the goal) — otherwise try a little smaller
+            }
+        }
+
+        return $pdf->output();
     }
 
     /**
@@ -259,13 +326,15 @@ class QuotationDocument
     public static function pdfFor(QuotationVersion $version): string
     {
         $disk = Storage::disk(self::PDF_DISK);
+        // stored under the PDF layout's version: a file made with an older layout is simply rendered again (same
+        // snapshot, so the same content) — e.g. layout 2 keeps the quotation on one page with logos + e-signature
+        $path = 'quotations/' . $version->quotation_batch_id . '/layout-' . self::PDF_LAYOUT . '/' . $version->pdfFilename();
 
-        if ($version->pdf_path && $disk->exists($version->pdf_path)) {
-            return $disk->get($version->pdf_path);
+        if ($version->pdf_path === $path && $disk->exists($path)) {
+            return $disk->get($path);
         }
 
         $bytes = self::pdfBytes($version->snapshot);
-        $path  = 'quotations/' . $version->quotation_batch_id . '/' . $version->pdfFilename();
 
         try {
             $disk->put($path, $bytes);

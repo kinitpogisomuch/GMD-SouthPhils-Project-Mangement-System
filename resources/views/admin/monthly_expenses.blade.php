@@ -12,6 +12,15 @@
         #expensesTable { min-width: unset; width: 100%; table-layout: fixed; }
         #expenseHistoryTable { min-width: unset; width: 100%; }
         .me-main-grid .table-wrapper { overflow: hidden; }
+        /* no expenses: the column headers stay on top and the message fills the rest of the space, centred both ways */
+        .me-empty-wrap { display: flex; flex-direction: column; }
+        /* Expense History: scrolls inside its card, headers pinned */
+        .me-history-scroll { max-height: 430px; overflow-y: auto !important; scrollbar-width: thin; }
+        .me-history-scroll thead th { position: sticky; top: 0; z-index: 2; background: var(--cream-soft, #fafafa); }
+        .me-empty { flex: 1; min-height: 240px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 30px 20px; text-align: center; color: var(--muted); }
+        .me-empty svg { width: 36px; height: 36px; opacity: .3; margin-bottom: 8px; }
+        .me-empty-title { font-size: 15px; font-weight: 700; color: var(--dark); }
+        .me-empty-text { max-width: 340px; font-size: 13px; line-height: 1.5; }
         #expensesTable tbody tr.me-filler-row:hover { background: transparent; }
         #expensesTable tbody tr.me-filler-row td { color: transparent; user-select: none; }
         #expensesTable tbody tr:last-child td { border-bottom: 1px solid var(--border); }
@@ -157,7 +166,9 @@
             @php $isAllocLocked = count($allocated) > 0; @endphp
 
             {{-- Main grid: expenses + allocation --}}
-            <div class="me-main-grid" style="display:grid;grid-template-columns:1fr 440px;gap:20px;margin-bottom:28px;align-items:stretch;">
+            {{-- align-items:start — each card is as tall as its own content (the expenses card used to stretch to the
+                 allocation panel's height and fill the gap with blank rows) --}}
+            <div class="me-main-grid" style="display:grid;grid-template-columns:1fr 440px;gap:20px;margin-bottom:28px;align-items:start;">
 
                 {{-- LEFT: Expense Line Items --}}
                 <div class="table-card" style="display:flex;flex-direction:column;">
@@ -167,7 +178,7 @@
                         </div>
                     </div>
 
-                    <div class="table-wrapper" style="flex:1;">
+                    <div class="table-wrapper{{ $expenses->isEmpty() ? ' me-empty-wrap' : '' }}" style="flex:1;">
                         <table class="data-table" id="expensesTable">
                             <colgroup>
                                 <col style="width:30%;">
@@ -216,26 +227,18 @@
                                     </td>
                                 </tr>
                                 @empty
-                                <tr>
-                                    <td colspan="3" style="text-align:center;padding:90px 20px;color:var(--muted);border-bottom:none;">
-                                        <i data-lucide="receipt" style="width:36px;height:36px;opacity:.3;display:block;margin:0 auto 12px;"></i>
-                                        <div style="font-size:15px;font-weight:700;color:var(--dark);">No expenses recorded yet</div>
-                                        <div style="font-size:13px;margin-top:4px;">No overhead items have been added for {{ $dt->format('F Y') }} — use the form below to add one.</div>
-                                    </td>
-                                </tr>
+                                {{-- nothing yet: the message is shown under the table instead (see .me-empty), so it can sit in the middle of the space --}}
                                 @endforelse
-                                @php $fillerRows = max(0, 8 - $expenses->count()); @endphp
-                                @if($expenses->isNotEmpty())
-                                    @for($i = 0; $i < $fillerRows; $i++)
-                                    <tr class="me-filler-row">
-                                        <td>&nbsp;</td>
-                                        <td>&nbsp;</td>
-                                        <td>&nbsp;</td>
-                                    </tr>
-                                    @endfor
-                                @endif
                             </tbody>
                         </table>
+                        @if($expenses->isEmpty())
+                        {{-- fills the space under the column headers and sits in its middle, both ways --}}
+                        <div class="me-empty">
+                            <i data-lucide="receipt"></i>
+                            <div class="me-empty-title">No expenses recorded yet</div>
+                            <div class="me-empty-text">No overhead items have been added for {{ $dt->format('F Y') }} — use the form below to add one.</div>
+                        </div>
+                        @endif
                     </div>
 
                     {{-- Add expenses — opens a modal where several items can be ticked and given an amount at once --}}
@@ -378,7 +381,13 @@
                                     {{ strtoupper(substr($proj->client, 0, 2)) }}
                                 </div>
                                 <div style="min-width:0;flex:1;">
-                                    <div style="font-size:12px;font-weight:700;color:var(--dark);white-space:normal;word-break:break-word;line-height:1.4;">{{ $proj->name }}</div>
+                                    <div style="font-size:12px;font-weight:700;color:var(--dark);white-space:normal;word-break:break-word;line-height:1.4;">
+                                        {{ $proj->name }}
+                                        {{-- listed because it already shares this month's overhead, though it has finished since --}}
+                                        @if(in_array($proj->status, ['completed', 'archived'], true))
+                                        <span style="display:inline-block;margin-left:4px;padding:1px 7px;border-radius:999px;background:#E7F6EC;color:#15803d;font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;vertical-align:middle;">{{ ucfirst($proj->status) }}</span>
+                                        @endif
+                                    </div>
                                     <div style="font-size:11px;color:var(--muted);margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
                                         <span>{{ $proj->client }}</span>
                                         <span style="color:var(--border);">&middot;</span>
@@ -460,6 +469,7 @@
                 </div>
             </div>
 
+
             {{-- History Table --}}
             @if($history->isNotEmpty())
             <div class="table-card">
@@ -470,7 +480,8 @@
                         <span style="font-size:12px;color:var(--muted);">Last 12 months</span>
                     </div>
                 </div>
-                <div class="table-wrapper">
+                {{-- scrolls inside the card (about 6 months tall); the column headers stay pinned on top --}}
+                <div class="table-wrapper me-history-scroll">
                     <table class="data-table" id="expenseHistoryTable">
                         <colgroup>
                             <col style="width:22%;">

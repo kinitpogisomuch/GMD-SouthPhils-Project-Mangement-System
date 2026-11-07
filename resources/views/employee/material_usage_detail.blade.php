@@ -7,6 +7,30 @@
     <title>{{ $project->name }} — Material Usage | GMD South Phils</title>
     <link href="{{ asset('css/employee.css') }}" rel="stylesheet">
     <style>
+        /* ── Material Stock & Usage header: icon, title and a stock summary on the left; search + action on the right ── */
+        .mvu-toolbar { padding-bottom: 16px !important; border-bottom: 1px solid var(--border); }
+        .mvu-heading { display: flex; align-items: center; gap: 12px; min-width: 0; }
+        .mvu-heading-icon { width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: #333; color: #fff; }
+        .mvu-heading-icon svg { width: 19px; height: 19px; }
+        .mvu-title { font-size: 15.5px; font-weight: 800; color: var(--dark); }
+        .mvu-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px; }
+        .mvu-chip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 999px; background: var(--cream-soft); border: 1px solid var(--border); font-size: 11px; font-weight: 700; color: var(--muted); white-space: nowrap; }
+        .mvu-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+        .mvu-chip.is-ok   { background: #E7F6EC; border-color: #bbf7d0; color: #15803d; }
+        .mvu-chip.is-out  { background: #FEE4E2; border-color: #fecaca; color: #b91c1c; }
+        .mvu-chip.is-wait { background: #FFF8E1; border-color: #fde68a; color: #92400e; }
+        .mvu-tools .search-box { border-radius: 999px; }
+        .mvu-tools .save-btn { border-radius: 999px; height: 42px; display: inline-flex; align-items: center; gap: 7px; }
+
+        /* Desktop: both tables run the full width of their card (edge to edge), like the other tables. The card's
+           padding moves onto the header row; each table keeps its own scroll area and scrollbar. */
+        @media (min-width: 641px) {
+            .mu-flush { padding: 0 !important; overflow: hidden; }
+            .mu-flush > .mvu-toolbar { padding: 20px 20px 16px !important; margin-bottom: 0; }
+            .mu-flush .data-table th:first-child, .mu-flush .data-table td:first-child { padding-left: 24px; }
+            .mu-flush .data-table th:last-child, .mu-flush .data-table td:last-child { padding-right: 24px; }
+        }
+
         /* ── Material Stock & Usage: scroll inside the card, header stays visible ── */
         .mvu-scroll { max-height: 440px; overflow-y: auto; }
         .mvu-scroll thead th { position: sticky; top: 0; z-index: 1; background: var(--cream-soft); }
@@ -291,9 +315,26 @@
             @endphp
 
             {{-- Material Stock & Usage --}}
-            <div class="table-card" style="margin-bottom:24px;">
+            <div class="table-card mu-flush" style="margin-bottom:24px;">
+                @php
+                    // the header's at-a-glance summary of the stock
+                    $mvuInStock  = $materialComparison->filter(fn ($r) => $r['purchasedQty'] > 0 && $r['stockRemaining'] > 0)->count();
+                    $mvuUsedUp   = $materialComparison->filter(fn ($r) => $r['purchasedQty'] > 0 && $r['stockRemaining'] <= 0)->count();
+                    $mvuNotYet   = $materialComparison->filter(fn ($r) => $r['purchasedQty'] <= 0)->count();
+                @endphp
                 <div class="table-toolbar mvu-toolbar" style="padding-bottom:0;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-                    <span class="mvu-title" style="font-weight:700;font-size:15px;">Material Stock &amp; Usage</span>
+                    <div class="mvu-heading">
+                        <span class="mvu-heading-icon"><i data-lucide="package"></i></span>
+                        <div style="min-width:0;">
+                            <div class="mvu-title">Material Stock &amp; Usage</div>
+                            <div class="mvu-chips">
+                                <span class="mvu-chip">{{ $materialComparison->count() }} material{{ $materialComparison->count() === 1 ? '' : 's' }}</span>
+                                @if($mvuInStock)<span class="mvu-chip is-ok"><span class="mvu-dot"></span>{{ $mvuInStock }} in stock</span>@endif
+                                @if($mvuUsedUp)<span class="mvu-chip is-out"><span class="mvu-dot"></span>{{ $mvuUsedUp }} used up</span>@endif
+                                @if($mvuNotYet)<span class="mvu-chip is-wait"><span class="mvu-dot"></span>{{ $mvuNotYet }} not purchased</span>@endif
+                            </div>
+                        </div>
+                    </div>
                     @if($materialComparison->isNotEmpty())
                     <div class="mvu-tools" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex:1;justify-content:flex-end;">
                         <div class="search-box" style="height:42px;max-width:300px;">
@@ -358,9 +399,32 @@
             </div>
 
             {{-- Usage Log --}}
-            <div class="table-card">
-                <div class="table-toolbar" style="padding-bottom:0;">
-                    <span style="font-weight:700;font-size:15px;">Usage Log</span>
+            @php
+                // header summary: how many entries, how many today, and when the last one was logged
+                $ulogToday  = $usageEntries->filter(fn ($e) => $e->used_date?->isToday())->count();
+                $ulogLatest = $usageEntries->max('used_date');
+            @endphp
+            <div class="table-card mu-flush">
+                <div class="table-toolbar mvu-toolbar" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                    <div class="mvu-heading">
+                        <span class="mvu-heading-icon"><i data-lucide="history"></i></span>
+                        <div style="min-width:0;">
+                            <div class="mvu-title">Usage Log</div>
+                            <div class="mvu-chips">
+                                <span class="mvu-chip">{{ $usageEntries->count() }} entr{{ $usageEntries->count() === 1 ? 'y' : 'ies' }}</span>
+                                @if($ulogToday)<span class="mvu-chip is-ok"><span class="mvu-dot"></span>{{ $ulogToday }} today</span>@endif
+                                @if($ulogLatest)<span class="mvu-chip"><i data-lucide="clock" style="width:11px;height:11px;"></i> Last logged {{ \Carbon\Carbon::parse($ulogLatest)->format('M d, Y') }}</span>@endif
+                            </div>
+                        </div>
+                    </div>
+                    @if($usageEntries->isNotEmpty())
+                    <div class="mvu-tools" style="display:flex;align-items:center;gap:10px;flex:1;justify-content:flex-end;">
+                        <div class="search-box" style="height:42px;max-width:300px;">
+                            <i data-lucide="search"></i>
+                            <input type="search" id="ulogSearch" placeholder="Search material, purpose or person..." autocomplete="off">
+                        </div>
+                    </div>
+                    @endif
                 </div>
                 <div class="table-wrapper ulog-scroll">
                     <table class="data-table" id="usageLogTable">
@@ -375,7 +439,7 @@
                         </thead>
                         <tbody>
                             @forelse($usageEntries as $entry)
-                            <tr class="ulog-row">
+                            <tr class="ulog-row" data-search="{{ strtolower($entry->material_name . ' ' . str_replace('_', ' ', (string) $entry->used_for) . ' ' . $entry->recorded_by . ' ' . $entry->used_date?->format('M d, Y')) }}">
                                 <td class="ulog-date" data-label="Date Used">{{ $entry->used_date->format('M d, Y') }}</td>
                                 <td class="ulog-material"><strong>{{ $entry->material_name }}</strong></td>
                                 <td class="ulog-qty" data-label="Quantity">{{ number_format($entry->quantity_used, 0) }}<span class="ulog-unit"> {{ $entry->unit }}</span></td>
@@ -389,6 +453,13 @@
                                 </td>
                             </tr>
                             @endforelse
+                            @if($usageEntries->isNotEmpty())
+                            <tr id="ulogNoMatch" style="display:none;">
+                                <td colspan="5" style="text-align:center;padding:32px;color:var(--muted);">
+                                    No entries match your search.
+                                </td>
+                            </tr>
+                            @endif
                         </tbody>
                     </table>
                 </div>
@@ -453,12 +524,7 @@
                     <div class="mu-empty" id="usageNoMatch">No materials match your search.</div>
                 </div>
 
-                <div class="form-grid" style="margin-top:14px;flex-shrink:0;">
-                    <div class="form-group" style="grid-column:1 / -1;">
-                        <label>Date Used <span style="font-weight:400;color:var(--muted);">(set an earlier date for past usage)</span></label>
-                        <input type="date" name="used_date" value="{{ old('used_date', now()->format('Y-m-d')) }}" max="{{ now()->format('Y-m-d') }}" required>
-                    </div>
-                </div>
+                {{-- no date to pick: usage is logged as of today (set on the server) --}}
                 <div class="mu-error" id="usageFormError"></div>
 
                 <div class="modal-actions" style="flex-shrink:0;">
@@ -544,6 +610,21 @@
                         if (match) shown++;
                     });
                     document.getElementById('mvuNoMatch').style.display = shown ? 'none' : '';
+                });
+            }
+
+            // Usage Log search: material, purpose, who recorded it, or the date
+            var ulogSearch = document.getElementById('ulogSearch');
+            if (ulogSearch) {
+                ulogSearch.addEventListener('input', function () {
+                    var q = this.value.toLowerCase().trim();
+                    var shown = 0;
+                    document.querySelectorAll('#usageLogTable .ulog-row').forEach(function (row) {
+                        var match = !q || row.dataset.search.indexOf(q) !== -1;
+                        row.style.display = match ? '' : 'none';
+                        if (match) shown++;
+                    });
+                    document.getElementById('ulogNoMatch').style.display = shown ? 'none' : '';
                 });
             }
 

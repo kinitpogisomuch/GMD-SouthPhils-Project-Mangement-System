@@ -225,6 +225,7 @@ class PaymentController extends Controller
     {
         $payment = Payment::with(['project', 'transactions', 'proofs'])->findOrFail($id);
         $payment->recalculate();
+        $payment->markViewedByAdmin();   // clears the "New Payment" highlight on the Payments list
 
         $paidStages     = $payment->paidStages();
         $proofs         = $payment->proofs;
@@ -242,7 +243,9 @@ class PaymentController extends Controller
     {
         $payment      = Payment::findOrFail($id);
         $stageOptions = $payment->stages();
-        $stageIn      = implode(',', $stageOptions);
+        // "full_payment" settles the whole remaining contract balance in one go — every stage still
+        // unpaid is covered at once (stages are judged on the cumulative total, see paidStages()).
+        $stageIn      = implode(',', [...$stageOptions, 'full_payment']);
 
         $validated = $request->validate([
             'payment_stage'    => "required|string|in:{$stageIn}",
@@ -267,13 +270,18 @@ class PaymentController extends Controller
         // phase an unpaid Progress Payment is closed and its balance is due with the Final Payment.
         $stage = $validated['payment_stage'];
 
-        if (($payment->proofStageStates(false)[$stage] ?? null) !== 'open') {
+        if ($stage === 'full_payment') {
+            if ($payment->currentBalance() <= 0) {
+                return back()->withInput()->with('error', 'This contract is already fully paid.');
+            }
+            $validated['amount_paid'] = $payment->currentBalance();
+        } elseif (($payment->proofStageStates(false)[$stage] ?? null) !== 'open') {
             return back()->withInput()->with('error', 'That payment stage cannot be recorded right now — it is already paid, closed, or waiting on an earlier stage.');
         }
 
-        $isPartialStage = $stage !== 'down_payment';
+        $isPartialStage = !in_array($stage, ['down_payment', 'full_payment'], true);
         $amountsDue     = $payment->stageAmountsDue();
-        $stageRemaining = $amountsDue[$stage] ?? 0;
+        $stageRemaining = $stage === 'full_payment' ? $payment->currentBalance() : ($amountsDue[$stage] ?? 0);
         // A progress payment may go above the progress amount (the extra comes off the final
         // payment), but never above what is left on the whole contract.
         $stageCap       = $stage === 'progress_payment' ? $amountsDue['final_payment'] : $stageRemaining;
@@ -303,12 +311,20 @@ class PaymentController extends Controller
                 if ($orTaken) {
                     throw new \DomainException('OR / Serial Number "' . $validated['reference_number'] . '" is already used on another payment. If you just clicked Save twice, the payment was already recorded.');
                 }
-                if (($locked->proofStageStates(false)[$stage] ?? null) !== 'open') {
+                if ($stage !== 'full_payment' && ($locked->proofStageStates(false)[$stage] ?? null) !== 'open') {
                     throw new \DomainException('That payment stage cannot be recorded right now — it is already paid, closed, or waiting on an earlier stage.');
                 }
                 $amountsDue = $locked->stageAmountsDue();
-                $cap        = $stage === 'progress_payment' ? $amountsDue['final_payment'] : ($amountsDue[$stage] ?? 0);
-                $amount     = $stage === 'down_payment' ? ($amountsDue['down_payment'] ?? 0) : (float) $validated['amount_paid'];
+                $cap        = match ($stage) {
+                    'progress_payment' => $amountsDue['final_payment'],
+                    'full_payment'     => $locked->currentBalance(),
+                    default            => $amountsDue[$stage] ?? 0,
+                };
+                $amount     = match ($stage) {
+                    'down_payment' => $amountsDue['down_payment'] ?? 0,
+                    'full_payment' => $locked->currentBalance(),
+                    default        => (float) $validated['amount_paid'],
+                };
                 if ($amount <= 0 || $amount > $cap + 0.01) {
                     throw new \DomainException('That payment stage is already fully paid, or the amount is more than what is still due.');
                 }
@@ -361,6 +377,50 @@ class PaymentController extends Controller
     {
         $payment = Payment::findOrFail($id);
 
+        // a kept signature is the latest one used on any statement
+        $validated = $this->validatedBillingStatement($request, $payment, null);
+        if (!is_array($validated)) {
+            return $validated;
+        }
+
+        $statement = $payment->billingStatements()->create($validated);
+
+        // Generated only — the payment page opens it in the Review & Send modal, where it's sent
+        return redirect()->route('admin.payments.show', ['id' => $payment->id, 'review_statement' => $statement->id])
+            ->with('success', 'Billing statement generated. Review it, then press Send to deliver it to the client.');
+    }
+
+    /** Edit a statement — any time, sent or not; the client sees the updated statement on its page */
+    public function updateBillingStatement(Request $request, $id, $statementId)
+    {
+        $payment   = Payment::findOrFail($id);
+        $statement = $payment->billingStatements()->findOrFail($statementId);
+
+        // a kept signature is the statement's own (or, if it has none, the latest one used)
+        $validated = $this->validatedBillingStatement($request, $payment, $statement);
+        if (!is_array($validated)) {
+            return $validated;
+        }
+
+        $statement->update($validated);
+
+        return redirect()->route('admin.payments.show', ['id' => $payment->id, 'review_statement' => $statement->id])
+            ->with('success', 'Billing statement updated.');
+    }
+
+    /**
+     * The billing statement form's fields, with its e-signatures resolved: a newly uploaded image, or —
+     * unless removed — the one already on $editing (a new statement: the latest one used on any statement).
+     * Both signatures are required. Returns a redirect when one is missing or an upload fails.
+     */
+    private function validatedBillingStatement(Request $request, Payment $payment, ?BillingStatement $editing)
+    {
+        // a stage still unpaid — or, when editing, the one the statement already bills (it may be paid since)
+        $stageOptions = array_diff($payment->stages(), $payment->paidStages());
+        if ($editing?->billing_stage) {
+            $stageOptions[] = $editing->billing_stage;
+        }
+
         $validated = $request->validate([
             'attention'            => 'nullable|string|max:255',
             'bill_to'              => 'nullable|string|max:255',
@@ -372,19 +432,38 @@ class PaymentController extends Controller
             'po_number'            => 'nullable|string|max:100',
             'pr_number'            => 'nullable|string|max:100',
             'subject'              => 'nullable|string|max:255',
-            'billing_stage'        => 'nullable|string|in:' . implode(',', array_diff($payment->stages(), $payment->paidStages())),
+            'billing_stage'        => 'nullable|string|in:' . implode(',', array_unique($stageOptions)),
             'deposit_instructions' => 'nullable|string|max:1000',
             'prepared_by_name'     => 'nullable|string|max:255',
             'prepared_by_role'     => 'nullable|string|max:255',
             'approved_by_name'     => 'nullable|string|max:255',
             'approved_by_role'     => 'nullable|string|max:255',
+            'prepared_by_signature_file' => 'nullable|image|mimes:png,jpg,jpeg,webp|max:2048',
+            'approved_by_signature_file' => 'nullable|image|mimes:png,jpg,jpeg,webp|max:2048',
+            'keep_prepared_by_signature' => 'nullable|boolean',
+            'keep_approved_by_signature' => 'nullable|boolean',
         ]);
 
-        $statement = $payment->billingStatements()->create($validated);
+        foreach (['prepared_by', 'approved_by'] as $who) {
+            $signature = null;
+            if ($request->hasFile("{$who}_signature_file")) {
+                $signature = $this->storage->upload($request->file("{$who}_signature_file"), 'payments/' . $payment->id . '/signatures');
+                if (!$signature) {
+                    return back()->withInput()->with('error', 'The signature upload failed. Please check your connection and try again.');
+                }
+                // the newest upload is the default for every billing statement from now on
+                \App\Models\ESignature::record($who === 'prepared_by' ? \App\Models\ESignature::BILLING_PREPARED_BY : \App\Models\ESignature::BILLING_APPROVED_BY, $signature);
+            } elseif ($request->boolean("keep_{$who}_signature")) {
+                $signature = $editing?->{"{$who}_signature"} ?: BillingStatement::latestSignature($who);
+            }
+            if (!$signature) {
+                return back()->withInput()->with('error', 'Please upload the ' . ($who === 'prepared_by' ? 'Prepared By' : 'Approved By') . ' e-signature — both signatures are required on a billing statement.');
+            }
+            $validated["{$who}_signature"] = $signature;
+            unset($validated["{$who}_signature_file"], $validated["keep_{$who}_signature"]);
+        }
 
-        // Generated only — the admin reviews it on the statement page and sends it from there
-        return redirect()->route('admin.payments.billing_statements.show', [$payment->id, $statement->id])
-            ->with('success', 'Billing statement generated. Review it, then press Send to deliver it to the client.');
+        return $validated;
     }
 
     /** Mark a statement sent and notify the client — once */
@@ -411,22 +490,25 @@ class PaymentController extends Controller
         return view('admin.billing_statement', compact('payment', 'statement'));
     }
 
-    public function sendBillingStatement($id, $statementId)
+    public function sendBillingStatement(Request $request, $id, $statementId)
     {
         $payment   = Payment::with('project')->findOrFail($id);
         $statement = $payment->billingStatements()->findOrFail($statementId);
 
+        // sent from the payment page's Review & Send modal → back to the payment page; else the statement page
+        $back = $request->input('from') === 'payment'
+            ? redirect()->route('admin.payments.show', $payment->id)
+            : redirect()->route('admin.payments.billing_statements.show', [$payment->id, $statement->id]);
+
         // Sending again (a double click, or "Send" pressed later) keeps the first sent date and
         // doesn't notify the client a second time.
         if ($statement->sent_at) {
-            return redirect()->route('admin.payments.billing_statements.show', [$payment->id, $statement->id])
-                ->with('success', 'This billing statement was already sent to the client on ' . $statement->sent_at->format('M d, Y') . '.');
+            return $back->with('success', 'This billing statement was already sent to the client on ' . $statement->sent_at->format('M d, Y') . '.');
         }
 
         $this->markStatementSent($payment, $statement);
 
-        return redirect()->route('admin.payments.billing_statements.show', [$payment->id, $statement->id])
-            ->with('success', 'Billing statement sent to the client.');
+        return $back->with('success', 'Billing statement sent to the client.');
     }
 
     public function clientShowBillingStatement($id, $statementId)

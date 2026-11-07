@@ -29,7 +29,7 @@
             <div class="fd-overview" style="margin-bottom:24px;">
                 <div class="fd-overview-title">
                     <i data-lucide="bar-chart-2"></i>
-                    Payments Overview
+                    Overall Payments Overview
                 </div>
                 <div class="fd-overview-grid">
                     <div class="fd-ov-item">
@@ -39,7 +39,7 @@
                     </div>
                     <div class="fd-ov-item">
                         <span class="fd-ov-label">Total Paid</span>
-                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Amount received</span>
+                        <span class="fd-ov-label" style="font-size:9px;color:rgba(255,255,255,0.3);">Amount paid</span>
                         <span class="fd-ov-val" style="color:#4ade80;">₱{{ number_format($totalReceived, 2) }}</span>
                     </div>
                     <div class="fd-ov-item">
@@ -57,6 +57,17 @@
                 </div>
             </div>
 
+            <style>
+                /* a project with a billed amount still to pay: yellow border + glow and a tag on the card's top edge
+                   (same highlight as the payment detail page and the quotation cards) */
+                .pay-card.pay-needs-action { position: relative; border: 2px solid #F5B400 !important; box-shadow: 0 0 0 4px rgba(245,180,0,.16), 0 10px 28px rgba(245,180,0,.12) !important; margin-top: 18px; }
+                .pay-action-flag { position: absolute; top: -12px; left: 22px; z-index: 2; display: inline-flex; align-items: center; gap: 6px; padding: 3px 11px; border-radius: 999px;
+                                   background: #F5B400; color: #1a1a1a; font-size: 10.5px; font-weight: 900; text-transform: uppercase; letter-spacing: .05em; box-shadow: 0 2px 6px rgba(0,0,0,.12); }
+                .pay-action-dot { width: 7px; height: 7px; border-radius: 50%; background: #1a1a1a; animation: payPulse 1.4s ease-in-out infinite; }
+                @keyframes payPulse { 50% { opacity: .25; } }
+                @media (prefers-reduced-motion: reduce) { .pay-action-dot { animation: none; } }
+            </style>
+
             @forelse($payments as $payment)
                 @php
                     $status    = $payment->computeStatus();
@@ -68,11 +79,13 @@
                     $isBigProject   = $payment->payment_term_type === 'big_project';
                     $phasePercents  = $isBigProject ? ['50%', '30%', '20%'] : ['50%', '50%'];
                     $phaseTermsText = count($phasePercents) . ' Phases (' . implode(' / ', $phasePercents) . ')';
-                    // Online payment (PayMongo): the stage due right now, if it can be paid online
-                    $payable        = $onlineEnabled ? $payment->onlinePayableStage() : null;
-                    $canPayOnline   = $payable && $payable['amount'] >= \App\Services\OnlinePayments::MIN_AMOUNT;
+                    // GMD billed a stage that isn't paid yet (cash/cheque too) — listed first and highlighted
+                    $isDue          = in_array($payment->id, $dueIds ?? [], true);
                 @endphp
-                <div class="card pay-card">
+                <div class="card pay-card{{ $isDue ? ' pay-needs-action' : '' }}">
+                    @if($isDue)
+                    <span class="pay-action-flag"><span class="pay-action-dot"></span> Payment due</span>
+                    @endif
                     <div class="card-header pay-card-header">
                         <div>
                             <div class="card-title">{{ $payment->project->name ?? '—' }}</div>
@@ -84,15 +97,6 @@
                             <a href="{{ route('client.payments.show', $payment->id) }}" class="btn btn-outline btn-sm">
                                 <i data-lucide="external-link"></i> View Details
                             </a>
-                            @if($canPayOnline)
-                            <form method="POST" action="{{ route('client.payments.online.pay', $payment->id) }}" style="margin:0;">
-                                @csrf
-                                <button type="submit" class="btn btn-primary btn-sm" title="{{ \App\Models\PaymentTransaction::stageLabel($payable['stage']) }} — secured by PayMongo">
-                                    <i data-lucide="landmark"></i>
-                                    Pay ₱{{ number_format($payable['amount'], 2) }}
-                                </button>
-                            </form>
-                            @endif
                         </div>
                     </div>
                     <div class="card-body">

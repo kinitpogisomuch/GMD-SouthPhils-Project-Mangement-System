@@ -46,6 +46,8 @@
     .qd-notes li { margin-bottom: 4px; }
     .qd-sign { margin-top: 18px; }
     .qd-sign-name { margin-top: 26px; font-weight: bold; text-decoration: underline; }
+    .qd-sign-img { height: 52px; margin: 4px 0 -30px; }   /* overlaps the gap above the name, so a signature doesn't push it down */
+    .qd-sign-img img { height: 100%; max-width: 220px; object-fit: contain; object-position: left bottom; }
     .qd-annex { margin-top: 22px; border-top: 2px solid #1a1a1a; padding-top: 10px; }
     .qd-annex h3 { font-size: 12px; margin: 0 0 2px; letter-spacing: .5px; }
     .qd-annex p { margin: 0 0 8px; color: #555; font-size: 10px; }
@@ -168,6 +170,11 @@
     <div class="qd-sign">
         <div>{{ $doc['closing'] }}</div>
         <div style="margin-top:10px;">Sincerely,</div>
+        {{-- e-signature over the name; on screen the slot is always there so the builder's live preview can fill it in --}}
+        @php $signatureSrc = $forPdf ? \App\Services\QuotationDocument::embeddableImage($doc['signatory']['signature'] ?? null) : ($doc['signatory']['signature'] ?? null); @endphp
+        @if($signatureSrc || !$forPdf)
+        <div class="qd-sign-img"><img data-live-signature src="{{ $signatureSrc }}" alt="" @if(!$signatureSrc) style="display:none;" @endif></div>
+        @endif
         <div class="qd-sign-name" data-live="signatory_name">{{ $doc['signatory']['name'] }}</div>
         <div data-live="signatory_title">{{ $doc['signatory']['title'] }}</div>
     </div>

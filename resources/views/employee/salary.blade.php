@@ -222,6 +222,7 @@
                                                     "total_deductions"=> (float) $record->total_deductions,
                                                     "net_pay"         => (float) $record->net_pay,
                                                     "payment_method"  => $record->payment_method ?? 'cash',
+                                                    "paid"            => $record->status === 'Paid',
                                                 ]) }})'>
                                             <i data-lucide="eye"></i><span>View</span>
                                         </button>
@@ -237,11 +238,14 @@
 
     <!-- ===== SALARY DETAILS MODAL ===== -->
     <div class="modal-overlay" id="salaryDetailModal">
-        <div class="modal-card" style="max-width:520px;">
+        <div class="modal-card sd-card" style="max-width:520px;">
             <div class="modal-header">
-                <div>
-                    <h2>Salary Details</h2>
-                    <p>{{ $employee->full_name }} · {{ $employee->role ?? 'Employee' }}</p>
+                <div class="sd-head">
+                    <span class="sd-head-icon"><i data-lucide="wallet"></i></span>
+                    <div>
+                        <h2>Salary Details</h2>
+                        <p>{{ $employee->full_name }} · {{ $employee->role ?? 'Employee' }}</p>
+                    </div>
                 </div>
                 <button class="modal-close" type="button" onclick="closeSalaryDetailModal()">
                     <i data-lucide="x"></i>
@@ -258,6 +262,44 @@
         </div>
     </div>
 
+    <style>
+        /* Salary Details — a pay slip: take-home amount up front, then attendance and the earnings breakdown */
+        .sd-head { display: flex; align-items: flex-start; gap: 12px; }
+        .sd-head-icon { width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: #333; color: #fff; }
+        .sd-head-icon svg { width: 19px; height: 19px; }
+        .sd-hero { padding: 16px 18px; border-radius: 18px; background: linear-gradient(135deg, var(--dark) 0%, #111 100%); color: #fff; }
+        .sd-hero-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+        .sd-period { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: rgba(255,255,255,.7); }
+        .sd-period svg { width: 14px; height: 14px; }
+        .sd-tag { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 999px; background: rgba(255,255,255,.12); font-size: 11px; font-weight: 800; color: rgba(255,255,255,.8); }
+        .sd-tag svg { width: 12px; height: 12px; }
+        .sd-tag.is-paid { background: rgba(74,222,128,.18); color: #4ade80; }
+        .sd-hero-label { margin-top: 14px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: rgba(255,255,255,.55); }
+        .sd-hero-amount { font-size: 32px; font-weight: 900; letter-spacing: -.6px; color: #4ade80; line-height: 1.15; }
+        .sd-hero-method { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 12px; font-weight: 700; color: rgba(255,255,255,.7); }
+        .sd-hero-method svg { width: 14px; height: 14px; }
+        .sd-section { margin: 18px 0 8px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+        .sd-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+        .sd-tile { padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--cream-soft); text-align: center; }
+        .sd-tile span { display: block; font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+        .sd-tile strong { display: block; margin-top: 2px; font-size: 18px; font-weight: 900; color: var(--dark); }
+        .sd-tile strong small { font-size: 11px; font-weight: 700; color: var(--muted); }
+        .sd-lines { border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+        .sd-line { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 11px 14px; border-bottom: 1px solid var(--border); }
+        .sd-line > span { display: flex; flex-direction: column; min-width: 0; }
+        .sd-line-label { font-size: 13px; color: var(--dark); font-weight: 600; }
+        .sd-line small { font-size: 11px; color: var(--muted); }
+        .sd-line strong { font-size: 13.5px; font-weight: 800; color: var(--dark); white-space: nowrap; }
+        .sd-line.is-ot strong { color: #2563eb; }
+        .sd-line.is-muted strong { color: var(--muted); }
+        .sd-line.is-sub { background: var(--cream-soft); }
+        .sd-line.is-sub .sd-line-label { font-weight: 800; }
+        .sd-line.is-ded strong { color: #dc2626; }
+        .sd-total { display: flex; justify-content: space-between; align-items: center; padding: 14px; background: #E7F6EC; }
+        .sd-total span { font-size: 13px; font-weight: 900; text-transform: uppercase; letter-spacing: .04em; color: #14532d; }
+        .sd-total strong { font-size: 20px; font-weight: 900; color: #16a34a; }
+        .sd-card .modal-actions .save-btn, .sd-card .modal-actions .cancel-btn { display: inline-flex; align-items: center; gap: 7px; }
+    </style>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>
         lucide.createIcons();
@@ -293,28 +335,45 @@
             var grossPay   = parseFloat(r.gross_pay)         || 0;
             var deductions = parseFloat(r.total_deductions)  || 0;
 
-            var dedSection = deductions > 0
-                ? detailRow('Deductions', '- ₱' + fmt(deductions), 'color:#dc2626;')
-                : '';
+            var netPay  = parseFloat(r.net_pay) || (grossPay - deductions);
             var pmLabel = r.payment_method === 'gcash' ? 'GCash' : 'Cash';
+            var pmIcon  = r.payment_method === 'gcash' ? 'smartphone' : 'banknote';
+            var plural  = function (n, w) { return fmtDays(n) + ' ' + w + (n !== 1 ? 's' : ''); };
+            // one line of the breakdown: label (+ how it's worked out) on the left, amount on the right
+            var line = function (label, how, amount, cls) {
+                return '<div class="sd-line ' + (cls || '') + '"><span><span class="sd-line-label">' + label + '</span>'
+                    + (how ? '<small>' + how + '</small>' : '') + '</span><strong>' + amount + '</strong></div>';
+            };
 
             document.getElementById('salaryDetailBody').innerHTML =
-                '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">'
-                + r.period
+                // the take-home amount up front, with the week and how it's paid
+                '<div class="sd-hero">'
+                    + '<div class="sd-hero-top"><span class="sd-period"><i data-lucide="calendar-days"></i> ' + r.period + '</span>'
+                    // "Paid" only marks a GCash payout confirmed by PayMongo — cash weeks are handed over and
+                    // never change status, so no tag is shown for them (same as the salary table)
+                    + (r.paid ? '<span class="sd-tag is-paid"><i data-lucide="check"></i> Paid</span>' : '') + '</div>'
+                    + '<div class="sd-hero-label">' + (deductions > 0 ? 'Net Pay' : 'Total Pay') + '</div>'
+                    + '<div class="sd-hero-amount">₱' + fmt(netPay) + '</div>'
+                    + '<div class="sd-hero-method"><i data-lucide="' + pmIcon + '"></i> Paid via ' + pmLabel + '</div>'
                 + '</div>'
-                + '<div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;">'
-                + detailRow('Daily Rate', '₱' + fmt(dailyRate))
-                + detailRow('Full Days', fullDays + ' day' + (fullDays !== 1 ? 's' : ''))
-                + detailRow('Half Day', halfDays + ' day' + (halfDays !== 1 ? 's' : ''))
-                + detailRow('Basic Pay', '₱' + fmt(basicPay))
-                + detailRow('Overtime (' + otHours + ' hrs)', otHours > 0 ? '₱' + fmt(otPay) : '0.00', otHours > 0 ? 'color:#2563eb;' : 'color:var(--muted);')
-                + detailRow('Payment Method', pmLabel)
-                + dedSection
-                + '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-top:2px solid var(--border);background:var(--cream-soft);">'
-                    + '<span style="font-size:14px;font-weight:900;color:var(--dark);">GROSS PAY</span>'
-                    + '<strong style="font-size:20px;font-weight:900;color:#16a34a;">₱' + fmt(grossPay) + '</strong>'
+                // attendance at a glance
+                + '<div class="sd-section">Attendance</div>'
+                + '<div class="sd-tiles">'
+                    + '<div class="sd-tile"><span>Full Days</span><strong>' + fmtDays(fullDays) + '</strong></div>'
+                    + '<div class="sd-tile"><span>Half Days</span><strong>' + fmtDays(halfDays) + '</strong></div>'
+                    + '<div class="sd-tile"><span>Overtime</span><strong>' + fmtDays(otHours) + ' <small>hrs</small></strong></div>'
                 + '</div>'
+                // how the pay adds up
+                + '<div class="sd-section">Earnings</div>'
+                + '<div class="sd-lines">'
+                    + line('Daily Rate', '', '₱' + fmt(dailyRate))
+                    + line('Basic Pay', '₱' + fmt(dailyRate) + ' × ' + plural(daysWorked, 'day'), '₱' + fmt(basicPay))
+                    + line('Overtime', otHours > 0 ? plural(otHours, 'hr') + ' × ₱' + fmt(dailyRate / 8) + '/hr' : 'No overtime this week', otHours > 0 ? '₱' + fmt(otPay) : '—', otHours > 0 ? 'is-ot' : 'is-muted')
+                    + line('Gross Pay', '', '₱' + fmt(grossPay), 'is-sub')
+                    + (deductions > 0 ? line('Deductions', '', '− ₱' + fmt(deductions), 'is-ded') : '')
+                    + '<div class="sd-total"><span>' + (deductions > 0 ? 'Net Pay' : 'Total Pay') + '</span><strong>₱' + fmt(netPay) + '</strong></div>'
                 + '</div>';
+            if (typeof lucide !== 'undefined') lucide.createIcons();
 
             document.getElementById('salaryDetailModal').classList.add('show');
             document.body.style.overflow = 'hidden';

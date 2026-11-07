@@ -38,19 +38,20 @@ class OnlinePayments
     }
 
     /**
-     * Open (or reuse) a checkout for the stage currently due on this payment.
+     * Open (or reuse) a checkout for the stage currently due on this payment — or, with $full, for the
+     * whole remaining contract balance (offered once GMD has billed the stage that is due).
      *
      * @return OnlinePayment with a checkout_url to send the client to
      * @throws \DomainException  a readable reason when there is nothing to pay or the gateway refused
      */
-    public function startCheckout(Payment $payment, array $client): OnlinePayment
+    public function startCheckout(Payment $payment, array $client, bool $full = false): OnlinePayment
     {
         if (!$this->enabled()) {
             throw new \DomainException('Online payment is not available yet. Please use the proof-of-payment upload below.');
         }
 
         // Under a lock on the payment: two clicks / two tabs can't open two checkouts for the same stage
-        $online = DB::transaction(function () use ($payment, $client) {
+        $online = DB::transaction(function () use ($payment, $client, $full) {
             $locked = Payment::whereKey($payment->id)->lockForUpdate()->first();
             $locked->load('project', 'transactions', 'proofs');
 
@@ -58,22 +59,27 @@ class OnlinePayments
             if (!$due) {
                 throw new \DomainException('There is no payment due on this project right now.');
             }
+            if ($full) {
+                $due = ['stage' => 'full_payment', 'amount' => round($locked->currentBalance(), 2)];
+            }
             if ($due['amount'] < self::MIN_AMOUNT) {
                 throw new \DomainException('The amount due (₱' . number_format($due['amount'], 2) . ') is below the online payment minimum of ₱' . number_format(self::MIN_AMOUNT, 2) . '. Please pay it to GMD by cash or cheque.');
             }
 
+            // Any open checkout on this payment, for the stage or for the full balance — only one may stay
+            // usable, so switching between "Pay Now" and "Pay in Full" can never charge the client twice.
             $existing = OnlinePayment::where('payment_id', $locked->id)
                 ->where('status', OnlinePayment::STATUS_PENDING)
-                ->where('payment_stage', $due['stage'])
                 ->where('created_at', '>=', now()->subHours(self::REUSE_HOURS))
                 ->latest('id')
                 ->first();
 
-            if ($existing && abs((float) $existing->amount - $due['amount']) < 0.005) {
+            if ($existing && $existing->payment_stage === $due['stage'] && abs((float) $existing->amount - $due['amount']) < 0.005) {
                 return $existing;   // same stage, same amount: reuse the checkout already opened
             }
             if ($existing) {
-                // the amount due changed since (e.g. GMD recorded a partial payment) — that checkout is stale
+                // the amount or stage due changed since (e.g. GMD recorded a partial payment, or the client
+                // switched to paying in full) — that checkout is stale
                 $existing->update(['status' => OnlinePayment::STATUS_EXPIRED, 'failure_reason' => 'Replaced by a new checkout for the updated amount.']);
                 if ($existing->checkout_session_id) {
                     $this->gateway->expireCheckoutSession($existing->checkout_session_id);

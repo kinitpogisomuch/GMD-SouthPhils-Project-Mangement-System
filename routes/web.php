@@ -128,6 +128,7 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     Route::post('/payments/{id}/record', [PaymentController::class, 'recordPayment'])->name('payments.record');
     Route::post('/payments/{id}/billing-statements', [PaymentController::class, 'storeBillingStatement'])->name('payments.billing_statements.store');
     Route::get('/payments/{id}/billing-statements/{statementId}', [PaymentController::class, 'showBillingStatement'])->name('payments.billing_statements.show');
+    Route::put('/payments/{id}/billing-statements/{statementId}', [PaymentController::class, 'updateBillingStatement'])->name('payments.billing_statements.update');
     Route::post('/payments/{id}/billing-statements/{statementId}/send', [PaymentController::class, 'sendBillingStatement'])->name('payments.billing_statements.send');
     Route::get('/payments/{id}/receipts/{transactionId}', [PaymentController::class, 'showReceipt'])->name('payments.receipts.show')->whereNumber(['id', 'transactionId']);
     Route::post('/payments/{id}/proofs/{proofId}/return', [PaymentController::class, 'returnProof'])->name('payments.proofs.return');
@@ -149,6 +150,7 @@ Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'no.back'])->g
     // Build Quotation — materials/labor entered against a quotation batch, before any Project exists
     Route::get('/quotation-requests/batch/{batchId}', [QuotationRequestController::class, 'batchDetail'])->name('quotation_requests.batch_detail');
     Route::post('/quotation-requests/batch/{batchId}/live-preview', [QuotationRequestController::class, 'livePreview'])->name('quotation_requests.batch_live_preview');
+    Route::post('/quotation-requests/batch/{batchId}/signature', [QuotationRequestController::class, 'uploadSignature'])->name('quotation_requests.batch_signature');
     Route::post('/quotation-requests/batch/{batchId}/materials', [QuotationRequestController::class, 'storeMaterials'])->name('quotation_requests.batch_materials');
     Route::post('/quotation-requests/batch/{batchId}/materials/{materialId}/delete', [QuotationRequestController::class, 'deleteMaterial'])->name('quotation_requests.batch_material_delete');
     Route::post('/quotation-requests/batch/{batchId}/labor', [QuotationRequestController::class, 'storeLabor'])->name('quotation_requests.batch_labor');

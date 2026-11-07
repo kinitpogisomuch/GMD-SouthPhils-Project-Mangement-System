@@ -107,6 +107,10 @@
                     : 0;
                 $isBilled     = $statement->billing_stage === $stage;
                 $stagePaidAmt = $payment->transactions->where('payment_stage', $stage)->sum('amount_paid');
+                // a Full Payment isn't tagged to any one stage — count every stage it settled as paid
+                if (in_array($stage, $payment->paidStages(), true)) {
+                    $stagePaidAmt = max($stagePaidAmt, $stageAmounts[$stage] ?? 0);
+                }
                 // Amounts only appear once a term is actually billed or paid — future
                 // terms show ₱0.00 until their own statement bills them.
                 $displayAmt   = ($isBilled || $stagePaidAmt > 0) ? ($stageAmounts[$stage] ?? 0) : 0;
@@ -150,12 +154,22 @@
     <div class="bs-signatures">
         <div class="bs-sig-block">
             <div class="bs-sig-label">Prepared by:</div>
+            <div class="bs-sig-area">
+                @if($statement->prepared_by_signature)
+                <img class="bs-sig-img" src="{{ $statement->prepared_by_signature }}" alt="Signature">
+                @endif
+            </div>
             <div class="bs-sig-name">{{ $statement->prepared_by_name ?: '—' }}</div>
             <div class="bs-sig-line"></div>
             <div class="bs-sig-role">{{ $statement->prepared_by_role ?: '—' }}</div>
         </div>
         <div class="bs-sig-block">
             <div class="bs-sig-label">Approved by:</div>
+            <div class="bs-sig-area">
+                @if($statement->approved_by_signature)
+                <img class="bs-sig-img" src="{{ $statement->approved_by_signature }}" alt="Signature">
+                @endif
+            </div>
             <div class="bs-sig-name">{{ $statement->approved_by_name ?: '—' }}</div>
             <div class="bs-sig-line"></div>
             <div class="bs-sig-role">{{ $statement->approved_by_role ?: '—' }}</div>
@@ -164,3 +178,25 @@
 
     <div class="bs-auto-note">This is an auto-generated billing statement.</div>
 </div>
+
+<script>
+// Print / Save as PDF always comes out as ONE page: just before printing, lay the sheet out at the printed width
+// (html.bs-measure in billing_statement.css), measure it, and scale it down only if it would spill onto a second page.
+(function () {
+    var PAGE_HEIGHT = 990;   // printable height in CSS px: Letter (11in) minus the 8mm top + bottom margins, with a little slack
+    var root = document.documentElement;
+
+    function fit() {
+        var sheet = document.querySelector('.bs-sheet');
+        if (!sheet) return;
+        root.style.removeProperty('--bs-fit');
+        root.classList.add('bs-measure');
+        var height = sheet.scrollHeight;
+        root.classList.remove('bs-measure');
+        if (height > PAGE_HEIGHT) root.style.setProperty('--bs-fit', (PAGE_HEIGHT / height).toFixed(3));
+    }
+
+    window.addEventListener('beforeprint', fit);
+    window.addEventListener('afterprint', function () { root.style.removeProperty('--bs-fit'); });
+})();
+</script>
