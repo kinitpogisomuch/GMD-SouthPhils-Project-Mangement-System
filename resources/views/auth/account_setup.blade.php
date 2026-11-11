@@ -5,77 +5,9 @@
     <link rel="icon" type="image/svg+xml" href="{{ asset('images/gmdlogo-circle.svg') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Set Up Your Account | GMD South Phils</title>
-    <link rel="stylesheet" href="{{ asset('css/login.css') }}">
-    <style>
-        body {
-            min-height: 100vh; margin: 0;
-            display: flex; align-items: center; justify-content: center;
-            padding: 32px 16px; box-sizing: border-box;
-            background: radial-gradient(circle at 50% 0%, #ffffff 0%, var(--cream) 60%);
-        }
-        .as-wrap { width: 100%; max-width: 460px; animation: asRise .7s cubic-bezier(.22, 1, .36, 1) both; }
-        @keyframes asRise { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
-
-        .as-brand { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 22px; }
-        .as-brand img { width: 44px; height: 44px; border-radius: 50%; }
-        .as-brand-name { font-size: 19px; font-weight: 900; color: var(--dark); letter-spacing: -.3px; }
-        .as-brand-name span { color: var(--muted); }
-        .as-brand-sub { font-size: 10.5px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .14em; margin-top: 2px; }
-
-        .as-card { background: var(--white); border: 1px solid var(--border); border-radius: 24px; box-shadow: 0 18px 40px var(--shadow); padding: 30px 28px 26px; }
-        .as-icon { width: 56px; height: 56px; border-radius: 16px; background: #E7F6EC; color: #207A3A; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; }
-        .as-icon svg { width: 26px; height: 26px; }
-        .as-title { text-align: center; font-size: 21px; font-weight: 900; color: var(--dark); letter-spacing: -.4px; margin: 0 0 6px; }
-        .as-sub { text-align: center; font-size: 13.5px; line-height: 1.6; color: var(--muted); margin: 0 0 22px; }
-        .as-sub strong { color: var(--dark); }
-
-        .as-group { margin-bottom: 16px; }
-        .as-group label { display: block; font-size: 13px; font-weight: 700; color: var(--dark); margin-bottom: 7px; }
-        .as-hint { font-size: 11.5px; color: var(--muted); margin-top: 5px; display: block; }
-
-        /* read-only username — the identifier they'll log in with */
-        .as-username {
-            display: flex; align-items: center; justify-content: space-between; gap: 10px;
-            height: 48px; padding: 0 14px; border-radius: 14px; box-sizing: border-box;
-            background: var(--cream); border: 1px dashed var(--border);
-            font-size: 15px; font-weight: 900; color: var(--dark); letter-spacing: 1.5px;
-        }
-        .as-username .lock { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: 0; }
-        .as-username .lock svg { width: 13px; height: 13px; }
-
-        .as-pw { position: relative; }
-        .as-pw input {
-            width: 100%; height: 48px; padding: 0 46px 0 14px; box-sizing: border-box;
-            border: 1px solid var(--border); border-radius: 14px; background: var(--cream);
-            font-size: 13.5px; color: var(--dark); outline: none; transition: .2s ease;
-        }
-        .as-pw input:focus { background: var(--white); border-color: var(--dark); box-shadow: 0 0 0 4px rgba(0, 0, 0, .08); }
-        .as-pw input.input-error { border-color: #fca5a5; }
-        .as-pw-toggle { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--muted); padding: 4px; display: flex; }
-        .as-pw-toggle svg { width: 16px; height: 16px; }
-
-        .as-reqs { display: flex; flex-wrap: wrap; gap: 5px; margin: -4px 0 18px; }
-        .as-req { font-size: 10.5px; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); background: var(--cream); font-weight: 600; white-space: nowrap; transition: .2s; }
-        .as-req.met  { background: #E7F6EC; border-color: #86efac; color: #207A3A; }
-        .as-req.fail { background: var(--danger-bg); border-color: #fca5a5; color: var(--danger); }
-
-        .field-error { font-size: 11px; color: var(--danger); margin-top: 5px; display: block; font-weight: 500; line-height: 1.45; }
-
-        .as-submit {
-            width: 100%; height: 50px; border: none; border-radius: 14px; cursor: pointer;
-            background: var(--dark); color: var(--white); font-size: 14.5px; font-weight: 900;
-            display: flex; align-items: center; justify-content: center; gap: 8px; transition: .2s ease;
-        }
-        .as-submit:hover { background: var(--dark-soft); transform: translateY(-1px); }
-        .as-submit:disabled { background: var(--muted); cursor: not-allowed; transform: none; }
-        .as-submit svg { width: 17px; height: 17px; }
-
-        .as-foot { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 18px; font-size: 11.5px; color: var(--muted); }
-        .as-foot svg { width: 13px; height: 13px; }
-        @media (max-width: 480px) { .as-card { padding: 26px 20px 22px; border-radius: 20px; } }
-    </style>
+    <link rel="stylesheet" href="{{ asset('css/login.css') }}?v={{ @filemtime(public_path('css/login.css')) }}">
 </head>
-<body>
+<body class="pg-auth-account-setup">
     <div class="as-wrap">
         <div class="as-brand">
             <img src="{{ asset('images/gmdlogo-circle.svg') }}" alt="GMD South Phils">

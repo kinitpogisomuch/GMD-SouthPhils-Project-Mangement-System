@@ -937,22 +937,6 @@ class ProjectController extends Controller
     }
 
     /**
-     * A project can't be marked Completed while its Financial Overview is incomplete. Returns the
-     * redirect that explains what is missing, or null when completion may go ahead. (Project's saving
-     * hook enforces the same rule for any other code path.)
-     */
-    private function blockIncompleteFinancials(Project $project)
-    {
-        $missing = $project->financialCompletionGaps();
-        if (!$missing) {
-            return null;
-        }
-
-        return redirect()->route('admin.project_view', $project->id)
-            ->with('error', (new \App\Exceptions\ProjectCompletionBlockedException($project->name, $missing))->getMessage());
-    }
-
-    /**
      * Completing a project with months that have no overhead allocated is allowed, but only on purpose:
      * without `proceed_without_expenses` the submission is stopped (nothing is saved or uploaded) and the
      * page shows the "Monthly Expenses Not Yet Settled" modal again. When the admin chose Proceed Anyway,
@@ -1495,10 +1479,6 @@ class ProjectController extends Controller
     */
     private function handleCompletion(Request $request, Project $project)
     {
-        // Checked first, before any photo is uploaded or phase data is written
-        if ($blocked = $this->blockIncompleteFinancials($project)) {
-            return $blocked;
-        }
 
         $request->validate([
             'photos'           => 'required|array|min:1',
@@ -1992,10 +1972,6 @@ class ProjectController extends Controller
             $newProgress = $this->progressMap[$nextPhase];
             $newStatus   = $nextPhase === 'delivery' ? 'completed' : 'ongoing';
 
-            // Approving the Completion update completes the project — not while its finances are incomplete
-            if ($newStatus === 'completed' && $project->status !== 'completed' && ($blocked = $this->blockIncompleteFinancials($project))) {
-                return $blocked;
-            }
             if ($newStatus === 'completed' && $project->status !== 'completed' && ($gate = $this->gateUnsettledExpenses($request, $project, $update->id))) {
                 return $gate;
             }
@@ -2020,9 +1996,6 @@ class ProjectController extends Controller
         // Approving an update in the final (Delivery) phase records the delivery. The project
         // was already completed when it finished the Completion phase, so completed_at (the
         // On-Time Completion Rate date) is left alone; delivery is tracked separately.
-        if ($project->status !== 'completed' && ($blocked = $this->blockIncompleteFinancials($project))) {
-            return $blocked;
-        }
         $update->update(['status' => 'approved']);
         $project->setPhaseData('delivery', [
             'photos'       => $update->photos ?? [],
@@ -2066,9 +2039,6 @@ class ProjectController extends Controller
             $nextPhase   = $this->phases[$currentIndex + 1];
             $newProgress = $this->progressMap[$nextPhase];
 
-            if ($nextPhase === 'delivery' && $project->status !== 'completed' && ($blocked = $this->blockIncompleteFinancials($project))) {
-                return $blocked;
-            }
 
             $project->update([
                 'current_phase' => $nextPhase,

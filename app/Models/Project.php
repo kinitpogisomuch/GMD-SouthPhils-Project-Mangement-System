@@ -17,14 +17,8 @@ class Project extends Model
                 return;
             }
 
-            // No code path — admin form, employee update approval, or a backend process — may
-            // complete a project whose Financial Overview is incomplete.
-            if ($project->status === 'completed' && $project->getOriginal('status') !== 'completed' && !static::$financialCheckDisabled) {
-                $missing = $project->financialCompletionGaps();
-                if ($missing) {
-                    throw new \App\Exceptions\ProjectCompletionBlockedException($project->name, $missing);
-                }
-            }
+            // An incomplete Financial Overview doesn't stop completion — the project page only shows a
+            // reminder (financialCompletionGaps) during the Completion phase.
 
             if ($project->status === 'completed' && !$project->completed_at) {
                 $project->completed_at = now();
@@ -52,24 +46,18 @@ class Project extends Model
         });
     }
 
-    /** Set while seeders import already-finished projects, whose records are created after the project. */
-    private static bool $financialCheckDisabled = false;
-
-    /** Run $callback with the Financial Overview completion check switched off (seeders / data imports only). */
+    /**
+     * Kept for the seeders that wrap their imports in it. Completion used to be blocked while the
+     * Financial Overview was incomplete; it's only a reminder now, so there's nothing to switch off.
+     */
     public static function withoutFinancialCheck(callable $callback)
     {
-        $previous = static::$financialCheckDisabled;
-        static::$financialCheckDisabled = true;
-        try {
-            return $callback();
-        } finally {
-            static::$financialCheckDisabled = $previous;
-        }
+        return $callback();
     }
 
     /**
-     * What the Financial Overview still needs before this project may be marked Completed — empty when
-     * nothing is missing. These are the figures the overview, Net Profit and the KPIs are built from:
+     * What the Financial Overview is still missing — empty when nothing is. Shown as a reminder on the
+     * project page during the Completion phase; it doesn't block marking the project Completed. These are the figures the overview, Net Profit and the KPIs are built from:
      * the payment setup (terms + contract value), the estimated costs (Project Budget), the actual costs
      * (material purchases and labor), and the down payment received. The final payment is not required:
      * it is collected at delivery, which comes after completion. Overhead is not required either: it is

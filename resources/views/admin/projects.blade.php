@@ -5,12 +5,9 @@
     <link rel="icon" type="image/svg+xml" href="{{ asset('images/gmdlogo-circle.svg') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Projects | GMD South Phils</title>
-    <link href="{{ asset('css/admin.css') }}" rel="stylesheet">
-    <style>
-        .pf-client-name { font-size: 14.5px; font-weight: 800; color: var(--dark); }
-    </style>
+    <link href="{{ asset('css/admin.css') }}?v={{ @filemtime(public_path('css/admin.css')) }}" rel="stylesheet">
 </head>
-<body class="page-enter">
+<body class="page-enter pg-admin-projects">
 
     @include('partials.admin.header')
 
@@ -339,27 +336,6 @@
             </form>
         </div>
     </div>
-    <style>
-        .cq-summary { background: #EAF0FF; border: 1px solid #c7d7fe; border-radius: 16px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; }
-        .cq-summary-head { display: flex; align-items: center; gap: 12px; }
-        .cq-summary-icon { width: 40px; height: 40px; border-radius: 12px; background: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-        .cq-summary-icon i, .cq-summary-icon svg { width: 19px; height: 19px; color: #1e40af; }
-        .cq-eyebrow { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: #1e40af; }
-        .cq-title { font-size: 15.5px; font-weight: 900; color: var(--dark); overflow-wrap: anywhere; }
-        .cq-sub { font-size: 12.5px; font-weight: 600; color: var(--muted); overflow-wrap: anywhere; }
-        .cq-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-        .cq-chips .qr-tank-line { display: contents; }
-        .cq-facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding-top: 12px; border-top: 1px dashed #c7d7fe; }
-        .cq-facts span { display: block; font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: #1e40af; }
-        .cq-facts strong { display: block; font-size: 13.5px; font-weight: 800; color: var(--dark); margin-top: 2px; overflow-wrap: anywhere; }
-        .cq-dates { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 18px; }
-        .cq-hint { display: flex; align-items: flex-start; gap: 7px; margin: 10px 0 0; font-size: 12px; font-weight: 600; color: var(--muted); line-height: 1.5; }
-        .cq-hint i, .cq-hint svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 2px; }
-        @media (max-width: 560px) {
-            .cq-facts { grid-template-columns: 1fr 1fr; }
-            .cq-dates { grid-template-columns: 1fr; }
-        }
-    </style>
 
     <!-- ===================== SELECT TEMPLATE MODAL ===================== -->
     <div class="modal-overlay" id="selectTemplateModal">

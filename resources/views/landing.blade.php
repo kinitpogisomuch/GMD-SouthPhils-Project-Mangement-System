@@ -8,7 +8,7 @@
     <meta name="description" content="GMD South Phils specializes in custom steel storage tank fabrication — fuel, water, chemical, and oil tanks — fabricated with precision for clients across South Philippines.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="{{ asset('css/landing.css') }}" rel="stylesheet">
+    <link href="{{ asset('css/landing.css') }}?v={{ @filemtime(public_path('css/landing.css')) }}" rel="stylesheet">
     {{-- UI enhancement layer: ui.css is compiled from resources/scss; GSAP drives the motion (landing.js),
          Alpine.js the menu and quotation dialog. Pinned CDN versions, like the rest of the page's libraries. --}}
     <link href="{{ asset('css/ui.css') }}?v={{ @filemtime(public_path('css/ui.css')) }}" rel="stylesheet">

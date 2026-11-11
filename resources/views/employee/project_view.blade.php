@@ -5,35 +5,9 @@
     <link rel="icon" type="image/svg+xml" href="{{ asset('images/gmdlogo-circle.svg') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Project View | GMD South Phils</title>
-    <link href="{{ asset('css/employee.css') }}" rel="stylesheet">
-    <style>
-        /* Project Information / Progress History: same fixed height, a bit taller than
-           either card's natural content — the taller one no longer stretches the other,
-           and each scrolls internally instead of growing the card. */
-        .pv-grid-2-card {
-            height: 560px;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-        .pv-grid-2-card-scroll {
-            flex: 1;
-            min-height: 0;
-            overflow-y: auto;
-        }
-        .pv-grid-2-card-scroll-center {
-            justify-content: center;
-        }
-        /* entries keep their natural height — the list scrolls instead of squashing them on top of each other */
-        .pv-grid-2-card-scroll > * {
-            flex-shrink: 0;
-        }
-        .pv-grid-2-card-scroll {
-            padding-right: 4px;
-        }
-    </style>
+    <link href="{{ asset('css/employee.css') }}?v={{ @filemtime(public_path('css/employee.css')) }}" rel="stylesheet">
 </head>
-<body class="page-enter">
+<body class="page-enter pg-employee-project-view">
 
     @include('partials.employee.header')
 
@@ -85,24 +59,6 @@
                     </div>
                 </div>
             </div>
-            <style>
-                .epv-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 22px; }
-                .epv-head-main { min-width: 0; }
-                .epv-title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-                .epv-title { margin: 0; font-size: 26px; font-weight: 900; color: var(--dark); letter-spacing: -.4px; line-height: 1.2; }
-                .epv-phase { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 800; white-space: nowrap; }
-                .epv-phase svg { width: 13px; height: 13px; }
-                .epv-phase-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
-                .epv-meta { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 8px; font-size: 13px; font-weight: 600; color: var(--muted); }
-                .epv-meta span { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
-                .epv-meta svg { width: 14px; height: 14px; flex-shrink: 0; }
-                @media (max-width: 640px) {
-                    .epv-crumb { font-size: 12px !important; margin-bottom: 14px !important; min-width: 0; }
-                    .epv-crumb-current { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-                    .epv-title { font-size: 20px; }
-                    .epv-meta { font-size: 12px; gap: 4px 12px; }
-                }
-            </style>
 
             @if(session('error'))
             <div class="alert-banner error">

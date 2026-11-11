@@ -5,9 +5,9 @@
     <link rel="icon" type="image/svg+xml" href="{{ asset('images/gmdlogo-circle.svg') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Payments | GMD South Phils</title>
-    <link href="{{ asset('css/client.css') }}" rel="stylesheet">
+    <link href="{{ asset('css/client.css') }}?v={{ @filemtime(public_path('css/client.css')) }}" rel="stylesheet">
 </head>
-<body class="page-enter">
+<body class="page-enter pg-client-payments">
 
     @include('partials.client.header')
 
@@ -57,16 +57,6 @@
                 </div>
             </div>
 
-            <style>
-                /* a project with a billed amount still to pay: yellow border + glow and a tag on the card's top edge
-                   (same highlight as the payment detail page and the quotation cards) */
-                .pay-card.pay-needs-action { position: relative; border: 2px solid #F5B400 !important; box-shadow: 0 0 0 4px rgba(245,180,0,.16), 0 10px 28px rgba(245,180,0,.12) !important; margin-top: 18px; }
-                .pay-action-flag { position: absolute; top: -12px; left: 22px; z-index: 2; display: inline-flex; align-items: center; gap: 6px; padding: 3px 11px; border-radius: 999px;
-                                   background: #F5B400; color: #1a1a1a; font-size: 10.5px; font-weight: 900; text-transform: uppercase; letter-spacing: .05em; box-shadow: 0 2px 6px rgba(0,0,0,.12); }
-                .pay-action-dot { width: 7px; height: 7px; border-radius: 50%; background: #1a1a1a; animation: payPulse 1.4s ease-in-out infinite; }
-                @keyframes payPulse { 50% { opacity: .25; } }
-                @media (prefers-reduced-motion: reduce) { .pay-action-dot { animation: none; } }
-            </style>
 
             @forelse($payments as $payment)
                 @php

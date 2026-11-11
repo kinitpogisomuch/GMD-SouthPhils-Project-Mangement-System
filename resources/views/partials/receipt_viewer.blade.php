@@ -3,25 +3,6 @@
      a round close button. Include once per page. Any link with `data-receipt` inside a wrapper
      carrying `data-receipt-set` opens here; a payment with several files gets side arrows.
      The href stays a normal URL, so ctrl/middle-click still opens a new tab. --}}
-<style>
-    .rv-overlay { position: fixed; inset: 0; z-index: 1000; display: none; align-items: center; justify-content: center; padding: 40px; background: rgba(0,0,0,.8); }
-    .rv-overlay.show { display: flex; }
-    .rv-stage { display: flex; align-items: center; justify-content: center; max-width: 100%; max-height: 100%; }
-    .rv-stage img { display: block; max-width: 90vw; max-height: 90vh; border-radius: 8px; box-shadow: 0 24px 60px rgba(0,0,0,.4); }
-    .rv-stage iframe { width: min(900px, 90vw); height: 90vh; border: 0; border-radius: 8px; background: #fff; box-shadow: 0 24px 60px rgba(0,0,0,.4); }
-    .rv-stage iframe.rv-page { width: min(1000px, 92vw); height: min(650px, 90vh); }   /* landscape: acknowledgement receipt */
-    .rv-stage iframe.rv-doc  { width: min(960px, 92vw);  height: 92vh; border-radius: 22px; }   /* portrait: billing statement, quotation review — a rounded card like the admin modals */
-    .rv-note { max-width: 360px; padding: 28px 24px; border-radius: 12px; background: #fff; text-align: center; font-size: 14px; line-height: 1.6; color: #444; }
-    .rv-note a { display: inline-block; margin-top: 10px; font-weight: 700; color: #1a1a1a; }
-    .rv-round { position: absolute; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border: none; border-radius: 50%; background: rgba(255,255,255,.12); color: #fff; font-size: 20px; line-height: 1; cursor: pointer; }
-    .rv-round:hover { background: rgba(255,255,255,.22); }
-    .rv-round[disabled] { opacity: .3; cursor: default; }
-    .rv-close { top: 24px; right: 28px; }
-    .rv-prev  { left: 24px;  top: 50%; transform: translateY(-50%); }
-    .rv-next  { right: 24px; top: 50%; transform: translateY(-50%); }
-    .rv-count { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); padding: 5px 12px; border-radius: 999px; background: rgba(255,255,255,.14); color: #fff; font-size: 12px; font-weight: 700; }
-    @media (max-width: 600px) { .rv-overlay { padding: 16px; } .rv-close { top: 12px; right: 12px; } .rv-prev { left: 8px; } .rv-next { right: 8px; } }
-</style>
 
 <div class="rv-overlay" id="receiptViewer" role="dialog" aria-modal="true" aria-label="File preview">
     <button type="button" class="rv-round rv-close" id="receiptViewerClose" aria-label="Close">&times;</button>

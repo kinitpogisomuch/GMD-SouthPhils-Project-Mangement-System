@@ -5,24 +5,9 @@
     <link rel="icon" type="image/svg+xml" href="{{ asset('images/gmdlogo-circle.svg') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Materials | GMD South Phils</title>
-    <link href="{{ asset('css/admin.css') }}" rel="stylesheet">
-    <style>
-        /* Project Material Usage: seven columns — tighter cells so Actions stays in view without scrolling sideways */
-        #usageActiveTable th, #usageActiveTable td,
-        #usageGroupTable th, #usageGroupTable td { padding-left: 14px; padding-right: 14px; }
-        #usageActiveTable th:first-child, #usageActiveTable td:first-child,
-        #usageGroupTable th:first-child, #usageGroupTable td:first-child { padding-left: 24px; }
-        #usageActiveTable td:nth-child(1) { min-width: 170px; max-width: 220px; white-space: normal; }
-        #usageActiveTable td:nth-child(2) { max-width: 230px; white-space: normal; }
-        #usageActiveTable .client-pill { white-space: normal; line-height: 1.3; }
-        /* every column after the name sits centered under its header */
-        #usageActiveTable th:not(:first-child), #usageActiveTable td:not(:first-child),
-        #usageGroupTable th:not(:first-child), #usageGroupTable td:not(:first-child) { text-align: center; }
-        #usageActiveTable td:nth-child(2) .client-pill { display: inline-block; }
-        #usageActiveTable .action-cell, #usageGroupTable .action-cell { justify-content: center; }
-    </style>
+    <link href="{{ asset('css/admin.css') }}?v={{ @filemtime(public_path('css/admin.css')) }}" rel="stylesheet">
 </head>
-<body class="page-enter">
+<body class="page-enter pg-admin-material-usage">
 
     @include('partials.admin.header')
 

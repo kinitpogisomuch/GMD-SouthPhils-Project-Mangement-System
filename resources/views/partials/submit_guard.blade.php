@@ -2,20 +2,6 @@
      A form posted the normal way gets a one-time token (checked by PreventDuplicateSubmission) and its
      submit buttons are disabled with a spinner, so a double click can't send it twice. Forms a page sends
      by script (its own handler calls preventDefault) are left alone. Opt out with data-no-submit-guard. --}}
-<style>
-    .is-submitting { position: relative; cursor: progress !important; opacity: .8; white-space: nowrap; }
-    .is-submitting::before {
-        content: ''; display: inline-block; flex-shrink: 0; box-sizing: border-box;
-        width: 14px; height: 14px; margin-right: 7px; vertical-align: -2px;
-        border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%;
-        animation: submitGuardSpin .7s linear infinite;
-    }
-    /* the spinner takes the place of the button's leading icon; a flex button's gap already spaces it */
-    .is-submitting > svg:first-child, .is-submitting > i:first-child { display: none; }
-    .is-submitting.is-submitting--flex::before { margin-right: 0; }
-    @keyframes submitGuardSpin { to { transform: rotate(360deg); } }
-    @media (prefers-reduced-motion: reduce) { .is-submitting::before { animation-duration: 2s; } }
-</style>
 <script>
 (function () {
     if (window.__submitGuard) return;

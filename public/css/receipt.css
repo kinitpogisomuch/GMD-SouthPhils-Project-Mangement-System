@@ -1,0 +1,73 @@
+/* Acknowledgement receipt (payments/receipt.blade.php): a standalone printable page, so it loads only this stylesheet. */
+
+:where(html:has(> body.pg-payments-receipt), body.pg-payments-receipt, body.pg-payments-receipt *) { box-sizing: border-box; }
+body:where(.pg-payments-receipt) { margin: 0; background: #e9e9e9; font-family: 'Inter', Arial, sans-serif; color: #1a1a1a; }
+
+:where(.pg-payments-receipt) .ar-toolbar { max-width: 980px; margin: 0 auto; padding: 18px 16px 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+:where(.pg-payments-receipt) .ar-toolbar a, :where(.pg-payments-receipt) .ar-toolbar button { display: inline-flex; align-items: center; gap: 8px; font: inherit; font-size: 13px; font-weight: 700; text-decoration: none; cursor: pointer; }
+:where(.pg-payments-receipt) .ar-toolbar a { color: #444; }
+:where(.pg-payments-receipt) .ar-toolbar button { border: 0; border-radius: 12px; padding: 11px 18px; background: #1a1a1a; color: #fff; }
+/* the receipt sheet (landscape, like the printed booklet) */
+:where(.pg-payments-receipt) .ar-sheet { max-width: 980px; margin: 0 auto 40px; background: #fff; padding: 30px 34px; display: grid; grid-template-columns: 290px 1fr; gap: 34px; box-shadow: 0 6px 30px rgba(0,0,0,.08); }
+
+/* left: In Settlement of the following */
+:where(.pg-payments-receipt) .ar-settle { border: 1.5px solid #222; font-size: 11.5px; align-self: start; }
+:where(.pg-payments-receipt) .ar-settle table { width: 100%; border-collapse: collapse; }
+:where(.pg-payments-receipt) .ar-settle td, :where(.pg-payments-receipt) .ar-settle th { border: 1px solid #222; padding: 6px 8px; height: 30px; vertical-align: middle; }
+:where(.pg-payments-receipt) .ar-settle th { font-weight: 600; text-align: center; }
+:where(.pg-payments-receipt) .ar-settle .ar-cap { border: 0; border-bottom: 1px solid #222; padding: 6px 8px; font-weight: 600; }
+:where(.pg-payments-receipt) .ar-settle .ar-small { font-size: 10px; font-weight: 600; }
+:where(.pg-payments-receipt) .ar-settle .ar-strong { font-size: 12.5px; font-weight: 800; }
+:where(.pg-payments-receipt) .ar-settle .ar-amt { text-align: right; font-size: 12px; font-weight: 700; color: #111; white-space: nowrap; font-variant-numeric: tabular-nums; }
+:where(.pg-payments-receipt) .ar-settle .ar-hand { font-size: 11.5px; font-weight: 600; color: #111; line-height: 1.3; }
+:where(.pg-payments-receipt) .ar-settle .ar-section { text-align: center; font-weight: 800; font-size: 12.5px; }
+:where(.pg-payments-receipt) .ar-box { display: inline-block; width: 18px; height: 13px; border: 1px solid #222; vertical-align: middle; margin-left: 6px; position: relative; }
+:where(.pg-payments-receipt) .ar-box.is-checked::after { content: "✓"; position: absolute; left: 3px; top: -7px; font-size: 16px; font-weight: 800; color: #111; }
+
+/* right: the acknowledgement */
+:where(.pg-payments-receipt) .ar-main { display: flex; flex-direction: column; }
+:where(.pg-payments-receipt) .ar-company { text-align: center; }
+:where(.pg-payments-receipt) .ar-company h1 { margin: 0; font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 40px; line-height: 1.02; letter-spacing: -.5px; text-transform: uppercase; }
+:where(.pg-payments-receipt) .ar-company p { margin: 6px 0 0; font-size: 13px; }
+:where(.pg-payments-receipt) .ar-headrow { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-top: 34px; }
+:where(.pg-payments-receipt) .ar-title { font-weight: 800; font-size: 17px; letter-spacing: .01em; }
+:where(.pg-payments-receipt) .ar-line { display: flex; align-items: flex-end; gap: 10px; font-size: 15.5px; margin-top: 26px; }
+:where(.pg-payments-receipt) .ar-line .ar-label { white-space: nowrap; padding-bottom: 3px; }
+:where(.pg-payments-receipt) .ar-fill { flex: 1; min-width: 0; border-bottom: 1.5px solid #222; padding: 0 10px 4px; font-size: 15.5px; font-weight: 600; color: #111; line-height: 1.35; }
+:where(.pg-payments-receipt) .ar-headrow .ar-fill { min-width: 200px; }
+:where(.pg-payments-receipt) .ar-amount-box { flex: 0 0 240px; text-align: center; font-size: 19px; font-weight: 800; }
+:where(.pg-payments-receipt) .ar-pf-word { text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: 3px; font-weight: 700; }
+:where(.pg-payments-receipt) .ar-indent { padding-left: 80px; }
+:where(.pg-payments-receipt) .ar-foot { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; margin-top: 34px; }
+:where(.pg-payments-receipt) .ar-no { font-weight: 800; font-size: 17px; white-space: nowrap; }
+:where(.pg-payments-receipt) .ar-no span { color: #c1121f; font-family: 'Courier New', monospace; font-size: 26px; letter-spacing: 2px; margin-left: 8px; }
+:where(.pg-payments-receipt) .ar-no span.is-or { font-size: 20px; letter-spacing: 1px; }   /* an OR number is longer than the booklet's digits */
+:where(.pg-payments-receipt) .ar-sign { width: 300px; text-align: center; }
+:where(.pg-payments-receipt) .ar-sign-name { font-size: 15px; font-weight: 800; color: #111; text-transform: uppercase; letter-spacing: .04em; line-height: 1.2; }
+:where(.pg-payments-receipt) .ar-sign-line { border-top: 1.5px solid #222; margin-top: 4px; padding-top: 5px; font-size: 14px; }
+:where(.pg-payments-receipt) .ar-disclaimer { text-align: center; font-weight: 800; font-size: 12px; margin-top: 18px; }
+:where(.pg-payments-receipt) .ar-system { margin-top: 12px; padding: 9px 12px; border-radius: 8px; background: #f3f6ff; border: 1px solid #dbe4fb; font-size: 11.5px; color: #2a4eaa; text-align: center; line-height: 1.5; }
+
+@media (max-width: 760px) {
+    :where(.pg-payments-receipt) .ar-sheet { grid-template-columns: minmax(0, 1fr); padding: 22px 16px; gap: 24px; }
+    :where(.pg-payments-receipt) .ar-settle { order: 2; }
+    :where(.pg-payments-receipt) .ar-company h1 { font-size: 28px; }
+    :where(.pg-payments-receipt) .ar-headrow, :where(.pg-payments-receipt) .ar-foot { flex-wrap: wrap; }
+    :where(.pg-payments-receipt) .ar-line { flex-wrap: wrap; font-size: 14px; }
+    :where(.pg-payments-receipt) .ar-amount-box { flex: 1 1 100%; }
+    :where(.pg-payments-receipt) .ar-indent { padding-left: 0; }
+    :where(.pg-payments-receipt) .ar-sign { width: 100%; }
+}
+
+@media print {
+    body:where(.pg-payments-receipt) { background: #fff; }
+    :where(.pg-payments-receipt) .ar-toolbar { display: none; }
+    :where(.pg-payments-receipt) .ar-sheet { box-shadow: none; margin: 0; max-width: none; }
+    :where(.pg-payments-receipt) .ar-system { background: none; }
+}
+
+body:where(.pg-payments-receipt-embed) { background: #fff; }
+:where(.pg-payments-receipt-embed) .ar-sheet { margin: 0 auto; box-shadow: none; }
+
+
+@media print { @page { size: landscape; margin: 10mm; } }

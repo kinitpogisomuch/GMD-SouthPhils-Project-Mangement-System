@@ -5,10 +5,10 @@
     <link rel="icon" type="image/svg+xml" href="{{ asset('images/gmdlogo-circle.svg') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Settings | GMD South Phils</title>
-    <link href="{{ asset('css/admin.css') }}" rel="stylesheet">
+    <link href="{{ asset('css/admin.css') }}?v={{ @filemtime(public_path('css/admin.css')) }}" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
 </head>
-<body class="page-enter">
+<body class="page-enter pg-admin-settings">
 
     @include('partials.admin.header')
 
@@ -398,7 +398,6 @@
                         </div>
                         @endforeach
                     </div>
-                    <style>.portfolio-card.is-hidden-card { opacity: .55; }</style>
                 </div>
 
                 <div class="table-card" style="margin-top:24px;">
@@ -580,20 +579,6 @@
             </form>
         </div>
     </div>
-    <style>
-        @media (max-width: 560px) { .tank-card-grid { grid-template-columns: 1fr !important; } }
-        /* Edit Tank Card → Standard Sizes rows */
-        .ts-head, .ts-row { display: grid; grid-template-columns: 1fr 1.3fr 0.9fr 36px; gap: 8px; align-items: center; }
-        .ts-head { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin: 4px 0 6px; }
-        .ts-row { margin-bottom: 8px; }
-        .ts-row input { min-width: 0; }
-        .ts-row .action-btn { width: 36px; height: 36px; }
-        .ts-empty { font-size: 12.5px; color: var(--muted); padding: 12px 14px; border: 1px dashed var(--border); border-radius: 10px; }
-        .ts-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; font-size: 12.5px; }
-        .ts-btn svg, .ts-btn i { width: 14px; height: 14px; }
-        .ts-note { font-size: 11.5px; color: var(--muted); margin-top: 8px; line-height: 1.5; }
-        .ts-note:empty { display: none; }
-    </style>
 
     <!-- ===== TOGGLE VISIBILITY (HIDE/SHOW) MODAL ===== -->
     <div class="modal-overlay" id="visibilityModal">
@@ -1131,272 +1116,6 @@
 
     </script>
 
-    <style>
-        .profile-field-err {
-            display: none;
-            color: #dc2626;
-            font-size: 11.5px;
-            margin-top: 4px;
-            line-height: 1.4;
-        }
-        .profile-field:disabled {
-            background: var(--surface-2);
-            color: var(--text-secondary);
-            cursor: default;
-            border-color: var(--border);
-        }
-        .contact-field:disabled {
-            background: var(--surface-2);
-            color: var(--text-secondary);
-            cursor: default;
-            border-color: var(--border);
-        }
-        select.profile-field {
-            appearance: none; -webkit-appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-            background-repeat: no-repeat; background-position: right 12px center; padding-right: 34px;
-        }
-        select.profile-field:disabled { background-color: var(--surface-2); cursor: not-allowed; }
-        .sel-loading { position: relative; }
-        .sel-loading::after {
-            content: ''; position: absolute; right: 34px; top: 50%; transform: translateY(-50%);
-            width: 12px; height: 12px; border: 2px solid #e5e7eb; border-top-color: var(--dark);
-            border-radius: 50%; animation: psgcSpin 0.7s linear infinite; pointer-events: none;
-        }
-        @keyframes psgcSpin { to { transform: translateY(-50%) rotate(360deg); } }
-        #profileEditActions { display: none; gap: 8px; flex-wrap: wrap; }
-        #contactInfoEditActions { display: none; gap: 8px; flex-wrap: wrap; }
-        .pw-req {
-            font-size: 11.5px; padding: 3px 9px; border-radius: 99px;
-            border: 1px solid #e5e7eb; color: #9ca3af; background: #f9fafb;
-            display: inline-flex; align-items: center; gap: 4px; transition: all 0.15s;
-        }
-        .pw-req.met  { background: #dcfce7; border-color: #86efac; color: #15803d; }
-        .pw-req.fail { background: #fee2e2; border-color: #fca5a5; color: #dc2626; }
-
-        /* Phones: the 4 password rule pills stay on one line, shrinking to fit */
-        @media (max-width: 640px) {
-            .pw-req-row { flex-wrap: nowrap !important; gap: 4px !important; }
-            .pw-req-row .pw-req { flex: 1 1 auto; justify-content: center; white-space: nowrap;
-                                  font-size: clamp(9px, 2.6vw, 11.5px); padding: 3px 5px; }
-        }
-
-        /* A blank required password field gets a red outline instead of blocking on the
-           server-side message list. */
-        #passwordForm input.is-invalid {
-            border-color: #dc2626 !important;
-        }
-
-        /* Landing Page tables: keep row divider lines flush across all columns
-           (table-cell action columns with flex children can throw off row height/border alignment) */
-        #tab-landing .data-table td,
-        #tab-landing .data-table th {
-            border-bottom: 1px solid var(--border);
-        }
-        #tab-landing .data-table tbody tr:last-child td {
-            border-bottom: none;
-        }
-        #tab-landing .action-cell {
-            display: table-cell;
-            white-space: nowrap;
-            vertical-align: middle;
-        }
-        #tab-landing .action-cell .action-btn,
-        #tab-landing .action-cell form {
-            display: inline-flex;
-            vertical-align: middle;
-            margin-right: 6px;
-        }
-        #tab-landing .action-cell .action-btn:last-child,
-        #tab-landing .action-cell form:last-child {
-            margin-right: 0;
-        }
-
-        /* "Our Work" tank cards — a card grid instead of a dense table, since this is
-           visual content (a photo per row) that a table format under-serves. */
-        .portfolio-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 18px;
-            padding: 20px 24px 24px;
-        }
-        @media (max-width: 1000px) {
-            .portfolio-grid { grid-template-columns: repeat(2, 1fr); }
-        }
-        @media (max-width: 620px) {
-            .portfolio-grid { grid-template-columns: 1fr; }
-        }
-        .portfolio-card {
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            overflow: hidden;
-            background: var(--white);
-            cursor: pointer;
-            transition: 0.18s ease;
-            display: flex;
-            flex-direction: column;
-        }
-        .portfolio-card:hover {
-            border-color: var(--dark);
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
-            transform: translateY(-2px);
-        }
-        .portfolio-card-image {
-            position: relative;
-            height: 150px;
-            background: var(--cream-soft);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .portfolio-card-image img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .portfolio-card-image i,
-        .portfolio-card-image svg {
-            width: 30px;
-            height: 30px;
-            color: var(--muted);
-            opacity: 0.5;
-        }
-        .portfolio-card-status {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
-        }
-        .portfolio-card-body {
-            padding: 14px 16px 4px;
-            flex: 1;
-        }
-        .portfolio-card-title {
-            font-size: 14.5px;
-            font-weight: 800;
-            color: var(--dark);
-            margin-bottom: 8px;
-        }
-        .portfolio-card-chips {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            margin-bottom: 10px;
-        }
-        .portfolio-chip {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            font-size: 11px;
-            font-weight: 700;
-            color: var(--muted);
-            background: var(--cream-soft);
-            border: 1px solid var(--border);
-            border-radius: 999px;
-            padding: 3px 9px;
-        }
-        .portfolio-chip i,
-        .portfolio-chip svg {
-            width: 11px;
-            height: 11px;
-        }
-        .portfolio-card-desc {
-            font-size: 12px;
-            color: var(--muted);
-            line-height: 1.5;
-            margin: 0;
-        }
-        .portfolio-card-actions {
-            display: flex;
-            gap: 6px;
-            padding: 12px 16px;
-            border-top: 1px solid var(--border);
-            margin-top: 12px;
-        }
-
-        /* Client Reviews — a card grid instead of a dense table; a testimonial reads
-           more naturally as a quote card than as six squeezed table columns. */
-        .review-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 18px;
-            padding: 20px 24px 24px;
-        }
-        @media (max-width: 1000px) {
-            .review-grid { grid-template-columns: repeat(2, 1fr); }
-        }
-        @media (max-width: 620px) {
-            .review-grid { grid-template-columns: 1fr; }
-        }
-        .review-card {
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 16px;
-            display: flex;
-            flex-direction: column;
-        }
-        .review-card-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            gap: 10px;
-            margin-bottom: 10px;
-        }
-        .review-card-project {
-            font-size: 14px;
-            font-weight: 800;
-            color: var(--dark);
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        .review-card-client {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 12px;
-            font-weight: 700;
-            color: var(--muted);
-            margin-top: 2px;
-        }
-        .review-hidden-badge {
-            font-size: 10px;
-            font-weight: 800;
-            color: #6d28d9;
-            background: #ede9fe;
-            border-radius: 999px;
-            padding: 2px 7px;
-            flex-shrink: 0;
-        }
-        .review-card-stars {
-            display: flex;
-            gap: 2px;
-            margin-bottom: 10px;
-        }
-        .review-card-stars i,
-        .review-card-stars svg {
-            width: 14px;
-            height: 14px;
-        }
-        .review-card-comment {
-            font-size: 13px;
-            color: var(--dark);
-            line-height: 1.55;
-            font-style: italic;
-            margin: 0 0 14px;
-            flex: 1;
-            display: -webkit-box;
-            -webkit-line-clamp: 4;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-        .review-card-actions {
-            display: flex;
-            gap: 6px;
-            padding-top: 12px;
-            border-top: 1px solid var(--border);
-        }
-    </style>
     {{-- ===================== CONFIRM PASSWORD UPDATE ===================== --}}
     <div class="modal-overlay" id="confirmPasswordModal">
         <div class="modal-card" style="max-width:440px;">

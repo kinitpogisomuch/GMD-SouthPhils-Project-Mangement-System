@@ -5,80 +5,9 @@
     <link rel="icon" type="image/svg+xml" href="{{ asset('images/gmdlogo-circle.svg') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Payments | GMD South Phils</title>
-    <link href="{{ asset('css/admin.css') }}" rel="stylesheet">
-    <style>
-        .pay-panel {
-            max-height: 800px;
-            overflow-y: auto;
-        }
-        .pay-panel thead th {
-            position: sticky;
-            top: 0;
-            z-index: 1;
-        }
-        /* long client names wrap instead of pushing the Active table sideways */
-        .pay-panel[data-panel="active"] .client-pill { white-space: normal; line-height: 1.35; }
-        .payments-view-tab {
-            border: none;
-            background: transparent;
-            color: var(--muted);
-            font-size: 13px;
-            font-weight: 800;
-            padding: 8px 18px;
-            border-radius: 999px;
-            cursor: pointer;
-            transition: 0.15s ease;
-            font-family: inherit;
-        }
-        .payments-view-tab:hover { color: var(--dark); }
-        .payments-view-tab.active { background: var(--dark); color: var(--white); }
-
-        /* ── Receipts table: fits the card (no sideways scroll), long names wrap ── */
-        #receiptsTableWrapper { overflow-x: hidden; max-height: 800px; overflow-y: auto; }
-        #receiptsTableWrapper thead th { position: sticky; top: 0; z-index: 1; }
-        #receiptsTable { table-layout: fixed; min-width: 0; width: 100%; }
-        #receiptsTable td { vertical-align: middle; }
-        #receiptsTable .client-pill { white-space: normal; line-height: 1.35; max-width: 100%; }
-        /* Client and Project sit a little further right — more room from the column before them */
-        #receiptsTable th:nth-child(2), #receiptsTable td:nth-child(2),
-        #receiptsTable th:nth-child(3), #receiptsTable td:nth-child(3) { padding-left: 28px; }
-        /* the tag stays beside the first line; a long OR number wraps onto the next line instead of being cut off */
-        .rc-or { display: inline-flex; align-items: flex-start; gap: 6px; max-width: 100%; font-weight: 900; color: var(--dark); font-variant-numeric: tabular-nums; }
-        .rc-or-tag { flex-shrink: 0; margin-top: 1px; }
-        .rc-or-num { min-width: 0; font-size: 12px; line-height: 1.4; white-space: normal; overflow-wrap: anywhere; word-break: break-all; }
-        /* table cells don't wrap by default (.data-table td is nowrap) — the OR column has to, or a long number runs into Client */
-        #receiptsTable td:first-child { white-space: normal; overflow: hidden; }
-        .rc-or-tag { font-size: 9.5px; font-weight: 800; letter-spacing: .05em; color: var(--muted); background: var(--accent-soft); border-radius: 6px; padding: 2px 6px; }
-        .rc-project { display: flex; flex-direction: column; min-width: 0; }
-        .rc-project-prefix { font-size: 9px; font-weight: 700; color: var(--muted); letter-spacing: .05em; text-transform: uppercase; line-height: 1.2; }
-        .rc-project-name { font-size: 12.5px; font-weight: 800; color: var(--dark); line-height: 1.3; word-break: break-word; }
-        .rc-stage { display: inline-flex; align-items: center; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
-        .rc-stage.down     { background: #EAF0FF; color: #2A4EAA; }
-        .rc-stage.progress { background: #FEF3C7; color: #8A6100; }
-        .rc-stage.final    { background: #E7F6EC; color: #207A3A; }
-        .rc-amount { font-weight: 900; color: var(--dark); font-variant-numeric: tabular-nums; white-space: nowrap; }
-        .rc-date { color: var(--muted); font-weight: 700; white-space: nowrap; font-size: 12.5px; }
-
-        /* ── Summary cards: same look as the Materials overview cards ── */
-        .pk-overview { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:14px; margin:4px 0 24px; }
-        .pk-kpi { display:flex; align-items:flex-start; gap:14px; padding:16px 18px; background:var(--white); border:1px solid var(--border); border-radius:16px; box-shadow:0 1px 2px rgba(0,0,0,.03); }
-        .pk-kpi-icon { width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-        .pk-kpi-icon svg { width:20px; height:20px; }
-        .pk-kpi-label { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
-        .pk-kpi-value { margin-top:3px; font-size:20px; font-weight:900; color:var(--dark); letter-spacing:-.3px; font-variant-numeric:tabular-nums; white-space:nowrap; }
-        .pk-kpi-sub { margin-top:4px; font-size:11.5px; font-weight:600; color:var(--muted); }
-        .pk-tone-ok { color:#16a34a; }
-        @media (max-width: 1100px) { .pk-overview { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
-        @media (max-width: 640px) {
-            .pk-overview { gap:10px; }
-            .pk-kpi { padding:12px; }
-            .pk-kpi-icon { display:none; }
-            .pk-kpi-value { font-size:16px; }
-            .pk-kpi-label { font-size:10px; }
-        }
-    </style>
+    <link href="{{ asset('css/admin.css') }}?v={{ @filemtime(public_path('css/admin.css')) }}" rel="stylesheet">
 </head>
-<body class="page-enter">
+<body class="page-enter pg-admin-payments">
 
     @include('partials.admin.header')
 

@@ -5,17 +5,9 @@
     <link rel="icon" type="image/svg+xml" href="{{ asset('images/gmdlogo-circle.svg') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Projects | GMD South Phils</title>
-    <link href="{{ asset('css/employee.css') }}" rel="stylesheet">
-    <style>
-        /* Phones: page title, subtitle and the Active / Completed tabs centered */
-        @media (max-width: 640px) {
-            .pv-page-header { justify-content: center; text-align: center; }
-            .pv-page-header h1::before { margin-left: auto; margin-right: auto; }
-            #projectFilterTabs { margin-left: auto !important; margin-right: auto !important; }
-        }
-    </style>
+    <link href="{{ asset('css/employee.css') }}?v={{ @filemtime(public_path('css/employee.css')) }}" rel="stylesheet">
 </head>
-<body class="page-enter">
+<body class="page-enter pg-employee-projects">
 
     @include('partials.employee.header')
 

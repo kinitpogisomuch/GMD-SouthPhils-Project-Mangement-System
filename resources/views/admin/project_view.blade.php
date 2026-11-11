@@ -5,14 +5,9 @@
     <link rel="icon" type="image/svg+xml" href="{{ asset('images/gmdlogo-circle.svg') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Project View | GMD South Phils</title>
-    <link href="{{ asset('css/admin.css') }}" rel="stylesheet">
-    <style>
-        /* the progress form's button row: hidden (line and all) when there is no button to show,
-           e.g. Planning → Payment before the down payment is settled */
-        #progressFormFooter:not(:has(button, a)) { display: none !important; }
-    </style>
+    <link href="{{ asset('css/admin.css') }}?v={{ @filemtime(public_path('css/admin.css')) }}" rel="stylesheet">
 </head>
-<body class="page-enter">
+<body class="page-enter pg-admin-project-view">
 
     @include('partials.admin.header')
 
@@ -108,14 +103,15 @@
             </div>
             @endif
 
-            {{-- Completion phase: what the Financial Overview still needs before the project can be marked Completed --}}
+            {{-- Completion phase: a reminder of what the Financial Overview doesn't have yet. It doesn't block
+                 Mark as Completed — ignore it if these were already taken care of. --}}
             @if(!empty($completionGaps))
             <div class="fin-gaps" role="status">
                 <div class="fin-gaps-head">
                     <i data-lucide="clipboard-list"></i>
                     <div>
-                        <strong>Complete the Financial Overview before marking this project as Completed</strong>
-                        <span>The final output can't be recorded until these are in:</span>
+                        <strong>Reminder: the Financial Overview isn't complete yet</strong>
+                        <span>These aren't recorded yet — add them if they apply, or ignore this if they're already taken care of:</span>
                     </div>
                 </div>
                 <ul>
@@ -133,22 +129,6 @@
                     <a href="{{ route('admin.salary.index') }}"><i data-lucide="banknote"></i> Salary Records</a>
                 </div>
             </div>
-            <style>
-                .fin-gaps { margin-bottom: 20px; padding: 14px 18px; background: #FFF7E6; border: 1px solid #F5D08A; border-radius: 16px; color: #7A4B00; }
-                .fin-gaps-head { display: flex; align-items: flex-start; gap: 10px; }
-                .fin-gaps-head > i, .fin-gaps-head > svg { width: 18px; height: 18px; flex-shrink: 0; margin-top: 2px; }
-                .fin-gaps-head strong { display: block; font-size: 13.5px; font-weight: 900; }
-                .fin-gaps-head span { display: block; margin-top: 2px; font-size: 12.5px; }
-                .fin-gaps ul { margin: 8px 0 0 28px; padding: 0; font-size: 12.5px; line-height: 1.7; }
-                .fin-gaps-links { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 0 28px; }
-                .fin-gaps-links a { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 800; color: #7A4B00; text-decoration: none; background: #fff; border: 1px solid #F5D08A; border-radius: 999px; padding: 5px 11px; }
-                .fin-gaps-links a:hover { border-color: #7A4B00; }
-                .fin-gaps-links i, .fin-gaps-links svg { width: 13px; height: 13px; }
-                @media (max-width: 600px) {
-                    .fin-gaps ul, .fin-gaps-links { margin-left: 0; }
-                    .fin-gaps ul { padding-left: 18px; }
-                }
-            </style>
             @endif
 
             <!-- Financial Overview Card -->
@@ -953,19 +933,6 @@
                                 <input type="hidden" name="proceed_without_final_payment" value="1">
                                 @endunless
                             </div>
-                            <style>
-                                .pu-card { max-width: 440px; }
-                                .pu-sum { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; width: 100%; margin-top: 14px; }
-                                .pu-sum > div { padding: 8px 6px; border-radius: 10px; background: rgba(255,255,255,.75); border: 1px solid rgba(0,0,0,.06); text-align: center; min-width: 0; }
-                                .pu-sum span { display: block; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
-                                .pu-sum strong { display: block; margin-top: 2px; font-size: 13px; font-weight: 900; color: var(--dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-                                .pu-sum strong.is-paid { color: #16a34a; }
-                                .pu-sum strong.is-due { color: #b45309; }
-                                .pu-next { list-style: none; margin: 14px 0 0; padding: 12px 0 0; width: 100%; border-top: 1px dashed rgba(0,0,0,.12); display: flex; flex-direction: column; gap: 6px; text-align: left; }
-                                .pu-next li { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--dark); }
-                                .pu-next svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--muted); }
-                                @media (max-width: 480px) { .pu-sum { grid-template-columns: 1fr; } }
-                            </style>
 
                             @php $submitLabel = 'Mark as Ready for Pickup'; @endphp
 

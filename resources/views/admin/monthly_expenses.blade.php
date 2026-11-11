@@ -5,28 +5,9 @@
     <link rel="icon" type="image/svg+xml" href="{{ asset('images/gmdlogo-circle.svg') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Monthly Overhead Expenses | GMD South Phils</title>
-    <link href="{{ asset('css/admin.css') }}" rel="stylesheet">
-    <style>
-        .me-project-row:hover { border-color:#93c5fd !important; box-shadow:0 2px 8px rgba(37,99,235,.08); }
-        #expensesTable tbody tr:hover { background:var(--cream-soft); }
-        #expensesTable { min-width: unset; width: 100%; table-layout: fixed; }
-        #expenseHistoryTable { min-width: unset; width: 100%; }
-        .me-main-grid .table-wrapper { overflow: hidden; }
-        /* no expenses: the column headers stay on top and the message fills the rest of the space, centred both ways */
-        .me-empty-wrap { display: flex; flex-direction: column; }
-        /* Expense History: scrolls inside its card, headers pinned */
-        .me-history-scroll { max-height: 430px; overflow-y: auto !important; scrollbar-width: thin; }
-        .me-history-scroll thead th { position: sticky; top: 0; z-index: 2; background: var(--cream-soft, #fafafa); }
-        .me-empty { flex: 1; min-height: 240px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 30px 20px; text-align: center; color: var(--muted); }
-        .me-empty svg { width: 36px; height: 36px; opacity: .3; margin-bottom: 8px; }
-        .me-empty-title { font-size: 15px; font-weight: 700; color: var(--dark); }
-        .me-empty-text { max-width: 340px; font-size: 13px; line-height: 1.5; }
-        #expensesTable tbody tr.me-filler-row:hover { background: transparent; }
-        #expensesTable tbody tr.me-filler-row td { color: transparent; user-select: none; }
-        #expensesTable tbody tr:last-child td { border-bottom: 1px solid var(--border); }
-    </style>
+    <link href="{{ asset('css/admin.css') }}?v={{ @filemtime(public_path('css/admin.css')) }}" rel="stylesheet">
 </head>
-<body class="page-enter">
+<body class="page-enter pg-admin-monthly-expenses">
 
     @include('partials.admin.header')
     @include('partials.admin.fund_overrun_modal')
@@ -82,25 +63,6 @@
                     <a href="{{ route('admin.monthly-expenses.index', ['month' => $month, 'done_settling' => 1]) }}" class="me-settle-dismiss" title="Stop showing this">Dismiss</a>
                 </div>
             </div>
-            <style>
-                .me-settle-banner { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; padding: 14px 18px; border-radius: 16px; background: #fffbeb; border: 1px solid #fde68a; }
-                .me-settle-banner.is-done { background: #f0fdf4; border-color: #bbf7d0; }
-                .me-settle-icon { width: 38px; height: 38px; border-radius: 12px; background: #fef3c7; color: #b45309; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-                .me-settle-banner.is-done .me-settle-icon { background: #dcfce7; color: #15803d; }
-                .me-settle-icon svg { width: 18px; height: 18px; }
-                .me-settle-body { flex: 1; min-width: 0; }
-                .me-settle-title { font-size: 14px; color: var(--dark); }
-                .me-settle-months { margin-top: 6px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12.5px; color: #92400e; font-weight: 700; }
-                .me-settle-months a { padding: 2px 9px; border-radius: 999px; background: #fff; border: 1px solid #fcd34d; color: #78350f; text-decoration: none; }
-                .me-settle-months a.is-current { background: #78350f; border-color: #78350f; color: #fff; }
-                .me-settle-hint { margin-top: 4px; font-size: 12px; color: var(--muted); }
-                .me-settle-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
-                .me-settle-dismiss { font-size: 12px; font-weight: 700; color: var(--muted); }
-                @media (max-width: 640px) {
-                    .me-settle-banner { flex-wrap: wrap; align-items: flex-start; }
-                    .me-settle-actions { width: 100%; flex-direction: row; align-items: center; justify-content: space-between; }
-                }
-            </style>
             @endif
 
             {{-- Alerts --}}
@@ -305,34 +267,6 @@
                         </form>
                     </div>
                 </div>
-                <style>
-                    .ae-list { border: 1px solid var(--border); border-radius: 14px; }
-                    .ae-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); transition: background .15s; }
-                    .ae-row:last-child { border-bottom: none; }
-                    .ae-row.is-on { background: #eff6ff; }
-                    .ae-pick { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; cursor: pointer; min-width: 0; flex: 1; }
-                    .ae-pick input { width: 17px; height: 17px; accent-color: var(--dark); flex-shrink: 0; cursor: pointer; }
-                    .ae-name { font-size: 13.5px; font-weight: 700; color: var(--dark); }
-                    .ae-already { font-size: 10.5px; font-weight: 800; color: #8A6100; background: #FFF3D6; border-radius: 999px; padding: 2px 8px; }
-                    .ae-amount { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-                    .ae-amount span { font-size: 13px; font-weight: 800; color: var(--muted); }
-                    .ae-amount input { width: 130px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; font-weight: 700; text-align: right; background: var(--white); color: var(--dark); }
-                    .ae-amount input:disabled { background: var(--cream-soft); color: var(--muted); cursor: not-allowed; }
-                    .ae-amount input.is-bad { border-color: var(--danger); outline: 2px solid rgba(220,38,38,.15); }
-                    .ae-other { display: flex; gap: 8px; margin-top: 12px; }
-                    .ae-other input { flex: 1; min-width: 0; padding: 9px 12px; border: 1px solid var(--border); border-radius: 10px; font-size: 13px; }
-                    .ae-error { margin-top: 10px; padding: 9px 12px; border-radius: 10px; background: #fee2e2; color: #b91c1c; font-size: 12.5px; font-weight: 600; }
-                    .ae-error[hidden] { display: none; }
-                    .ae-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); flex-shrink: 0; }
-                    .ae-total span { display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
-                    .ae-total strong { font-size: 18px; font-weight: 900; color: var(--dark); font-variant-numeric: tabular-nums; }
-                    #aeSave:disabled { opacity: .45; cursor: not-allowed; }
-                    @media (max-width: 520px) {
-                        .ae-row { flex-wrap: wrap; }
-                        .ae-amount { width: 100%; }
-                        .ae-amount input { flex: 1; width: auto; }
-                    }
-                </style>
 
                 {{-- RIGHT: Project Allocation --}}
                 <div class="table-card" style="overflow:visible;display:flex;flex-direction:column;">
@@ -422,25 +356,6 @@
 
                             {{-- Money each selected project has — overhead is paid from what its client has paid so far --}}
                             <div id="meFundsPanel" class="sf-panel" hidden></div>
-                            <style>
-                                .sf-panel { margin-bottom: 16px; padding: 12px 14px; border-radius: 14px; background: linear-gradient(180deg, #333333 0%, #2a2a2a 100%); display: flex; flex-direction: column; gap: 12px; overflow-y: auto; overscroll-behavior: contain; }
-                                .sf-panel[hidden] { display: none; }
-                                .sf-panel.is-scrolling { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.3) transparent; }
-                                .sf-panel.is-scrolling::-webkit-scrollbar { width: 6px; }
-                                .sf-panel.is-scrolling::-webkit-scrollbar-thumb { background: rgba(255,255,255,.3); border-radius: 999px; }
-                                .sf-panel.is-scrolling::-webkit-scrollbar-track { background: transparent; }
-                                .sf-proj + .sf-proj { padding-top: 12px; border-top: 1px solid rgba(255,255,255,.1); }
-                                .sf-name { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; font-weight: 800; color: rgba(255,255,255,.85); margin-bottom: 8px; }
-                                .sf-name span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-                                .sf-name em { font-style: normal; flex-shrink: 0; color: #93c5fd; }
-                                .sf-figs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-                                .sf-fig span { display: block; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: rgba(255,255,255,.45); }
-                                .sf-fig strong { display: block; margin-top: 2px; font-size: 13px; font-weight: 900; color: #fff; font-variant-numeric: tabular-nums; }
-                                .sf-fig small { display: block; font-size: 10px; color: rgba(255,255,255,.4); }
-                                .sf-available strong { color: #4ade80; }
-                                .sf-warn { margin-top: 10px; padding: 8px 10px; border-radius: 10px; font-size: 12px; font-weight: 700; background: rgba(248,113,113,.14); color: #fca5a5; }
-                                @media (max-width: 520px) { .sf-figs { grid-template-columns: 1fr 1fr; } }
-                            </style>
 
                             @if($isAllocLocked)
                             <div id="allocLockNotice" style="display:flex;align-items:center;gap:8px;background:#fef9c3;border:1px solid #fde68a;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#854d0e;">

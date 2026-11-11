@@ -5,9 +5,9 @@
     <link rel="icon" type="image/svg+xml" href="{{ asset('images/gmdlogo-circle.svg') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Projects | GMD South Phils</title>
-    <link href="{{ asset('css/client.css') }}" rel="stylesheet">
+    <link href="{{ asset('css/client.css') }}?v={{ @filemtime(public_path('css/client.css')) }}" rel="stylesheet">
 </head>
-<body class="page-enter">
+<body class="page-enter pg-client-projects">
 
     @include('partials.client.header')
 
@@ -178,25 +178,6 @@
             </div>
             @endif
 
-            <style>
-                .project-scroll-wrap .card {
-                    transition: transform 0.2s ease, box-shadow 0.2s ease;
-                }
-                .project-scroll-wrap .card:hover {
-                    transform: translateY(-2px);
-                    box-shadow: 0 16px 34px rgba(0,0,0,.10);
-                }
-                .project-scroll-wrap::-webkit-scrollbar {
-                    width: 8px;
-                }
-                .project-scroll-wrap::-webkit-scrollbar-thumb {
-                    background: var(--border);
-                    border-radius: 999px;
-                }
-                .project-scroll-wrap::-webkit-scrollbar-track {
-                    background: transparent;
-                }
-            </style>
 
     </main>
 
@@ -283,57 +264,6 @@
         </div>
     </div>
 
-    <style>
-        .review-error { font-size: 12.5px; font-weight: 700; color: #b91c1c; }
-        .review-error[hidden] { display: none; }
-
-        /* Leave a Review */
-        .rv-head { display: flex; align-items: flex-start; gap: 12px; }
-        .rv-head-icon { width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: #FFF4D6; color: #F59E0B; }
-        .rv-head-icon svg { width: 20px; height: 20px; fill: #F59E0B; }
-        .rv-body { display: flex; flex-direction: column; gap: 18px; padding: 0 0 4px; }
-        .rv-label { margin-bottom: 8px; font-size: 13px; font-weight: 800; color: var(--dark); }
-        .rv-req { color: #dc2626; }
-        .rv-rating-box { padding: 16px; border: 1px solid var(--border); border-radius: 16px; background: var(--cream-soft); text-align: center; }
-        .rv-rating-box .rv-label { margin-bottom: 6px; }
-        .rv-stars { justify-content: center; gap: 8px; }
-        .rv-stars button { padding: 2px; transition: transform .12s ease; }
-        .rv-stars button:hover { transform: scale(1.12); }
-        .rv-stars button svg { width: 36px; height: 36px; }
-        .rv-stars button.hover svg { color: #FCD34D; fill: #FCD34D; }   /* hover preview */
-        .rv-rating-word { margin-top: 6px; min-height: 18px; font-size: 13px; font-weight: 800; color: var(--muted); }
-        .rv-rating-word.is-set { color: #b45309; }
-        .rv-rating-box.has-error { border-color: #fca5a5; background: #fff5f5; }
-        .rv-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
-        .rv-chip { display: inline-flex; align-items: center; gap: 4px; padding: 5px 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--white); font: inherit; font-size: 11.5px; font-weight: 700; color: var(--dark); cursor: pointer; transition: border-color .15s ease, background .15s ease; }
-        .rv-chip svg { width: 12px; height: 12px; color: var(--muted); }
-        .rv-chip:hover { border-color: var(--dark); }
-        .rv-chip.is-used { background: var(--dark); border-color: var(--dark); color: #fff; }
-        .rv-chip.is-used svg { color: #fff; }
-        /* fixed height, not resizable — longer reviews scroll inside the box */
-        .rv-textarea { width: 100%; height: 110px; min-height: 110px; max-height: 110px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--white); font: inherit; font-size: 13.5px; line-height: 1.55; resize: none !important; overflow-y: auto; }
-        .rv-textarea:focus { outline: none; border-color: var(--dark); }
-        .rv-under { display: flex; justify-content: space-between; gap: 10px; margin-top: 6px; }
-        .rv-count { margin-left: auto; font-size: 11.5px; font-weight: 700; color: var(--muted); }
-        .rv-privacy { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--white); cursor: pointer; margin: 0; }
-        .rv-privacy-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-        .rv-privacy-text strong { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--dark); }
-        .rv-privacy-text strong svg { width: 14px; height: 14px; color: var(--muted); }
-        .rv-privacy-text small { font-size: 11.5px; color: var(--muted); overflow-wrap: anywhere; }
-        .rv-privacy-text small span { font-weight: 800; color: var(--dark); }
-        .rv-switch { position: relative; flex-shrink: 0; width: 42px; height: 24px; }
-        .rv-switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
-        .rv-switch-track { position: absolute; inset: 0; border-radius: 999px; background: #d4d4d4; transition: background .15s ease; pointer-events: none; }
-        .rv-switch-track::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.2); transition: transform .15s ease; }
-        .rv-switch input:checked + .rv-switch-track { background: var(--dark); }
-        .rv-switch input:checked + .rv-switch-track::after { transform: translateX(18px); }
-        .rv-foot { display: flex; justify-content: flex-end; gap: 10px; padding-top: 16px; margin-top: 16px; border-top: 1px solid var(--border); }
-        .rv-foot .cancel-btn, .rv-foot .save-btn { display: inline-flex; align-items: center; gap: 7px; }
-        @media (max-width: 560px) {
-            .rv-stars button svg { width: 32px; height: 32px; }
-            .rv-foot > * { flex: 1; justify-content: center; }
-        }
-    </style>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>
         lucide.createIcons();

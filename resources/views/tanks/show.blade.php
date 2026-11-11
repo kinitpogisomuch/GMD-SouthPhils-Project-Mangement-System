@@ -6,89 +6,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $card['type'] }} | GMD South Phils</title>
     <meta name="description" content="{{ $card['blurb'] }}">
-    <link href="{{ asset('css/landing.css') }}" rel="stylesheet">
+    <link href="{{ asset('css/landing.css') }}?v={{ @filemtime(public_path('css/landing.css')) }}" rel="stylesheet">
     <link href="{{ asset('css/ui.css') }}?v={{ @filemtime(public_path('css/ui.css')) }}" rel="stylesheet">
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
-    <style>
-        /* ── Tank details page (td-): what a tank card opens before the client requests a quotation ── */
-        .td-hero { background: linear-gradient(180deg, #333333 0%, #1a1a1a 100%); color: #fff; padding: 104px 52px 64px; }
-        .td-inner { max-width: 1200px; margin: 0 auto; }
-        .td-crumb { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: rgba(255,255,255,.5); margin-bottom: 28px; }
-        .td-crumb a { color: rgba(255,255,255,.5); text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
-        .td-crumb a:hover { color: var(--accent); }
-        .td-crumb svg, .td-crumb i { width: 14px; height: 14px; }
-        .td-grid { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 48px; align-items: start; }
-
-        .td-media { border-radius: 22px; overflow: hidden; border: 1px solid rgba(255,255,255,.1); position: sticky; top: 92px; }
-        .td-media .portfolio-media { aspect-ratio: 4 / 3; background: #1f1f1f; }
-        .td-media .portfolio-media img { position: relative; z-index: 1; object-fit: contain; }
-        .td-media-fill { position: absolute; inset: -30px; background-size: cover; background-position: center;
-                         filter: blur(26px) brightness(.6) saturate(1.1); transform: scale(1.1); }
-
-        .td-title { font-size: clamp(28px, 3.6vw, 44px); font-weight: 900; letter-spacing: -1px; line-height: 1.08; margin: 0 0 14px; }
-        .td-blurb { font-size: 15.5px; color: rgba(255,255,255,.6); line-height: 1.7; margin: 0 0 30px; max-width: 540px; }
-
-        .td-label { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
-                    color: rgba(255,255,255,.55); margin: 0 0 12px; }
-        .td-label svg, .td-label i { width: 15px; height: 15px; color: var(--accent); }
-        .td-sizes { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; margin-bottom: 14px; }
-        .td-size { position: relative; display: flex; flex-direction: column; gap: 4px; text-align: left; font: inherit; cursor: pointer;
-                   padding: 14px 16px; border-radius: 14px; color: #fff; background: rgba(255,255,255,.04); border: 1.5px solid rgba(255,255,255,.12);
-                   transition: border-color .2s, background .2s, transform .2s; }
-        .td-size:hover { border-color: rgba(255,255,255,.35); transform: translateY(-2px); }
-        .td-size strong { font-size: 16px; font-weight: 900; }
-        .td-size small { font-size: 12px; color: rgba(255,255,255,.5); font-weight: 600; }
-        .td-size .td-tick { position: absolute; top: 12px; right: 12px; width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,.25);
-                            display: flex; align-items: center; justify-content: center; }
-        .td-size .td-tick svg { width: 12px; height: 12px; opacity: 0; color: var(--dark-deep); }
-        .td-size.is-on { border-color: var(--accent); background: rgba(245,180,0,.08); }
-        .td-size.is-on .td-tick { background: var(--accent); border-color: var(--accent); }
-        .td-size.is-on .td-tick svg { opacity: 1; }
-        .td-size--custom strong { font-size: 14px; }
-        .td-choices { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); margin-bottom: 26px; }
-        .td-choice { gap: 6px; padding: 16px 18px; }
-        .td-choice strong { font-size: 15px; padding-right: 24px; }
-        .td-choice small { line-height: 1.5; }
-        .td-choice-icon { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
-                          background: rgba(255,255,255,.08); margin-bottom: 4px; }
-        .td-choice-icon svg, .td-choice-icon i { width: 17px; height: 17px; color: var(--accent); }
-        .td-choice.is-on .td-choice-icon { background: var(--accent); }
-        .td-choice.is-on .td-choice-icon svg { color: var(--dark-deep); }
-        .td-note { display: flex; gap: 10px; align-items: flex-start; font-size: 13.5px; line-height: 1.6; color: rgba(255,255,255,.65);
-                   background: rgba(255,255,255,.04); border: 1px dashed rgba(255,255,255,.18); border-radius: 14px; padding: 14px 16px; margin-bottom: 14px; }
-        .td-note svg, .td-note i { width: 18px; height: 18px; color: var(--accent); flex-shrink: 0; margin-top: 1px; }
-
-        .td-cta { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 26px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,.08); }
-        .td-cta .btn-gold { background: var(--accent); color: var(--dark-deep); }
-        .td-cta .btn-gold:hover { background: #ffc61a; }
-        .td-cta-note { font-size: 12.5px; color: rgba(255,255,255,.45); line-height: 1.5; }
-        .td-cta-note strong { color: rgba(255,255,255,.8); }
-
-        .td-more { padding: 64px 52px 80px; }
-        .td-others { margin-top: 0; }
-        .td-others-head { display: flex; align-items: end; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
-        .td-others-head h2 { font-size: 22px; font-weight: 900; margin: 0; color: var(--dark-deep); }
-        .td-others-head a { font-size: 13px; font-weight: 700; color: var(--dark); text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
-        .td-others-head a svg, .td-others-head a i { width: 15px; height: 15px; }
-        .td-others .portfolio-grid { margin-top: 0; }
-        .td-others .portfolio-card { background: #2a2a2a; text-decoration: none; color: #fff; display: block; }
-        .td-others .portfolio-title { color: #fff; }
-
-        .td-foot { background: #1a1a1a; color: rgba(255,255,255,.45); font-size: 12.5px; text-align: center; padding: 22px 16px; }
-
-        @media (max-width: 960px) {
-            .td-grid { grid-template-columns: 1fr; }
-            .td-media { position: static; }
-        }
-        @media (max-width: 640px) {
-            .td-hero { padding: 92px 16px 44px; }
-            .td-more { padding: 40px 16px 56px; }
-            .td-sizes { grid-template-columns: 1fr 1fr; }
-            .td-cta .btn-gold { width: 100%; justify-content: center; }
-        }
-    </style>
 </head>
-<body>
+<body class="pg-tanks-show">
 
     {{-- same top bar as the landing page; its links lead back to the landing sections --}}
     <div x-data="{ menu: false }" @click.outside="menu = false" @keydown.escape.window="menu = false">

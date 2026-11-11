@@ -5,22 +5,9 @@
     <link rel="icon" type="image/svg+xml" href="{{ asset('images/gmdlogo-circle.svg') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Employees | GMD South Phils</title>
-    <link href="{{ asset('css/admin.css') }}" rel="stylesheet">
-    <style>
-        /* Salary table: even columns — name and role a little wider, the seven figures share the rest
-           and sit centered under their headers. Phones keep their card layout (admin.css, ≤640px). */
-        @media (min-width: 641px) {
-            #salaryTable { table-layout: fixed; width: 100%; }
-            #salaryTable th { width: 10.28%; }
-            #salaryTable th:nth-child(1) { width: 16%; }
-            #salaryTable th:nth-child(2) { width: 12%; }
-            #salaryTable th:nth-child(n+3), #salaryTable td:nth-child(n+3) { text-align: center; }
-            #salaryTable td:nth-child(1), #salaryTable td:nth-child(2) { white-space: normal; overflow-wrap: anywhere; }
-            #salaryTable td.action-cell { justify-content: center; }
-        }
-    </style>
+    <link href="{{ asset('css/admin.css') }}?v={{ @filemtime(public_path('css/admin.css')) }}" rel="stylesheet">
 </head>
-<body class="page-enter">
+<body class="page-enter pg-admin-employees">
 
     @include('partials.admin.header')
     @include('partials.admin.fund_overrun_modal')
@@ -724,10 +711,6 @@
         </div>
     </div>
 
-    <style>
-        @keyframes poSpin { to { transform: rotate(360deg); } }
-        .po-btn-spinner { display: inline-block; width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(255,255,255,.35); border-top-color: #fff; animation: poSpin .8s linear infinite; vertical-align: -2px; }
-    </style>
 
     <!-- ===== SALARY DETAIL MODAL ===== -->
     <div class="modal-overlay" id="salaryDetailModal">
@@ -911,19 +894,6 @@
 
                 {{-- ── Money each selected project has (labor is paid from Total Received) ── --}}
                 <div id="rpFundsPanel" class="sf-panel" hidden></div>
-                <style>
-                    .sf-panel { margin-bottom: 14px; padding: 12px 14px; border-radius: 14px; background: linear-gradient(180deg, #333333 0%, #2a2a2a 100%); display: flex; flex-direction: column; gap: 12px; }
-                    .sf-panel[hidden] { display: none; }
-                    .sf-proj + .sf-proj { padding-top: 12px; border-top: 1px solid rgba(255,255,255,.1); }
-                    .sf-name { font-size: 12px; font-weight: 800; color: rgba(255,255,255,.85); margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-                    .sf-figs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-                    .sf-fig span { display: block; font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: rgba(255,255,255,.45); }
-                    .sf-fig strong { display: block; margin-top: 2px; font-size: 14px; font-weight: 900; color: #fff; font-variant-numeric: tabular-nums; }
-                    .sf-fig small { display: block; font-size: 10.5px; color: rgba(255,255,255,.4); }
-                    .sf-available strong { color: #4ade80; }
-                    .sf-warn { margin-top: 10px; padding: 8px 10px; border-radius: 10px; font-size: 12.5px; font-weight: 700; background: rgba(248,113,113,.14); color: #fca5a5; }
-                    @media (max-width: 520px) { .sf-figs { grid-template-columns: 1fr 1fr; } }
-                </style>
 
                 <div id="rpError" style="display:none;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;margin-bottom:10px;color:#991b1b;font-size:13px;"></div>
 
@@ -2225,14 +2195,5 @@
     });
     </script>
 
-<style>
-.emp-field-err {
-    display: none;
-    color: #dc2626;
-    font-size: 11.5px;
-    margin-top: 4px;
-    line-height: 1.4;
-}
-</style>
 </body>
 </html>

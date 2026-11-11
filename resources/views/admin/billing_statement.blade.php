@@ -5,16 +5,12 @@
     <link rel="icon" type="image/svg+xml" href="{{ asset('images/gmdlogo-circle.svg') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Billing Statement | GMD South Phils</title>
-    <link href="{{ asset('css/billing_statement.css') }}" rel="stylesheet">
+    <link href="{{ asset('css/billing_statement.css') }}?v={{ @filemtime(public_path('css/billing_statement.css')) }}" rel="stylesheet">
 </head>
-<body>
+<body class="pg-admin-billing-statement">
 
     {{-- ?embed=1: shown inside the payment page's Review & Send modal — just the statement, the modal has the actions --}}
     @if(request()->boolean('embed'))
-    <style>
-        body { background: #fff; }
-        .bs-sheet { margin-top: 0; box-shadow: none; }
-    </style>
     @else
     @if(session('success'))
     <div class="bs-flash" style="max-width:850px;margin:16px auto 0;background:#dcfce7;border:1px solid #86efac;color:#15803d;border-radius:10px;padding:12px 18px;font-size:13.5px;font-weight:700;display:flex;align-items:center;gap:8px;">

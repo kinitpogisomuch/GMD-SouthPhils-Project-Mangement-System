@@ -5,10 +5,10 @@
     <link rel="icon" type="image/svg+xml" href="{{ asset('images/gmdlogo-circle.svg') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Settings | GMD South Phils</title>
-    <link href="{{ asset('css/client.css') }}" rel="stylesheet">
+    <link href="{{ asset('css/client.css') }}?v={{ @filemtime(public_path('css/client.css')) }}" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
 </head>
-<body class="page-enter">
+<body class="page-enter pg-client-settings">
 
     @include('partials.client.header')
 
@@ -566,24 +566,6 @@
     }
     </script>
 
-    <style>
-        .profile-field:disabled { background: var(--surface-2); color: var(--text-secondary); cursor: default; border-color: var(--border); }
-        select.profile-field { appearance:none;-webkit-appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; padding-right:34px; }
-        select.profile-field:disabled { background-color:var(--surface-2); cursor:not-allowed; }
-        .sel-loading { position:relative; }
-        .sel-loading::after { content:''; position:absolute; right:34px; top:50%; transform:translateY(-50%); width:12px; height:12px; border:2px solid #e5e7eb; border-top-color:var(--dark); border-radius:50%; animation:psgcSpin 0.7s linear infinite; pointer-events:none; }
-        @keyframes psgcSpin { to { transform:translateY(-50%) rotate(360deg); } }
-        .pw-req { font-size:11.5px;padding:3px 9px;border-radius:99px;border:1px solid #e5e7eb;color:#9ca3af;background:#f9fafb;display:inline-flex;align-items:center;gap:4px;transition:all 0.15s; }
-        .pw-req.met  { background:#dcfce7;border-color:#86efac;color:#15803d; }
-        .pw-req.fail { background:#fee2e2;border-color:#fca5a5;color:#dc2626; }
-
-        /* Phones: the 4 password rule pills stay on one line, shrinking to fit */
-        @media (max-width: 640px) {
-            .pw-req-row { flex-wrap: nowrap !important; gap: 4px !important; }
-            .pw-req-row .pw-req { flex: 1 1 auto; justify-content: center; white-space: nowrap;
-                                  font-size: clamp(9px, 2.6vw, 11.5px); padding: 3px 5px; }
-        }
-    </style>
     {{-- ===================== CONFIRM PASSWORD UPDATE ===================== --}}
     <div class="modal-overlay" id="confirmPasswordModal">
         <div class="modal-card" style="max-width:440px;">

@@ -5,25 +5,9 @@
     <link rel="icon" type="image/svg+xml" href="{{ asset('images/gmdlogo-circle.svg') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Verify Email | GMD South Phils</title>
-    <link rel="stylesheet" href="{{ asset('css/login.css') }}">
-    <style>
-        .ve-icon { width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
-        .ve-icon svg { width: 30px; height: 30px; }
-        .ve-icon.mail     { background: #EAF0FF; color: #2A4EAA; }
-        .ve-icon.verified { background: #E7F6EC; color: #207A3A; }
-        .ve-icon.warn     { background: #FFF3D6; color: #8A6100; }
-        .ve-icon.error    { background: #FEE4E2; color: #B42318; }
-        .ve-text { text-align: center; font-size: 14px; line-height: 1.6; color: var(--muted); margin: 0 0 18px; }
-        .ve-text strong { color: var(--dark); }
-        .ve-resend { margin-top: 6px; padding-top: 16px; border-top: 1px solid var(--border); }
-        .ve-resend p { font-size: 12.5px; color: var(--muted); margin: 0 0 10px; text-align: center; }
-        .ve-link-btn { display: flex; align-items: center; justify-content: center; text-decoration: none; }
-        /* status switching to "Email Verified" while the page is open */
-        .ve-pop { animation: vePop .45s cubic-bezier(.34, 1.56, .64, 1) both; }
-        @keyframes vePop { from { opacity: 0; transform: scale(.6); } to { opacity: 1; transform: scale(1); } }
-    </style>
+    <link rel="stylesheet" href="{{ asset('css/login.css') }}?v={{ @filemtime(public_path('css/login.css')) }}">
 </head>
-<body>
+<body class="pg-auth-verify-email">
     @php
         $loginBgPath = public_path('images/login.jpg');
         $hasLoginBg  = file_exists($loginBgPath);

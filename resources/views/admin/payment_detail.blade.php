@@ -5,9 +5,9 @@
     <link rel="icon" type="image/svg+xml" href="{{ asset('images/gmdlogo-circle.svg') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Payment Detail | GMD South Phils</title>
-    <link href="{{ asset('css/admin.css') }}" rel="stylesheet">
+    <link href="{{ asset('css/admin.css') }}?v={{ @filemtime(public_path('css/admin.css')) }}" rel="stylesheet">
 </head>
-<body class="page-enter">
+<body class="page-enter pg-admin-payment-detail">
 
     @include('partials.admin.header')
 
@@ -138,18 +138,6 @@
                 </button>
                 @endif
             </div>
-            <style>
-                .pd-billing-pending { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; padding: 14px 18px; border-radius: 16px; background: #fffbeb; border: 1px solid #fde68a; }
-                .pd-billing-icon { width: 38px; height: 38px; border-radius: 12px; background: #fef3c7; color: #b45309; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-                .pd-billing-icon svg { width: 18px; height: 18px; }
-                .pd-billing-body { flex: 1; min-width: 0; }
-                .pd-billing-title { font-size: 14px; font-weight: 800; color: var(--dark); }
-                .pd-billing-text { margin-top: 3px; font-size: 12.5px; color: var(--muted); line-height: 1.5; }
-                @media (max-width: 640px) {
-                    .pd-billing-pending { flex-wrap: wrap; align-items: flex-start; }
-                    .pd-billing-pending .save-btn { width: 100%; justify-content: center; }
-                }
-            </style>
             @endif
 
             <!-- Summary Cards (same style as the Materials overview) -->
@@ -189,25 +177,6 @@
                     </div>
                 </div>
             </div>
-            <style>
-                /* ── Summary cards: same look as the Materials overview cards ── */
-                .pk-overview { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:14px; margin:4px 0 24px; }
-                .pk-kpi { display:flex; align-items:flex-start; gap:14px; padding:16px 18px; background:var(--white); border:1px solid var(--border); border-radius:16px; box-shadow:0 1px 2px rgba(0,0,0,.03); }
-                .pk-kpi-icon { width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-                .pk-kpi-icon svg { width:20px; height:20px; }
-                .pk-kpi-label { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
-                .pk-kpi-value { margin-top:3px; font-size:20px; font-weight:900; color:var(--dark); letter-spacing:-.3px; font-variant-numeric:tabular-nums; white-space:nowrap; }
-                .pk-kpi-sub { margin-top:4px; font-size:11.5px; font-weight:600; color:var(--muted); }
-                .pk-tone-ok { color:#16a34a; }
-                @media (max-width: 1100px) { .pk-overview { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
-                @media (max-width: 640px) {
-                    .pk-overview { gap:10px; }
-                    .pk-kpi { padding:12px; }
-                    .pk-kpi-icon { display:none; }
-                    .pk-kpi-value { font-size:16px; }
-                    .pk-kpi-label { font-size:10px; }
-                }
-            </style>
 
             @php
                 // Online: only money that really came in — paid, or paid but flagged for review. Checkouts still
@@ -375,19 +344,6 @@
                 @endif
                 </div>
             </div>
-            <style>
-                .cp-tabs { display:flex; gap:4px; align-self:flex-end; overflow-x:auto; scrollbar-width:none; }
-                .cp-tabs::-webkit-scrollbar { display:none; }
-                .cp-tab { display:inline-flex; align-items:center; gap:7px; padding:12px 14px 11px; margin-bottom:-1px; border:0; border-bottom:2px solid transparent; background:none; font:inherit; font-size:13px; font-weight:800; color:var(--muted); white-space:nowrap; cursor:pointer; }
-                .cp-tab svg { width:15px; height:15px; }
-                .cp-tab:hover { color:var(--dark); }
-                .cp-tab.is-active { color:var(--dark); border-bottom-color:var(--dark); }
-                .cp-count { min-width:20px; padding:1px 7px; border-radius:999px; background:var(--accent-soft, #f0f0f0); font-size:10.5px; font-weight:800; color:var(--muted); text-align:center; }
-                .cp-tab.is-active .cp-count { background:var(--dark); color:#fff; }
-                .cp-count.is-alert, .cp-tab.is-active .cp-count.is-alert { background:var(--danger, #B42318); color:#fff; }
-                .cp-panel[hidden], .cp-tab[hidden] { display:none !important; }
-                .cp-panel-note { padding:10px 20px; font-size:12px; color:var(--muted); background:var(--surface-2, #fafafa); border-bottom:1px solid var(--border); }
-            </style>
             <script>
                 // Client Payments tabs
                 document.querySelectorAll('[data-cp-tabs]').forEach(function (card) {
@@ -532,7 +488,6 @@
                     </table>
                 </div>
             </div>
-            <style>[data-history-panel][hidden] { display: none !important; }</style>
             <script>
             // Payment History: Payments | Billing Statements
             (function () {
@@ -886,22 +841,6 @@
     @if($reviewStatement)
     <span hidden data-review-autoopen @include('partials.admin.review_statement_attrs', ['statement' => $reviewStatement])></span>
     @endif
-    <style>
-        .rs-card { max-width: 960px; height: 92vh; max-height: 92vh; display: flex; flex-direction: column; overflow: hidden; }
-        .rs-frame-wrap { flex: 1; min-height: 0; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: #f3f3f3; }
-        .rs-frame-wrap iframe { width: 100%; height: 100%; border: 0; display: block; background: #fff; }
-        .rs-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; padding-top: 14px; }
-        .rs-actions form { margin: 0; }
-        .rs-btn { text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
-        .rs-sent { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 800; color: #16a34a; }
-        .rs-sent svg { width: 15px; height: 15px; }
-        .rs-actions .po-btn-spinner { display: inline-block; width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(255,255,255,.35); border-top-color: #fff; animation: rsSpin .8s linear infinite; }
-        @keyframes rsSpin { to { transform: rotate(360deg); } }
-        @media (max-width: 768px) {
-            .rs-card { height: 95vh; max-height: 95vh; }
-            .rs-actions .rs-btn, .rs-actions form, .rs-sent { width: 100%; justify-content: center; }
-        }
-    </style>
 
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="{{ asset('js/admin.js') }}"></script>
@@ -1235,112 +1174,6 @@
     }
     </script>
 
-    <style>
-        .stage-select { position: relative; width: 100%; }
-        .stage-select-trigger {
-            width: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 8px;
-            padding: 12px 14px;
-            border: 1.5px solid var(--border);
-            border-radius: 12px;
-            background: var(--white);
-            font-size: 14px;
-            font-weight: 700;
-            color: var(--dark);
-            cursor: pointer;
-            transition: border-color .15s;
-            text-align: left;
-        }
-        .stage-select-trigger.placeholder { color: var(--muted); font-weight: 600; }
-        .stage-select-trigger:hover { border-color: var(--dark); }
-        .stage-select-trigger i { width: 16px; height: 16px; color: var(--muted); flex-shrink: 0; transition: transform .15s; }
-        .stage-select.open .stage-select-trigger i { transform: rotate(180deg); }
-        .stage-select-menu {
-            display: none;
-            position: absolute;
-            top: calc(100% + 6px);
-            left: 0;
-            right: 0;
-            background: #fff;
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            box-shadow: 0 12px 32px rgba(0,0,0,.14);
-            z-index: 50;
-            overflow: hidden;
-            padding: 6px;
-        }
-        .stage-select.open .stage-select-menu { display: block; }
-        .stage-select-option {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 10px;
-            padding: 10px 12px;
-            border-radius: 9px;
-            font-size: 13.5px;
-            font-weight: 700;
-            color: var(--dark);
-            cursor: pointer;
-        }
-        .stage-select-option:hover { background: var(--cream-soft); }
-        .stage-select-option.disabled { cursor: not-allowed; opacity: .75; }
-        .stage-select-option.disabled:hover { background: none; }
-        .stage-select-option .stage-select-status { font-size: 11.5px; font-weight: 800; white-space: nowrap; flex-shrink: 0; }
-
-        #amountPaidInput.amount-locked {
-            background: var(--cream-soft);
-            color: var(--dark);
-            cursor: not-allowed;
-        }
-
-        .mop-option {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 12px 14px;
-            border: 1.5px solid var(--border);
-            border-radius: 12px;
-            cursor: pointer;
-            font-size: 13px;
-            font-weight: 700;
-            color: var(--muted);
-            background: var(--white);
-            transition: all .18s ease;
-            user-select: none;
-        }
-        .mop-option:hover {
-            border-color: var(--dark);
-            color: var(--dark);
-        }
-        .mop-option.mop-selected {
-            background: var(--dark);
-            border-color: var(--dark);
-            color: #fff;
-            box-shadow: 0 4px 12px rgba(14,20,40,.25);
-        }
-        .pd-history-link { display: block; margin: 5px auto 0; padding: 0; border: none; background: none; font-size: 11.5px; font-weight: 700; color: var(--accent, #2563eb); cursor: pointer; text-decoration: underline; }
-        .pd-rev { padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; margin-bottom: 8px; font-size: 12.5px; line-height: 1.6; color: var(--dark); }
-        .pd-rev-head { display: flex; justify-content: space-between; gap: 10px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
-        .pd-rev-reason { margin-top: 4px; padding: 6px 9px; border-radius: 8px; background: #fffbeb; color: #92400e; font-size: 12px; }
-
-        /* Billing statement e-signature upload */
-        /* .form-group .sig-drop — the drop box is a <label>, so it has to out-rank the form's own label style */
-        .form-group .sig-drop { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; height: 96px; margin: 0; padding: 10px; border: 1.5px dashed var(--border); border-radius: 12px; background: var(--cream-soft); color: var(--dark); text-align: center; cursor: pointer; transition: border-color .15s ease; }
-        .form-group .sig-drop:hover, .form-group .sig-drop.is-over { border-color: var(--dark); }
-        .sig-drop svg { width: 18px; height: 18px; color: var(--muted); }
-        .sig-drop span { font-size: 12.5px; font-weight: 800; }
-        .sig-drop small { font-size: 10.5px; font-weight: 600; color: var(--muted); }
-        .sig-upload.is-missing .sig-drop { border-color: #dc2626; background: #fef2f2; }
-        .sig-err { display: none; margin-top: 6px; font-size: 12px; font-weight: 700; color: #dc2626; }
-        .sig-upload.is-missing .sig-err { display: block; }
-        .sig-preview { position: relative; display: flex; align-items: center; justify-content: center; height: 96px; padding: 8px; border: 1px solid var(--border); border-radius: 12px; background: #fff; }
-        .sig-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
-        .sig-remove { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border: none; border-radius: 50%; background: var(--dark); color: #fff; cursor: pointer; }
-        .sig-remove svg { width: 13px; height: 13px; }
-    </style>
 
     {{-- ===== RETURN A CLIENT SUBMISSION FOR CORRECTION ===== --}}
     <div class="modal-overlay" id="returnProofModal">

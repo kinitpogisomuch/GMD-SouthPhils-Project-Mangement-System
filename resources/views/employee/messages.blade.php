@@ -5,7 +5,7 @@
     <link rel="icon" type="image/svg+xml" href="{{ asset('images/gmdlogo-circle.svg') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Messages | GMD South Phils</title>
-    <link href="{{ asset('css/employee.css') }}" rel="stylesheet">
+    <link href="{{ asset('css/employee.css') }}?v={{ @filemtime(public_path('css/employee.css')) }}" rel="stylesheet">
 </head>
 <body class="page-enter">
 

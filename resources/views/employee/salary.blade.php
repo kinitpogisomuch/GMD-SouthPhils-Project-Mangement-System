@@ -5,93 +5,9 @@
     <link rel="icon" type="image/svg+xml" href="{{ asset('images/gmdlogo-circle.svg') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Salary | GMD South Phils</title>
-    <link href="{{ asset('css/employee.css') }}" rel="stylesheet">
-    <style>
-        /* ── Page head ── */
-        .sal-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px 20px; flex-wrap: wrap; margin-bottom: 18px; }
-        .sal-head h1 { margin: 0; font-size: 28px; font-weight: 900; color: var(--dark); letter-spacing: -.5px; }   /* same as the dashboard greeting */
-        .sal-head p { margin: 4px 0 0; font-size: 13.5px; color: var(--muted); }
-        .sal-week-pill { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; color: var(--muted); background: var(--white); border: 1px solid var(--border); border-radius: 999px; padding: 7px 14px; white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,.05); }
-        .sal-week-pill svg { width: 14px; height: 14px; }
-
-        /* ── Summary cards (same look as the Materials / Payments cards) ── */
-        .sal-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 20px; }
-        .sal-kpi { display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px; background: var(--white); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 1px 2px rgba(0,0,0,.03); min-width: 0; }
-        .sal-kpi-icon { width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-        .sal-kpi-icon svg { width: 20px; height: 20px; }
-        .sal-kpi-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
-        .sal-kpi-value { margin-top: 3px; font-size: 20px; font-weight: 900; color: var(--dark); letter-spacing: -.3px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-        .sal-kpi-sub { margin-top: 4px; font-size: 11.5px; font-weight: 600; color: var(--muted); }
-        .sal-kpi-sub.is-wait { color: #8A6100; }
-        .sal-kpi-sub.is-ok { color: #207A3A; }
-
-        /* ── Pay period history ── */
-        .sal-card { background: var(--white); border: 1px solid var(--border); border-radius: 20px; box-shadow: 0 10px 24px rgba(0,0,0,.05); overflow: hidden; }
-        .sal-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--border); }
-        .sal-card-title { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 900; color: var(--dark); }
-        .sal-card-title svg { width: 17px; height: 17px; color: var(--muted); }
-        .sal-count { font-size: 11.5px; font-weight: 700; color: var(--muted-light, #9ca3af); background: var(--cream-soft); border: 1px solid var(--border); padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
-        .sal-scroll { max-height: 460px; overflow-y: auto; }
-        #salaryHistoryTable { width: 100%; border-collapse: collapse; }
-        #salaryHistoryTable thead th { position: sticky; top: 0; z-index: 1; background: var(--cream-soft); padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 11px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; color: var(--muted-light, #9ca3af); text-align: left; white-space: nowrap; }
-        #salaryHistoryTable td { padding: 13px 16px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--dark); vertical-align: middle; }
-        #salaryHistoryTable tbody tr:last-child td { border-bottom: none; }
-        #salaryHistoryTable tbody tr.sal-row { transition: background .15s ease; }
-        #salaryHistoryTable tbody tr.sal-row:hover { background: var(--cream-soft); }
-        #salaryHistoryTable th.num, #salaryHistoryTable td.num { text-align: right; font-variant-numeric: tabular-nums; }
-        #salaryHistoryTable th.ctr, #salaryHistoryTable td.ctr { text-align: center; }
-        .sal-period strong { display: block; font-size: 13.5px; font-weight: 800; }
-        .sal-period small { display: block; margin-top: 2px; font-size: 11px; color: var(--muted); font-weight: 600; }
-        .sal-this-week { display: inline-flex; margin-left: 6px; padding: 2px 8px; border-radius: 999px; background: #EAF0FF; color: #2A4EAA; font-size: 10px; font-weight: 800; vertical-align: 1px; }
-        .sal-paid { display: inline-flex; margin-left: 6px; padding: 1px 7px; border-radius: 999px; background: #E7F6EC; color: #207A3A; font-size: 10px; font-weight: 800; }
-        .sal-muted { color: var(--muted); }
-        .sal-net { font-weight: 900; color: #207A3A; font-size: 14px; }
-        .sal-view { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--white); font: inherit; font-size: 12px; font-weight: 800; color: var(--dark); cursor: pointer; transition: border-color .15s, background .15s; }
-        .sal-view:hover { border-color: var(--dark); background: var(--cream-soft); }
-        .sal-view svg { width: 14px; height: 14px; }
-        /* the current week stands out */
-        #salaryHistoryTable tbody tr.salary-row-current { background: #F5F8FF; }
-        #salaryHistoryTable tbody tr.salary-row-current td:first-child { box-shadow: inset 3px 0 0 #2A4EAA; }
-        .sal-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 40px 16px; color: var(--muted); }
-        .sal-empty-icon { width: 44px; height: 44px; border-radius: 14px; background: var(--cream-soft); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; margin-bottom: 4px; }
-        .sal-empty-icon svg { width: 20px; height: 20px; }
-        .sal-empty strong { font-size: 14px; color: var(--dark); }
-
-        @media (max-width: 1100px) {
-            .sal-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        }
-
-        /* Phones only: each pay period becomes a small card — dates + details on top,
-           Rate / Days / OT as tiles, then gross, deductions and net pay. */
-        @media (max-width: 640px) {
-            .admin-content { padding-bottom: 92px !important; }
-            .sal-head { align-items: flex-start; }
-            .sal-head h1 { font-size: 22px; }
-            .sal-kpis { gap: 10px; }
-            .sal-kpi { padding: 12px; }
-            .sal-kpi-icon { display: none; }
-            .sal-kpi-value { font-size: 16px; }
-            .sal-kpi-label { font-size: 10px; }
-            .sal-card-head { padding: 14px 16px; }
-            .sal-scroll { max-height: none; }
-
-            #salaryHistoryTable, #salaryHistoryTable tbody { display: block; width: 100%; }
-            #salaryHistoryTable thead { display: none; }
-            #salaryHistoryTable tr.sal-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
-            #salaryHistoryTable tr.sal-row td { display: block; padding: 0; border: none; min-width: 0; text-align: left; }
-            #salaryHistoryTable tr.sal-row td.sal-period { grid-column: 1 / 3; grid-row: 1; align-self: center; }
-            #salaryHistoryTable tr.sal-row td.sal-action { grid-column: 3; grid-row: 1; display: flex; justify-content: flex-end; align-items: center; }
-            #salaryHistoryTable tr.sal-row td.sal-tile { grid-row: 2; background: var(--cream-soft); border-radius: 10px; padding: 7px 8px; text-align: center; font-weight: 800; white-space: nowrap; }
-            #salaryHistoryTable tr.sal-row td.sal-gross { grid-column: 1; grid-row: 3; }
-            #salaryHistoryTable tr.sal-row td.sal-netcell { grid-column: 2 / -1; grid-row: 3; text-align: right; }
-            #salaryHistoryTable tr.sal-row td[data-label]::before { content: attr(data-label); display: block; margin-bottom: 2px; font-size: 9px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
-            #salaryHistoryTable tr.sal-row.salary-row-current { box-shadow: inset 4px 0 0 #2A4EAA; }
-            #salaryHistoryTable tr.sal-row.salary-row-current td:first-child { box-shadow: none; }
-            .sal-view span { display: none; }
-            .sal-view { width: 34px; padding: 0; justify-content: center; }
-        }    </style>
+    <link href="{{ asset('css/employee.css') }}?v={{ @filemtime(public_path('css/employee.css')) }}" rel="stylesheet">
 </head>
-<body class="page-enter">
+<body class="page-enter pg-employee-salary">
 
     @include('partials.employee.header')
 
@@ -262,44 +178,6 @@
         </div>
     </div>
 
-    <style>
-        /* Salary Details — a pay slip: take-home amount up front, then attendance and the earnings breakdown */
-        .sd-head { display: flex; align-items: flex-start; gap: 12px; }
-        .sd-head-icon { width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: #333; color: #fff; }
-        .sd-head-icon svg { width: 19px; height: 19px; }
-        .sd-hero { padding: 16px 18px; border-radius: 18px; background: linear-gradient(135deg, var(--dark) 0%, #111 100%); color: #fff; }
-        .sd-hero-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
-        .sd-period { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: rgba(255,255,255,.7); }
-        .sd-period svg { width: 14px; height: 14px; }
-        .sd-tag { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 999px; background: rgba(255,255,255,.12); font-size: 11px; font-weight: 800; color: rgba(255,255,255,.8); }
-        .sd-tag svg { width: 12px; height: 12px; }
-        .sd-tag.is-paid { background: rgba(74,222,128,.18); color: #4ade80; }
-        .sd-hero-label { margin-top: 14px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: rgba(255,255,255,.55); }
-        .sd-hero-amount { font-size: 32px; font-weight: 900; letter-spacing: -.6px; color: #4ade80; line-height: 1.15; }
-        .sd-hero-method { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 12px; font-weight: 700; color: rgba(255,255,255,.7); }
-        .sd-hero-method svg { width: 14px; height: 14px; }
-        .sd-section { margin: 18px 0 8px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
-        .sd-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-        .sd-tile { padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--cream-soft); text-align: center; }
-        .sd-tile span { display: block; font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
-        .sd-tile strong { display: block; margin-top: 2px; font-size: 18px; font-weight: 900; color: var(--dark); }
-        .sd-tile strong small { font-size: 11px; font-weight: 700; color: var(--muted); }
-        .sd-lines { border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
-        .sd-line { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 11px 14px; border-bottom: 1px solid var(--border); }
-        .sd-line > span { display: flex; flex-direction: column; min-width: 0; }
-        .sd-line-label { font-size: 13px; color: var(--dark); font-weight: 600; }
-        .sd-line small { font-size: 11px; color: var(--muted); }
-        .sd-line strong { font-size: 13.5px; font-weight: 800; color: var(--dark); white-space: nowrap; }
-        .sd-line.is-ot strong { color: #2563eb; }
-        .sd-line.is-muted strong { color: var(--muted); }
-        .sd-line.is-sub { background: var(--cream-soft); }
-        .sd-line.is-sub .sd-line-label { font-weight: 800; }
-        .sd-line.is-ded strong { color: #dc2626; }
-        .sd-total { display: flex; justify-content: space-between; align-items: center; padding: 14px; background: #E7F6EC; }
-        .sd-total span { font-size: 13px; font-weight: 900; text-transform: uppercase; letter-spacing: .04em; color: #14532d; }
-        .sd-total strong { font-size: 20px; font-weight: 900; color: #16a34a; }
-        .sd-card .modal-actions .save-btn, .sd-card .modal-actions .cancel-btn { display: inline-flex; align-items: center; gap: 7px; }
-    </style>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>
         lucide.createIcons();

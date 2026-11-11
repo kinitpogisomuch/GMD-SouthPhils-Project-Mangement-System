@@ -5,21 +5,9 @@
     <link rel="icon" type="image/svg+xml" href="{{ asset('images/gmdlogo-circle.svg') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $project->name }} | GMD South Phils</title>
-    <link href="{{ asset('css/client.css') }}" rel="stylesheet">
-    <style>
-        /* Progress History: when empty, center the message in the space matched to
-           Project Information's height instead of it sitting at the top with a gap below. */
-        .pv-history-scroll-center {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .pv-history-scroll-center .empty-state {
-            padding: 20px;
-        }
-    </style>
+    <link href="{{ asset('css/client.css') }}?v={{ @filemtime(public_path('css/client.css')) }}" rel="stylesheet">
 </head>
-<body class="page-enter">
+<body class="page-enter pg-client-project-view">
 
     @include('partials.client.header')
 

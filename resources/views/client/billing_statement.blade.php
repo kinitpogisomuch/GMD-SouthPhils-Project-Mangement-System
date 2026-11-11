@@ -5,16 +5,12 @@
     <link rel="icon" type="image/svg+xml" href="{{ asset('images/gmdlogo-circle.svg') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Billing Statement | GMD South Phils</title>
-    <link href="{{ asset('css/billing_statement.css') }}" rel="stylesheet">
+    <link href="{{ asset('css/billing_statement.css') }}?v={{ @filemtime(public_path('css/billing_statement.css')) }}" rel="stylesheet">
 </head>
-<body>
+<body class="pg-client-billing-statement">
 
     {{-- ?embed=1: shown inside the in-page file viewer — just the statement, the viewer has its own close button --}}
     @if(request()->boolean('embed'))
-    <style>
-        body { background: #fff; }
-        .bs-sheet { margin-top: 0; box-shadow: none; }
-    </style>
     @else
     <div class="bs-toolbar">
         <a href="{{ route('client.payments.show', $payment->id) }}">
