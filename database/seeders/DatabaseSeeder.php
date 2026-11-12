@@ -9,7 +9,6 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // Only seed clients if table is empty
         if (Client::count() === 0) {
             Client::insert([
                 ['name' => 'Powercity',            'address' => 'East Service Road, Brgy. Cupang, Muntinlupa City', 'contact' => '0917 123 4567', 'email' => 'powercity@gmd.com',            'status' => 'Active', 'created_at' => now(), 'updated_at' => now()],

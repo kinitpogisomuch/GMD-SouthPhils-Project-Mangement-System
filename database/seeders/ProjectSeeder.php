@@ -10,21 +10,17 @@ class ProjectSeeder extends Seeder
 {
     public function run(): void
     {
-        // Some sample projects are created already completed, before their payments and costs exist.
         \App\Models\Project::withoutFinancialCheck(fn () => $this->seedProjects());
     }
 
     private function seedProjects(): void
     {
-        // payments.project_id has no FK → must truncate explicitly before projects
         DB::statement('TRUNCATE TABLE payment_transactions CASCADE;');
         DB::statement('TRUNCATE TABLE payments CASCADE;');
         DB::statement('TRUNCATE TABLE projects CASCADE;');
 
-        // All 8 phases in order
         $phaseKeys = ['planning','procurement','matl_prep','fabrication','inspection','painting','completion','delivery'];
 
-        // Build a full phase_completion_status for a completed project
         $buildPhaseStatus = function (Carbon $start, Carbon $end) use ($phaseKeys): string {
             $totalDays = max($start->diffInDays($end), 8);
             $step      = (int) floor($totalDays / count($phaseKeys));
@@ -42,15 +38,11 @@ class ProjectSeeder extends Seeder
             return json_encode($status);
         };
 
-        // When the Completion phase was approved — the project's completion date (completed_at),
-        // which the On-Time Completion Rate KPI judges. Same spacing as $buildPhaseStatus.
         $completionDate = function (Carbon $start, Carbon $end) use ($phaseKeys): Carbon {
             $step = (int) floor(max($start->diffInDays($end), 8) / count($phaseKeys));
             return $start->copy()->addDays($step * (array_search('completion', $phaseKeys) + 1));
         };
 
-        // Completed phase_data (planning sub-phases all approved). These historical projects
-        // were all delivered — delivery is tracked separately from completion.
         $buildPhaseData = function (Carbon $start, Carbon $end): string {
             return json_encode([
                 'planning' => [
@@ -62,104 +54,83 @@ class ProjectSeeder extends Seeder
             ]);
         };
 
-        // Raw project data straight from the client records
         $projects = [
-            // 1
             ['client'=>'Powercity',            'address'=>'East service Road, Brgy. Cupang, Muntinlupa City', 'type'=>'Corporate',
              'name'=>'Fabrication of Fuel Day Tank',                   'tank_type'=>'Fuel Day Tank',
              'capacity'=>'3,000 liters', 'dimensions'=>'1.1m Ø x 2m (H)',     'qty'=>1,
              'start'=>'2026-05-04','end'=>'2026-05-14','days'=>10,'budget'=>180000,'total'=>110500],
-            // 2
             ['client'=>'Alvin Magtibay',       'address'=>'Lucena City',                                      'type'=>'Individual Owner',
              'name'=>'Fabrication of Cooking Oil Storage Tank',        'tank_type'=>'Cooking Oil Storage Tank',
              'capacity'=>'22,000 liters','dimensions'=>'2.1m Ø x 3.1m (L)',   'qty'=>1,
              'start'=>'2026-04-10','end'=>'2026-05-01','days'=>20,'budget'=>280000,'total'=>215200],
-            // 3
             ['client'=>'New JDT Trading',      'address'=>'Puerto Princesa, Palawan',                         'type'=>'Corporate',
              'name'=>'Fabrication of Underground Fuel Storage Tanks',  'tank_type'=>'Underground Fuel Storage Tank',
              'capacity'=>'8,000 liters', 'dimensions'=>'2.2m Ø x 6m (L)',     'qty'=>3,
              'start'=>'2025-08-10','end'=>'2025-09-10','days'=>30,'budget'=>750000,'total'=>650000],
-            // 4
             ['client'=>'Innovative Agro',      'address'=>'Muntinlupa City',                                  'type'=>'Corporate',
              'name'=>'Fabrication of Aboveground Fuel Storage Tanks',  'tank_type'=>'Aboveground Fuel Storage Tank',
              'capacity'=>'18,000 liters','dimensions'=>'2.2m Ø x 4.8m (L)',   'qty'=>1,
              'start'=>'2025-10-15','end'=>'2025-11-15','days'=>30,'budget'=>250000,'total'=>210000],
-            // 5
             ['client'=>'Hyundai Construction', 'address'=>'Sta. Rosa, Laguna',                                'type'=>'Corporate',
              'name'=>'Fabrication of Polymer Tanks',                   'tank_type'=>'Polymer Tank',
              'capacity'=>'60,000 liters','dimensions'=>'12m (L) x 2.1m (W) x 2.1m (H)', 'qty'=>3,
              'start'=>'2025-08-05','end'=>'2025-10-05','days'=>60,'budget'=>1500000,'total'=>1200000],
-            // 6
             ['client'=>'Powercity',            'address'=>'East service Road, Brgy. Cupang, Muntinlupa City', 'type'=>'Corporate',
              'name'=>'Fabrication of Aboveground Fuel Storage Tanks',  'tank_type'=>'Aboveground Fuel Storage Tank',
              'capacity'=>'18,000 liters','dimensions'=>'2.2m Ø x 4.8m (L)',   'qty'=>1,
              'start'=>'2025-10-15','end'=>'2025-10-25','days'=>20,'budget'=>250000,'total'=>220000],
-            // 7
             ['client'=>'Powercity',            'address'=>'East service Road, Brgy. Cupang, Muntinlupa City', 'type'=>'Corporate',
              'name'=>'Fabrication of Aboveground Fuel Storage Tanks',  'tank_type'=>'Aboveground Fuel Storage Tank',
              'capacity'=>'40,000 liters','dimensions'=>'2.4m Ø x 9m (L)',     'qty'=>2,
              'start'=>'2021-03-11','end'=>'2021-05-10','days'=>60,'budget'=>1220000,'total'=>950900],
-            // 8
             ['client'=>'Powercity',            'address'=>'East service Road, Brgy. Cupang, Muntinlupa City', 'type'=>'Corporate',
              'name'=>'Fabrication of Fuel Day Tanks',                  'tank_type'=>'Fuel Day Tank',
              'capacity'=>'3,000 liters', 'dimensions'=>'1.2m Ø x 3m (L)',     'qty'=>2,
              'start'=>'2021-03-11','end'=>'2021-04-25','days'=>45,'budget'=>414400,'total'=>315200],
-            // 9
             ['client'=>'Powercity',            'address'=>'East service Road, Brgy. Cupang, Muntinlupa City', 'type'=>'Corporate',
              'name'=>'Fabrication of Fuel Day Tanks',                  'tank_type'=>'Fuel Day Tank',
              'capacity'=>'4,000 liters', 'dimensions'=>'1.2m Ø x 3m (L)',     'qty'=>3,
              'start'=>'2021-04-10','end'=>'2021-05-25','days'=>45,'budget'=>772800,'total'=>625000],
-            // 10
             ['client'=>'Powercity',            'address'=>'East service Road, Brgy. Cupang, Muntinlupa City', 'type'=>'Corporate',
              'name'=>'Fabrication of Fuel Day Tanks',                  'tank_type'=>'Fuel Day Tank',
              'capacity'=>'3,000 liters', 'dimensions'=>'2.2m Ø x 2.8m (L)',   'qty'=>1,
              'start'=>'2021-04-13','end'=>'2021-05-14','days'=>30,'budget'=>263000,'total'=>215000],
-            // 11
             ['client'=>'Powercity',            'address'=>'East service Road, Brgy. Cupang, Muntinlupa City', 'type'=>'Corporate',
              'name'=>'Fabrication of Fuel Day Tanks',                  'tank_type'=>'Fuel Day Tank',
              'capacity'=>'3,000 liters', 'dimensions'=>'1.1m Ø x 2m (L)',     'qty'=>1,
              'start'=>'2021-01-13','end'=>'2021-01-28','days'=>15,'budget'=>180000,'total'=>125000],
-            // 12
             ['client'=>'Sun Valley Golf Club', 'address'=>'Antipolo, Rizal',                                  'type'=>'Corporate',
              'name'=>'Fabrication of Aboveground Water Storage Tanks', 'tank_type'=>'Aboveground Water Storage Tank',
              'capacity'=>'24,000 liters','dimensions'=>'2.2m Ø x 6m (L)',     'qty'=>1,
              'start'=>'2024-05-11','end'=>'2024-06-10','days'=>30,'budget'=>488000,'total'=>390000],
-            // 13
             ['client'=>'RVL Movers',           'address'=>'Muntinlupa City',                                  'type'=>'Corporate',
              'name'=>'Fabrication of Aboveground Fuel Storage Tanks',  'tank_type'=>'Aboveground Fuel Storage Tank',
              'capacity'=>'18,000 liters','dimensions'=>'2.2m Ø x 5m (L)',     'qty'=>1,
              'start'=>'2022-06-10','end'=>'2022-07-09','days'=>30,'budget'=>335000,'total'=>285000],
-            // 14
             ['client'=>'Mario Moncada',        'address'=>'Cavite City',                                      'type'=>'Individual Owner',
              'name'=>'Fabrication of Underground Fuel Storage Tanks',  'tank_type'=>'Underground Fuel Storage Tank',
              'capacity'=>'8,000 liters', 'dimensions'=>'2.3m Ø x 5m (L)',     'qty'=>2,
              'start'=>'2021-05-17','end'=>'2021-06-18','days'=>30,'budget'=>340000,'total'=>295000],
-            // 15
             ['client'=>'Word of Life',         'address'=>'Calauan, Laguna',                                  'type'=>'Corporate',
              'name'=>'Fabrication of Aboveground Fuel Storage Tanks',  'tank_type'=>'Aboveground Fuel Storage Tank',
              'capacity'=>'5,000 liters', 'dimensions'=>'2.1m Ø x 3m (L)',     'qty'=>1,
              'start'=>'2021-09-15','end'=>'2021-09-30','days'=>15,'budget'=>170000,'total'=>135000],
-            // 16
             ['client'=>'Sal Lucero',           'address'=>'Leyte',                                            'type'=>'Individual Owner',
              'name'=>'Fabrication of Water Tank',                      'tank_type'=>'Water Tank',
              'capacity'=>'16,000 liters','dimensions'=>'2m Ø x 3m (L)',       'qty'=>1,
              'start'=>'2021-05-15','end'=>'2021-06-20','days'=>20,'budget'=>250000,'total'=>190000],
-            // 17
             ['client'=>'Jonas Electrical',     'address'=>'Batangas City',                                    'type'=>'Corporate',
              'name'=>'Fabrication of Aboveground Storage Tank',        'tank_type'=>'Aboveground Storage Tank',
              'capacity'=>'10,000 liters','dimensions'=>'2.1m Ø x 2.4m (L)',   'qty'=>1,
              'start'=>'2022-04-10','end'=>'2022-04-25','days'=>15,'budget'=>210000,'total'=>175500],
-            // 18
             ['client'=>'Bong De Guzman',       'address'=>'San Juan, Batangas',                               'type'=>'Individual Owner',
              'name'=>'Fabrication of Cooking Oil Storage Tank',        'tank_type'=>'Cooking Oil Storage Tank',
              'capacity'=>'24,000 liters','dimensions'=>'2.2m Ø x 6m (L)',     'qty'=>2,
              'start'=>'2025-01-05','end'=>'2025-02-05','days'=>30,'budget'=>570000,'total'=>430000],
-            // 19
             ['client'=>"Total Safe Dev't.",    'address'=>'Cavite City',                                      'type'=>'Corporate',
              'name'=>'Fabrication of Aboveground Storage Tank',        'tank_type'=>'Aboveground Storage Tank',
              'capacity'=>'12,000 liters','dimensions'=>'2m Ø x 4m (L)',       'qty'=>1,
              'start'=>'2023-05-03','end'=>'2023-05-19','days'=>15,'budget'=>350000,'total'=>190000],
-            // 20
             ['client'=>'Inspec Construction',  'address'=>'Mandaluyong City',                                 'type'=>'Corporate',
              'name'=>'Fabrication of Aboveground Storage Tank',        'tank_type'=>'Aboveground Storage Tank',
              'capacity'=>'20,000 liters','dimensions'=>'2.1m Ø x 5m (L)',     'qty'=>2,
@@ -171,7 +142,6 @@ class ProjectSeeder extends Seeder
             $end   = Carbon::parse($p['end']);
             $isBig = $p['budget'] >= 500000;
 
-            // --- Project ---
             $projectId = DB::table('projects')->insertGetId([
                 'name'                   => $p['name'],
                 'client'                 => $p['client'],
@@ -205,7 +175,6 @@ class ProjectSeeder extends Seeder
                 'updated_at'             => $end->toDateTimeString(),
             ]);
 
-            // --- Tank Item ---
             $shapeMap = [
                 'Underground Fuel Storage Tank'  => 'Cylindrical',
                 'Cooking Oil Storage Tank'        => 'Cylindrical',
@@ -231,8 +200,6 @@ class ProjectSeeder extends Seeder
                 'updated_at'  => $end->toDateTimeString(),
             ]);
 
-            // --- Payment ---
-            // Amounts match Payment::stageAmounts(): big=50/30/20, small=50/50
             $total       = $p['total'];
             $downAmount  = round($total * 0.50, 2);
             $midAmount   = $isBig ? round($total * 0.30, 2) : 0;
@@ -256,7 +223,6 @@ class ProjectSeeder extends Seeder
                 'updated_at'        => $end->toDateTimeString(),
             ]);
 
-            // --- Payment Transactions (all stages recorded = Fully Paid) ---
             $transactions = [[
                 'payment_id'       => $paymentId,
                 'payment_stage'    => 'down_payment',
@@ -297,13 +263,10 @@ class ProjectSeeder extends Seeder
 
             DB::table('payment_transactions')->insert($transactions);
 
-            // --- Materials (realistic BOM per tank type) ---
             $this->seedMaterials($projectId, $p['tank_type'], $p['qty'], $p['total'], $start);
 
-            // --- Material Purchases (actual buys, slightly varied from BOM) ---
             $this->seedPurchases($projectId, $start, $end);
 
-            // --- Material Usage (consumption logged by employees) ---
             $this->seedUsages($projectId, $start, $end);
         }
     }
@@ -327,7 +290,6 @@ class ProjectSeeder extends Seeder
             'Sammy Maceda',    'Robert Olan',
         ];
 
-        // Usage is logged during fabrication: 20%–80% through the project timeline
         $totalDays    = max(1, $start->diffInDays($end));
         $fabStart     = $start->copy()->addDays((int)($totalDays * 0.20));
         $fabEnd       = $start->copy()->addDays((int)($totalDays * 0.80));
@@ -340,13 +302,11 @@ class ProjectSeeder extends Seeder
         foreach ($purchases as $pur) {
             $qtyBought = (float) $pur->qty_bought;
 
-            // Use 75–95% of purchased quantity
             $seed        = $projectId * 31 + $pur->id * 7;
-            $usePct      = 0.75 + (($seed % 21) / 100);   // 0.75 … 0.95
+            $usePct      = 0.75 + (($seed % 21) / 100);
             $qtyUsed     = round($qtyBought * $usePct, 2);
             if ($qtyUsed <= 0) continue;
 
-            // Spread usage over 1–2 log entries per material
             $splits = ($qtyBought > 3 && ($seed % 3) !== 0) ? 2 : 1;
 
             for ($i = 0; $i < $splits; $i++) {
@@ -400,7 +360,6 @@ class ProjectSeeder extends Seeder
             'Inspection & Testing' => 'Steeltrust Corporation',
         ];
 
-        // Buy window: procurement happens in the first 40% of the project timeline
         $procureEnd = $start->copy()->addDays(max(3, (int)(($end->diffInDays($start)) * 0.40)));
 
         $materials = DB::table('project_materials')
@@ -410,19 +369,16 @@ class ProjectSeeder extends Seeder
 
         $rows = [];
         foreach ($materials as $mat) {
-            // Skip ~15% of minor items randomly to reflect real-world incomplete records
             if (in_array($mat->material_name, ['Cotton Gloves', 'Clear Glass', 'Sanding Paper #100'])
                 && ($mat->project_id % 3 === 0)) {
                 continue;
             }
 
-            // Actual unit cost: ±8% variation from BOM estimate
             $variation      = 1 + (($projectId * 7 + strlen($mat->material_name)) % 17 - 8) / 100;
             $actualUnitCost = round((float)$mat->price_per_unit * $variation, 2);
             $qty            = (float)$mat->quantity;
             $totalPaid      = round($qty * $actualUnitCost, 2);
 
-            // Spread purchase dates across the procurement window
             $seed        = $projectId + $mat->id;
             $dayOffset   = $seed % max(1, $start->diffInDays($procureEnd));
             $purchaseDate= $start->copy()->addDays($dayOffset)->toDateString();
@@ -450,9 +406,8 @@ class ProjectSeeder extends Seeder
 
     private function seedMaterials(int $projectId, string $tankType, int $qty, float $total, Carbon $start): void
     {
-        // MS Plates qty scales with project size (primary cost driver)
         $plates = max($qty, (int) round($total / 55000));
-        $s      = $qty; // other consumables scale with tank count
+        $s      = $qty;
 
         $bom = $this->bomFor(strtolower($tankType), $s, $plates);
 
@@ -476,10 +431,8 @@ class ProjectSeeder extends Seeder
         DB::table('project_materials')->insert($rows);
     }
 
-    /** Returns catalog-only BOM rows [name, category, qty, unit, price] per tank type */
     private function bomFor(string $type, int $s, int $plates): array
     {
-        // ── Underground Fuel Storage Tank ────────────────────────────────────
         if (str_contains($type, 'underground')) {
             return [
                 ['MS Plates',            'Steel & Metal Stock',  $plates,   'pcs',       4500],
@@ -502,7 +455,6 @@ class ProjectSeeder extends Seeder
             ];
         }
 
-        // ── Cooking Oil Storage Tank ──────────────────────────────────────────
         if (str_contains($type, 'cooking')) {
             return [
                 ['MS Plates',            'Steel & Metal Stock',  $plates,   'pcs',       4500],
@@ -526,7 +478,6 @@ class ProjectSeeder extends Seeder
             ];
         }
 
-        // ── Water Tank / Aboveground Water Storage Tank ───────────────────────
         if (str_contains($type, 'water')) {
             return [
                 ['MS Plates',            'Steel & Metal Stock',  $plates,   'pcs',       4500],
@@ -550,7 +501,6 @@ class ProjectSeeder extends Seeder
             ];
         }
 
-        // ── Polymer Tank ──────────────────────────────────────────────────────
         if (str_contains($type, 'polymer')) {
             return [
                 ['Angular Bar',          'Steel & Metal Stock',  $s * 8,    'pcs',        650],
@@ -570,7 +520,6 @@ class ProjectSeeder extends Seeder
             ];
         }
 
-        // ── Fuel Day Tank (small, short lead time) ────────────────────────────
         if (str_contains($type, 'fuel day')) {
             return [
                 ['MS Plates',            'Steel & Metal Stock',  $plates,   'pcs',       4500],
@@ -594,7 +543,6 @@ class ProjectSeeder extends Seeder
             ];
         }
 
-        // ── Default: Aboveground Fuel / Generic Storage Tank ──────────────────
         return [
             ['MS Plates',            'Steel & Metal Stock',  $plates,   'pcs',       4500],
             ['Angular Bar',          'Steel & Metal Stock',  $s * 4,    'pcs',        650],

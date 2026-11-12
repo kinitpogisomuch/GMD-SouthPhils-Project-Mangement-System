@@ -7,36 +7,14 @@ use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
-/**
- * GMD's historical (2021–2026) project records, from gmd_final-1.pdf.
- *
- * Additive and re-runnable: it never touches live data. Everything it creates is
- * tagged (projects.notes / salary_records.notes / monthly_expenses.description start
- * with HISTORICAL_TAG) and a re-run deletes only those rows before seeding again.
- *
- * Labor and overhead are NOT taken from the sheet's labor column — they are rebuilt
- * the way the app records them:
- *   - Labor = the employees' salaries. Every crew member works Mon–Sat (6 days a week)
- *     while at least one project is active (start date → actual completion date). A
- *     day's pay is split equally across the projects active that day, so overlapping
- *     projects share the labor cost instead of each paying a full day.
- *   - Overhead = the monthly expenses (Rent ₱28,000 + Electricity ₱7,200), split
- *     equally across the projects active in that month — the same equal split the
- *     Monthly Expenses "Save Allocation" button uses.
- *
- * Run: php artisan db:seed --class=HistoricalProjectSeeder
- */
 class HistoricalProjectSeeder extends Seeder
 {
     const HISTORICAL_TAG = 'Historical record';
 
-    // The waste/handling allowance on materials — already inside the sheet's estimated material cost.
     const MATERIAL_FACTOR = 10;
 
-    // The owner's profit on every past project, as a % of the Project Budget.
     const MARKUP = 10;
 
-    // The crew and their daily rates at the time (from the sheet).
     const CREW = [
         ['first' => 'Andres',  'last' => 'Cabanban', 'role' => 'Welder',       'rate' => 700],
         ['first' => 'Robert',  'last' => 'Olan',     'role' => 'Helper/Labor', 'rate' => 400],
@@ -45,24 +23,11 @@ class HistoricalProjectSeeder extends Seeder
         ['first' => 'Terence', 'last' => 'Almanza',  'role' => 'Fabricator',   'rate' => 450],
     ];
 
-    // Monthly expenses (from the sheet), split across the month's active projects.
     const MONTHLY_EXPENSES = [
         ['category' => 'Rent',        'amount' => 28000],
         ['category' => 'Electricity', 'amount' => 7200],
     ];
 
-    /**
-     * One row per project, as in the sheet. 'finish' = Actual Finish Date/Completion,
-     * 'lead' = lead time in days, costs are the sheet's estimated/actual material cost
-     * and estimated labor cost, 'pay' = [stage, amount, date] as received.
-     *
-     * Corrected obvious typos in the sheet (see the notes on the rows):
-     *   - Sal Lucero DP 1,250,000 → 125,000 (50% of 250,000)
-     *   - Hyundai DP/FP 1,250,000 each → 750,000 each (50% of 1,500,000); FP date 2026 → 2025
-     *   - New JDT progress billing / final payment dates 2026 → 2025
-     *   - Mario Moncada DP 140,000 → 170,000 (50% DP of 340,000; DP + FP must equal the contract)
-     *   - Powercity fuel day tanks (414,400) DP/FP 207,000 → 207,200 each (50% of 414,400)
-     */
     private function projects(): array
     {
         return [
@@ -82,7 +47,6 @@ class HistoricalProjectSeeder extends Seeder
              'name' => 'Fabrication of Fuel Day Tanks', 'contract' => 414400, 'dimensions' => '1.2m Ø x 3m (L)', 'capacity' => '3,000 liters',
              'start' => '2021-03-11', 'end' => '2021-04-25', 'finish' => '2021-04-25', 'lead' => 45, 'qty' => 2,
              'est_labor' => 112500, 'est_mat' => 222970, 'act_mat' => 202700,
-             // sheet: 207,000 each — corrected to 50% of 414,400
              'pay' => [['down_payment', 207200, '2021-03-15'], ['final_payment', 207200, '2021-05-05']]],
 
             ['client' => 'Powercity', 'address' => 'East Service Road, Brgy. Cupang, Muntinlupa City', 'type' => 'Corporate',
@@ -101,14 +65,12 @@ class HistoricalProjectSeeder extends Seeder
              'name' => 'Fabrication of Water Tank', 'contract' => 250000, 'dimensions' => '2m Ø x 3m (L)', 'capacity' => '16,000 liters',
              'start' => '2021-05-15', 'end' => '2021-06-20', 'finish' => '2021-06-20', 'lead' => 20, 'qty' => 1,
              'est_labor' => 50000, 'est_mat' => 154000, 'act_mat' => 140000,
-             // sheet: DP 1,250,000 — corrected to 125,000
              'pay' => [['down_payment', 125000, '2021-05-17'], ['final_payment', 125000, '2021-06-20']]],
 
             ['client' => 'Mario Moncada', 'address' => 'Cavite City', 'type' => 'Individual Owner',
              'name' => 'Fabrication of Underground Fuel Storage Tanks', 'contract' => 340000, 'dimensions' => '2.3m Ø x 5m (L)', 'capacity' => '8,000 liters',
              'start' => '2021-05-17', 'end' => '2021-06-22', 'finish' => '2021-06-18', 'lead' => 30, 'qty' => 2,
              'est_labor' => 75000, 'est_mat' => 242000, 'act_mat' => 220000,
-             // sheet: DP 140,000 — corrected to 170,000 (50% DP of 340,000)
              'pay' => [['down_payment', 170000, '2021-05-19'], ['final_payment', 170000, '2021-06-19']]],
 
             ['client' => 'Word of Life', 'address' => 'Calauan, Laguna', 'type' => 'Corporate',
@@ -157,14 +119,12 @@ class HistoricalProjectSeeder extends Seeder
              'name' => 'Fabrication of Polymer Tanks', 'contract' => 1500000, 'dimensions' => '12m (L) x 2.1m (W) x 2.1m (H)', 'capacity' => '60,000 liters',
              'start' => '2025-08-05', 'end' => '2025-10-10', 'finish' => '2025-10-05', 'lead' => 60, 'qty' => 3,
              'est_labor' => 150000, 'est_mat' => 1155000, 'act_mat' => 1050000,
-             // sheet: DP/FP 1,250,000 each and FP dated Oct 15, 2026 — corrected
              'pay' => [['down_payment', 750000, '2025-08-07'], ['final_payment', 750000, '2025-10-15']]],
 
             ['client' => 'New JDT Trading', 'address' => 'Puerto Princesa, Palawan', 'type' => 'Corporate',
              'name' => 'Fabrication of Underground Fuel Storage Tanks', 'contract' => 750000, 'dimensions' => '2.2m Ø x 6m (L)', 'capacity' => '8,000 liters',
              'start' => '2025-08-10', 'end' => '2025-09-15', 'finish' => '2025-09-10', 'lead' => 30, 'qty' => 3,
              'est_labor' => 75000, 'est_mat' => 632500, 'act_mat' => 575000, 'terms' => 'big_project',
-             // sheet: progress billing / final payment dated 2026 — corrected to 2025
              'pay' => [['down_payment', 375000, '2025-08-11'], ['progress_payment', 300000, '2025-08-30'], ['final_payment', 75000, '2025-09-13']]],
 
             ['client' => 'Powercity', 'address' => 'East Service Road, Brgy. Cupang, Muntinlupa City', 'type' => 'Corporate',
@@ -195,7 +155,6 @@ class HistoricalProjectSeeder extends Seeder
 
     public function run(): void
     {
-        // These projects are imported already finished; their payments and costs are created after them.
         \App\Models\Project::withoutFinancialCheck(fn () => $this->importProjects());
     }
 
@@ -205,7 +164,7 @@ class HistoricalProjectSeeder extends Seeder
             $this->removePreviousRun();
 
             $crew = $this->crewEmployees();
-            $windows = [];   // project_id => [start, finish] — the active (working) window
+            $windows = [];
 
             foreach ($this->projects() as $p) {
                 $projectId = $this->seedProject($p, $crew);
@@ -221,7 +180,6 @@ class HistoricalProjectSeeder extends Seeder
         $this->command?->info('Expense months    : ' . DB::table('monthly_expenses')->where('description', 'like', self::HISTORICAL_TAG . '%')->distinct()->count('month_year'));
     }
 
-    /** Deletes only what an earlier run of this seeder created. */
     private function removePreviousRun(): void
     {
         $projectIds = DB::table('projects')->where('notes', 'like', self::HISTORICAL_TAG . '%')->pluck('id');
@@ -230,7 +188,6 @@ class HistoricalProjectSeeder extends Seeder
             $paymentIds = DB::table('payments')->whereIn('project_id', $projectIds)->pluck('id');
             DB::table('payment_transactions')->whereIn('payment_id', $paymentIds)->delete();
             DB::table('payments')->whereIn('id', $paymentIds)->delete();
-            // materials, purchases, usage, labor, tank items, crew links and allocations cascade
             DB::table('projects')->whereIn('id', $projectIds)->delete();
         }
 
@@ -238,15 +195,9 @@ class HistoricalProjectSeeder extends Seeder
         DB::table('salary_record_project')->whereIn('salary_record_id', $salaryIds)->delete();
         DB::table('salary_records')->whereIn('id', $salaryIds)->delete();
 
-        // (their per-project allocations went with the projects above — that FK cascades)
         DB::table('monthly_expenses')->where('description', 'like', self::HISTORICAL_TAG . '%')->delete();
     }
 
-    /**
-     * The crew's employee ids with their historical daily rates. Anyone missing from the
-     * employee list (Robert Pineda) is added as archived — they no longer work for GMD
-     * but their past payroll needs an owner.
-     */
     private function crewEmployees(): array
     {
         $crew = [];
@@ -260,7 +211,7 @@ class HistoricalProjectSeeder extends Seeder
                     'employee_type' => 'Regular',
                     'pay_type'      => 'Daily',
                     'daily_rate'    => $c['rate'],
-                    'status'        => 'Inactive',   // shown as "Archived" in the employee list
+                    'status'        => 'Inactive',
                     'created_at'    => now(),
                     'updated_at'    => now(),
                 ]);
@@ -277,7 +228,6 @@ class HistoricalProjectSeeder extends Seeder
         $finish   = Carbon::parse($p['finish']);
         $terms    = $p['terms'] ?? 'small_project';
         $finalPay = collect($p['pay'])->firstWhere(0, 'final_payment');
-        // delivered when the final payment came in (paid upon delivery), never before completion
         $delivered = Carbon::parse($finalPay[2])->max($finish);
         $tankType  = $this->tankType($p['name']);
 
@@ -345,7 +295,6 @@ class HistoricalProjectSeeder extends Seeder
         return $projectId;
     }
 
-    /** Estimated labor (the BOM's labor lines): each crew member × the lead time — totals the sheet's estimate. */
     private function seedEstimatedLabor(int $projectId, array $p, array $crew, Carbon $start): void
     {
         foreach ($crew as $c) {
@@ -363,15 +312,6 @@ class HistoricalProjectSeeder extends Seeder
         }
     }
 
-    /**
-     * BOM lines totalling the sheet's Estimated Material Cost, purchases totalling the Actual
-     * Material Cost, and usage logs. The MS Plates line (the main cost driver) absorbs whatever
-     * the consumables don't cover, so both totals match the sheet to the peso.
-     *
-     * The sheet's estimate already includes the 10% material factor, so each line is stored at its
-     * base cost with MATERIAL_FACTOR on top — like a quotation built in the system — and base × 1.10
-     * gives back the sheet's estimate exactly.
-     */
     private function seedMaterials(int $projectId, array $p, string $tankType, Carbon $start, Carbon $finish): void
     {
         $lines = $this->bomFor(strtolower($tankType), $p['qty']);
@@ -381,9 +321,9 @@ class HistoricalProjectSeeder extends Seeder
         $baseTotal   = $toBase($this->estimatedMaterials($p));
         $baseOthers  = collect($lines)->reject(fn ($l) => $l[0] === 'MS Plates')->sum(fn ($l) => $toBase(round($l[2] * $l[4], 2)));
 
-        $ratio      = $p['act_mat'] / $this->estimatedMaterials($p);          // actual vs estimate, applied to every line
+        $ratio      = $p['act_mat'] / $this->estimatedMaterials($p);
         $suppliers  = $this->supplierNames();
-        $procureDays = max(2, (int) ($start->diffInDays($finish) * 0.4));   // buying happens early in the job
+        $procureDays = max(2, (int) ($start->diffInDays($finish) * 0.4));
         $spent      = 0;
         $purchaseIds = [];
 
@@ -397,7 +337,6 @@ class HistoricalProjectSeeder extends Seeder
                 $total = round($qty * $price, 2);
             }
 
-            // base cost (factor added on top); the plates line takes the rounding so the base lines total estimate ÷ 1.10
             $base = $isPlates ? round($baseTotal - $baseOthers, 2) : $toBase($total);
 
             $materialId = DB::table('project_materials')->insertGetId([
@@ -424,7 +363,6 @@ class HistoricalProjectSeeder extends Seeder
             }
         }
 
-        // MS Plates purchase closes the gap to the sheet's actual material cost exactly
         [$materialId, $name, $unit, $qty] = $platesRow;
         $purchaseIds[] = $this->insertPurchase($projectId, $materialId, $name, $unit, $qty,
             round($p['act_mat'] - $spent, 2), $suppliers[0], $start->copy());
@@ -449,7 +387,6 @@ class HistoricalProjectSeeder extends Seeder
         ]);
     }
 
-    /** Usage logs: 75–95% of each purchase used during fabrication (20%–80% of the window). */
     private function seedUsage(int $projectId, array $purchaseIds, Carbon $start, Carbon $finish): void
     {
         $span     = max(1, $start->diffInDays($finish));
@@ -475,16 +412,11 @@ class HistoricalProjectSeeder extends Seeder
         }
     }
 
-    /**
-     * Past projects carry the standard markup: the contract (fixed by what the client paid) is the
-     * Project Budget + MARKUP %, so the budget is contract ÷ 1.10.
-     */
     private function projectBudget(array $p): float
     {
         return round($p['contract'] / (1 + self::MARKUP / 100), 2);
     }
 
-    /** Estimated materials (with the 10% factor) = the budget less the estimated labor. */
     private function estimatedMaterials(array $p): float
     {
         return round($this->projectBudget($p) - $p['est_labor'], 2);
@@ -492,7 +424,7 @@ class HistoricalProjectSeeder extends Seeder
 
     private function seedPayment(int $projectId, array $p, string $terms, Carbon $start, Carbon $delivered): void
     {
-        $budget = $this->projectBudget($p);   // contract ÷ 1.10 — the standard 10% markup
+        $budget = $this->projectBudget($p);
 
         $paymentId = DB::table('payments')->insertGetId([
             'project_id'        => $projectId,
@@ -517,7 +449,7 @@ class HistoricalProjectSeeder extends Seeder
                 'payment_stage'    => $stage,
                 'amount_paid'      => $amount,
                 'payment_date'     => $date,
-                'reference_number' => null,   // no OR number on record — the receipts list shows "—"
+                'reference_number' => null,
                 'notes'            => self::HISTORICAL_TAG . '.',
                 'recorded_by'      => 'Admin',
                 'created_at'       => Carbon::parse($date)->toDateTimeString(),
@@ -525,17 +457,11 @@ class HistoricalProjectSeeder extends Seeder
             ]);
         }
 
-        Payment::find($paymentId)->recalculate();   // balance + status from the transactions
+        Payment::find($paymentId)->recalculate();
     }
 
-    /**
-     * Payroll: one weekly salary record per crew member for every week with project work.
-     * Mon–Sat are working days (6 a week); a day counts when at least one project is active
-     * on it, and that day's pay is split equally across the projects active that day.
-     */
     private function seedPayroll(array $crew, array $windows): void
     {
-        // working day (Y-m-d) => [project ids active that day]
         $days = [];
         foreach ($windows as $projectId => [$start, $finish]) {
             for ($d = $start->copy(); $d->lte($finish); $d->addDay()) {
@@ -546,14 +472,12 @@ class HistoricalProjectSeeder extends Seeder
         }
         ksort($days);
 
-        // week (Monday) => [day => project ids]
         $weeks = [];
         foreach ($days as $day => $projectIds) {
             $weeks[Carbon::parse($day)->startOfWeek(Carbon::MONDAY)->toDateString()][$day] = $projectIds;
         }
 
         foreach ($weeks as $monday => $weekDays) {
-            // share of the week's days that belongs to each project (a shared day = 1 / n each)
             $dayShare = [];
             foreach ($weekDays as $projectIds) {
                 foreach ($projectIds as $pid) {
@@ -582,8 +506,6 @@ class HistoricalProjectSeeder extends Seeder
                     'updated_at'       => $weekStart->toDateTimeString(),
                 ]);
 
-                // split the gross pay by each project's share of the days; the last project
-                // takes the rounding remainder so the allocations add up to the gross exactly
                 $allocated = 0;
                 $pids = array_keys($dayShare);
                 foreach ($pids as $k => $pid) {
@@ -603,13 +525,9 @@ class HistoricalProjectSeeder extends Seeder
         }
     }
 
-    /**
-     * Monthly expenses for every month with project work, split equally across that month's
-     * active projects (the same equal split as Monthly Expenses → Save Allocation).
-     */
     private function seedMonthlyExpenses(array $windows): void
     {
-        $months = [];   // 'Y-m' => [project ids active that month]
+        $months = [];
         foreach ($windows as $projectId => [$start, $finish]) {
             for ($m = $start->copy()->startOfMonth(); $m->lte($finish); $m->addMonth()) {
                 $months[$m->format('Y-m')][] = $projectId;
@@ -620,7 +538,6 @@ class HistoricalProjectSeeder extends Seeder
         $monthTotal = array_sum(array_column(self::MONTHLY_EXPENSES, 'amount'));
 
         foreach ($months as $month => $projectIds) {
-            // never overwrite a month that already has real (non-historical) expenses
             if (DB::table('monthly_expenses')->where('month_year', $month)->exists()) {
                 continue;
             }
@@ -651,9 +568,7 @@ class HistoricalProjectSeeder extends Seeder
         }
     }
 
-    // -------------------------------------------------------------------------
 
-    /** Links Powercity / New JDT to their existing client accounts; others stay name-only. */
     private function clientId(string $client): ?int
     {
         $prefix = ['Powercity' => 'Powercity%', 'New JDT Trading' => 'New JDT%'][$client] ?? null;
@@ -663,7 +578,6 @@ class HistoricalProjectSeeder extends Seeder
 
     private function supplierNames(): array
     {
-        // the suppliers saved in Supplier Contacts, so purchases name real suppliers
         $names = DB::table('supplier_contacts')->orderBy('id')->pluck('name')->all();
 
         return $names ?: ['Local Supplier'];
@@ -698,7 +612,6 @@ class HistoricalProjectSeeder extends Seeder
         return $status;
     }
 
-    /** Consumables per tank type [name, category, qty, unit, unit price]; MS Plates is sized later. */
     private function bomFor(string $type, int $s): array
     {
         $plates = ['MS Plates', 'Steel & Metal Stock', 1, 'pcs', 4500];

@@ -15,9 +15,6 @@ class ReviewController extends Controller
     {
         $project = Project::findOrFail($projectId);
 
-        // Ownership check compares by client_id (stable) so a client renaming
-        // themselves never locks them out of reviewing their own project.
-        // Falls back to name-matching for the rare project predating the link.
         if ($project->client_id) {
             $ownsProject = (int) $project->client_id === (int) session('user_id');
         } else {
@@ -70,10 +67,7 @@ class ReviewController extends Controller
             ]
         );
 
-        // is_anonymous is a PostgreSQL boolean column, and this connection uses emulated prepared statements,
-        // which send a PHP true/false as the number 1/0 — PostgreSQL rejects that ("column is of type boolean but
-        // expression is of type integer"), so saving a review used to fail outright. Writing it as a real SQL
-        // true/false literal avoids the mismatch.
+
         Review::whereKey($review->id)->update([
             'is_anonymous' => DB::raw($request->boolean('hide_name') ? 'true' : 'false'),
         ]);

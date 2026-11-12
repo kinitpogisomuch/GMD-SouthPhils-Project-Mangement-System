@@ -9,13 +9,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
-/**
- * Last step of client registration: Sign up → Verify email → Admin approves → Set Up Account → Log in.
- *
- * The admin's approval emails a one-time, time-limited link (only its SHA-256 hash is stored). The
- * page shows the client's auto-generated username (read-only) and lets them create a password.
- * Completing it hashes the password and makes the account Active — it does not log them in.
- */
+
 class AccountSetupController extends Controller
 {
     /** Setup links stay valid for 48 hours after the approval (or a resend) */

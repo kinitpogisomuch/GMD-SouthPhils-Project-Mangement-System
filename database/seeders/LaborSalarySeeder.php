@@ -10,7 +10,6 @@ class LaborSalarySeeder extends Seeder
 {
     public function run(): void
     {
-        // Clear any existing labor / salary data (PostgreSQL CASCADE)
         DB::statement('TRUNCATE TABLE project_labor CASCADE;');
         DB::statement('TRUNCATE TABLE salary_record_project CASCADE;');
         DB::statement('TRUNCATE TABLE salary_records CASCADE;');
@@ -24,7 +23,6 @@ class LaborSalarySeeder extends Seeder
 
         $projects = DB::table('projects')->orderBy('id')->get();
 
-        // ── 1. Assign every regular employee to every project ──────────────
         foreach ($projects as $proj) {
             foreach ($employees as $emp) {
                 DB::table('project_employee')->insertOrIgnore([
@@ -36,7 +34,6 @@ class LaborSalarySeeder extends Seeder
             }
         }
 
-        // ── 2. Project labor (total hours per employee per project) ─────────
         foreach ($projects as $proj) {
             $days = max(1, (int) round((float) $proj->estimated_working_days));
             foreach ($employees as $emp) {
@@ -57,15 +54,8 @@ class LaborSalarySeeder extends Seeder
             }
         }
 
-        // ── 3. Build salary records ─────────────────────────────────────────
-        //
-        // Strategy: collect every (week_start → [project_ids]) mapping across all
-        // projects. Then for each employee, create ONE salary record per week and
-        // link it to all projects active that week via the pivot.
-        //
-        // week_map: pay_period (YYYY-MM-DD) => [ project_id => days_worked_in_week ]
 
-        $weekMap = [];   // ['2021-03-08'] => [7 => 5, 8 => 5, …]
+        $weekMap = [];
 
         foreach ($projects as $proj) {
             $start   = Carbon::parse($proj->start_date);
@@ -78,7 +68,6 @@ class LaborSalarySeeder extends Seeder
                 $overlapStart = $cursor->copy()->max($start);
                 $overlapEnd   = $weekEnd->copy()->min($end);
 
-                // Count Mon–Sat working days in the overlap
                 $days = 0;
                 $d    = $overlapStart->copy();
                 while ($d->lte($overlapEnd)) {
@@ -92,25 +81,19 @@ class LaborSalarySeeder extends Seeder
             }
         }
 
-        // salary_record_id map: [employee_id][pay_period] => record_id
         $recordMap = [];
 
         foreach ($weekMap as $payPeriod => $projDaysMap) {
             $weekStart = Carbon::parse($payPeriod);
 
-            // Is this the last pay period of the calendar month?
             $nextWeek        = $weekStart->copy()->addWeek();
             $applyDeductions = $nextWeek->month !== $weekStart->month;
 
-            // Total unique project count for this week (for splitting the pivot)
             $projCount = count($projDaysMap);
 
             foreach ($employees as $emp) {
                 $rate = (float) $emp->daily_rate;
 
-                // Days worked = sum of per-project days (capped at 6 so no double-count)
-                // When multiple projects overlap, the employee still works one set of days.
-                // We use the MAX days across projects for the salary record itself.
                 $totalDays = min(6, max(array_values($projDaysMap)));
 
                 $grossPay      = round($rate * $totalDays, 2);
@@ -144,7 +127,6 @@ class LaborSalarySeeder extends Seeder
 
                 $recordMap[$emp->id][$payPeriod] = $recordId;
 
-                // Link to each project active this week via the pivot
                 foreach ($projDaysMap as $projId => $projDays) {
                     $allocPay = round($rate * $projDays / $projCount, 2);
                     DB::table('salary_record_project')->insertOrIgnore([
